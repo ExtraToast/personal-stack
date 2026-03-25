@@ -1,25 +1,71 @@
-import { ref, computed } from 'vue'
-import type { Ref } from 'vue'
-import type { User } from '../types'
+import type { AuthTokens, User } from '../types'
+import { computed, ref } from 'vue'
+import { decodeJwt, isTokenExpired } from '../utils/jwt'
 
-interface UseAuthReturn {
-  user: Ref<User | null>
-  isAuthenticated: Ref<boolean>
-  login: (token: string) => void
-  logout: () => void
+const ACCESS_TOKEN_KEY = 'ps_access_token'
+const REFRESH_TOKEN_KEY = 'ps_refresh_token'
+
+const VALID_ROLES: readonly User['role'][] = ['ADMIN', 'USER', 'READONLY']
+
+// Module-level state — shared across all useAuth() calls (singleton pattern)
+const user = ref<User | null>(null)
+
+function userFromToken(token: string): User | null {
+  try {
+    const payload = decodeJwt(token)
+    const roleRaw = payload.roles?.[0]?.replace('ROLE_', '') ?? 'USER'
+    const role: User['role'] = VALID_ROLES.includes(roleRaw as User['role'])
+      ? (roleRaw as User['role'])
+      : 'USER'
+    return {
+      id: payload.sub,
+      username: payload.username ?? payload.sub,
+      email: '',
+      role,
+    }
+  } catch {
+    return null
+  }
 }
 
-export function useAuth(): UseAuthReturn {
-  const user = ref<User | null>(null)
+// Initialize from storage on module load
+const storedToken = localStorage.getItem(ACCESS_TOKEN_KEY)
+if (storedToken && !isTokenExpired(storedToken)) {
+  user.value = userFromToken(storedToken)
+}
+
+// eslint-disable-next-line ts/explicit-function-return-type -- composable return type is complex and inferred
+export function useAuth() {
   const isAuthenticated = computed(() => user.value !== null)
 
-  function login(_token: string): void {
-    // TODO: decode JWT and set user
+  function setTokens(tokens: AuthTokens): void {
+    localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken)
+    localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken)
+    user.value = userFromToken(tokens.accessToken)
+  }
+
+  function getAccessToken(): string | null {
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY)
+    if (!token || isTokenExpired(token)) return null
+    return token
+  }
+
+  function getRefreshToken(): string | null {
+    return localStorage.getItem(REFRESH_TOKEN_KEY)
   }
 
   function logout(): void {
+    localStorage.removeItem(ACCESS_TOKEN_KEY)
+    localStorage.removeItem(REFRESH_TOKEN_KEY)
     user.value = null
   }
 
-  return { user, isAuthenticated, login, logout }
+  return {
+    user,
+    isAuthenticated,
+    setTokens,
+    getAccessToken,
+    getRefreshToken,
+    logout,
+  }
 }

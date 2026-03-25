@@ -1,20 +1,33 @@
-import { useApi } from '@private-stack/vue-common'
-import type { Message, Conversation } from '../types'
+import type { Conversation, Message } from '../types'
+import { useApiWithAuth } from '@private-stack/vue-common'
 
-const api = useApi()
-
-export async function sendMessage(conversationId: string, content: string): Promise<Message> {
-  return api.post<Message>(`/conversations/${conversationId}/messages`, { content })
+function getApi(): ReturnType<typeof useApiWithAuth> {
+  return useApiWithAuth({ baseUrl: '/api/v1' })
 }
 
 export async function getConversations(): Promise<Conversation[]> {
-  return api.get<Conversation[]>('/conversations')
+  return getApi().get<Conversation[]>('/conversations')
 }
 
 export async function getConversation(id: string): Promise<Conversation> {
-  return api.get<Conversation>(`/conversations/${id}`)
+  return getApi().get<Conversation>(`/conversations/${id}`)
 }
 
 export async function createConversation(title: string): Promise<Conversation> {
-  return api.post<Conversation>('/conversations', { title })
+  return getApi().post<Conversation>('/conversations', { title })
+}
+
+export async function archiveConversation(id: string): Promise<void> {
+  return getApi().del(`/conversations/${id}`)
+}
+
+export async function getMessages(conversationId: string): Promise<Message[]> {
+  return getApi().get<Message[]>(`/conversations/${conversationId}/messages`)
+}
+
+export async function sendMessage(conversationId: string, content: string): Promise<Message> {
+  return getApi().post<Message>(`/conversations/${conversationId}/messages`, {
+    content,
+    role: 'USER',
+  })
 }

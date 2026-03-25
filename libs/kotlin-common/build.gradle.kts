@@ -5,11 +5,16 @@ plugins {
 }
 
 dependencies {
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
-    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.2")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.18.2")
+    // Optional Spring deps for infrastructure adapters — provided at runtime by services
+    compileOnly("org.springframework.boot:spring-boot-starter-amqp:4.0.4")
+    compileOnly("org.springframework.boot:spring-boot-starter-web:4.0.4")
+    compileOnly("org.springframework.boot:spring-boot-starter-validation:4.0.4")
+    compileOnly("org.springframework.vault:spring-vault-core:3.1.2")
 
-    testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
     testImplementation("io.mockk:mockk:1.13.16")
     testImplementation("org.assertj:assertj-core:3.27.3")
-    testImplementation("com.tngtech.archunit:archunit-junit5:1.4.0")
+    implementation("com.tngtech.archunit:archunit-junit5:1.4.0")
 }

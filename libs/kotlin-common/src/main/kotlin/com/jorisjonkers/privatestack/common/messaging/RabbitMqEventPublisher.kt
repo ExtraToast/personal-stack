@@ -1,0 +1,25 @@
+package com.jorisjonkers.privatestack.common.messaging
+
+import com.jorisjonkers.privatestack.common.event.DomainEvent
+import org.slf4j.LoggerFactory
+import org.springframework.amqp.rabbit.core.RabbitTemplate
+import org.springframework.stereotype.Component
+
+@Component
+class RabbitMqEventPublisher(
+    private val rabbitTemplate: RabbitTemplate,
+) {
+
+    private val log = LoggerFactory.getLogger(RabbitMqEventPublisher::class.java)
+
+    fun publish(routingKey: String, event: DomainEvent) {
+        try {
+            rabbitTemplate.convertAndSend(RabbitMqConfig.EVENTS_EXCHANGE, routingKey, event)
+            log.debug("Published event {} to routing key {}", event::class.simpleName, routingKey)
+        }
+        catch (e: Exception) {
+            log.error("Failed to publish event {} to RabbitMQ", event::class.simpleName, e)
+            throw e
+        }
+    }
+}

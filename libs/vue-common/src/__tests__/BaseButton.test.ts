@@ -1,8 +1,8 @@
 import { mount } from '@vue/test-utils'
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import BaseButton from '../components/BaseButton.vue'
 
-describe('BaseButton', () => {
+describe('baseButton', () => {
   it('renders label', () => {
     const wrapper = mount(BaseButton, {
       props: { label: 'Click me' },

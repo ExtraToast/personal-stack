@@ -1,14 +1,18 @@
-import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { useAuth } from '@private-stack/vue-common'
+import { createRouter, createWebHistory } from 'vue-router'
 
 declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean
-    requiredRoles?: string[]
   }
 }
 
 const routes: RouteRecordRaw[] = [
+  {
+    path: '/',
+    redirect: '/chat',
+  },
   {
     path: '/chat',
     name: 'chat',
@@ -23,9 +27,13 @@ export const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  if (to.meta.requiresAuth === false) {
-    return true
+  const { isAuthenticated } = useAuth()
+
+  if (to.meta.requiresAuth && !isAuthenticated.value) {
+    // Redirect to auth-ui login (cross-origin in production, same-origin in dev with proxy)
+    window.location.href = `${import.meta.env.VITE_AUTH_URL ?? 'http://localhost:5174'}/login?redirect=${encodeURIComponent(window.location.href)}`
+    return false
   }
-  // TODO: check auth state
+
   return true
 })

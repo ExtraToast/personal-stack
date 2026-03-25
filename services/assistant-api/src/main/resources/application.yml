@@ -7,7 +7,7 @@ spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/assistant_db
     username: ${DB_USER:assistant_user}
-    password: ${DB_PASSWORD:assistant_pass}
+    password: ${DB_PASSWORD:assistant_password}
   flyway:
     enabled: true
     locations: classpath:db/migration

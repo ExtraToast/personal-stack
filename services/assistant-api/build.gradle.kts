@@ -3,6 +3,13 @@ plugins {
     id("detekt-conventions")
     id("ktlint-conventions")
     id("testing-conventions")
+    id("jooq-codegen-conventions")
+}
+
+jooqCodegen {
+    schemaName = "public"
+    packageName = "com.jorisjonkers.privatestack.assistant.jooq"
+    migrationLocations = listOf("filesystem:src/main/resources/db/migration")
 }
 
 dependencies {

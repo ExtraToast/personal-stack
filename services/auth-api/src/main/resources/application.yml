@@ -7,7 +7,7 @@ spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/auth_db
     username: ${DB_USER:auth_user}
-    password: ${DB_PASSWORD:auth_pass}
+    password: ${DB_PASSWORD:auth_password}
   flyway:
     enabled: true
     locations: classpath:db/migration

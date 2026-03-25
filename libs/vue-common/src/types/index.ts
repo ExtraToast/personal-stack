@@ -5,6 +5,13 @@ export interface User {
   role: 'ADMIN' | 'USER' | 'READONLY'
 }
 
+export interface AuthTokens {
+  accessToken: string
+  refreshToken: string
+  expiresIn: number
+  tokenType?: string
+}
+
 export interface ApiError {
   message: string
   code: string

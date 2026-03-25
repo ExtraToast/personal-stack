@@ -1,14 +1,16 @@
 export interface Message {
   id: string
-  role: 'user' | 'assistant' | 'system'
+  conversationId: string
+  role: 'USER' | 'ASSISTANT'
   content: string
-  timestamp: string
+  createdAt: string
 }
 
 export interface Conversation {
   id: string
   title: string
-  messages: Message[]
+  userId: string
+  status: 'ACTIVE' | 'ARCHIVED'
   createdAt: string
   updatedAt: string
 }

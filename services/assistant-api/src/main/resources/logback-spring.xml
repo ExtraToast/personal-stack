@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <springProfile name="!local">
+    <appender name="JSON_STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+      <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+        <includeMdcKeyName>traceId</includeMdcKeyName>
+        <includeMdcKeyName>spanId</includeMdcKeyName>
+        <customFields>{"service":"assistant-api"}</customFields>
+      </encoder>
+    </appender>
+    <root level="INFO">
+      <appender-ref ref="JSON_STDOUT"/>
+    </root>
+  </springProfile>
+
+  <springProfile name="local">
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+      <encoder>
+        <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+      </encoder>
+    </appender>
+    <root level="DEBUG">
+      <appender-ref ref="STDOUT"/>
+    </root>
+    <logger name="org.springframework" level="INFO"/>
+    <logger name="org.jooq" level="DEBUG"/>
+  </springProfile>
+</configuration>

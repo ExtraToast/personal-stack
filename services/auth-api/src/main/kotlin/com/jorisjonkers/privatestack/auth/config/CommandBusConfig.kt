@@ -3,29 +3,40 @@ package com.jorisjonkers.privatestack.auth.config
 import com.jorisjonkers.privatestack.common.command.Command
 import com.jorisjonkers.privatestack.common.command.CommandBus
 import com.jorisjonkers.privatestack.common.command.CommandHandler
-import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import kotlin.reflect.KClass
+import kotlin.reflect.full.superclasses
 
 @Configuration
 class CommandBusConfig {
 
     @Bean
-    fun commandBus(applicationContext: ApplicationContext): CommandBus {
-        return SpringCommandBus(applicationContext)
-    }
+    fun commandBus(handlers: List<CommandHandler<*>>): CommandBus = SpringCommandBus(handlers)
 }
 
-class SpringCommandBus(
-    private val applicationContext: ApplicationContext,
-) : CommandBus {
+class SpringCommandBus(handlers: List<CommandHandler<*>>) : CommandBus {
+
+    private val handlerMap: Map<KClass<*>, CommandHandler<*>> = buildMap {
+        for (handler in handlers) {
+            val commandType = resolveCommandType(handler)
+                ?: error("Cannot determine command type for ${handler::class.simpleName}")
+            put(commandType, handler)
+        }
+    }
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : Command> dispatch(command: T) {
-        val handlers = applicationContext.getBeansOfType(CommandHandler::class.java)
-        val handler = handlers.values
-            .filterIsInstance<CommandHandler<T>>()
-            .firstOrNull() ?: error("No handler found for ${command::class.simpleName}")
+        val handler = handlerMap[command::class] as? CommandHandler<T>
+            ?: error("No handler registered for ${command::class.simpleName}")
         handler.handle(command)
     }
+
+    private fun resolveCommandType(handler: CommandHandler<*>): KClass<*>? =
+        handler::class.supertypes
+            .firstOrNull { it.classifier == CommandHandler::class }
+            ?.arguments
+            ?.firstOrNull()
+            ?.type
+            ?.classifier as? KClass<*>
 }

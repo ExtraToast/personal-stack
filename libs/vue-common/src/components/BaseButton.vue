@@ -25,7 +25,8 @@ function handleClick(event: MouseEvent): void {
 
 <template>
   <button
-    :class="['base-button', `base-button--${variant}`]"
+    class="base-button"
+    :class="[`base-button--${variant}`]"
     :disabled="disabled || loading"
     @click="handleClick"
   >
