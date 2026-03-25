@@ -1,0 +1,51 @@
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        certResolver: cloudflare
+
+certificatesResolvers:
+  cloudflare:
+    acme:
+      email: admin@jorisjonkers.dev
+      storage: /letsencrypt/acme.json
+      dnsChallenge:
+        provider: cloudflare
+        resolvers:
+          - "1.1.1.1:53"
+          - "1.0.0.1:53"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    swarmMode: true
+    exposedByDefault: false
+    network: private-stack-overlay
+  file:
+    directory: /etc/traefik/dynamic/
+    watch: true
+
+api:
+  dashboard: true
+
+metrics:
+  prometheus:
+    entryPoint: websecure
+
+accessLog:
+  filePath: /var/log/traefik/access.log
+  bufferingSize: 100
+  filters:
+    statusCodes:
+      - "400-599"
+
+log:
+  level: INFO

@@ -1,0 +1,11 @@
+node_modules
+dist
+build
+*.min.*
+pnpm-lock.yaml
+coverage
+stryker-tmp
+playwright-report
+**/generated/
+**/generated-jooq/
+.gradle

@@ -1,0 +1,71 @@
+build:
+  maxIssues: 0
+
+complexity:
+  CyclomaticComplexMethod:
+    active: true
+    threshold: 10
+  LongMethod:
+    active: true
+    threshold: 30
+  LongParameterList:
+    active: true
+    threshold: 6
+  LargeClass:
+    active: true
+    threshold: 300
+  TooManyFunctions:
+    active: true
+    threshold: 15
+
+style:
+  ForbiddenComment:
+    active: true
+    comments:
+      - "TODO"
+      - "FIXME"
+    severity: warning
+  MagicNumber:
+    active: true
+    ignoreNumbers:
+      - "-1"
+      - "0"
+      - "1"
+      - "2"
+    ignorePropertyDeclaration: true
+    ignoreAnnotation: true
+    ignoreEnums: true
+  MaxLineLength:
+    active: true
+    maxLineLength: 120
+  ReturnCount:
+    active: true
+    max: 3
+  UnusedImports:
+    active: true
+  VarCouldBeVal:
+    active: true
+  UnnecessaryAbstractClass:
+    active: true
+  WildcardImport:
+    active: true
+
+potential-bugs:
+  UnsafeCallOnNullableType:
+    active: true
+
+exceptions:
+  TooGenericExceptionCaught:
+    active: true
+
+naming:
+  FunctionNaming:
+    active: true
+  ClassNaming:
+    active: true
+  PackageNaming:
+    active: true
+
+formatting:
+  active: true
+  android: false
