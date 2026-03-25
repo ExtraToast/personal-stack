@@ -5,7 +5,7 @@ plugins {
 }
 
 dependencies {
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.2")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.21.2")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.18.2")
     // Optional Spring deps for infrastructure adapters — provided at runtime by services
     compileOnly("org.springframework.boot:spring-boot-starter-amqp:4.0.4")
