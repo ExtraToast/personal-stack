@@ -1,0 +1,34 @@
+;;
+;; Domain:     jorisjonkers.dev.
+;;
+;; Cloudflare-importable zone file for jorisjonkers.dev.
+;; Covers the root domain and all subdomains via wildcard CNAME.
+;;
+;; Records:
+;;   A/AAAA  jorisjonkers.dev      → Contabo VPS (167.86.79.203 / 2a02:c207:2318:569::1), proxied
+;;   CNAME   *.jorisjonkers.dev    → jorisjonkers.dev, proxied
+;;
+;; Subdomains in use (all resolved via wildcard CNAME):
+;;   auth.jorisjonkers.dev
+;;   assistant.jorisjonkers.dev
+;;   vault.jorisjonkers.dev
+;;   n8n.jorisjonkers.dev
+;;   grafana.jorisjonkers.dev
+;;   status.jorisjonkers.dev
+;;   traefik.jorisjonkers.dev
+
+;; SOA Record
+jorisjonkers.dev    3600    IN    SOA    amber.ns.cloudflare.com. dns.cloudflare.com. 2052612338 10000 2400 604800 3600
+
+;; NS Records
+jorisjonkers.dev.    86400    IN    NS    amber.ns.cloudflare.com.
+jorisjonkers.dev.    86400    IN    NS    nolan.ns.cloudflare.com.
+
+;; A Records
+jorisjonkers.dev.    1    IN    A    167.86.79.203 ; cf_tags=cf-proxied:true
+
+;; AAAA Records
+jorisjonkers.dev.    1    IN    AAAA    2a02:c207:2318:569::1 ; cf_tags=cf-proxied:true
+
+;; CNAME Records
+*.jorisjonkers.dev.    1    IN    CNAME    jorisjonkers.dev. ; cf_tags=cf-proxied:true
