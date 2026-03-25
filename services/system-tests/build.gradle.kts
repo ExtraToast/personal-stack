@@ -5,7 +5,7 @@ plugins {
 }
 
 dependencies {
-    testImplementation("io.rest-assured:rest-assured:5.5.1")
+    testImplementation("io.rest-assured:rest-assured:6.0.0")
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
     testImplementation("org.assertj:assertj-core:3.27.3")
     testImplementation("org.testcontainers:testcontainers:1.21.4")
