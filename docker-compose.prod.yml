@@ -93,7 +93,7 @@ services:
       - |
         mkdir -p /vault/data
         chown -R vault:vault /vault/data
-        exec vault server -config=/vault/config/vault.hcl
+        exec su-exec vault vault server -config=/vault/config/vault.hcl
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8200/v1/sys/seal-status || exit 0']
       interval: 15s
