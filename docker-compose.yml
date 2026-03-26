@@ -71,11 +71,6 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./infra/traefik/traefik-dev.yml:/etc/traefik/traefik.yml:ro
-    depends_on:
-      auth-api:
-        condition: service_healthy
-      assistant-api:
-        condition: service_healthy
 
   # ── Backend Services ────────────────────────────────────────────
 
