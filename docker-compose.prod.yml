@@ -149,10 +149,25 @@ services:
       - private-stack-overlay
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: auth_user
+      DB_PASSWORD: placeholder
+      VALKEY_HOST: valkey
+      VALKEY_PORT: 6379
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
       VAULT_ADDR: http://vault:8200
       OTEL_SERVICE_NAME: auth-api
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
       OTEL_LOGS_EXPORTER: none
+    entrypoint:
+      - sh
+      - -c
+      - |
+        export VAULT_ROLE_ID=$$(cat /run/secrets/vault_auth_api_role_id)
+        export VAULT_SECRET_ID=$$(cat /run/secrets/vault_auth_api_secret_id)
+        exec java -javaagent:otel-javaagent.jar -jar app.jar
     secrets:
       - vault_auth_api_role_id
       - vault_auth_api_secret_id
@@ -177,10 +192,25 @@ services:
       - private-stack-overlay
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: assistant_user
+      DB_PASSWORD: placeholder
+      VALKEY_HOST: valkey
+      VALKEY_PORT: 6379
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
       VAULT_ADDR: http://vault:8200
       OTEL_SERVICE_NAME: assistant-api
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
       OTEL_LOGS_EXPORTER: none
+    entrypoint:
+      - sh
+      - -c
+      - |
+        export VAULT_ROLE_ID=$$(cat /run/secrets/vault_assistant_api_role_id)
+        export VAULT_SECRET_ID=$$(cat /run/secrets/vault_assistant_api_secret_id)
+        exec java -javaagent:otel-javaagent.jar -jar app.jar
     secrets:
       - vault_assistant_api_role_id
       - vault_assistant_api_secret_id
