@@ -26,7 +26,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   valkey:
     image: valkey/valkey:8-alpine
@@ -46,7 +46,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   rabbitmq:
     image: rabbitmq:4.2-management-alpine
@@ -76,7 +76,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   vault:
     image: hashicorp/vault:1.19
@@ -107,7 +107,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   traefik:
     image: traefik:v3.6
@@ -161,6 +161,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
+      start_period: 60s
     deploy:
       replicas: 2
       update_config:
@@ -168,7 +169,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   assistant-api:
     image: ghcr.io/extratoast/private-stack/assistant-api:latest
@@ -188,6 +189,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
+      start_period: 60s
     deploy:
       replicas: 2
       update_config:
@@ -195,7 +197,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   auth-ui:
     image: ghcr.io/extratoast/private-stack/auth-ui:latest
@@ -213,7 +215,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   assistant-ui:
     image: ghcr.io/extratoast/private-stack/assistant-ui:latest
@@ -231,7 +233,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   app-ui:
     image: ghcr.io/extratoast/private-stack/app-ui:latest
@@ -249,7 +251,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   n8n:
     image: n8nio/n8n:2.13.4
@@ -271,10 +273,11 @@ services:
       - n8n_db_user
       - n8n_db_password
     healthcheck:
-      test: ['CMD-SHELL', 'curl -f http://localhost:5678/healthz || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:5678/healthz || exit 1']
       interval: 15s
       timeout: 5s
       retries: 5
+      start_period: 120s
     deploy:
       replicas: 1
       update_config:
@@ -282,7 +285,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   # ── Observability ───────────────────────────────────────────────
   prometheus:
@@ -307,7 +310,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   grafana:
     image: grafana/grafana:11.6.0
@@ -334,7 +337,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   loki:
     image: grafana/loki:3.5.0
@@ -356,7 +359,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   promtail:
     image: grafana/promtail:3.5.0
@@ -374,7 +377,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   tempo:
     image: grafana/tempo:2.7.2
@@ -396,7 +399,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   uptime-kuma:
     image: louislam/uptime-kuma:2
@@ -416,7 +419,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
 volumes:
   postgres-data:
