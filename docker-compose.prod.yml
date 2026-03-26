@@ -239,7 +239,7 @@ services:
         condition: on-failure
 
   n8n:
-    image: n8nio/n8n:2.13
+    image: n8nio/n8n:2.13.4
     networks:
       - private-stack-overlay
     environment:
