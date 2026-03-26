@@ -13,20 +13,21 @@ interface ExperienceEntry {
 </script>
 
 <template>
-  <section id="experience" class="px-6 py-24">
+  <section id="experience" class="px-4 py-12 sm:px-6 sm:py-24">
     <div class="mx-auto max-w-3xl">
       <h2 class="font-mono text-sm font-semibold uppercase tracking-widest text-terminal-green">
-        <span class="text-gray-600">02.</span> {{ t('experience.title') }}
+        <span class="text-gray-600">02.</span>
+        {{ t('experience.title') }}
       </h2>
       <p class="mt-3 text-gray-500">
         {{ t('experience.subtitle') }}
       </p>
 
-      <ol class="relative mt-10 border-l-2 border-surface-border pl-8">
+      <ol class="relative mt-6 border-l-2 border-surface-border pl-6 sm:mt-10 sm:pl-8">
         <li
           v-for="(entry, index) in tm('experience.entries') as ExperienceEntry[]"
           :key="index"
-          class="relative mb-12 last:mb-0"
+          class="relative mb-8 last:mb-0 sm:mb-12"
         >
           <!-- Timeline dot -->
           <div

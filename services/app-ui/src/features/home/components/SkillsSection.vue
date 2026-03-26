@@ -43,16 +43,17 @@ function barWidth(years: number | string): string {
 </script>
 
 <template>
-  <section id="skills" class="px-6 py-24">
+  <section id="skills" class="px-4 py-12 sm:px-6 sm:py-24">
     <div class="mx-auto max-w-4xl">
       <h2 class="font-mono text-sm font-semibold uppercase tracking-widest text-terminal-green">
-        <span class="text-gray-600">04.</span> {{ t('skills.title') }}
+        <span class="text-gray-600">04.</span>
+        {{ t('skills.title') }}
       </h2>
       <p class="mt-3 text-gray-500">
         {{ t('skills.subtitle') }}
       </p>
 
-      <div class="mt-10 grid gap-12 md:grid-cols-2">
+      <div class="mt-6 grid gap-8 sm:mt-10 sm:gap-12 md:grid-cols-2">
         <!-- Programming languages -->
         <div>
           <h3

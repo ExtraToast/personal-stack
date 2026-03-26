@@ -5,13 +5,17 @@ const { t, tm } = useI18n()
 </script>
 
 <template>
-  <section id="about" class="border-t border-surface-border/40 bg-surface-card px-6 py-24">
+  <section
+    id="about"
+    class="border-t border-surface-border/40 bg-surface-card px-4 py-12 sm:px-6 sm:py-24"
+  >
     <div class="mx-auto max-w-4xl">
       <h2 class="font-mono text-sm font-semibold uppercase tracking-widest text-terminal-green">
-        <span class="text-gray-600">01.</span> {{ t('about.title') }}
+        <span class="text-gray-600">01.</span>
+        {{ t('about.title') }}
       </h2>
 
-      <div class="mt-10 grid gap-10 md:grid-cols-2">
+      <div class="mt-6 grid gap-8 sm:mt-10 md:grid-cols-2">
         <div>
           <p class="text-lg leading-relaxed text-gray-300">
             {{ t('about.intro') }}
