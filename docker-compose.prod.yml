@@ -48,7 +48,7 @@ services:
         condition: on-failure
 
   rabbitmq:
-    image: rabbitmq:4-management-alpine
+    image: rabbitmq:4.2-management-alpine
     networks:
       - private-stack-overlay
     entrypoint:
@@ -78,7 +78,7 @@ services:
         condition: on-failure
 
   vault:
-    image: hashicorp/vault:latest
+    image: hashicorp/vault:1.19
     user: '0'
     networks:
       - private-stack-overlay
@@ -103,7 +103,7 @@ services:
         condition: on-failure
 
   traefik:
-    image: traefik:v3.3
+    image: traefik:v3.6
     networks:
       - private-stack-overlay
     ports:
@@ -115,7 +115,6 @@ services:
       - ./infra/traefik/dynamic:/etc/traefik/dynamic:ro
       - traefik-certs:/letsencrypt
     environment:
-      DOCKER_API_VERSION: '1.46'
       CF_DNS_API_TOKEN_FILE: /run/secrets/cf_dns_api_token
     secrets:
       - cf_dns_api_token
@@ -240,7 +239,7 @@ services:
         condition: on-failure
 
   n8n:
-    image: n8nio/n8n:latest
+    image: n8nio/n8n:2.13
     networks:
       - private-stack-overlay
     environment:
@@ -274,7 +273,7 @@ services:
 
   # ── Observability ───────────────────────────────────────────────
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.3.1
     networks:
       - private-stack-overlay
     volumes:
@@ -298,7 +297,7 @@ services:
         condition: on-failure
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.6.0
     networks:
       - private-stack-overlay
     environment:
@@ -325,12 +324,13 @@ services:
         condition: on-failure
 
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:3.5.0
     networks:
       - private-stack-overlay
     volumes:
+      - ./infra/observability/loki/loki.yaml:/etc/loki/loki.yaml:ro
       - loki-data:/loki
-    command: -config.file=/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/loki.yaml
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://localhost:3100/ready || exit 1']
       interval: 15s
@@ -346,10 +346,11 @@ services:
         condition: on-failure
 
   promtail:
-    image: grafana/promtail:latest
+    image: grafana/promtail:3.5.0
     networks:
       - private-stack-overlay
     volumes:
+      - ./infra/observability/promtail/promtail.yaml:/etc/promtail/config.yml:ro
       - /var/log:/var/log:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     command: -config.file=/etc/promtail/config.yml
@@ -363,7 +364,7 @@ services:
         condition: on-failure
 
   tempo:
-    image: grafana/tempo:2.6.1
+    image: grafana/tempo:2.7.2
     networks:
       - private-stack-overlay
     volumes:
@@ -385,7 +386,7 @@ services:
         condition: on-failure
 
   uptime-kuma:
-    image: louislam/uptime-kuma:latest
+    image: louislam/uptime-kuma:2
     networks:
       - private-stack-overlay
     volumes:
