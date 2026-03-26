@@ -2,7 +2,6 @@ import org.jooq.codegen.GenerationTool
 import org.jooq.meta.jaxb.Configuration
 import org.jooq.meta.jaxb.Database
 import org.jooq.meta.jaxb.Generator
-import org.jooq.meta.jaxb.Property
 import org.jooq.meta.jaxb.Target
 
 interface JooqCodegenExtension {
@@ -20,7 +19,6 @@ val generateJooq by tasks.registering {
     val outputDir = layout.buildDirectory.dir("generated/jooq")
     outputs.dir(outputDir)
 
-    // Declare inputs so task is up-to-date when migrations haven't changed
     inputs.files(fileTree("src/main/resources/db/migration").include("**/*.sql"))
 
     doLast {
@@ -42,14 +40,13 @@ val generateJooq by tasks.registering {
                                 .withName("org.jooq.meta.extensions.ddl.DDLDatabase")
                                 .withProperties(
                                     listOf(
-                                        Property().withKey("scripts").withValue(scripts),
-                                        Property().withKey("sort").withValue("flyway"),
-                                        Property().withKey("defaultNameCase").withValue("lower"),
+                                        org.jooq.meta.jaxb.Property().withKey("scripts").withValue(scripts),
+                                        org.jooq.meta.jaxb.Property().withKey("sort").withValue("flyway"),
+                                        org.jooq.meta.jaxb.Property().withKey("defaultNameCase").withValue("lower"),
                                     ),
                                 )
                                 .withIncludes(".*")
-                                .withExcludes("flyway_schema_history")
-                                .withInputSchema(schema),
+                                .withExcludes("flyway_schema_history"),
                         )
                         .withTarget(
                             Target()
