@@ -42,7 +42,8 @@ class ArchiveConversationCommandHandlerTest {
         every { conversationRepository.findById(conversationId) } returns null
 
         assertThatThrownBy {
-            handler.handle(ArchiveConversationCommand(conversationId = conversationId, userId = UUID.randomUUID().toString()))
+            val cmd = ArchiveConversationCommand(conversationId = conversationId, userId = UUID.randomUUID().toString())
+            handler.handle(cmd)
         }.isInstanceOf(NotFoundException::class.java)
     }
 

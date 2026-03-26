@@ -14,6 +14,7 @@ class ArchiveConversationCommandHandler(
     private val conversationRepository: ConversationRepository,
 ) : CommandHandler<ArchiveConversationCommand> {
 
+    @Suppress("ThrowsCount")
     override fun handle(command: ArchiveConversationCommand) {
         val conversation = conversationRepository.findById(command.conversationId)
             ?: throw NotFoundException("Conversation", command.conversationId.value.toString())
