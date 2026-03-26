@@ -33,6 +33,26 @@ require_var() {
   fi
 }
 
+random_password() {
+  openssl rand -base64 24 | tr -d '/+=' | head -c 32
+}
+
+# Auto-generate a password if the var is empty, and write it back to .env
+ensure_password() {
+  local name="$1"
+  if [[ -z "${!name:-}" ]]; then
+    local val
+    val=$(random_password)
+    eval "$name=\$val"
+    if grep -q "^${name}=" .env; then
+      sed -i "s|^${name}=.*|${name}=${val}|" .env
+    else
+      echo "${name}=${val}" >> .env
+    fi
+    info "Generated random value for $name"
+  fi
+}
+
 # ── 1. SSH Keys ──────────────────────────────────────────────────
 
 info "Checking SSH keys..."
@@ -51,7 +71,7 @@ fi
 # shellcheck source=/dev/null
 source .env
 
-# ── 3. Validate ──────────────────────────────────────────────────
+# ── 3. Validate Contabo credentials ─────────────────────────────
 
 require_var CONTABO_OAUTH2_CLIENT_ID
 require_var CONTABO_OAUTH2_CLIENT_SECRET
@@ -68,7 +88,22 @@ CNTB_AUTH=(
   --oauth2-password "$CONTABO_OAUTH2_PASSWORD"
 )
 
-# ── 4. Register deploy key on GitHub ─────────────────────────────
+# ── 4. Auto-generate Docker Swarm secret values ─────────────────
+
+info "Ensuring Docker Swarm secret values..."
+ensure_password POSTGRES_PASSWORD
+ensure_password RABBITMQ_PASSWORD
+ensure_password GRAFANA_ADMIN_PASSWORD
+ensure_password N8N_DB_PASSWORD
+
+# Defaults for usernames (not passwords, but must be non-empty)
+: "${POSTGRES_USER:=postgres}"
+: "${RABBITMQ_USER:=guest}"
+: "${GRAFANA_ADMIN_USER:=admin}"
+: "${N8N_DB_USER:=n8n_user}"
+: "${CF_DNS_API_TOKEN:=placeholder}"
+
+# ── 5. Register deploy key on GitHub ─────────────────────────────
 
 info "Checking GitHub deploy key..."
 if gh repo deploy-key list 2>/dev/null | grep -q "private-stack-deploy-key"; then
@@ -80,12 +115,11 @@ else
   ok "Deploy key registered"
 fi
 
-# ── 5. Upload SSH key to Contabo ─────────────────────────────────
+# ── 6. Upload SSH key to Contabo ─────────────────────────────────
 
 if [[ -n "${CONTABO_SSH_SECRET_ID:-}" ]]; then
   ok "Contabo SSH secret ID already set: $CONTABO_SSH_SECRET_ID"
 else
-  # Check if the secret already exists on Contabo
   info "Checking for existing SSH secret on Contabo..."
   EXISTING_SECRETS=""
   EXISTING_SECRETS=$(cntb get secrets \
@@ -99,7 +133,7 @@ else
   if [[ -n "$CONTABO_SSH_SECRET_ID" ]]; then
     ok "Found existing SSH secret: ID=$CONTABO_SSH_SECRET_ID"
   else
-    info "No existing secret found. Creating new SSH secret on Contabo..."
+    info "Creating new SSH secret on Contabo..."
     CREATE_OUTPUT=""
     if ! CREATE_OUTPUT=$(cntb create secret \
       --name "private-stack-root-user" \
@@ -119,7 +153,6 @@ else
     ok "Contabo SSH secret created: ID=$CONTABO_SSH_SECRET_ID"
   fi
 
-  # Write back to .env
   if grep -q "^CONTABO_SSH_SECRET_ID=" .env; then
     sed -i "s/^CONTABO_SSH_SECRET_ID=.*/CONTABO_SSH_SECRET_ID=$CONTABO_SSH_SECRET_ID/" .env
   else
@@ -129,7 +162,7 @@ else
   ok "Saved CONTABO_SSH_SECRET_ID=$CONTABO_SSH_SECRET_ID to .env"
 fi
 
-# ── 6. Render cloud-init template ───────────────────────────────
+# ── 7. Render cloud-init template ───────────────────────────────
 
 info "Rendering cloud-init template..."
 
@@ -140,11 +173,20 @@ sed \
   -e "s|__SSH_PUBLIC_KEY__|${SSH_PUB_KEY}|g" \
   -e "s|__DEPLOY_KEY_PRIVATE_B64__|${DEPLOY_KEY_B64}|g" \
   -e "s|__GITHUB_REPO__|${GITHUB_REPO}|g" \
+  -e "s|__POSTGRES_USER__|${POSTGRES_USER}|g" \
+  -e "s|__POSTGRES_PASSWORD__|${POSTGRES_PASSWORD}|g" \
+  -e "s|__RABBITMQ_USER__|${RABBITMQ_USER}|g" \
+  -e "s|__RABBITMQ_PASSWORD__|${RABBITMQ_PASSWORD}|g" \
+  -e "s|__CF_DNS_API_TOKEN__|${CF_DNS_API_TOKEN}|g" \
+  -e "s|__GRAFANA_ADMIN_USER__|${GRAFANA_ADMIN_USER}|g" \
+  -e "s|__GRAFANA_ADMIN_PASSWORD__|${GRAFANA_ADMIN_PASSWORD}|g" \
+  -e "s|__N8N_DB_USER__|${N8N_DB_USER}|g" \
+  -e "s|__N8N_DB_PASSWORD__|${N8N_DB_PASSWORD}|g" \
   "$TEMPLATE" > "$RENDERED"
 
 ok "Rendered $RENDERED"
 
-# ── 7. Confirmation ──────────────────────────────────────────────
+# ── 8. Confirmation ──────────────────────────────────────────────
 
 echo ""
 echo "┌─────────────────────────────────────────────────────────┐"
@@ -163,7 +205,7 @@ if [[ ! "$confirm" =~ ^[yY]$ ]]; then
   exit 0
 fi
 
-# ── 8. Reinstall ─────────────────────────────────────────────────
+# ── 9. Reinstall ─────────────────────────────────────────────────
 
 info "Reinstalling VPS..."
 cntb reinstall instance "$CONTABO_INSTANCE_ID" \
@@ -173,12 +215,13 @@ cntb reinstall instance "$CONTABO_INSTANCE_ID" \
   --defaultUser root \
   "${CNTB_AUTH[@]}"
 
-# ── 9. Done ──────────────────────────────────────────────────────
+# ── 10. Done ─────────────────────────────────────────────────────
 
 echo ""
 ok "VPS reinstall initiated."
 echo ""
 info "Next steps:"
-echo "  1. Wait a few minutes for the VPS to boot and run cloud-init"
-echo "  2. SSH in:  ssh -p 2222 deploy@<VPS_IP>"
+echo "  1. Wait a few minutes for cloud-init to finish (installs Docker, clones repo,"
+echo "     deploys stack, initializes Vault, and redeploys with real secrets)"
+echo "  2. SSH in:  ssh -i ~/.ssh/private-stack-root-user -p 2222 deploy@<VPS_IP>"
 echo "  3. Check:   docker stack ps private-stack"
