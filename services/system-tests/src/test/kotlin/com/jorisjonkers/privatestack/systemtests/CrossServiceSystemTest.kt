@@ -9,8 +9,11 @@ import org.junit.jupiter.api.TestInstance
 import java.util.UUID
 
 /**
- * System test: register → login → create conversation via assistant-api.
+ * System test: register → login → verify → create conversation via assistant-api.
  * Validates the full cross-service flow (auth-api → assistant-api).
+ *
+ * Without Traefik in the loop, the test simulates the forward-auth flow:
+ * it calls /api/v1/auth/verify to get X-User-Id, then passes it to assistant-api.
  */
 @Tag("system")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -45,11 +48,21 @@ class CrossServiceSystemTest {
         val accessToken = tokenResponse.getString("accessToken")
         assertThat(accessToken).isNotBlank()
 
-        // Create conversation via assistant-api (with Bearer token)
+        // Verify token via forward-auth endpoint to get X-User-Id (simulates Traefik)
+        val userId = given()
+            .baseUri(authBaseUrl)
+            .header("Authorization", "Bearer $accessToken")
+            .`when`().get("/api/v1/auth/verify")
+            .then().statusCode(200)
+            .extract().header("X-User-Id")
+
+        assertThat(userId).isNotBlank()
+
+        // Create conversation via assistant-api (with X-User-Id as Traefik would set)
         val convResponse = given()
             .baseUri(assistantBaseUrl)
             .contentType(ContentType.JSON)
-            .header("Authorization", "Bearer $accessToken")
+            .header("X-User-Id", userId)
             .body("""{"title":"My first conversation"}""")
             .`when`().post("/api/v1/conversations")
             .then().statusCode(201)
@@ -62,7 +75,7 @@ class CrossServiceSystemTest {
         given()
             .baseUri(assistantBaseUrl)
             .contentType(ContentType.JSON)
-            .header("Authorization", "Bearer $accessToken")
+            .header("X-User-Id", userId)
             .body("""{"content":"Hello from system test","role":"USER"}""")
             .`when`().post("/api/v1/conversations/$conversationId/messages")
             .then().statusCode(201)
@@ -70,7 +83,7 @@ class CrossServiceSystemTest {
         // List messages — should contain our message
         val messagesResponse = given()
             .baseUri(assistantBaseUrl)
-            .header("Authorization", "Bearer $accessToken")
+            .header("X-User-Id", userId)
             .`when`().get("/api/v1/conversations/$conversationId/messages")
             .then().statusCode(200)
             .extract().jsonPath()

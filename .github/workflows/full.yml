@@ -106,17 +106,29 @@ jobs:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
       - uses: gradle/actions/setup-gradle@v4
-      - name: Build and start services
-        run: docker compose up -d postgres valkey rabbitmq vault auth-api assistant-api --build --wait --wait-timeout 180
-      - name: Verify services are healthy
+      - name: Build and start full stack
+        run: docker compose up -d postgres valkey rabbitmq vault auth-api assistant-api --build --wait --wait-timeout 240
+      - name: Verify all services are healthy
         run: |
-          docker compose ps
-          docker compose ps --format json | jq -e 'select(.Health != "healthy" and .Health != "") | empty' || {
-            echo "Some services are not healthy:"
-            docker compose ps
-            docker compose logs auth-api assistant-api --tail 50
+          echo "==> Service status:"
+          docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Health}}"
+          echo ""
+          UNHEALTHY=$(docker compose ps --format json | jq -r 'select(.Health == "unhealthy") | .Name')
+          if [ -n "$UNHEALTHY" ]; then
+            echo "==> UNHEALTHY services detected:"
+            echo "$UNHEALTHY"
+            for svc in $UNHEALTHY; do
+              echo "==> Logs for $svc:"
+              docker logs "$svc" --tail 30 2>&1
+            done
             exit 1
-          }
+          fi
+          echo "==> All services healthy"
+      - name: Verify database migrations ran
+        run: |
+          docker exec private-stack-postgres psql -U auth_user -d auth_db -c '\dt' | grep -q app_user || { echo "auth_db migrations missing"; exit 1; }
+          docker exec private-stack-postgres psql -U assistant_user -d assistant_db -c '\dt' | grep -q conversation || { echo "assistant_db migrations missing"; exit 1; }
+          echo "==> Database migrations verified"
       - name: Run system tests
         run: >-
           ./gradlew :services:system-tests:test
@@ -124,7 +136,11 @@ jobs:
           -Dtest.assistant-api.url=http://localhost:8082
       - name: Dump service logs on failure
         if: failure()
-        run: docker compose logs auth-api assistant-api postgres vault --tail 100
+        run: |
+          for svc in postgres valkey rabbitmq vault auth-api assistant-api; do
+            echo "========== $svc =========="
+            docker compose logs "$svc" --tail 80
+          done
 
   security-scan:
     name: Security Scan
