@@ -4,6 +4,9 @@ spring:
   threads:
     virtual:
       enabled: true
+  autoconfigure:
+    exclude:
+      - org.springframework.cloud.autoconfigure.LifecycleMvcEndpointAutoConfiguration
   cloud:
     vault:
       enabled: false

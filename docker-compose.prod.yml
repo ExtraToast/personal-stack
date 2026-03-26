@@ -143,6 +143,9 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       VAULT_ADDR: http://vault:8200
+      OTEL_SERVICE_NAME: auth-api
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
+      OTEL_LOGS_EXPORTER: none
     secrets:
       - vault_auth_api_role_id
       - vault_auth_api_secret_id
@@ -167,6 +170,9 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       VAULT_ADDR: http://vault:8200
+      OTEL_SERVICE_NAME: assistant-api
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
+      OTEL_LOGS_EXPORTER: none
     secrets:
       - vault_assistant_api_role_id
       - vault_assistant_api_secret_id

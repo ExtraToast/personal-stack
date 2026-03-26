@@ -28,11 +28,4 @@ WORKDIR /app
 COPY --from=build /app/services/auth-api/build/libs/*.jar app.jar
 COPY --from=otel /otel-javaagent.jar otel-javaagent.jar
 EXPOSE 8081
-ENTRYPOINT [ \
-  "java", \
-  "-javaagent:otel-javaagent.jar", \
-  "-Dotel.service.name=auth-api", \
-  "-Dotel.exporter.otlp.endpoint=${OTEL_ENDPOINT:-http://otel-collector:4318}", \
-  "-Dotel.logs.exporter=none", \
-  "-jar", "app.jar" \
-]
+ENTRYPOINT ["java", "-javaagent:otel-javaagent.jar", "-jar", "app.jar"]
