@@ -22,6 +22,9 @@ spring:
       host: ${VALKEY_HOST:localhost}
       port: ${VALKEY_PORT:6379}
 
+auth:
+  login-url: http://localhost:5174/login
+
 server:
   port: 8081
 

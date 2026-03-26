@@ -86,11 +86,23 @@ class AuthFlowSystemTest {
     }
 
     @Test
-    fun `protected endpoint rejects request without token`() {
+    fun `verify endpoint redirects to login without token`() {
+        given()
+            .baseUri(authBaseUrl)
+            .redirects().follow(false)
+            .`when`()
+            .get("/api/v1/auth/verify")
+            .then()
+            .statusCode(302)
+            .header("Location", org.hamcrest.Matchers.containsString("/login?redirect="))
+    }
+
+    @Test
+    fun `other protected endpoints reject request without token`() {
         given()
             .baseUri(authBaseUrl)
             .`when`()
-            .get("/api/v1/auth/verify")
+            .get("/api/v1/users/me")
             .then()
             .statusCode(401)
     }

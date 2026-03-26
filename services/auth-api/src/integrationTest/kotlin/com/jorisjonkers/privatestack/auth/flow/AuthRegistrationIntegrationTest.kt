@@ -2,22 +2,35 @@ package com.jorisjonkers.privatestack.auth.flow
 
 import com.jorisjonkers.privatestack.auth.IntegrationTestBase
 import com.jorisjonkers.privatestack.auth.domain.port.UserRepository
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.http.MediaType
+import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.post
+import org.springframework.test.web.servlet.setup.DefaultMockMvcBuilder
+import org.springframework.test.web.servlet.setup.MockMvcBuilders
+import org.springframework.web.context.WebApplicationContext
 
-@AutoConfigureMockMvc
 class AuthRegistrationIntegrationTest : IntegrationTestBase() {
 
     @Autowired
-    private lateinit var mockMvc: MockMvc
+    private lateinit var context: WebApplicationContext
 
     @Autowired
     private lateinit var userRepository: UserRepository
+
+    private lateinit var mockMvc: MockMvc
+
+    @BeforeEach
+    fun setUp() {
+        mockMvc = MockMvcBuilders
+            .webAppContextSetup(context)
+            .apply<DefaultMockMvcBuilder>(springSecurity())
+            .build()
+    }
 
     @Test
     fun `register endpoint creates user in database`() {
