@@ -54,6 +54,9 @@ acme.json
 *.pem
 *.key
 
+# Cloud-init rendered output
+infra/cloud-init/cloud-init.rendered.yml
+
 # Docker
 docker-compose.override.yml
 
