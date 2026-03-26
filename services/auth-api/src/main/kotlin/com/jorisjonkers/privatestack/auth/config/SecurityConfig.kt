@@ -83,7 +83,11 @@ class SecurityConfig(
         return http.build()
     }
 
-    private fun forwardAuthEntryPoint() = AuthenticationEntryPoint { request: HttpServletRequest, response: HttpServletResponse, _: AuthenticationException ->
+    private fun forwardAuthEntryPoint() = AuthenticationEntryPoint {
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+        _: AuthenticationException,
+        ->
         val proto = request.getHeader("X-Forwarded-Proto") ?: "https"
         val host = request.getHeader("X-Forwarded-Host") ?: request.serverName
         val uri = request.getHeader("X-Forwarded-Uri") ?: "/"

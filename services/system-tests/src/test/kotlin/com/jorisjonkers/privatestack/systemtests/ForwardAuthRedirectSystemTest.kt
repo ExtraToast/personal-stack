@@ -2,7 +2,6 @@ package com.jorisjonkers.privatestack.systemtests
 
 import io.restassured.RestAssured.given
 import org.hamcrest.Matchers.containsString
-import org.hamcrest.Matchers.startsWith
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 
@@ -12,7 +11,6 @@ import org.junit.jupiter.api.Test
  */
 @Tag("system")
 class ForwardAuthRedirectSystemTest {
-
     private val authBaseUrl = System.getProperty("test.auth-api.url", "http://localhost:8081")
 
     @Test
@@ -53,11 +51,12 @@ class ForwardAuthRedirectSystemTest {
             .then().statusCode(201)
 
         val loginBody = """{"username":"$username","password":"Test1234!"}"""
-        val token = given().baseUri(authBaseUrl)
-            .contentType(io.restassured.http.ContentType.JSON).body(loginBody)
-            .`when`().post("/api/v1/auth/login")
-            .then().statusCode(200)
-            .extract().jsonPath().getString("accessToken")
+        val token =
+            given().baseUri(authBaseUrl)
+                .contentType(io.restassured.http.ContentType.JSON).body(loginBody)
+                .`when`().post("/api/v1/auth/login")
+                .then().statusCode(200)
+                .extract().jsonPath().getString("accessToken")
 
         given()
             .baseUri(authBaseUrl)
