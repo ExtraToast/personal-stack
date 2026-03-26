@@ -54,7 +54,7 @@ export default {
         company: 'Nedap N.V.',
         period: 'June 2025 – Present',
         description:
-          'Working on the migration of the ONS Plannen & Roosteren healthcare logistics application from single-tenant to multi-tenant architecture. Contributing to the platform migration from bare-metal to Nomad-based container orchestration. Improving CI/CD pipelines and maintaining Docker images.',
+          'Working on the migration of the ONS Plannen & Roosteren healthcare logistics application from single-tenant to multi-tenant architecture, as well as from bare-metal to Nomad-based container orchestration. Improving CI/CD pipelines and maintaining Docker images alongside regular Ruby on Rails development tasks.',
         technologies: ['Ruby on Rails', 'Nomad', 'Docker', 'CI/CD'],
       },
       {
@@ -62,7 +62,7 @@ export default {
         company: 'DynaLynx B.V.',
         period: 'May 2022 – July 2025',
         description:
-          'Developed and refactored software for a transport company, including integrations with government portals. Improved query performance, enhanced test coverage, and optimized data serialization with JSON:API. Updated a React Native application through 11 versions. Contributed to UI design for a chemo drug mixing machine.',
+          'Developed and refactored software for a transport company, including integrations with government portals for regulatory compliance. Improved query performance, enhanced test coverage, and optimized data serialization using JSON:API. Updated a React Native application through 11 major versions and contributed to UI design and business logic for a chemo drug mixing machine.',
         technologies: ['Ruby on Rails', 'Angular', 'React Native', '.NET', 'Aurelia'],
       },
       {
@@ -70,7 +70,7 @@ export default {
         company: 'ESA Blueshell',
         period: 'September 2024 – Present',
         description:
-          "Overhauled sponsor outreach with scraping techniques and email templates. Migrated the association's full-stack website from JS and Java to TS & Kotlin, implemented in Spring Boot 4 (Kotlin) and Vue.js 3 (TypeScript), deployed as a Docker Swarm stack with Traefik and GitHub Actions CI/CD. Managed 100+ company relations.",
+          "Overhauled sponsor outreach using scraping techniques and targeted email templates, resulting in contact with over 100 companies. Handles official communications, meeting minutes, and monthly newsletters. Since April 2024, has been the primary developer of the association's full-stack website, built with Spring Boot 4 (Kotlin) and Vue.js 3 (TypeScript) and deployed as a Docker Swarm stack.",
         technologies: ['Spring Boot', 'Kotlin', 'Vue.js', 'Docker Swarm', 'Traefik'],
       },
     ],
@@ -97,7 +97,7 @@ export default {
       {
         title: 'ESA Blueshell Website',
         description:
-          "Full-stack platform for the Netherlands' largest student Esports association. Membership management, event administration, contribution tracking, and online signups. Deployed with Docker Swarm, Traefik, Let's Encrypt TLS, and Listmonk for email management.",
+          "Full-stack platform for the Netherlands' largest student Esports association. Handles membership management, event administration, contribution tracking, and online signups. Deployed with Docker Swarm, Traefik, Let's Encrypt TLS, and Listmonk for email management.",
         technologies: [
           'Spring Boot 4',
           'Kotlin',
@@ -124,7 +124,7 @@ export default {
   contact: {
     title: 'Get in touch',
     subtitle:
-      "Whether it's a project idea, collaboration, or just a chat — feel free to reach out.",
+      "Whether it's a project idea, a collaboration, or just a chat — feel free to reach out.",
     email: 'info@jorisjonkers.dev',
     cta: 'Send me an email',
   },
