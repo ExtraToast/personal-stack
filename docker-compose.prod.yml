@@ -152,7 +152,7 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: auth_user
-      DB_PASSWORD: placeholder
+      DB_PASSWORD: auth_password
       VALKEY_HOST: valkey
       VALKEY_PORT: 6379
       SPRING_RABBITMQ_HOST: rabbitmq
@@ -172,11 +172,11 @@ services:
       - vault_auth_api_role_id
       - vault_auth_api_secret_id
     healthcheck:
-      test: ['CMD-SHELL', 'curl -f http://localhost:8081/actuator/health || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:8081/actuator/health || exit 1']
       interval: 15s
       timeout: 5s
       retries: 5
-      start_period: 60s
+      start_period: 90s
     deploy:
       replicas: 2
       update_config:
@@ -195,7 +195,7 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: assistant_user
-      DB_PASSWORD: placeholder
+      DB_PASSWORD: assistant_password
       VALKEY_HOST: valkey
       VALKEY_PORT: 6379
       SPRING_RABBITMQ_HOST: rabbitmq
@@ -215,11 +215,11 @@ services:
       - vault_assistant_api_role_id
       - vault_assistant_api_secret_id
     healthcheck:
-      test: ['CMD-SHELL', 'curl -f http://localhost:8082/actuator/health || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:8082/actuator/health || exit 1']
       interval: 15s
       timeout: 5s
       retries: 5
-      start_period: 60s
+      start_period: 90s
     deploy:
       replicas: 2
       update_config:
