@@ -13,7 +13,7 @@ RENDERED="cloud-init.rendered.yml"
 
 info()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 ok()    { printf '\033[1;32m OK\033[0m %s\n' "$*"; }
-err()   { printf '\033[1;31mERR\033[0m %s\n' "$*" >&2; exit 1; }
+err()   { printf '\033[1;31mERR\033[0m %b\n' "$*" >&2; exit 1; }
 
 generate_key_if_missing() {
   local path="$1" comment="$2"
@@ -85,18 +85,38 @@ fi
 if [[ -n "${CONTABO_SSH_SECRET_ID:-}" ]]; then
   ok "Contabo SSH secret ID already set: $CONTABO_SSH_SECRET_ID"
 else
-  info "Uploading SSH public key to Contabo..."
-  SECRET_OUTPUT=$(cntb create secret \
+  # Check if the secret already exists on Contabo
+  info "Checking for existing SSH secret on Contabo..."
+  EXISTING_SECRETS=""
+  EXISTING_SECRETS=$(cntb get secrets \
     --name "private-stack-root-user" \
     --type ssh \
-    --value "$(cat "${ROOT_KEY}.pub")" \
     "${CNTB_AUTH[@]}" \
-    -o json)
+    -o json 2>&1 || true)
 
-  CONTABO_SSH_SECRET_ID=$(echo "$SECRET_OUTPUT" | grep -oP '"secretId"\s*:\s*\K\d+' | head -1)
+  CONTABO_SSH_SECRET_ID=$(echo "$EXISTING_SECRETS" | grep -oP '"secretId"\s*:\s*\K\d+' | head -1 || true)
 
-  if [[ -z "$CONTABO_SSH_SECRET_ID" ]]; then
-    err "Failed to extract secret ID from Contabo response: $SECRET_OUTPUT"
+  if [[ -n "$CONTABO_SSH_SECRET_ID" ]]; then
+    ok "Found existing SSH secret: ID=$CONTABO_SSH_SECRET_ID"
+  else
+    info "No existing secret found. Creating new SSH secret on Contabo..."
+    CREATE_OUTPUT=""
+    if ! CREATE_OUTPUT=$(cntb create secret \
+      --name "private-stack-root-user" \
+      --type ssh \
+      --value "$(cat "${ROOT_KEY}.pub")" \
+      "${CNTB_AUTH[@]}" \
+      -o json 2>&1); then
+      err "cntb create secret failed:\n$CREATE_OUTPUT"
+    fi
+
+    CONTABO_SSH_SECRET_ID=$(echo "$CREATE_OUTPUT" | grep -oP '"secretId"\s*:\s*\K\d+' | head -1 || true)
+
+    if [[ -z "$CONTABO_SSH_SECRET_ID" ]]; then
+      err "Could not extract secret ID from response:\n$CREATE_OUTPUT"
+    fi
+
+    ok "Contabo SSH secret created: ID=$CONTABO_SSH_SECRET_ID"
   fi
 
   # Write back to .env
@@ -106,7 +126,7 @@ else
     echo "CONTABO_SSH_SECRET_ID=$CONTABO_SSH_SECRET_ID" >> .env
   fi
 
-  ok "Contabo SSH secret created: ID=$CONTABO_SSH_SECRET_ID"
+  ok "Saved CONTABO_SSH_SECRET_ID=$CONTABO_SSH_SECRET_ID to .env"
 fi
 
 # ── 6. Render cloud-init template ───────────────────────────────
