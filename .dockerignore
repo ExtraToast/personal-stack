@@ -1,0 +1,46 @@
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Git
+.git/
+.gitignore
+
+# Node (frontend builds have their own COPY)
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+
+# Gradle build outputs
+build/
+**/build/
+.gradle/
+**/.gradle/
+
+# Test & coverage
+coverage/
+test-results/
+playwright-report/
+stryker-tmp/
+reports/
+
+# Docs & misc
+docs/
+*.md
+LICENSE
+.env
+.env.*
+!.env.example
+infra/cloud-init/cloud-init.rendered.yml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# CI
+.github/
+
+# Docker
+docker-compose*.yml

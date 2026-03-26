@@ -1,10 +1,24 @@
 FROM gradle:9.4-jdk21-alpine AS build
 WORKDIR /app
-COPY . .
+
+# Layer 1: Copy only build scripts for dependency caching
+COPY settings.gradle.kts build.gradle.kts gradle.properties* ./
+COPY gradle/ gradle/
+COPY build-logic/ build-logic/
+COPY libs/kotlin-common/build.gradle.kts libs/kotlin-common/
+COPY services/auth-api/build.gradle.kts services/auth-api/
+COPY services/assistant-api/build.gradle.kts services/assistant-api/
+COPY services/system-tests/build.gradle.kts services/system-tests/
+
+# Resolve dependencies (cached unless build files change)
+RUN gradle :services:auth-api:dependencies --no-daemon || true
+
+# Layer 2: Copy source code and build
+COPY libs/kotlin-common/src/ libs/kotlin-common/src/
+COPY services/auth-api/src/ services/auth-api/src/
 RUN gradle :services:auth-api:bootJar --no-daemon
 
 FROM eclipse-temurin:21-jre-alpine AS otel
-# Download OpenTelemetry Java agent for distributed tracing
 RUN apk add --no-cache curl && \
     curl -fsSL -o /otel-javaagent.jar \
     "https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.11.0/opentelemetry-javaagent.jar"
