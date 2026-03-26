@@ -69,6 +69,8 @@ jobs:
           port: 2222
           script: |
             cd /opt/private-stack
+            git fetch origin main
+            git reset --hard origin/main
             docker stack deploy -c docker-compose.prod.yml private-stack --with-registry-auth
 
   post-deploy-smoke:
