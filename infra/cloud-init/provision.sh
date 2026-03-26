@@ -103,7 +103,7 @@ ensure_password N8N_DB_PASSWORD
 : "${RABBITMQ_USER:=guest}"
 : "${GRAFANA_ADMIN_USER:=admin}"
 : "${N8N_DB_USER:=n8n_user}"
-: "${CF_DNS_API_TOKEN:=placeholder}"
+require_var CF_DNS_API_TOKEN
 
 # ── 5. Register deploy key on GitHub ─────────────────────────────
 
