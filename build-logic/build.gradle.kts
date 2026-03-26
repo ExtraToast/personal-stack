@@ -16,8 +16,5 @@ dependencies {
     implementation("io.spring.dependency-management:io.spring.dependency-management.gradle.plugin:1.1.7")
     // jOOQ codegen via Testcontainers
     implementation("org.jooq:jooq-codegen:3.19.18")
-    implementation("org.flywaydb:flyway-core:11.3.0")
-    implementation("org.flywaydb:flyway-database-postgresql:11.3.0")
-    implementation("org.postgresql:postgresql:42.7.4")
-    implementation("org.testcontainers:postgresql:1.21.4")
+    implementation("org.jooq:jooq-meta-extensions:3.19.18")
 }

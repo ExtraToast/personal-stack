@@ -115,6 +115,7 @@ services:
       - ./infra/traefik/dynamic:/etc/traefik/dynamic:ro
       - traefik-certs:/letsencrypt
     environment:
+      DOCKER_API_VERSION: '1.46'
       CF_DNS_API_TOKEN_FILE: /run/secrets/cf_dns_api_token
     secrets:
       - cf_dns_api_token
