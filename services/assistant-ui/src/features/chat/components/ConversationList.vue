@@ -10,11 +10,15 @@ async function onNew(): Promise<void> {
 </script>
 
 <template>
-  <aside class="flex h-full w-64 flex-col border-r bg-gray-50">
-    <div class="flex items-center justify-between border-b px-4 py-3">
-      <span class="text-sm font-semibold text-gray-700">Conversations</span>
+  <aside
+    class="flex h-full w-64 flex-col border-r border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900"
+  >
+    <div
+      class="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800"
+    >
+      <span class="text-sm font-semibold"> Conversations </span>
       <button
-        class="rounded-md bg-gray-900 px-3 py-1 text-xs font-medium text-white hover:bg-gray-800"
+        class="rounded-md bg-gray-900 px-3 py-1 text-xs font-medium text-white hover:bg-gray-800 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
         type="button"
         @click="onNew"
       >
@@ -23,26 +27,26 @@ async function onNew(): Promise<void> {
     </div>
 
     <nav class="flex-1 overflow-y-auto py-2">
-      <p v-if="store.isLoading" class="px-4 py-2 text-sm text-gray-400">Loading…</p>
+      <p v-if="store.isLoading" class="px-4 py-2 text-sm text-gray-400">Loading&hellip;</p>
       <p v-else-if="store.conversations.length === 0" class="px-4 py-2 text-sm text-gray-400">
         No conversations yet
       </p>
       <button
         v-for="conv in store.conversations"
         :key="conv.id"
-        class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
+        class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
         :class="[
           store.activeConversationId === conv.id
-            ? 'bg-gray-200 font-medium text-gray-900'
-            : 'text-gray-700',
+            ? 'bg-gray-200 font-medium dark:bg-gray-800'
+            : 'text-gray-600 dark:text-gray-400',
         ]"
         type="button"
         @click="store.selectConversation(conv.id)"
       >
         <span class="block truncate">{{ conv.title }}</span>
-        <span class="text-xs text-gray-400">{{
-          new Date(conv.createdAt).toLocaleDateString()
-        }}</span>
+        <span class="text-xs text-gray-400 dark:text-gray-500">
+          {{ new Date(conv.createdAt).toLocaleDateString() }}
+        </span>
       </button>
     </nav>
   </aside>

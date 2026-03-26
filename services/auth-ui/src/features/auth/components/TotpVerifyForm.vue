@@ -32,7 +32,7 @@ function onSubmit(): void {
         id="totp-code"
         v-model="code"
         autocomplete="one-time-code"
-        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-center text-xl tracking-widest text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-center text-xl tracking-widest text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
         inputmode="numeric"
         maxlength="6"
         pattern="\d{6}"

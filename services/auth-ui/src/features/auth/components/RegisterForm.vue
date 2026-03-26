@@ -45,10 +45,10 @@ async function onSubmit(): Promise<void> {
 
 <template>
   <form
-    class="w-full max-w-md space-y-5 rounded-lg bg-white p-8 shadow-lg"
+    class="w-full max-w-md space-y-5 rounded-lg bg-white p-8 shadow-lg dark:bg-gray-900"
     @submit.prevent="onSubmit"
   >
-    <h1 class="text-2xl font-bold text-gray-900">Create account</h1>
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Create account</h1>
 
     <div>
       <label class="block text-sm font-medium text-gray-700" for="username"> Username </label>
@@ -56,7 +56,7 @@ async function onSubmit(): Promise<void> {
         id="username"
         v-model="form.username"
         autocomplete="username"
-        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
         placeholder="your-username"
         type="text"
       />
@@ -71,7 +71,7 @@ async function onSubmit(): Promise<void> {
         id="email"
         v-model="form.email"
         autocomplete="email"
-        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
         placeholder="you@example.com"
         type="email"
       />
@@ -86,7 +86,7 @@ async function onSubmit(): Promise<void> {
         id="password"
         v-model="form.password"
         autocomplete="new-password"
-        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
         placeholder="Min. 8 characters"
         type="password"
       />
@@ -103,7 +103,7 @@ async function onSubmit(): Promise<void> {
         id="confirmPassword"
         v-model="form.confirmPassword"
         autocomplete="new-password"
-        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
         placeholder="••••••••"
         type="password"
       />

@@ -24,13 +24,15 @@ async function handleSend(content: string): Promise<void> {
 </script>
 
 <template>
-  <div class="flex h-screen bg-white">
+  <div class="flex h-screen dark:bg-gray-950">
     <ConversationList />
 
     <div class="flex flex-1 flex-col overflow-hidden">
       <!-- Header -->
-      <header class="flex items-center border-b bg-white px-6 py-4">
-        <h1 class="text-lg font-semibold text-gray-900">
+      <header
+        class="flex items-center border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900"
+      >
+        <h1 class="text-lg font-semibold">
           {{ store.activeConversation()?.title ?? 'Select a conversation' }}
         </h1>
       </header>
@@ -38,9 +40,7 @@ async function handleSend(content: string): Promise<void> {
       <!-- Messages -->
       <main class="flex-1 overflow-y-auto px-6 py-4">
         <div v-if="!store.activeConversationId" class="flex h-full items-center justify-center">
-          <div class="text-center">
-            <p class="text-gray-500">Select a conversation or start a new one</p>
-          </div>
+          <p class="text-gray-500 dark:text-gray-400">Select a conversation or start a new one</p>
         </div>
 
         <div v-else class="space-y-4">
@@ -53,7 +53,9 @@ async function handleSend(content: string): Promise<void> {
             <div
               class="max-w-lg rounded-lg px-4 py-2 text-sm"
               :class="[
-                msg.role === 'USER' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900',
+                msg.role === 'USER'
+                  ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'
+                  : 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100',
               ]"
             >
               <p class="whitespace-pre-wrap">
@@ -66,7 +68,11 @@ async function handleSend(content: string): Promise<void> {
           </div>
 
           <div v-if="store.isSending" class="flex justify-start">
-            <div class="rounded-lg bg-gray-100 px-4 py-2 text-sm text-gray-500">Thinking…</div>
+            <div
+              class="rounded-lg bg-gray-100 px-4 py-2 text-sm text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+            >
+              Thinking&hellip;
+            </div>
           </div>
 
           <div ref="messagesEndRef" />

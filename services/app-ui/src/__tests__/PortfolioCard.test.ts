@@ -4,10 +4,9 @@ import { describe, expect, it } from 'vitest'
 import PortfolioCard from '../features/home/components/PortfolioCard.vue'
 
 const baseProject: Project = {
-  id: 'test-project',
   title: 'Test Project',
   description: 'A test project description.',
-  techStack: ['Kotlin', 'Vue 3', 'Docker'],
+  technologies: ['Kotlin', 'Vue 3', 'Docker'],
   githubUrl: 'https://github.com/jorisjonkers/test-project',
   liveUrl: 'https://test-project.jorisjonkers.dev',
 }
@@ -23,9 +22,9 @@ describe('portfolioCard', () => {
     expect(wrapper.text()).toContain('A test project description.')
   })
 
-  it('renders all tech stack tags', () => {
+  it('renders all technology tags', () => {
     const wrapper = mount(PortfolioCard, { props: { project: baseProject } })
-    for (const tag of baseProject.techStack) {
+    for (const tag of baseProject.technologies) {
       expect(wrapper.text()).toContain(tag)
     }
   })
@@ -37,9 +36,9 @@ describe('portfolioCard', () => {
     expect(githubLink?.attributes('href')).toBe(baseProject.githubUrl)
   })
 
-  it('renders the live site link when provided', () => {
+  it('renders the Live link when provided', () => {
     const wrapper = mount(PortfolioCard, { props: { project: baseProject } })
-    const liveLink = wrapper.findAll('a').find((a) => a.text() === 'Live site')
+    const liveLink = wrapper.findAll('a').find((a) => a.text() === 'Live')
     expect(liveLink).toBeDefined()
     expect(liveLink?.attributes('href')).toBe(baseProject.liveUrl)
   })
@@ -52,11 +51,11 @@ describe('portfolioCard', () => {
     expect(githubLink).toBeUndefined()
   })
 
-  it('hides live site link when liveUrl is not provided', () => {
+  it('hides Live link when liveUrl is not provided', () => {
     const { liveUrl: _, ...rest } = baseProject
     const project: Project = rest
     const wrapper = mount(PortfolioCard, { props: { project } })
-    const liveLink = wrapper.findAll('a').find((a) => a.text() === 'Live site')
+    const liveLink = wrapper.findAll('a').find((a) => a.text() === 'Live')
     expect(liveLink).toBeUndefined()
   })
 })

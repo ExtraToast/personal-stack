@@ -1,83 +1,67 @@
 <script setup lang="ts">
-import type { Skill } from '../types'
+import { useI18n } from 'vue-i18n'
 
-const skills: Skill[] = [
-  { name: 'Kotlin', category: 'backend' },
-  { name: 'Java', category: 'backend' },
-  { name: 'Spring Boot', category: 'backend' },
-  { name: 'Vue 3', category: 'frontend' },
-  { name: 'TypeScript', category: 'frontend' },
-  { name: 'Docker', category: 'infrastructure' },
-  { name: 'Kubernetes', category: 'infrastructure' },
-  { name: 'PostgreSQL', category: 'database' },
-]
-
-const categoryLabel: Record<Skill['category'], string> = {
-  backend: 'Backend',
-  frontend: 'Frontend',
-  infrastructure: 'Infrastructure',
-  database: 'Database',
-}
-
-const categoryColor: Record<Skill['category'], string> = {
-  backend: 'bg-indigo-50 text-indigo-700',
-  frontend: 'bg-violet-50 text-violet-700',
-  infrastructure: 'bg-sky-50 text-sky-700',
-  database: 'bg-emerald-50 text-emerald-700',
-}
-
-const categories = ['backend', 'frontend', 'infrastructure', 'database'] as const
-
-function skillsByCategory(category: Skill['category']): Skill[] {
-  return skills.filter((s) => s.category === category)
-}
+const { t, tm } = useI18n()
 </script>
 
 <template>
-  <section id="about" class="px-6 py-24">
-    <div class="mx-auto max-w-5xl">
-      <div class="grid gap-16 lg:grid-cols-2">
-        <!-- Bio -->
+  <section id="about" class="bg-gray-50 px-6 py-24 dark:bg-gray-900">
+    <div class="mx-auto max-w-4xl">
+      <h2 class="text-3xl font-bold tracking-tight">
+        {{ t('about.title') }}
+      </h2>
+
+      <div class="mt-8 grid gap-10 md:grid-cols-2">
         <div>
-          <h2 class="text-3xl font-bold tracking-tight text-gray-900">About me</h2>
-          <div class="mt-6 space-y-4 text-gray-600">
-            <p class="leading-relaxed">
-              I am a full-stack developer based in the Netherlands with a focus on backend
-              engineering and self-hosted infrastructure. I enjoy designing systems that are
-              maintainable and observable — not just code that works today, but platforms that are
-              easy to reason about tomorrow.
-            </p>
-            <p class="leading-relaxed">
-              Outside of my day job I run my own private stack: a Docker Swarm cluster with Traefik,
-              Vault, and a collection of Spring Boot and Vue services. It is part homelab, part
-              production environment, and mostly an excuse to keep learning.
-            </p>
-            <p class="leading-relaxed">
-              When I am not at a keyboard I am probably cycling, cooking, or reading about
-              distributed systems.
-            </p>
-          </div>
-        </div>
-        <!-- Skills -->
-        <div>
-          <h2 class="text-3xl font-bold tracking-tight text-gray-900">Skills</h2>
-          <div class="mt-6 space-y-6">
-            <div v-for="category in categories" :key="category">
-              <p class="mb-2 text-xs font-semibold uppercase tracking-widest text-gray-400">
-                {{ categoryLabel[category] }}
-              </p>
-              <div class="flex flex-wrap gap-2">
-                <span
-                  v-for="skill in skillsByCategory(category)"
-                  :key="skill.name"
-                  class="rounded-md px-3 py-1 text-sm font-medium"
-                  :class="[categoryColor[category]]"
-                >
-                  {{ skill.name }}
-                </span>
-              </div>
+          <p class="text-lg leading-relaxed text-gray-600 dark:text-gray-300">
+            {{ t('about.intro') }}
+          </p>
+          <p class="mt-4 leading-relaxed text-gray-500 dark:text-gray-400">
+            {{ t('about.body') }}
+          </p>
+          <dl class="mt-6 space-y-2 text-sm">
+            <div class="flex gap-2">
+              <dt class="font-medium">&#128205;</dt>
+              <dd class="text-gray-600 dark:text-gray-400">
+                {{ t('about.location') }}
+              </dd>
             </div>
-          </div>
+            <div class="flex gap-2">
+              <dt class="font-medium">&#127760;</dt>
+              <dd class="text-gray-600 dark:text-gray-400">
+                {{ t('about.languages') }}
+              </dd>
+            </div>
+          </dl>
+        </div>
+
+        <div>
+          <h3 class="text-lg font-semibold">
+            {{ t('about.education') }}
+          </h3>
+          <ol class="mt-4 space-y-4">
+            <li
+              v-for="(entry, i) in tm('about.educationEntries') as Array<{
+                period: string
+                institution: string
+                degree: string
+              }>"
+              :key="i"
+              class="border-l-2 border-indigo-500/30 pl-4"
+            >
+              <p
+                class="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400"
+              >
+                {{ entry.period }}
+              </p>
+              <p class="mt-1 font-medium">
+                {{ entry.degree }}
+              </p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">
+                {{ entry.institution }}
+              </p>
+            </li>
+          </ol>
         </div>
       </div>
     </div>

@@ -39,10 +39,10 @@ async function onSubmit(): Promise<void> {
 
 <template>
   <form
-    class="w-full max-w-md space-y-5 rounded-lg bg-white p-8 shadow-lg"
+    class="w-full max-w-md space-y-5 rounded-lg bg-white p-8 shadow-lg dark:bg-gray-900"
     @submit.prevent="onSubmit"
   >
-    <h1 class="text-2xl font-bold text-gray-900">Sign in</h1>
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Sign in</h1>
 
     <div>
       <label class="block text-sm font-medium text-gray-700" for="username"> Username </label>
@@ -50,7 +50,7 @@ async function onSubmit(): Promise<void> {
         id="username"
         v-model="form.username"
         autocomplete="username"
-        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500"
         placeholder="your-username"
         type="text"
       />
@@ -65,7 +65,7 @@ async function onSubmit(): Promise<void> {
         id="password"
         v-model="form.password"
         autocomplete="current-password"
-        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500"
         placeholder="••••••••"
         type="password"
       />
