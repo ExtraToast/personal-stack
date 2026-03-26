@@ -4,31 +4,52 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 1
+    groups:
+      all-gradle:
+        patterns: ['*']
 
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 1
+    groups:
+      all-npm:
+        patterns: ['*']
 
   - package-ecosystem: docker
     directory: /services/auth-api
     schedule:
       interval: weekly
+    open-pull-requests-limit: 1
+    groups:
+      all-docker-auth-api:
+        patterns: ['*']
 
   - package-ecosystem: docker
     directory: /services/assistant-api
     schedule:
       interval: weekly
+    open-pull-requests-limit: 1
+    groups:
+      all-docker-assistant-api:
+        patterns: ['*']
 
   - package-ecosystem: docker
     directory: /services/auth-ui
     schedule:
       interval: weekly
+    open-pull-requests-limit: 1
+    groups:
+      all-docker-auth-ui:
+        patterns: ['*']
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 1
+    groups:
+      all-actions:
+        patterns: ['*']
