@@ -58,8 +58,8 @@ com.jorisjonkers.privatestack.<service>/
 
 - Each domain owns its database tables exclusively
 - Cross-domain data access only through:
-    - Domain events (preferred, via Spring Modulith)
-    - Application-layer service calls (when synchronous response needed)
+  - Domain events (preferred, via Spring Modulith)
+  - Application-layer service calls (when synchronous response needed)
 - Never reach into another domain's repositories
 
 ### Anti-Corruption Layers

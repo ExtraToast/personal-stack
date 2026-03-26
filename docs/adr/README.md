@@ -7,7 +7,7 @@ This directory contains all Architecture Decision Records (ADRs) for the private
 ### Infrastructure & Security
 
 | ADR                                           | Title                                                          | Status   |
-|-----------------------------------------------|----------------------------------------------------------------|----------|
+| --------------------------------------------- | -------------------------------------------------------------- | -------- |
 | [ADR-001](ADR-001-infrastructure-platform.md) | Infrastructure Platform — Contabo, Docker Swarm, Ubuntu 24.04  | Accepted |
 | [ADR-002](ADR-002-network-security.md)        | Network Security — UFW, SSH hardening, Fail2ban, rate limiting | Accepted |
 | [ADR-003](ADR-003-tls-dns.md)                 | TLS & DNS — Traefik ACME, Cloudflare DNS-01, wildcard cert     | Accepted |
@@ -16,7 +16,7 @@ This directory contains all Architecture Decision Records (ADRs) for the private
 ### Authentication & Architecture
 
 | ADR                                                | Title                                                                        | Status   |
-|----------------------------------------------------|------------------------------------------------------------------------------|----------|
+| -------------------------------------------------- | ---------------------------------------------------------------------------- | -------- |
 | [ADR-005](ADR-005-authentication-authorization.md) | Authentication & Authorization — Spring Auth Server, OAuth2/OIDC, TOTP, RBAC | Accepted |
 | [ADR-006](ADR-006-backend-architecture.md)         | Backend Architecture — Hexagonal, command pattern, domain ownership          | Accepted |
 | [ADR-007](ADR-007-frontend-architecture.md)        | Frontend Architecture — Feature-based, domain boundaries, composition API    | Accepted |
@@ -24,7 +24,7 @@ This directory contains all Architecture Decision Records (ADRs) for the private
 ### Technology Stacks
 
 | ADR                                               | Title                                                                  | Status   |
-|---------------------------------------------------|------------------------------------------------------------------------|----------|
+| ------------------------------------------------- | ---------------------------------------------------------------------- | -------- |
 | [ADR-008](ADR-008-database-strategy.md)           | Database Strategy — PostgreSQL 17, jOOQ, Flyway, Valkey                | Accepted |
 | [ADR-009](ADR-009-inter-service-communication.md) | Inter-Service Communication — REST + RabbitMQ + Spring Modulith events | Accepted |
 | [ADR-010](ADR-010-backend-technology-stack.md)    | Backend Technology Stack — Kotlin 2.1, Spring Boot 4.0, Java 21        | Accepted |
@@ -33,7 +33,7 @@ This directory contains all Architecture Decision Records (ADRs) for the private
 ### Quality & Testing
 
 | ADR                                           | Title                                                                 | Status   |
-|-----------------------------------------------|-----------------------------------------------------------------------|----------|
+| --------------------------------------------- | --------------------------------------------------------------------- | -------- |
 | [ADR-012](ADR-012-code-quality-linting.md)    | Code Quality & Linting — detekt, ktlint, ESLint, Prettier, thresholds | Accepted |
 | [ADR-013](ADR-013-architecture-testing.md)    | Architecture Testing — ArchUnit, dependency-cruiser, Spring Modulith  | Accepted |
 | [ADR-014](ADR-014-testing-strategy.md)        | Testing Strategy — full pyramid, system tests, CI pipelines           | Accepted |
@@ -43,7 +43,7 @@ This directory contains all Architecture Decision Records (ADRs) for the private
 ### Operations
 
 | ADR                                            | Title                                                           | Status   |
-|------------------------------------------------|-----------------------------------------------------------------|----------|
+| ---------------------------------------------- | --------------------------------------------------------------- | -------- |
 | [ADR-017](ADR-017-ci-cd-pipeline.md)           | CI/CD Pipeline — GitHub Actions, ghcr.io, Swarm rolling deploys | Accepted |
 | [ADR-018](ADR-018-monitoring-observability.md) | Monitoring & Observability — Grafana stack, Uptime Kuma         | Accepted |
 | [ADR-019](ADR-019-n8n-workflow-automation.md)  | n8n Workflow Automation                                         | Accepted |

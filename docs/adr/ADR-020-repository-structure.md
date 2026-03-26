@@ -58,7 +58,7 @@ CLAUDE.md exists locally only (gitignored). It is not committed to the repositor
 ### Naming Conventions
 
 | Item                  | Convention                              | Example                              |
-|-----------------------|-----------------------------------------|--------------------------------------|
+| --------------------- | --------------------------------------- | ------------------------------------ |
 | Directories           | kebab-case                              | `auth-api`, `vue-common`             |
 | Kotlin packages       | com.jorisjonkers.privatestack.{service} | `com.jorisjonkers.privatestack.auth` |
 | Vue component files   | PascalCase.vue                          | `LoginForm.vue`                      |

@@ -2,12 +2,12 @@ name: Nightly Pipeline
 
 on:
   schedule:
-    - cron: "0 2 * * *"
+    - cron: '0 2 * * *'
   workflow_dispatch:
 
 env:
-  JAVA_VERSION: "21"
-  NODE_VERSION: "20"
+  JAVA_VERSION: '21'
+  NODE_VERSION: '20'
 
 jobs:
   mutation-test-kotlin:
@@ -24,7 +24,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: pitest-reports
-          path: "**/build/reports/pitest/"
+          path: '**/build/reports/pitest/'
 
   mutation-test-frontend:
     name: Mutation Tests (Frontend)

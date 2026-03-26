@@ -24,12 +24,7 @@ function handleClick(event: MouseEvent): void {
 </script>
 
 <template>
-  <button
-    class="base-button"
-    :class="[`base-button--${variant}`]"
-    :disabled="disabled || loading"
-    @click="handleClick"
-  >
+  <button class="base-button" :class="[`base-button--${variant}`]" :disabled="disabled || loading" @click="handleClick">
     <span v-if="loading">Loading...</span>
     <span v-else>{{ label }}</span>
   </button>

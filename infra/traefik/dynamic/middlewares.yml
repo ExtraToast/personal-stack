@@ -2,12 +2,12 @@ http:
   middlewares:
     forward-auth:
       forwardAuth:
-        address: "http://auth-api:8081/api/v1/auth/verify"
+        address: 'http://auth-api:8081/api/v1/auth/verify'
         trustForwardHeader: true
         authResponseHeaders:
-          - "X-User-Id"
-          - "X-User-Email"
-          - "X-User-Roles"
+          - 'X-User-Id'
+          - 'X-User-Email'
+          - 'X-User-Roles'
 
     rate-limit:
       rateLimit:
@@ -21,7 +21,7 @@ http:
         stsPreload: true
         frameDeny: true
         contentTypeNosniff: true
-        referrerPolicy: "strict-origin-when-cross-origin"
+        referrerPolicy: 'strict-origin-when-cross-origin'
         contentSecurityPolicy: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'"
         customResponseHeaders:
-          X-Frame-Options: "DENY"
+          X-Frame-Options: 'DENY'

@@ -4,34 +4,39 @@ build:
 complexity:
   CyclomaticComplexMethod:
     active: true
-    threshold: 10
+    allowedComplexity: 10
   LongMethod:
     active: true
-    threshold: 30
+    allowedLines: 30
   LongParameterList:
     active: true
-    threshold: 6
+    functionThreshold: 6
+    constructorThreshold: 6
   LargeClass:
     active: true
     threshold: 300
   TooManyFunctions:
     active: true
-    threshold: 15
+    allowedFunctionsInFiles: 15
+    allowedFunctionsInClasses: 15
+    allowedFunctionsInInterfaces: 15
+    allowedFunctionsInObjects: 15
+    allowedFunctionsInEnums: 15
 
 style:
   ForbiddenComment:
     active: true
     comments:
-      - "TODO"
-      - "FIXME"
+      - 'TODO'
+      - 'FIXME'
     severity: warning
   MagicNumber:
     active: true
     ignoreNumbers:
-      - "-1"
-      - "0"
-      - "1"
-      - "2"
+      - '-1'
+      - '0'
+      - '1'
+      - '2'
     ignorePropertyDeclaration: true
     ignoreAnnotation: true
     ignoreEnums: true
@@ -41,7 +46,7 @@ style:
   ReturnCount:
     active: true
     max: 3
-  UnusedImports:
+  UnusedImport:
     active: true
   VarCouldBeVal:
     active: true
@@ -50,7 +55,7 @@ style:
   WildcardImport:
     active: true
 
-potential-bugs:
+potentialbugs:
   UnsafeCallOnNullableType:
     active: true
 
@@ -65,7 +70,3 @@ naming:
     active: true
   PackageNaming:
     active: true
-
-formatting:
-  active: true
-  android: false

@@ -78,12 +78,12 @@ that all need verification at appropriate levels.
 
 - **Testinfra** (Python, runs over SSH)
 - Verifies cloud-init provisioned correctly:
-    - SSH on port 2222, password auth disabled
-    - UFW rules active
-    - Docker installed and Swarm initialized
-    - Users and groups created
-    - GPG keys registered
-    - Fail2ban running
+  - SSH on port 2222, password auth disabled
+  - UFW rules active
+  - Docker installed and Swarm initialized
+  - Users and groups created
+  - GPG keys registered
+  - Fail2ban running
 
 ### System / Coherence Tests
 
@@ -113,7 +113,7 @@ Dedicated Kotlin Spring Boot test service (services/system-tests):
 ### CI Pipeline Strategy
 
 | Trigger     | Pipeline      | Contents                                              | Target Duration |
-|-------------|---------------|-------------------------------------------------------|-----------------|
+| ----------- | ------------- | ----------------------------------------------------- | --------------- |
 | Every push  | Fast          | Unit tests + linting + type-check                     | < 5 min         |
 | PR to main  | Full          | Integration + E2E + system + security + architecture  | < 30 min        |
 | Nightly     | Full + extras | Full + mutation tests + security scans + system tests | —               |

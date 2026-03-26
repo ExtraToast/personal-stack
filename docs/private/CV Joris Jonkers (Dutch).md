@@ -1,8 +1,8 @@
 # Joris Wouter Jonkers BSc
+
 **Jr. Software Ingenieur**
 
-✉️ info@jorisjonkers.dev · 🔗 [linkedin.com/in/joris-jonkers-25520293](https://www.linkedin.com/in/joris-jonkers-25520293/) · 🐙 [github.com/ExtraToast](https://github.com/ExtraToast) · 📍 Enschede, Nederland
----
+## ✉️ info@jorisjonkers.dev · 🔗 [linkedin.com/in/joris-jonkers-25520293](https://www.linkedin.com/in/joris-jonkers-25520293/) · 🐙 [github.com/ExtraToast](https://github.com/ExtraToast) · 📍 Enschede, Nederland
 
 ## Profiel
 
@@ -13,6 +13,7 @@ Een gemotiveerde software-ingenieur en MSc-student die op zoek is naar betekenis
 ## Werkgeschiedenis
 
 ### Junior Software Developer — Nedap N.V.
+
 **Juni 2025 – Heden**
 
 - Werkzaam aan de migratie van de ONS Plannen & Roosteren zorglogistiekapplicatie van single-tenant naar multi-tenant architectuur
@@ -22,6 +23,7 @@ Een gemotiveerde software-ingenieur en MSc-student die op zoek is naar betekenis
 - Uitvoeren van Ruby on Rails-ontwikkeltaken in de backend-codebase
 
 ### Junior Software Ingenieur — DynaLynx B.V.
+
 **Mei 2022 – Juli 2025**
 
 - De software van een transportbedrijf doorontwikkeld en gerefactord, inclusief integratie met overheidsportalen om te voldoen aan wet- en regelgeving
@@ -36,6 +38,7 @@ Een gemotiveerde software-ingenieur en MSc-student die op zoek is naar betekenis
 - Gebruikgemaakt van diverse technologieën, waaronder Ruby on Rails, Aurelia, Angular en .NET
 
 ### Secretaris en Commissaris van Externe Zaken — ESA Blueshell
+
 **September 2024 – Heden**
 
 - Schrijven en verspreiden van officiële documenten, zoals notulen en maandelijkse nieuwsbrieven
@@ -53,11 +56,13 @@ Een gemotiveerde software-ingenieur en MSc-student die op zoek is naar betekenis
   - Repository: [github.com/ESA-Blueshell/website](https://github.com/ESA-Blueshell/website)
 
 ### Chauffeur — Fleetport Nederland
+
 **December 2019 – Januari 2022**
 
 - Communicatieve vaardigheden versterkt als chauffeur, onder andere door klanten wegwijs te maken in de functionaliteiten van moderne voertuigen
 
 ### Ober en Barista — Brasserie Oostereiland & Lunchroom Hemels
+
 **Januari 2015 – April 2016**
 
 - Gastvrijheid getoond en aanpassingsvermogen ontwikkeld door te diensten te verlenen aan diverse klanten
@@ -66,17 +71,18 @@ Een gemotiveerde software-ingenieur en MSc-student die op zoek is naar betekenis
 
 ## Opleidingen
 
-| Periode | Instelling | Diploma |
-|---|---|---|
-| 2024 – Heden | University of Twente | MSc Software Technology |
-| 2020 – 2024 | University of Twente | BSc Technical Computer Science |
-| 2010 – 2016 | Oscar Romero | VWO NT/NG |
+| Periode      | Instelling           | Diploma                        |
+| ------------ | -------------------- | ------------------------------ |
+| 2024 – Heden | University of Twente | MSc Software Technology        |
+| 2020 – 2024  | University of Twente | BSc Technical Computer Science |
+| 2010 – 2016  | Oscar Romero         | VWO NT/NG                      |
 
 ---
 
 ## Vaardigheden
 
 ### Persoonlijke Vaardigheden
+
 - Project Management
 - Public Relations
 - Communicatie
@@ -84,28 +90,29 @@ Een gemotiveerde software-ingenieur en MSc-student die op zoek is naar betekenis
 
 ### Programmeertalen
 
-| Taal | Ervaring |
-|---|---|
-| Python | 6 jaar |
-| JavaScript / TypeScript | 5 jaar |
-| Java | 5 jaar |
-| Ruby | 3 jaar |
-| MATLAB | 2 jaar |
-| Kotlin | 1 jaar |
+| Taal                    | Ervaring |
+| ----------------------- | -------- |
+| Python                  | 6 jaar   |
+| JavaScript / TypeScript | 5 jaar   |
+| Java                    | 5 jaar   |
+| Ruby                    | 3 jaar   |
+| MATLAB                  | 2 jaar   |
+| Kotlin                  | 1 jaar   |
 
 ### Frameworks & Technologieën
 
-| Technologie | Ervaring |
-|---|---|
-| Ruby on Rails | 3 jaar |
-| Angular | 3 jaar |
-| Docker | 2 jaar |
-| PyTorch | 2 jaar |
-| Vue.js | 2 jaar |
-| Spring Boot | 2 jaar |
-| Nomad | < 1 jaar |
+| Technologie   | Ervaring |
+| ------------- | -------- |
+| Ruby on Rails | 3 jaar   |
+| Angular       | 3 jaar   |
+| Docker        | 2 jaar   |
+| PyTorch       | 2 jaar   |
+| Vue.js        | 2 jaar   |
+| Spring Boot   | 2 jaar   |
+| Nomad         | < 1 jaar |
 
 ### Overige Tools & Platformen
+
 - GitHub Actions (CI/CD)
 - Docker Swarm
 - JSON:API
@@ -116,7 +123,7 @@ Een gemotiveerde software-ingenieur en MSc-student die op zoek is naar betekenis
 
 ## Talen
 
-| Taal | Niveau |
-|---|---|
+| Taal       | Niveau     |
+| ---------- | ---------- |
 | Nederlands | Moedertaal |
-| Engels | Vloeiend |
+| Engels     | Vloeiend   |
