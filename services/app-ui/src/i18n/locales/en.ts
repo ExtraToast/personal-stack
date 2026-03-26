@@ -83,29 +83,14 @@ export default {
         title: 'Private Stack',
         description:
           'A self-hosted infrastructure platform running on Docker Swarm with Traefik, Vault, and observability tooling. Includes an auth service (Spring Authorization Server + TOTP MFA), an AI assistant service, and Vue.js frontends — all built with hexagonal architecture and enforced by ArchUnit.',
-        technologies: [
-          'Kotlin',
-          'Spring Boot',
-          'Vue.js',
-          'Docker Swarm',
-          'Traefik',
-          'Vault',
-          'PostgreSQL',
-        ],
+        technologies: ['Kotlin', 'Spring Boot', 'Vue.js', 'Docker Swarm', 'Traefik', 'Vault', 'PostgreSQL'],
         githubUrl: 'https://github.com/ExtraToast',
       },
       {
         title: 'ESA Blueshell Website',
         description:
           "Full-stack platform for the Netherlands' largest student Esports association. Handles membership management, event administration, contribution tracking, and online signups. Deployed with Docker Swarm, Traefik, Let's Encrypt TLS, and Listmonk for email management.",
-        technologies: [
-          'Spring Boot 4',
-          'Kotlin',
-          'Vue.js 3',
-          'TypeScript',
-          'Docker Swarm',
-          'GitHub Actions',
-        ],
+        technologies: ['Spring Boot 4', 'Kotlin', 'Vue.js 3', 'TypeScript', 'Docker Swarm', 'GitHub Actions'],
         liveUrl: 'https://esa-blueshell.nl',
         githubUrl: 'https://github.com/ESA-Blueshell/website',
       },
@@ -123,8 +108,7 @@ export default {
   },
   contact: {
     title: 'Get in touch',
-    subtitle:
-      "Whether it's a project idea, a collaboration, or just a chat — feel free to reach out.",
+    subtitle: "Whether it's a project idea, a collaboration, or just a chat — feel free to reach out.",
     email: 'info@jorisjonkers.dev',
     cta: 'Send me an email',
   },

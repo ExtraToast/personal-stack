@@ -14,10 +14,7 @@ interface ProjectEntry {
 </script>
 
 <template>
-  <section
-    id="projects"
-    class="border-t border-surface-border/40 bg-surface-card px-4 py-12 sm:px-6 sm:py-24"
-  >
+  <section id="projects" class="border-t border-surface-border/40 bg-surface-card px-4 py-12 sm:px-6 sm:py-24">
     <div class="mx-auto max-w-5xl">
       <h2 class="font-mono text-sm font-semibold uppercase tracking-widest text-terminal-green">
         <span class="text-gray-600">03.</span>
@@ -27,11 +24,7 @@ interface ProjectEntry {
         {{ t('projects.subtitle') }}
       </p>
       <div class="mt-6 grid gap-4 sm:mt-10 sm:gap-6 sm:grid-cols-2">
-        <PortfolioCard
-          v-for="(project, i) in tm('projects.entries') as ProjectEntry[]"
-          :key="i"
-          :project="project"
-        />
+        <PortfolioCard v-for="(project, i) in tm('projects.entries') as ProjectEntry[]" :key="i" :project="project" />
       </div>
     </div>
   </section>

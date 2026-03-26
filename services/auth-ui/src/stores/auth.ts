@@ -2,21 +2,10 @@ import type { ProblemDetail } from '@private-stack/vue-common'
 import { useAuth } from '@private-stack/vue-common'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import {
-  login as apiLogin,
-  refresh as apiRefresh,
-  register as apiRegister,
-} from '@/features/auth/services/authService'
+import { login as apiLogin, refresh as apiRefresh, register as apiRegister } from '@/features/auth/services/authService'
 
 export const useAuthStore = defineStore('auth', () => {
-  const {
-    user,
-    isAuthenticated,
-    setTokens,
-    getAccessToken,
-    getRefreshToken,
-    logout: authLogout,
-  } = useAuth()
+  const { user, isAuthenticated, setTokens, getAccessToken, getRefreshToken, logout: authLogout } = useAuth()
 
   const isLoading = ref(false)
   const error = ref<string | null>(null)

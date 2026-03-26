@@ -5,10 +5,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <section
-    id="contact"
-    class="border-t border-surface-border/40 bg-surface-card px-4 py-12 sm:px-6 sm:py-24"
-  >
+  <section id="contact" class="border-t border-surface-border/40 bg-surface-card px-4 py-12 sm:px-6 sm:py-24">
     <div class="mx-auto max-w-2xl text-center">
       <h2 class="font-mono text-sm font-semibold uppercase tracking-widest text-terminal-green">
         <span class="text-gray-600">05.</span>

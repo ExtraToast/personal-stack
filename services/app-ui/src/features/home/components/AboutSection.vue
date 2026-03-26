@@ -5,10 +5,7 @@ const { t, tm } = useI18n()
 </script>
 
 <template>
-  <section
-    id="about"
-    class="border-t border-surface-border/40 bg-surface-card px-4 py-12 sm:px-6 sm:py-24"
-  >
+  <section id="about" class="border-t border-surface-border/40 bg-surface-card px-4 py-12 sm:px-6 sm:py-24">
     <div class="mx-auto max-w-4xl">
       <h2 class="font-mono text-sm font-semibold uppercase tracking-widest text-terminal-green">
         <span class="text-gray-600">01.</span>
@@ -40,9 +37,7 @@ const { t, tm } = useI18n()
         </div>
 
         <div>
-          <h3
-            class="mb-4 font-mono text-sm font-semibold uppercase tracking-widest text-terminal-purple"
-          >
+          <h3 class="mb-4 font-mono text-sm font-semibold uppercase tracking-widest text-terminal-purple">
             {{ t('about.education') }}
           </h3>
           <ol class="space-y-4">
