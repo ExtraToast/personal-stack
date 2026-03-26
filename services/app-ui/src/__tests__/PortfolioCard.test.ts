@@ -31,14 +31,14 @@ describe('portfolioCard', () => {
 
   it('renders the GitHub link when provided', () => {
     const wrapper = mount(PortfolioCard, { props: { project: baseProject } })
-    const githubLink = wrapper.findAll('a').find((a) => a.text() === 'GitHub')
+    const githubLink = wrapper.findAll('a').find((a) => a.text() === '> github')
     expect(githubLink).toBeDefined()
     expect(githubLink?.attributes('href')).toBe(baseProject.githubUrl)
   })
 
   it('renders the Live link when provided', () => {
     const wrapper = mount(PortfolioCard, { props: { project: baseProject } })
-    const liveLink = wrapper.findAll('a').find((a) => a.text() === 'Live')
+    const liveLink = wrapper.findAll('a').find((a) => a.text() === '> live')
     expect(liveLink).toBeDefined()
     expect(liveLink?.attributes('href')).toBe(baseProject.liveUrl)
   })
@@ -47,7 +47,7 @@ describe('portfolioCard', () => {
     const { githubUrl: _, ...rest } = baseProject
     const project: Project = rest
     const wrapper = mount(PortfolioCard, { props: { project } })
-    const githubLink = wrapper.findAll('a').find((a) => a.text() === 'GitHub')
+    const githubLink = wrapper.findAll('a').find((a) => a.text() === '> github')
     expect(githubLink).toBeUndefined()
   })
 
@@ -55,7 +55,7 @@ describe('portfolioCard', () => {
     const { liveUrl: _, ...rest } = baseProject
     const project: Project = rest
     const wrapper = mount(PortfolioCard, { props: { project } })
-    const liveLink = wrapper.findAll('a').find((a) => a.text() === 'Live')
+    const liveLink = wrapper.findAll('a').find((a) => a.text() === '> live')
     expect(liveLink).toBeUndefined()
   })
 })
