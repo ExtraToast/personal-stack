@@ -12,7 +12,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.20")
     implementation("org.jetbrains.kotlin:kotlin-allopen:2.1.20")
     implementation("org.springframework.boot:spring-boot-gradle-plugin:4.0.4")
-    implementation("io.gitlab.arturbosch.detekt:detekt-gradle-plugin:2.0.0-alpha.2")
+    implementation("dev.detekt:detekt-gradle-plugin:2.0.0-alpha.2")
     implementation("org.jlleitschuh.gradle:ktlint-gradle:12.1.2")
     implementation("io.spring.dependency-management:io.spring.dependency-management.gradle.plugin:1.1.7")
     // jOOQ codegen via Testcontainers
