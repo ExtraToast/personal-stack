@@ -6,7 +6,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.springframework.stereotype.Component
 
 @Component
-class RabbitMqEventPublisher(
+open class RabbitMqEventPublisher(
     private val rabbitTemplate: RabbitTemplate,
 ) {
 

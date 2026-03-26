@@ -28,10 +28,12 @@ class AuthorizationServerConfig {
     @Bean
     @Order(1)
     fun authorizationServerSecurityFilterChain(http: HttpSecurity): SecurityFilterChain {
+        val authServerConfigurer = OAuth2AuthorizationServerConfigurer()
+        authServerConfigurer.oidc(Customizer.withDefaults())
+
         http
-            .with(OAuth2AuthorizationServerConfigurer()) { configurer ->
-                configurer.oidc(Customizer.withDefaults()) // Enable OpenID Connect 1.0
-            }
+            .securityMatcher(authServerConfigurer.endpointsMatcher)
+            .with(authServerConfigurer, Customizer.withDefaults())
             .authorizeHttpRequests { it.anyRequest().authenticated() }
             .exceptionHandling { exceptions ->
                 exceptions.defaultAuthenticationEntryPointFor(

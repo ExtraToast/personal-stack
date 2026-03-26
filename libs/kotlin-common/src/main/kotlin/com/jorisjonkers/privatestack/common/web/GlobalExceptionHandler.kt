@@ -11,7 +11,7 @@ import java.net.URI
 import org.slf4j.LoggerFactory
 
 @RestControllerAdvice
-class GlobalExceptionHandler {
+open class GlobalExceptionHandler {
 
     private val log = LoggerFactory.getLogger(GlobalExceptionHandler::class.java)
 

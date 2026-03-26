@@ -20,6 +20,7 @@ dependencies {
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5")
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
+    implementation("org.springframework.boot:spring-boot-starter-jooq")
     implementation("org.jooq:jooq")
     runtimeOnly("org.postgresql:postgresql")
     implementation("dev.turingcomplete:kotlin-onetimepassword:2.4.0")

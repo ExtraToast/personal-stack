@@ -94,23 +94,24 @@ runcmd:
   - install -d -o deploy -g deploy /opt/private-stack
   - su - deploy -c 'GIT_SSH_COMMAND="ssh -i /home/deploy/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new" git clone __GITHUB_REPO__ /opt/private-stack'
 
-  # Create Docker Swarm secrets (bootstrap with placeholders where needed)
-  - echo '__POSTGRES_USER__' | docker secret create postgres_user -
-  - echo '__POSTGRES_PASSWORD__' | docker secret create postgres_password -
-  - echo '__RABBITMQ_USER__' | docker secret create rabbitmq_user -
-  - echo '__RABBITMQ_PASSWORD__' | docker secret create rabbitmq_password -
-  - echo '__CF_DNS_API_TOKEN__' | docker secret create cf_dns_api_token -
-  - echo '__GRAFANA_ADMIN_USER__' | docker secret create grafana_admin_user -
-  - echo '__GRAFANA_ADMIN_PASSWORD__' | docker secret create grafana_admin_password -
-  - echo '__N8N_DB_USER__' | docker secret create n8n_db_user -
-  - echo '__N8N_DB_PASSWORD__' | docker secret create n8n_db_password -
-  - echo 'placeholder' | docker secret create vault_auth_api_role_id -
-  - echo 'placeholder' | docker secret create vault_auth_api_secret_id -
-  - echo 'placeholder' | docker secret create vault_assistant_api_role_id -
-  - echo 'placeholder' | docker secret create vault_assistant_api_secret_id -
+  # Create Docker Swarm secrets (printf -n avoids trailing newline)
+  - printf '%s' '__POSTGRES_USER__' | docker secret create postgres_user -
+  - printf '%s' '__POSTGRES_PASSWORD__' | docker secret create postgres_password -
+  - printf '%s' '__RABBITMQ_USER__' | docker secret create rabbitmq_user -
+  - printf '%s' '__RABBITMQ_PASSWORD__' | docker secret create rabbitmq_password -
+  - printf '%s' '__CF_DNS_API_TOKEN__' | docker secret create cf_dns_api_token -
+  - printf '%s' '__GRAFANA_ADMIN_USER__' | docker secret create grafana_admin_user -
+  - printf '%s' '__GRAFANA_ADMIN_PASSWORD__' | docker secret create grafana_admin_password -
+  - printf '%s' '__N8N_DB_USER__' | docker secret create n8n_db_user -
+  - printf '%s' '__N8N_DB_PASSWORD__' | docker secret create n8n_db_password -
+  - printf '%s' 'placeholder' | docker secret create vault_auth_api_role_id -
+  - printf '%s' 'placeholder' | docker secret create vault_auth_api_secret_id -
+  - printf '%s' 'placeholder' | docker secret create vault_assistant_api_role_id -
+  - printf '%s' 'placeholder' | docker secret create vault_assistant_api_secret_id -
 
-  # Login to GHCR so Swarm can pull private images
+  # Login to GHCR so both root (Swarm) and deploy user can pull private images
   - echo '__GHCR_TOKEN__' | docker login ghcr.io -u __GHCR_USER__ --password-stdin
+  - su - deploy -c 'echo __GHCR_TOKEN__ | docker login ghcr.io -u __GHCR_USER__ --password-stdin'
 
   # Deploy the stack
   - docker stack deploy -c /opt/private-stack/docker-compose.prod.yml private-stack --with-registry-auth
@@ -119,4 +120,4 @@ runcmd:
   - bash /opt/private-stack/infra/vault/scripts/init-vault.sh
 
   # Redeploy so auth-api and assistant-api pick up the real Vault secrets
-  - docker stack deploy -c /opt/private-stack/docker-compose.prod.yml private-stack
+  - docker stack deploy -c /opt/private-stack/docker-compose.prod.yml private-stack --with-registry-auth

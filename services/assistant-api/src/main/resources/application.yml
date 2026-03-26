@@ -4,6 +4,9 @@ spring:
   threads:
     virtual:
       enabled: true
+  cloud:
+    vault:
+      enabled: false
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/assistant_db
     username: ${DB_USER:assistant_user}
