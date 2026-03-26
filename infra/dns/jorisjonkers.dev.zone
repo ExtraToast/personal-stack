@@ -17,13 +17,6 @@
 ;;   status.jorisjonkers.dev
 ;;   traefik.jorisjonkers.dev
 
-;; SOA Record
-jorisjonkers.dev    3600    IN    SOA    amber.ns.cloudflare.com. dns.cloudflare.com. 2052612338 10000 2400 604800 3600
-
-;; NS Records
-jorisjonkers.dev.    86400    IN    NS    amber.ns.cloudflare.com.
-jorisjonkers.dev.    86400    IN    NS    nolan.ns.cloudflare.com.
-
 ;; A Records
 jorisjonkers.dev.    1    IN    A    167.86.79.203 ; cf_tags=cf-proxied:true
 
