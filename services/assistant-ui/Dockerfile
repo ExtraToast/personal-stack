@@ -7,6 +7,8 @@ COPY services/assistant-ui/package.json services/assistant-ui/
 RUN pnpm install --frozen-lockfile
 COPY libs/vue-common/ libs/vue-common/
 COPY services/assistant-ui/ services/assistant-ui/
+ARG VITE_AUTH_URL=https://auth.jorisjonkers.dev
+ENV VITE_AUTH_URL=$VITE_AUTH_URL
 RUN pnpm --filter @private-stack/assistant-ui build
 
 FROM nginx:alpine
