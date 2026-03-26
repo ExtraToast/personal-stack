@@ -79,6 +79,7 @@ services:
 
   vault:
     image: hashicorp/vault:latest
+    user: '0'
     networks:
       - private-stack-overlay
     cap_add:
@@ -361,7 +362,7 @@ services:
         condition: on-failure
 
   tempo:
-    image: grafana/tempo:latest
+    image: grafana/tempo:2.6.1
     networks:
       - private-stack-overlay
     volumes:

@@ -24,9 +24,8 @@ certificatesResolvers:
           - '1.0.0.1:53'
 
 providers:
-  docker:
+  swarm:
     endpoint: 'unix:///var/run/docker.sock'
-    swarmMode: true
     exposedByDefault: false
     network: private-stack-overlay
   file:
