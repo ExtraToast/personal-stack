@@ -1,0 +1,38 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: auth-api
+    metrics_path: /actuator/prometheus
+    dns_sd_configs:
+      - names: ['tasks.auth-api']
+        type: A
+        port: 8081
+
+  - job_name: assistant-api
+    metrics_path: /actuator/prometheus
+    dns_sd_configs:
+      - names: ['tasks.assistant-api']
+        type: A
+        port: 8082
+
+  - job_name: traefik
+    static_configs:
+      - targets: ['traefik:8080']
+
+  - job_name: grafana
+    static_configs:
+      - targets: ['grafana:3000']
+
+  - job_name: loki
+    static_configs:
+      - targets: ['loki:3100']
+
+  - job_name: tempo
+    static_configs:
+      - targets: ['tempo:3200']

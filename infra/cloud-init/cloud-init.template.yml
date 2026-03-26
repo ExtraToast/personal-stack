@@ -109,8 +109,11 @@ runcmd:
   - echo 'placeholder' | docker secret create vault_assistant_api_role_id -
   - echo 'placeholder' | docker secret create vault_assistant_api_secret_id -
 
+  # Login to GHCR so Swarm can pull private images
+  - echo '__GHCR_TOKEN__' | docker login ghcr.io -u __GHCR_USER__ --password-stdin
+
   # Deploy the stack
-  - docker stack deploy -c /opt/private-stack/docker-compose.prod.yml private-stack
+  - docker stack deploy -c /opt/private-stack/docker-compose.prod.yml private-stack --with-registry-auth
 
   # Initialize Vault and update Docker secrets with real AppRole credentials
   - bash /opt/private-stack/infra/vault/scripts/init-vault.sh

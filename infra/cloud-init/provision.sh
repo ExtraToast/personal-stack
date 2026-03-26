@@ -80,6 +80,8 @@ require_var CONTABO_OAUTH2_PASSWORD
 require_var CONTABO_INSTANCE_ID
 require_var CONTABO_IMAGE_ID
 require_var GITHUB_REPO
+require_var GHCR_USER
+require_var GHCR_TOKEN
 
 CNTB_AUTH=(
   --oauth2-clientid "$CONTABO_OAUTH2_CLIENT_ID"
@@ -182,6 +184,8 @@ sed \
   -e "s|__GRAFANA_ADMIN_PASSWORD__|${GRAFANA_ADMIN_PASSWORD}|g" \
   -e "s|__N8N_DB_USER__|${N8N_DB_USER}|g" \
   -e "s|__N8N_DB_PASSWORD__|${N8N_DB_PASSWORD}|g" \
+  -e "s|__GHCR_USER__|${GHCR_USER}|g" \
+  -e "s|__GHCR_TOKEN__|${GHCR_TOKEN}|g" \
   "$TEMPLATE" > "$RENDERED"
 
 ok "Rendered $RENDERED"
