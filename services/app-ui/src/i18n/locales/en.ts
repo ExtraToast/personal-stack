@@ -66,11 +66,11 @@ export default {
         technologies: ['Ruby on Rails', 'Angular', 'React Native', '.NET', 'Aurelia'],
       },
       {
-        role: 'Secretary & Commissioner External Affairs',
+        role: 'Secretary & Commissioner of External Affairs',
         company: 'ESA Blueshell',
         period: 'September 2024 – Present',
         description:
-          "Overhauled sponsor outreach with scraping techniques and email templates. Built the association's full-stack website from scratch with Spring Boot 4 (Kotlin) and Vue.js 3 (TypeScript), deployed as a Docker Swarm stack with Traefik and GitHub Actions CI/CD. Managed 100+ company relations.",
+          "Overhauled sponsor outreach with scraping techniques and email templates. Migrated the association's full-stack website from JS and Java to TS & Kotlin, implemented in Spring Boot 4 (Kotlin) and Vue.js 3 (TypeScript), deployed as a Docker Swarm stack with Traefik and GitHub Actions CI/CD. Managed 100+ company relations.",
         technologies: ['Spring Boot', 'Kotlin', 'Vue.js', 'Docker Swarm', 'Traefik'],
       },
     ],

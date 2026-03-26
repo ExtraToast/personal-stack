@@ -14,12 +14,12 @@ interface ProjectEntry {
 </script>
 
 <template>
-  <section id="projects" class="bg-gray-50 px-6 py-24 dark:bg-gray-900">
+  <section id="projects" class="border-t border-surface-border/40 bg-surface-card px-6 py-24">
     <div class="mx-auto max-w-5xl">
-      <h2 class="text-3xl font-bold tracking-tight">
-        {{ t('projects.title') }}
+      <h2 class="font-mono text-sm font-semibold uppercase tracking-widest text-terminal-green">
+        <span class="text-gray-600">03.</span> {{ t('projects.title') }}
       </h2>
-      <p class="mt-3 text-gray-500 dark:text-gray-400">
+      <p class="mt-3 text-gray-500">
         {{ t('projects.subtitle') }}
       </p>
       <div class="mt-10 grid gap-6 sm:grid-cols-2">

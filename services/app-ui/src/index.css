@@ -1,0 +1,142 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-terminal-green: #4ade80;
+  --color-terminal-cyan: #22d3ee;
+  --color-terminal-amber: #fbbf24;
+  --color-terminal-purple: #a78bfa;
+  --color-terminal-pink: #f472b6;
+  --color-surface-dark: #0a0a0f;
+  --color-surface-card: #12121a;
+  --color-surface-elevated: #1a1a25;
+  --color-surface-border: #2a2a3a;
+  --color-accent: #6366f1;
+  --color-accent-light: #818cf8;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+}
+
+/* Base styles */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-surface-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent);
+}
+
+/* Selection color */
+::selection {
+  background-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
+  color: white;
+}
+
+/* Glow effects */
+.glow-accent {
+  box-shadow:
+    0 0 20px color-mix(in srgb, var(--color-accent) 20%, transparent),
+    0 0 60px color-mix(in srgb, var(--color-accent) 5%, transparent);
+}
+
+.glow-green {
+  box-shadow: 0 0 20px color-mix(in srgb, var(--color-terminal-green) 15%, transparent);
+}
+
+/* Terminal prompt animation */
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.cursor-blink::after {
+  content: '█';
+  animation: blink 1s step-end infinite;
+  color: var(--color-terminal-green);
+}
+
+/* Fade in animation */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out forwards;
+}
+
+/* Staggered animation delays */
+.delay-100 {
+  animation-delay: 100ms;
+}
+.delay-200 {
+  animation-delay: 200ms;
+}
+.delay-300 {
+  animation-delay: 300ms;
+}
+.delay-400 {
+  animation-delay: 400ms;
+}
+.delay-500 {
+  animation-delay: 500ms;
+}
+
+/* Timeline connector */
+.timeline-dot {
+  position: relative;
+}
+
+.timeline-dot::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 2px;
+  height: calc(100% + 1.5rem);
+  background: linear-gradient(to bottom, var(--color-accent), transparent);
+  transform: translateX(-50%);
+}
+
+/* Grid noise overlay for hero */
+.noise-overlay {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+}
+
+/* Subtle grid pattern */
+.grid-pattern {
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--color-surface-border) 30%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--color-surface-border) 30%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 60px 60px;
+}

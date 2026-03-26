@@ -5,30 +5,44 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <section class="flex min-h-screen flex-col items-center justify-center px-6 pt-16 text-center">
-    <div class="max-w-3xl">
-      <img
-        alt="Joris Jonkers"
-        class="mx-auto mb-8 h-32 w-32 rounded-full object-cover ring-2 ring-indigo-500/30"
-        height="128"
-        src="/joris.jpg"
-        width="128"
-      />
-      <p
-        class="mb-4 text-sm font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400"
+  <section
+    class="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 pt-16 text-center"
+  >
+    <div class="grid-pattern absolute inset-0 opacity-40" />
+
+    <div class="relative max-w-3xl">
+      <div class="animate-fade-in-up mx-auto mb-8">
+        <img
+          alt="Joris Jonkers"
+          class="mx-auto h-48 w-48 rounded-full object-cover ring-2 ring-accent/40 ring-offset-4 ring-offset-surface-dark"
+          height="192"
+          src="/joris.jpg"
+          width="192"
+        />
+      </div>
+
+      <div class="animate-fade-in-up delay-100 opacity-0">
+        <p
+          class="mb-6 inline-block rounded-md border border-surface-border bg-surface-card px-4 py-1.5 font-mono text-sm text-terminal-green"
+        >
+          <span class="text-gray-600">$</span> {{ t('hero.subtitle') }}
+        </p>
+      </div>
+
+      <h1
+        class="animate-fade-in-up delay-200 text-5xl font-bold tracking-tight text-gray-100 opacity-0 sm:text-7xl"
       >
-        {{ t('hero.subtitle') }}
-      </p>
-      <h1 class="text-5xl font-bold tracking-tight sm:text-7xl">
         {{ t('hero.name') }}
-        <span class="text-gray-400 dark:text-gray-600">{{ t('hero.degree') }}</span>
+        <span class="text-gray-600">{{ t('hero.degree') }}</span>
       </h1>
-      <p class="mt-6 text-xl leading-relaxed text-gray-500 dark:text-gray-400">
+
+      <p class="animate-fade-in-up delay-300 mt-6 text-lg leading-relaxed text-gray-400 opacity-0">
         {{ t('hero.tagline') }}
       </p>
-      <div class="mt-10 flex flex-wrap justify-center gap-4">
+
+      <div class="animate-fade-in-up delay-400 mt-10 flex flex-wrap justify-center gap-4 opacity-0">
         <a
-          class="rounded-lg bg-gray-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+          class="glow-accent rounded-lg bg-accent px-6 py-3 font-mono text-sm font-semibold text-white transition-all hover:bg-accent-light"
           href="https://github.com/ExtraToast"
           rel="noopener noreferrer"
           target="_blank"
@@ -36,7 +50,7 @@ const { t } = useI18n()
           {{ t('hero.cta.github') }}
         </a>
         <a
-          class="rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold transition-colors hover:border-gray-500 dark:border-gray-700 dark:hover:border-gray-500"
+          class="rounded-lg border border-surface-border px-6 py-3 font-mono text-sm font-semibold text-gray-300 transition-all hover:border-accent hover:text-white"
           href="https://www.linkedin.com/in/joris-jonkers-25520293/"
           rel="noopener noreferrer"
           target="_blank"
@@ -44,17 +58,18 @@ const { t } = useI18n()
           {{ t('hero.cta.linkedin') }}
         </a>
         <a
-          class="rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold transition-colors hover:border-gray-500 dark:border-gray-700 dark:hover:border-gray-500"
+          class="rounded-lg border border-surface-border px-6 py-3 font-mono text-sm font-semibold text-gray-300 transition-all hover:border-accent hover:text-white"
           href="mailto:info@jorisjonkers.dev"
         >
           {{ t('hero.cta.email') }}
         </a>
       </div>
     </div>
+
     <div
-      class="absolute bottom-10 flex flex-col items-center gap-2 text-gray-400 dark:text-gray-600"
+      class="animate-fade-in-up delay-500 absolute bottom-10 flex flex-col items-center gap-2 text-gray-600 opacity-0"
     >
-      <span class="text-xs uppercase tracking-widest">
+      <span class="font-mono text-xs uppercase tracking-widest">
         {{ t('hero.scroll') }}
       </span>
       <svg
