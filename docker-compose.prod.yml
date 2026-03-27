@@ -161,6 +161,7 @@ services:
       OTEL_SERVICE_NAME: auth-api
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
       OTEL_LOGS_EXPORTER: none
+      OTEL_METRICS_EXPORTER: none
     entrypoint:
       - sh
       - -c
@@ -204,6 +205,7 @@ services:
       OTEL_SERVICE_NAME: assistant-api
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
       OTEL_LOGS_EXPORTER: none
+      OTEL_METRICS_EXPORTER: none
     entrypoint:
       - sh
       - -c
