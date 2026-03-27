@@ -13,7 +13,7 @@ http:
 
     # ── Health checks (public, no auth middleware) ──────────────
     auth-api-health:
-      rule: 'Host(`auth.jorisjonkers.dev`) && Path(`/actuator/health`)'
+      rule: 'Host(`auth.jorisjonkers.dev`) && (Path(`/actuator/health`) || Path(`/api/actuator/health`) || Path(`/api/v1/health`))'
       entryPoints:
         - websecure
       service: auth-api
@@ -22,7 +22,7 @@ http:
         certResolver: cloudflare
 
     assistant-api-health:
-      rule: 'Host(`assistant.jorisjonkers.dev`) && Path(`/actuator/health`)'
+      rule: 'Host(`assistant.jorisjonkers.dev`) && (Path(`/actuator/health`) || Path(`/api/actuator/health`) || Path(`/api/v1/health`))'
       entryPoints:
         - websecure
       service: assistant-api
