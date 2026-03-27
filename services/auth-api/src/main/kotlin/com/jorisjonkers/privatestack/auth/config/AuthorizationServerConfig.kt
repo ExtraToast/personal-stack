@@ -46,55 +46,59 @@ class AuthorizationServerConfig {
     }
 
     @Bean
-    fun registeredClientRepository(): RegisteredClientRepository {
-        // auth-ui: browser-based Authorization Code flow with PKCE
-        val authUiClient = RegisteredClient.withId(UUID.randomUUID().toString())
-            .clientId("auth-ui")
-            .clientAuthenticationMethod(ClientAuthenticationMethod.NONE) // PKCE — no client secret
-            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-            .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-            .redirectUri("https://auth.jorisjonkers.dev/callback")
-            .redirectUri("http://localhost:5174/callback") // dev
-            .postLogoutRedirectUri("https://auth.jorisjonkers.dev/logged-out")
-            .scope(OidcScopes.OPENID)
-            .scope(OidcScopes.PROFILE)
-            .scope(OidcScopes.EMAIL)
-            .clientSettings(
-                ClientSettings.builder()
-                    .requireProofKey(true) // Require PKCE
-                    .requireAuthorizationConsent(false)
-                    .build(),
-            )
-            .tokenSettings(
-                TokenSettings.builder()
-                    .accessTokenTimeToLive(Duration.ofMinutes(15))
-                    .refreshTokenTimeToLive(Duration.ofDays(7))
-                    .reuseRefreshTokens(false)
-                    .build(),
-            )
-            .build()
-
-        // assistant-api: machine-to-machine Client Credentials
-        val assistantApiClient = RegisteredClient.withId(UUID.randomUUID().toString())
-            .clientId("assistant-api")
-            .clientSecret("{noop}assistant-secret") // TODO: load from Vault
-            .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
-            .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
-            .scope("api.read")
-            .scope("api.write")
-            .tokenSettings(
-                TokenSettings.builder()
-                    .accessTokenTimeToLive(Duration.ofMinutes(15))
-                    .build(),
-            )
-            .build()
-
-        return InMemoryRegisteredClientRepository(authUiClient, assistantApiClient)
-    }
+    fun registeredClientRepository(): RegisteredClientRepository =
+        InMemoryRegisteredClientRepository(buildAuthUiClient(), buildAssistantApiClient())
 
     @Bean
     fun authorizationServerSettings(): AuthorizationServerSettings =
         AuthorizationServerSettings.builder()
             .issuer("https://auth.jorisjonkers.dev")
             .build()
+
+    private fun buildAuthUiClient(): RegisteredClient =
+        RegisteredClient.withId(UUID.randomUUID().toString())
+            .clientId("auth-ui")
+            .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
+            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+            .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+            .redirectUri("https://auth.jorisjonkers.dev/callback")
+            .redirectUri("http://localhost:5174/callback")
+            .postLogoutRedirectUri("https://auth.jorisjonkers.dev/logged-out")
+            .scope(OidcScopes.OPENID)
+            .scope(OidcScopes.PROFILE)
+            .scope(OidcScopes.EMAIL)
+            .clientSettings(
+                ClientSettings.builder()
+                    .requireProofKey(true)
+                    .requireAuthorizationConsent(false)
+                    .build(),
+            )
+            .tokenSettings(
+                TokenSettings.builder()
+                    .accessTokenTimeToLive(ACCESS_TOKEN_TTL)
+                    .refreshTokenTimeToLive(REFRESH_TOKEN_TTL)
+                    .reuseRefreshTokens(false)
+                    .build(),
+            )
+            .build()
+
+    private fun buildAssistantApiClient(): RegisteredClient =
+        RegisteredClient.withId(UUID.randomUUID().toString())
+            .clientId("assistant-api")
+            .clientSecret("{noop}assistant-secret") // Production: load from Vault
+            .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+            .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
+            .scope("api.read")
+            .scope("api.write")
+            .tokenSettings(
+                TokenSettings.builder()
+                    .accessTokenTimeToLive(ACCESS_TOKEN_TTL)
+                    .build(),
+            )
+            .build()
+
+    companion object {
+        private val ACCESS_TOKEN_TTL: Duration = Duration.ofMinutes(15)
+        private val REFRESH_TOKEN_TTL: Duration = Duration.ofDays(7)
+    }
 }

@@ -22,7 +22,7 @@ class TokenService(
             .claim("username", username)
             .claim("roles", roles)
             .issuedAt(now)
-            .expiresAt(now.plus(15, ChronoUnit.MINUTES))
+            .expiresAt(now.plus(ACCESS_TOKEN_MINUTES, ChronoUnit.MINUTES))
             .build()
         return jwtEncoder.encode(JwtEncoderParameters.from(claims)).tokenValue
     }
@@ -34,8 +34,13 @@ class TokenService(
             .subject(userId)
             .claim("type", "refresh")
             .issuedAt(now)
-            .expiresAt(now.plus(7, ChronoUnit.DAYS))
+            .expiresAt(now.plus(REFRESH_TOKEN_DAYS, ChronoUnit.DAYS))
             .build()
         return jwtEncoder.encode(JwtEncoderParameters.from(claims)).tokenValue
+    }
+
+    companion object {
+        private const val ACCESS_TOKEN_MINUTES = 15L
+        private const val REFRESH_TOKEN_DAYS = 7L
     }
 }

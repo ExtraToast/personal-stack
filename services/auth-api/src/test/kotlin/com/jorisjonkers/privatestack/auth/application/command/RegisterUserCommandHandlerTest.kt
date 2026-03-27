@@ -26,7 +26,9 @@ class RegisterUserCommandHandlerTest {
     private val eventPublisher = mockk<ApplicationEventPublisher>(relaxed = true)
     private val rabbitMqEventPublisher = mockk<RabbitMqEventPublisher>(relaxed = true)
 
-    private val handler = RegisterUserCommandHandler(userRepository, passwordEncoder, eventPublisher, rabbitMqEventPublisher)
+    private val handler = RegisterUserCommandHandler(
+        userRepository, passwordEncoder, eventPublisher, rabbitMqEventPublisher,
+    )
 
     @Test
     fun `handle registers a new user successfully`() {

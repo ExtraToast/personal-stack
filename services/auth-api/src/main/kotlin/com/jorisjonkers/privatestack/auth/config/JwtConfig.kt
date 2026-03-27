@@ -28,7 +28,7 @@ class JwtConfig {
      */
     @Bean
     fun jwkSource(): JWKSource<SecurityContext> {
-        val keyPair = KeyPairGenerator.getInstance("RSA").apply { initialize(2048) }.generateKeyPair()
+        val keyPair = KeyPairGenerator.getInstance("RSA").apply { initialize(RSA_KEY_SIZE) }.generateKeyPair()
         val rsaKey = RSAKey.Builder(keyPair.public as RSAPublicKey)
             .privateKey(keyPair.private as RSAPrivateKey)
             .keyID(UUID.randomUUID().toString())
@@ -47,4 +47,8 @@ class JwtConfig {
     @Bean
     fun jwtEncoder(jwkSource: JWKSource<SecurityContext>): JwtEncoder =
         NimbusJwtEncoder(jwkSource)
+
+    companion object {
+        private const val RSA_KEY_SIZE = 2048
+    }
 }

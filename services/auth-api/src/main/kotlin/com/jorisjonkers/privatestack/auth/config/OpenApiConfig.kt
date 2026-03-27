@@ -24,28 +24,28 @@ class OpenApiConfig {
         )
         .addServersItem(Server().url("https://auth.jorisjonkers.dev").description("Production"))
         .addServersItem(Server().url("http://localhost:8081").description("Local development"))
-        .components(
-            Components()
-                .addSecuritySchemes(
-                    "oauth2",
-                    SecurityScheme()
-                        .type(SecurityScheme.Type.OAUTH2)
-                        .flows(
-                            OAuthFlows().authorizationCode(
-                                OAuthFlow()
-                                    .authorizationUrl("https://auth.jorisjonkers.dev/oauth2/authorize")
-                                    .tokenUrl("https://auth.jorisjonkers.dev/oauth2/token")
-                                    .refreshUrl("https://auth.jorisjonkers.dev/oauth2/token"),
-                            ),
-                        ),
-                )
-                .addSecuritySchemes(
-                    "bearerAuth",
-                    SecurityScheme()
-                        .type(SecurityScheme.Type.HTTP)
-                        .scheme("bearer")
-                        .bearerFormat("JWT"),
+        .components(buildSecurityComponents())
+        .addSecurityItem(SecurityRequirement().addList("bearerAuth"))
+
+    private fun buildSecurityComponents(): Components = Components()
+        .addSecuritySchemes(
+            "oauth2",
+            SecurityScheme()
+                .type(SecurityScheme.Type.OAUTH2)
+                .flows(
+                    OAuthFlows().authorizationCode(
+                        OAuthFlow()
+                            .authorizationUrl("https://auth.jorisjonkers.dev/oauth2/authorize")
+                            .tokenUrl("https://auth.jorisjonkers.dev/oauth2/token")
+                            .refreshUrl("https://auth.jorisjonkers.dev/oauth2/token"),
+                    ),
                 ),
         )
-        .addSecurityItem(SecurityRequirement().addList("bearerAuth"))
+        .addSecuritySchemes(
+            "bearerAuth",
+            SecurityScheme()
+                .type(SecurityScheme.Type.HTTP)
+                .scheme("bearer")
+                .bearerFormat("JWT"),
+        )
 }
