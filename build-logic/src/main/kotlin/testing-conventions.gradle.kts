@@ -1,6 +1,7 @@
 plugins {
     java
     jacoco
+    id("test-logging-conventions")
 }
 
 jacoco {

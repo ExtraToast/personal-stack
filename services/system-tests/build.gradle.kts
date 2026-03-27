@@ -2,6 +2,7 @@ plugins {
     id("kotlin-conventions")
     id("detekt-conventions")
     id("ktlint-conventions")
+    id("test-logging-conventions")
 }
 
 dependencies {
