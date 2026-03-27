@@ -17,7 +17,7 @@ jobs:
     steps:
       - id: check
         run: |
-          PR_COUNT=$(gh pr list --head "${{ github.ref_name }}" --state open --json number --jq 'length')
+          PR_COUNT=$(gh pr list --repo "${{ github.repository }}" --head "${{ github.ref_name }}" --state open --json number --jq 'length')
           echo "has_pr=$([ "$PR_COUNT" -gt 0 ] && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

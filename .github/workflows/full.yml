@@ -203,7 +203,6 @@ jobs:
           ./gradlew :services:system-tests:test
           -Dtest.auth-api.url=http://localhost:8081
           -Dtest.assistant-api.url=http://localhost:8082
-          -Dtest.traefik.url=http://localhost
       - name: Dump service logs on failure
         if: failure()
         run: |
