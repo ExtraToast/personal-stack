@@ -4,8 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
-DEPLOY_KEY="$HOME/.ssh/private-stack-deploy-key"
-ROOT_KEY="$HOME/.ssh/private-stack-root-user"
+DEPLOY_KEY="$HOME/.ssh/personal-stack-deploy-key"
+ROOT_KEY="$HOME/.ssh/personal-stack-root-user"
 TEMPLATE="cloud-init.template.yml"
 RENDERED="cloud-init.rendered.yml"
 
@@ -56,8 +56,8 @@ ensure_password() {
 # ── 1. SSH Keys ──────────────────────────────────────────────────
 
 info "Checking SSH keys..."
-generate_key_if_missing "$DEPLOY_KEY" "deploy@private-stack"
-generate_key_if_missing "$ROOT_KEY" "root@private-stack"
+generate_key_if_missing "$DEPLOY_KEY" "deploy@personal-stack"
+generate_key_if_missing "$ROOT_KEY" "root@personal-stack"
 
 # ── 2. Load .env ─────────────────────────────────────────────────
 
@@ -108,12 +108,12 @@ require_var CF_DNS_API_TOKEN
 # ── 5. Register deploy key on GitHub ─────────────────────────────
 
 info "Checking GitHub deploy key..."
-if gh repo deploy-key list 2>/dev/null | grep -q "private-stack-deploy-key"; then
+if gh repo deploy-key list 2>/dev/null | grep -q "personal-stack-deploy-key"; then
   ok "Deploy key already registered on GitHub"
 else
   info "Adding deploy key to GitHub..."
   gh repo deploy-key add "${DEPLOY_KEY}.pub" \
-    --title "private-stack-deploy-key" --repo ExtraToast/private-stack
+    --title "personal-stack-deploy-key" --repo ExtraToast/personal-stack
   ok "Deploy key registered"
 fi
 
@@ -125,7 +125,7 @@ else
   info "Checking for existing SSH secret on Contabo..."
   EXISTING_SECRETS=""
   EXISTING_SECRETS=$(cntb get secrets \
-    --name "private-stack-root-user" \
+    --name "personal-stack-root-user" \
     --type ssh \
     "${CNTB_AUTH[@]}" \
     -o json 2>&1 || true)
@@ -138,7 +138,7 @@ else
     info "Creating new SSH secret on Contabo..."
     CREATE_OUTPUT=""
     if ! CREATE_OUTPUT=$(cntb create secret \
-      --name "private-stack-root-user" \
+      --name "personal-stack-root-user" \
       --type ssh \
       --value "$(cat "${ROOT_KEY}.pub")" \
       "${CNTB_AUTH[@]}" \
@@ -227,5 +227,5 @@ echo ""
 info "Next steps:"
 echo "  1. Wait a few minutes for cloud-init to finish (installs Docker, clones repo,"
 echo "     deploys stack, initializes Vault, and redeploys with real secrets)"
-echo "  2. SSH in:  ssh -i ~/.ssh/private-stack-root-user -p 2222 deploy@<VPS_IP>"
-echo "  3. Check:   docker stack ps private-stack"
+echo "  2. SSH in:  ssh -i ~/.ssh/personal-stack-root-user -p 2222 deploy@<VPS_IP>"
+echo "  3. Check:   docker stack ps personal-stack"

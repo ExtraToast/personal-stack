@@ -70,7 +70,7 @@ The VPS pulls private Docker images from GHCR. You need a Personal Access Token 
 
 The script will:
 
-1. Generate SSH keys (`~/.ssh/private-stack-deploy-key` and `~/.ssh/private-stack-root-user`) if they don't exist
+1. Generate SSH keys (`~/.ssh/personal-stack-deploy-key` and `~/.ssh/personal-stack-root-user`) if they don't exist
 2. Register the deploy key on GitHub via `gh`
 3. Upload the SSH public key to Contabo (saves the secret ID back to `.env`)
 4. Render the cloud-init template with your keys and repo URL
@@ -81,6 +81,6 @@ The script will:
 After a few minutes for cloud-init to complete:
 
 ```bash
-ssh -i ~/.ssh/private-stack-root-user -p 2222 deploy@<VPS_IP>
-docker stack ps private-stack
+ssh -i ~/.ssh/personal-stack-root-user -p 2222 deploy@<VPS_IP>
+docker stack ps personal-stack
 ```

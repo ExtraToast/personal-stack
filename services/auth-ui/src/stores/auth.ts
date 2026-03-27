@@ -1,5 +1,5 @@
-import type { ProblemDetail } from '@private-stack/vue-common'
-import { useAuth } from '@private-stack/vue-common'
+import type { ProblemDetail } from '@personal-stack/vue-common'
+import { useAuth } from '@personal-stack/vue-common'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { login as apiLogin, refresh as apiRefresh, register as apiRegister } from '@/features/auth/services/authService'

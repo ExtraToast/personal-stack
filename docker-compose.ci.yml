@@ -1,14 +1,14 @@
 services:
   auth-api:
-    image: private-stack/auth-api:ci
+    image: personal-stack/auth-api:ci
     environment:
       AUTH_LOGIN_URL: http://auth.localhost/login
 
   assistant-api:
-    image: private-stack/assistant-api:ci
+    image: personal-stack/assistant-api:ci
 
   auth-ui:
-    image: private-stack/auth-ui:ci
+    image: personal-stack/auth-ui:ci
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO /dev/null http://127.0.0.1/ || exit 1']
       interval: 5s
@@ -17,7 +17,7 @@ services:
       start_period: 5s
 
   assistant-ui:
-    image: private-stack/assistant-ui:ci
+    image: personal-stack/assistant-ui:ci
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO /dev/null http://127.0.0.1/ || exit 1']
       interval: 5s
@@ -26,7 +26,7 @@ services:
       start_period: 5s
 
   app-ui:
-    image: private-stack/app-ui:ci
+    image: personal-stack/app-ui:ci
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO /dev/null http://127.0.0.1/ || exit 1']
       interval: 5s

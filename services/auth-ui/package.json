@@ -1,5 +1,5 @@
 {
-  "name": "@private-stack/auth-ui",
+  "name": "@personal-stack/auth-ui",
   "type": "module",
   "version": "0.0.1",
   "private": true,
@@ -17,7 +17,7 @@
     "stryker": "stryker run"
   },
   "dependencies": {
-    "@private-stack/vue-common": "workspace:*",
+    "@personal-stack/vue-common": "workspace:*",
     "pinia": "^2.3.1",
     "primevue": "^4.3.3",
     "vue": "^3.5.13",

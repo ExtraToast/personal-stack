@@ -27,7 +27,7 @@ providers:
   swarm:
     endpoint: 'unix:///var/run/docker.sock'
     exposedByDefault: false
-    network: private-stack-overlay
+    network: personal-stack-overlay
   file:
     directory: /etc/traefik/dynamic/
     watch: true

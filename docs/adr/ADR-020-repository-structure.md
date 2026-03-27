@@ -22,7 +22,7 @@ Single GitHub private repository containing everything.
 ### Directory Structure
 
 ```
-private-stack/
+personal-stack/
 ├── docs/
 │   ├── architecture/          # Architecture guide (ARCHITECTURE.md)
 │   └── adr/                   # Architecture Decision Records (this directory)
@@ -57,16 +57,16 @@ CLAUDE.md exists locally only (gitignored). It is not committed to the repositor
 
 ### Naming Conventions
 
-| Item                  | Convention                              | Example                              |
-| --------------------- | --------------------------------------- | ------------------------------------ |
-| Directories           | kebab-case                              | `auth-api`, `vue-common`             |
-| Kotlin packages       | com.jorisjonkers.privatestack.{service} | `com.jorisjonkers.privatestack.auth` |
-| Vue component files   | PascalCase.vue                          | `LoginForm.vue`                      |
-| TypeScript files      | camelCase.ts                            | `useAuth.ts`                         |
-| Docker service names  | kebab-case                              | `auth-api`, `assistant-ui`           |
-| Database names        | snake_case                              | `auth_db`, `assistant_db`            |
-| API endpoints         | /kebab-case                             | `/api/v1/user-profile`               |
-| Environment variables | SCREAMING_SNAKE_CASE                    | `DATABASE_URL`                       |
+| Item                  | Convention                               | Example                               |
+| --------------------- | ---------------------------------------- | ------------------------------------- |
+| Directories           | kebab-case                               | `auth-api`, `vue-common`              |
+| Kotlin packages       | com.jorisjonkers.personalstack.{service} | `com.jorisjonkers.personalstack.auth` |
+| Vue component files   | PascalCase.vue                           | `LoginForm.vue`                       |
+| TypeScript files      | camelCase.ts                             | `useAuth.ts`                          |
+| Docker service names  | kebab-case                               | `auth-api`, `assistant-ui`            |
+| Database names        | snake_case                               | `auth_db`, `assistant_db`             |
+| API endpoints         | /kebab-case                              | `/api/v1/user-profile`                |
+| Environment variables | SCREAMING_SNAKE_CASE                     | `DATABASE_URL`                        |
 
 ### Gradle Configuration
 

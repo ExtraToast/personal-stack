@@ -23,7 +23,7 @@ users:
       - __SSH_PUBLIC_KEY__
 
 write_files:
-  - path: /etc/ssh/sshd_config.d/99-private-stack.conf
+  - path: /etc/ssh/sshd_config.d/99-personal-stack.conf
     content: |
       Port 2222
       PasswordAuthentication no
@@ -91,8 +91,8 @@ runcmd:
   - chown -R deploy:deploy /home/deploy/.ssh
 
   # Clone the repository
-  - install -d -o deploy -g deploy /opt/private-stack
-  - su - deploy -c 'GIT_SSH_COMMAND="ssh -i /home/deploy/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new" git clone __GITHUB_REPO__ /opt/private-stack'
+  - install -d -o deploy -g deploy /opt/personal-stack
+  - su - deploy -c 'GIT_SSH_COMMAND="ssh -i /home/deploy/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new" git clone __GITHUB_REPO__ /opt/personal-stack'
 
   # Create Docker Swarm secrets (printf -n avoids trailing newline)
   - printf '%s' '__POSTGRES_USER__' | docker secret create postgres_user -
@@ -114,18 +114,18 @@ runcmd:
   - su - deploy -c 'echo __GHCR_TOKEN__ | docker login ghcr.io -u __GHCR_USER__ --password-stdin'
 
   # Deploy the stack
-  - docker stack deploy -c /opt/private-stack/docker-compose.prod.yml private-stack --with-registry-auth
+  - docker stack deploy -c /opt/personal-stack/docker-compose.prod.yml personal-stack --with-registry-auth
 
   # Write application credentials for Vault KV population (read by init-vault.sh)
   - |
-    cat > /opt/private-stack/.vault-app-secrets <<'EOF'
+    cat > /opt/personal-stack/.vault-app-secrets <<'EOF'
     RABBITMQ_USER=__RABBITMQ_USER__
     RABBITMQ_PASSWORD=__RABBITMQ_PASSWORD__
     EOF
-    chmod 600 /opt/private-stack/.vault-app-secrets
+    chmod 600 /opt/personal-stack/.vault-app-secrets
 
   # Initialize Vault and update Docker secrets with real AppRole credentials
-  - bash /opt/private-stack/infra/vault/scripts/init-vault.sh
+  - bash /opt/personal-stack/infra/vault/scripts/init-vault.sh
 
   # Redeploy so auth-api and assistant-api pick up the real Vault secrets
-  - docker stack deploy -c /opt/private-stack/docker-compose.prod.yml private-stack --with-registry-auth
+  - docker stack deploy -c /opt/personal-stack/docker-compose.prod.yml personal-stack --with-registry-auth

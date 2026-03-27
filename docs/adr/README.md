@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-This directory contains all Architecture Decision Records (ADRs) for the private-stack project.
+This directory contains all Architecture Decision Records (ADRs) for the personal-stack project.
 
 ## Index
 

@@ -8,7 +8,7 @@ plugins {
 
 jooqCodegen {
     schemaName = "public"
-    packageName = "com.jorisjonkers.privatestack.auth.jooq"
+    packageName = "com.jorisjonkers.personalstack.auth.jooq"
     migrationLocations = listOf("filesystem:src/main/resources/db/migration")
 }
 

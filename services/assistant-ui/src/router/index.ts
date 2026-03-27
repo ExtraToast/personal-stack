@@ -1,5 +1,5 @@
 import type { RouteRecordRaw } from 'vue-router'
-import { useAuth } from '@private-stack/vue-common'
+import { useAuth } from '@personal-stack/vue-common'
 import { createRouter, createWebHistory } from 'vue-router'
 
 declare module 'vue-router' {

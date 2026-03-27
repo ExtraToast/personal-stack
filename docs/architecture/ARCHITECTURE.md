@@ -1,4 +1,4 @@
-# Private Stack -- Architecture Guide
+# Personal Stack -- Architecture Guide
 
 ## Overview
 
@@ -88,7 +88,7 @@ Vault for secrets, custom auth, multiple Vue + Kotlin services, n8n automation, 
 ### Hexagonal Package Structure
 
 ```
-com.jorisjonkers.privatestack.<service>/
+com.jorisjonkers.personalstack.<service>/
   domain/           # Pure domain logic, no framework dependencies
     model/          # Entities, value objects
     port/           # Interfaces (inbound + outbound)
@@ -286,7 +286,7 @@ Dedicated Kotlin service that tests all apps together:
 ## Repository Structure
 
 ```
-private-stack/
+personal-stack/
   docs/
     architecture/        # This guide
     adr/                 # Architecture Decision Records
@@ -318,16 +318,16 @@ CLAUDE.md exists locally only (not committed).
 
 ## Naming Conventions
 
-| Item                  | Convention                              |
-| --------------------- | --------------------------------------- |
-| Directories           | kebab-case                              |
-| Kotlin packages       | com.jorisjonkers.privatestack.{service} |
-| Vue components        | PascalCase.vue                          |
-| TypeScript files      | camelCase.ts                            |
-| Docker services       | kebab-case                              |
-| Databases             | snake_case                              |
-| API endpoints         | /kebab-case                             |
-| Environment variables | SCREAMING_SNAKE_CASE                    |
+| Item                  | Convention                               |
+| --------------------- | ---------------------------------------- |
+| Directories           | kebab-case                               |
+| Kotlin packages       | com.jorisjonkers.personalstack.{service} |
+| Vue components        | PascalCase.vue                           |
+| TypeScript files      | camelCase.ts                             |
+| Docker services       | kebab-case                               |
+| Databases             | snake_case                               |
+| API endpoints         | /kebab-case                              |
+| Environment variables | SCREAMING_SNAKE_CASE                     |
 
 ## ADR Index
 

@@ -3,7 +3,7 @@ services:
 
   postgres:
     image: postgres:17-alpine
-    container_name: private-stack-postgres
+    container_name: personal-stack-postgres
     ports:
       - '5432:5432'
     environment:
@@ -20,7 +20,7 @@ services:
 
   valkey:
     image: valkey/valkey:8-alpine
-    container_name: private-stack-valkey
+    container_name: personal-stack-valkey
     ports:
       - '6379:6379'
     volumes:
@@ -33,7 +33,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:4.2-management-alpine
-    container_name: private-stack-rabbitmq
+    container_name: personal-stack-rabbitmq
     ports:
       - '5672:5672'
       - '15672:15672'
@@ -50,7 +50,7 @@ services:
 
   vault:
     image: hashicorp/vault:1.19
-    container_name: private-stack-vault
+    container_name: personal-stack-vault
     ports:
       - '8200:8200'
     environment:
@@ -63,7 +63,7 @@ services:
 
   traefik:
     image: traefik:v3.6
-    container_name: private-stack-traefik
+    container_name: personal-stack-traefik
     ports:
       - '80:80'
       - '443:443'
@@ -78,7 +78,7 @@ services:
     build:
       context: .
       dockerfile: services/auth-api/Dockerfile
-    container_name: private-stack-auth-api
+    container_name: personal-stack-auth-api
     ports:
       - '8081:8081'
     environment:
@@ -115,7 +115,7 @@ services:
     build:
       context: .
       dockerfile: services/assistant-api/Dockerfile
-    container_name: private-stack-assistant-api
+    container_name: personal-stack-assistant-api
     ports:
       - '8082:8082'
     environment:
@@ -154,7 +154,7 @@ services:
     build:
       context: .
       dockerfile: services/auth-ui/Dockerfile
-    container_name: private-stack-auth-ui
+    container_name: personal-stack-auth-ui
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.auth-ui.rule=Host(`auth.localhost`)'
@@ -165,7 +165,7 @@ services:
     build:
       context: .
       dockerfile: services/assistant-ui/Dockerfile
-    container_name: private-stack-assistant-ui
+    container_name: personal-stack-assistant-ui
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.assistant-ui.rule=Host(`app.localhost`)'
@@ -176,7 +176,7 @@ services:
     build:
       context: .
       dockerfile: services/app-ui/Dockerfile
-    container_name: private-stack-app-ui
+    container_name: personal-stack-app-ui
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.app-ui.rule=Host(`localhost`)'

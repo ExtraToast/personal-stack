@@ -23,7 +23,7 @@ domain ownership, ACLs) have proven effective and should be carried forward.
 ### Package Structure
 
 ```
-com.jorisjonkers.privatestack.<service>/
+com.jorisjonkers.personalstack.<service>/
 ├── domain/           # Pure domain logic — ZERO framework dependencies
 │   ├── model/        # Entities, value objects, aggregates
 │   ├── port/         # Interfaces: inbound (use case) + outbound (repository, messaging)

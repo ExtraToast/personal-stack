@@ -1,5 +1,5 @@
 import type { Conversation, Message } from '../types'
-import { useApiWithAuth } from '@private-stack/vue-common'
+import { useApiWithAuth } from '@personal-stack/vue-common'
 
 function getApi(): ReturnType<typeof useApiWithAuth> {
   return useApiWithAuth({ baseUrl: '/api/v1' })
