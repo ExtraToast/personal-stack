@@ -2,6 +2,8 @@ auth:
   login-url: https://auth.jorisjonkers.dev/login
 
 spring:
+  config:
+    import: vault://
   cloud:
     vault:
       enabled: true
