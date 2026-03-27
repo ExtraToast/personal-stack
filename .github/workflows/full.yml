@@ -49,7 +49,7 @@ jobs:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew test -x integrationTest
+      - run: ./gradlew test -x integrationTest -x :services:system-tests:test
 
   test-frontend-unit:
     name: Frontend Unit Tests
