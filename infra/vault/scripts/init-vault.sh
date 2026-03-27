@@ -201,7 +201,13 @@ for i in $(seq 1 30); do
   [ "$remaining" -eq 0 ] && break
   sleep 2
 done
-sleep 5
+echo "==> Waiting for network cleanup..."
+for i in $(seq 1 30); do
+  if ! docker network inspect personal-stack_personal-stack-overlay > /dev/null 2>&1; then
+    break
+  fi
+  sleep 2
+done
 
 echo "==> Updating Docker Swarm Vault secrets..."
 
