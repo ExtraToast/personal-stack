@@ -157,6 +157,7 @@ services:
       VALKEY_PORT: 6379
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
+      SPRING_CONFIG_IMPORT: vault://
       VAULT_ADDR: http://vault:8200
       OTEL_SERVICE_NAME: auth-api
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
@@ -201,6 +202,7 @@ services:
       VALKEY_PORT: 6379
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
+      SPRING_CONFIG_IMPORT: vault://
       VAULT_ADDR: http://vault:8200
       OTEL_SERVICE_NAME: assistant-api
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
