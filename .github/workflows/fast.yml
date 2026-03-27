@@ -10,8 +10,17 @@ concurrency:
 
 jobs:
   lint-kotlin:
-    name: Lint Kotlin
+    name: Lint Kotlin (${{ matrix.module }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - module: auth-api
+            gradle-path: :services:auth-api
+          - module: assistant-api
+            gradle-path: :services:assistant-api
+          - module: kotlin-common
+            gradle-path: :libs:kotlin-common
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -19,7 +28,7 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew detekt ktlintCheck
+      - run: ./gradlew ${{ matrix.gradle-path }}:detekt ${{ matrix.gradle-path }}:ktlintCheck
 
   lint-frontend:
     name: Lint Frontend
@@ -49,8 +58,17 @@ jobs:
       - run: pnpm -r typecheck
 
   test-kotlin-unit:
-    name: Kotlin Unit Tests
+    name: Kotlin Unit Tests (${{ matrix.module }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - module: auth-api
+            gradle-path: :services:auth-api
+          - module: assistant-api
+            gradle-path: :services:assistant-api
+          - module: kotlin-common
+            gradle-path: :libs:kotlin-common
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -58,7 +76,7 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew test -x integrationTest -x :services:system-tests:test
+      - run: ./gradlew ${{ matrix.gradle-path }}:test
 
   test-frontend-unit:
     name: Frontend Unit Tests
