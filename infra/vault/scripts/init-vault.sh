@@ -167,16 +167,27 @@ if [[ -f "$VAULT_APP_SECRETS_FILE" ]]; then
   echo "==> Populating Vault KV with application secrets..."
   # shellcheck source=/dev/null
   source "$VAULT_APP_SECRETS_FILE"
+
+  # DB credential defaults (match init-databases.sh fallbacks)
+  : "${AUTH_DB_USER:=auth_user}"
+  : "${AUTH_DB_PASSWORD:=auth_password}"
+  : "${ASSISTANT_DB_USER:=assistant_user}"
+  : "${ASSISTANT_DB_PASSWORD:=assistant_password}"
+
   vault_exec kv put secret/auth-api \
     "spring.rabbitmq.username=${RABBITMQ_USER}" \
-    "spring.rabbitmq.password=${RABBITMQ_PASSWORD}"
+    "spring.rabbitmq.password=${RABBITMQ_PASSWORD}" \
+    "spring.datasource.username=${AUTH_DB_USER}" \
+    "spring.datasource.password=${AUTH_DB_PASSWORD}"
   vault_exec kv put secret/assistant-api \
     "spring.rabbitmq.username=${RABBITMQ_USER}" \
-    "spring.rabbitmq.password=${RABBITMQ_PASSWORD}"
+    "spring.rabbitmq.password=${RABBITMQ_PASSWORD}" \
+    "spring.datasource.username=${ASSISTANT_DB_USER}" \
+    "spring.datasource.password=${ASSISTANT_DB_PASSWORD}"
   echo "==> Vault KV secrets populated."
 else
   echo "WARN: ${VAULT_APP_SECRETS_FILE} not found; skipping KV population."
-  echo "     RabbitMQ credentials must be written to Vault manually."
+  echo "     RabbitMQ and DB credentials must be written to Vault manually."
 fi
 
 # ── Update Docker Swarm secrets ───────────────────────────────────────────────

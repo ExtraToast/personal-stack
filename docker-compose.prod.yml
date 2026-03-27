@@ -14,6 +14,8 @@ services:
       - postgres_user
       - postgres_password
       - n8n_db_password
+      - auth_db_password
+      - assistant_db_password
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 10s
@@ -151,8 +153,6 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_USER: auth_user
-      DB_PASSWORD: auth_password
       VALKEY_HOST: valkey
       VALKEY_PORT: 6379
       SPRING_RABBITMQ_HOST: rabbitmq
@@ -196,8 +196,6 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_USER: assistant_user
-      DB_PASSWORD: assistant_password
       VALKEY_HOST: valkey
       VALKEY_PORT: 6379
       SPRING_RABBITMQ_HOST: rabbitmq
@@ -500,4 +498,8 @@ secrets:
   grafana_admin_user:
     external: true
   grafana_admin_password:
+    external: true
+  auth_db_password:
+    external: true
+  assistant_db_password:
     external: true

@@ -104,6 +104,8 @@ runcmd:
   - printf '%s' '__GRAFANA_ADMIN_PASSWORD__' | docker secret create grafana_admin_password -
   - printf '%s' '__N8N_DB_USER__' | docker secret create n8n_db_user -
   - printf '%s' '__N8N_DB_PASSWORD__' | docker secret create n8n_db_password -
+  - printf '%s' '__AUTH_DB_PASSWORD__' | docker secret create auth_db_password -
+  - printf '%s' '__ASSISTANT_DB_PASSWORD__' | docker secret create assistant_db_password -
   - printf '%s' 'placeholder' | docker secret create vault_auth_api_role_id -
   - printf '%s' 'placeholder' | docker secret create vault_auth_api_secret_id -
   - printf '%s' 'placeholder' | docker secret create vault_assistant_api_role_id -
@@ -121,6 +123,10 @@ runcmd:
     cat > /opt/personal-stack/.vault-app-secrets <<'EOF'
     RABBITMQ_USER=__RABBITMQ_USER__
     RABBITMQ_PASSWORD=__RABBITMQ_PASSWORD__
+    AUTH_DB_USER=__AUTH_DB_USER__
+    AUTH_DB_PASSWORD=__AUTH_DB_PASSWORD__
+    ASSISTANT_DB_USER=__ASSISTANT_DB_USER__
+    ASSISTANT_DB_PASSWORD=__ASSISTANT_DB_PASSWORD__
     EOF
     chmod 600 /opt/personal-stack/.vault-app-secrets
 
