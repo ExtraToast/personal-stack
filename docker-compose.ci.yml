@@ -10,7 +10,7 @@ services:
   auth-ui:
     image: private-stack/auth-ui:ci
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO /dev/null http://localhost/ || exit 1']
+      test: ['CMD-SHELL', 'wget -qO /dev/null http://127.0.0.1/ || exit 1']
       interval: 5s
       timeout: 3s
       retries: 5
@@ -19,7 +19,7 @@ services:
   assistant-ui:
     image: private-stack/assistant-ui:ci
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO /dev/null http://localhost/ || exit 1']
+      test: ['CMD-SHELL', 'wget -qO /dev/null http://127.0.0.1/ || exit 1']
       interval: 5s
       timeout: 3s
       retries: 5
@@ -28,7 +28,7 @@ services:
   app-ui:
     image: private-stack/app-ui:ci
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO /dev/null http://localhost/ || exit 1']
+      test: ['CMD-SHELL', 'wget -qO /dev/null http://127.0.0.1/ || exit 1']
       interval: 5s
       timeout: 3s
       retries: 5
