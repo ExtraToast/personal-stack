@@ -3,9 +3,15 @@ services:
     image: personal-stack/auth-api:ci
     environment:
       AUTH_LOGIN_URL: http://auth.localhost/login
+      OTEL_METRICS_EXPORTER: none
+      OTEL_TRACES_EXPORTER: none
+      MANAGEMENT_HEALTH_MAIL_ENABLED: 'false'
 
   assistant-api:
     image: personal-stack/assistant-api:ci
+    environment:
+      OTEL_METRICS_EXPORTER: none
+      OTEL_TRACES_EXPORTER: none
 
   auth-ui:
     image: personal-stack/auth-ui:ci
