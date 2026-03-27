@@ -12,6 +12,15 @@ interface RegisterData {
   password: string
 }
 
+export interface LoginResponse {
+  totpRequired: boolean
+  totpChallengeToken?: string
+  accessToken?: string
+  refreshToken?: string
+  expiresIn?: number
+  tokenType?: string
+}
+
 const API_BASE = '/api/v1'
 
 /* eslint-disable ts/consistent-type-assertions -- generic response handling requires casts */
@@ -40,8 +49,12 @@ function authPost<T>(path: string, body: unknown): Promise<T> {
 }
 /* eslint-enable ts/consistent-type-assertions */
 
-export async function login(credentials: LoginCredentials): Promise<AuthTokens> {
-  return post<AuthTokens>('/auth/login', credentials)
+export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
+  return post<LoginResponse>('/auth/login', credentials)
+}
+
+export async function submitTotpChallenge(totpChallengeToken: string, code: string): Promise<LoginResponse> {
+  return post<LoginResponse>('/auth/totp-challenge', { totpChallengeToken, code })
 }
 
 export async function refresh(refreshToken: string): Promise<AuthTokens> {

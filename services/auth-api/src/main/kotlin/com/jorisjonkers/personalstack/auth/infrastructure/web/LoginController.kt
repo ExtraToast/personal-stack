@@ -1,13 +1,18 @@
 package com.jorisjonkers.personalstack.auth.infrastructure.web
 
+import com.jorisjonkers.personalstack.auth.application.command.InvalidTotpCodeException
+import com.jorisjonkers.personalstack.auth.application.command.InvalidTotpStateException
 import com.jorisjonkers.personalstack.auth.domain.model.UserCredentials
 import com.jorisjonkers.personalstack.auth.domain.model.UserId
 import com.jorisjonkers.personalstack.auth.domain.port.PasswordEncoder
 import com.jorisjonkers.personalstack.auth.domain.port.UserRepository
+import com.jorisjonkers.personalstack.auth.domain.service.TotpService
 import com.jorisjonkers.personalstack.auth.infrastructure.security.TokenService
 import com.jorisjonkers.personalstack.auth.infrastructure.web.dto.LoginRequest
+import com.jorisjonkers.personalstack.auth.infrastructure.web.dto.LoginResponse
 import com.jorisjonkers.personalstack.auth.infrastructure.web.dto.RefreshRequest
 import com.jorisjonkers.personalstack.auth.infrastructure.web.dto.TokenResponse
+import com.jorisjonkers.personalstack.auth.infrastructure.web.dto.TotpChallengeRequest
 import com.jorisjonkers.personalstack.common.exception.DomainException
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
@@ -26,12 +31,13 @@ class LoginController(
     private val userRepository: UserRepository,
     private val passwordEncoder: PasswordEncoder,
     private val tokenService: TokenService,
+    private val totpService: TotpService,
     private val jwtDecoder: JwtDecoder,
 ) {
     @PostMapping("/login")
     fun login(
         @Valid @RequestBody request: LoginRequest,
-    ): ResponseEntity<TokenResponse> {
+    ): ResponseEntity<LoginResponse> {
         val credentials =
             userRepository.findCredentialsByUsername(request.username)
                 ?: throw InvalidCredentialsException()
@@ -40,15 +46,47 @@ class LoginController(
             throw InvalidCredentialsException()
         }
 
-        val userId = credentials.userId.value.toString()
-        val roles = listOf("ROLE_${credentials.role.name}")
-        val response =
-            TokenResponse(
-                accessToken = tokenService.createAccessToken(credentials.username, userId, roles),
-                refreshToken = tokenService.createRefreshToken(userId),
-                expiresIn = 900,
+        if (credentials.totpEnabled) {
+            val challengeToken =
+                tokenService.createTotpChallengeToken(
+                    userId = credentials.userId.value.toString(),
+                    username = credentials.username,
+                )
+            return ResponseEntity.ok(
+                LoginResponse(
+                    totpRequired = true,
+                    totpChallengeToken = challengeToken,
+                ),
             )
-        return ResponseEntity.ok(response)
+        }
+
+        return ResponseEntity.ok(issueFullTokens(credentials))
+    }
+
+    @PostMapping("/totp-challenge")
+    fun totpChallenge(
+        @Valid @RequestBody request: TotpChallengeRequest,
+    ): ResponseEntity<LoginResponse> {
+        val jwt = decodeChallengeToken(request.totpChallengeToken)
+        val userId = UserId(UUID.fromString(jwt.subject))
+
+        val credentials =
+            userRepository.findCredentialsByUsername(jwt.getClaim("username"))
+                ?: throw InvalidCredentialsException()
+
+        if (credentials.userId != userId) {
+            throw InvalidCredentialsException()
+        }
+
+        val totpSecret =
+            credentials.totpSecret
+                ?: throw InvalidTotpStateException("TOTP not configured for this account")
+
+        if (!totpService.verifyCode(totpSecret, request.code)) {
+            throw InvalidTotpCodeException()
+        }
+
+        return ResponseEntity.ok(issueFullTokens(credentials))
     }
 
     @PostMapping("/refresh")
@@ -66,6 +104,17 @@ class LoginController(
                 expiresIn = 900,
             )
         return ResponseEntity.ok(response)
+    }
+
+    private fun issueFullTokens(credentials: UserCredentials): LoginResponse {
+        val userId = credentials.userId.value.toString()
+        val roles = listOf("ROLE_${credentials.role.name}")
+        return LoginResponse(
+            totpRequired = false,
+            accessToken = tokenService.createAccessToken(credentials.username, userId, roles),
+            refreshToken = tokenService.createRefreshToken(userId),
+            expiresIn = 900,
+        )
     }
 
     private fun resolveRefreshCredentials(refreshToken: String): UserCredentials {
@@ -88,6 +137,21 @@ class LoginController(
             }
 
         if (jwt.getClaim<String>("type") != "refresh") {
+            throw InvalidCredentialsException()
+        }
+
+        return jwt
+    }
+
+    private fun decodeChallengeToken(token: String): Jwt {
+        val jwt =
+            try {
+                jwtDecoder.decode(token)
+            } catch (e: JwtException) {
+                throw InvalidCredentialsException(e)
+            }
+
+        if (jwt.getClaim<String>("type") != "totp_challenge") {
             throw InvalidCredentialsException()
         }
 

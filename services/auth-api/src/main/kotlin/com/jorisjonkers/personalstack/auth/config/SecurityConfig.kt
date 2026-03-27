@@ -78,6 +78,7 @@ class SecurityConfig(
                         "/api/v1/swagger-ui/**",
                         "/api/v1/users/register",
                         "/api/v1/auth/login",
+                        "/api/v1/auth/totp-challenge",
                         "/api/v1/auth/refresh",
                     ).permitAll()
                     .anyRequest()
