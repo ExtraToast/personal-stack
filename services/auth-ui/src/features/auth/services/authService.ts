@@ -1,4 +1,5 @@
 import type { AuthTokens } from '@personal-stack/vue-common'
+import { useAuth } from '@personal-stack/vue-common'
 
 interface LoginCredentials {
   username: string
@@ -14,10 +15,10 @@ interface RegisterData {
 const API_BASE = '/api/v1'
 
 /* eslint-disable ts/consistent-type-assertions -- generic response handling requires casts */
-async function post<T>(path: string, body: unknown): Promise<T> {
+async function post<T>(path: string, body: unknown, headers: Record<string, string> = {}): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(body),
   })
   if (!response.ok) {
@@ -27,6 +28,15 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     return undefined as unknown as T
   }
   return response.json() as Promise<T>
+}
+
+function authPost<T>(path: string, body: unknown): Promise<T> {
+  const { getAccessToken } = useAuth()
+  const token = getAccessToken()
+  if (!token) {
+    return Promise.reject(new Error('Not authenticated'))
+  }
+  return post<T>(path, body, { Authorization: `Bearer ${token}` })
 }
 /* eslint-enable ts/consistent-type-assertions */
 
@@ -46,9 +56,9 @@ export async function enrollTotp(): Promise<{
   secret: string
   qrUri: string
 }> {
-  return post<{ secret: string; qrUri: string }>('/totp/enroll', {})
+  return authPost<{ secret: string; qrUri: string }>('/totp/enroll', {})
 }
 
 export async function verifyTotp(code: string): Promise<void> {
-  return post<void>('/totp/verify', { code })
+  return authPost<void>('/totp/verify', { code })
 }
