@@ -3,7 +3,7 @@ services:
   postgres:
     image: postgres:17-alpine
     networks:
-      - private-stack-overlay
+      - personal-stack-overlay
     environment:
       POSTGRES_USER_FILE: /run/secrets/postgres_user
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
@@ -31,7 +31,7 @@ services:
   valkey:
     image: valkey/valkey:8-alpine
     networks:
-      - private-stack-overlay
+      - personal-stack-overlay
     volumes:
       - valkey-data:/data
     healthcheck:
@@ -51,7 +51,7 @@ services:
   rabbitmq:
     image: rabbitmq:4.2-management-alpine
     networks:
-      - private-stack-overlay
+      - personal-stack-overlay
     entrypoint:
       - bash
       - -c
@@ -82,7 +82,7 @@ services:
     image: hashicorp/vault:1.19
     user: '0'
     networks:
-      - private-stack-overlay
+      - personal-stack-overlay
     cap_add:
       - IPC_LOCK
     volumes:
@@ -112,7 +112,7 @@ services:
   traefik:
     image: traefik:v3.6
     networks:
-      - private-stack-overlay
+      - personal-stack-overlay
     ports:
       - '80:80'
       - '443:443'
@@ -144,9 +144,9 @@ services:
 
   # ── Application services ────────────────────────────────────────
   auth-api:
-    image: ghcr.io/extratoast/private-stack/auth-api:latest
+    image: ghcr.io/extratoast/personal-stack/auth-api:latest
     networks:
-      - private-stack-overlay
+      - personal-stack-overlay
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_HOST: postgres
@@ -189,9 +189,9 @@ services:
         condition: any
 
   assistant-api:
-    image: ghcr.io/extratoast/private-stack/assistant-api:latest
+    image: ghcr.io/extratoast/personal-stack/assistant-api:latest
     networks:
-      - private-stack-overlay
+      - personal-stack-overlay
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_HOST: postgres
@@ -234,9 +234,9 @@ services:
         condition: any
 
   auth-ui:
-    image: ghcr.io/extratoast/private-stack/auth-ui:latest
+    image: ghcr.io/extratoast/personal-stack/auth-ui:latest
     networks:
-      - private-stack-overlay
+      - personal-stack-overlay
     healthcheck:
       test: ['CMD-SHELL', 'curl -f http://localhost:80 || exit 1']
       interval: 15s
@@ -252,9 +252,9 @@ services:
         condition: any
 
   assistant-ui:
-    image: ghcr.io/extratoast/private-stack/assistant-ui:latest
+    image: ghcr.io/extratoast/personal-stack/assistant-ui:latest
     networks:
-      - private-stack-overlay
+      - personal-stack-overlay
     healthcheck:
       test: ['CMD-SHELL', 'curl -f http://localhost:80 || exit 1']
       interval: 15s
@@ -270,9 +270,9 @@ services:
         condition: any
 
   app-ui:
-    image: ghcr.io/extratoast/private-stack/app-ui:latest
+    image: ghcr.io/extratoast/personal-stack/app-ui:latest
     networks:
-      - private-stack-overlay
+      - personal-stack-overlay
     healthcheck:
       test: ['CMD-SHELL', 'curl -f http://localhost:80 || exit 1']
       interval: 15s
@@ -290,7 +290,7 @@ services:
   n8n:
     image: n8nio/n8n:2.13.4
     networks:
-      - private-stack-overlay
+      - personal-stack-overlay
     environment:
       DB_TYPE: postgresdb
       DB_POSTGRESDB_HOST: postgres
@@ -325,7 +325,7 @@ services:
   prometheus:
     image: prom/prometheus:v3.3.1
     networks:
-      - private-stack-overlay
+      - personal-stack-overlay
     volumes:
       - ./infra/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
@@ -349,7 +349,7 @@ services:
   grafana:
     image: grafana/grafana:11.6.0
     networks:
-      - private-stack-overlay
+      - personal-stack-overlay
     environment:
       GF_SERVER_ROOT_URL: https://grafana.jorisjonkers.dev
       GF_SECURITY_ADMIN_USER__FILE: /run/secrets/grafana_admin_user
@@ -376,7 +376,7 @@ services:
   loki:
     image: grafana/loki:3.5.0
     networks:
-      - private-stack-overlay
+      - personal-stack-overlay
     volumes:
       - ./infra/observability/loki/loki.yaml:/etc/loki/loki.yaml:ro
       - loki-data:/loki
@@ -398,7 +398,7 @@ services:
   promtail:
     image: grafana/promtail:3.5.0
     networks:
-      - private-stack-overlay
+      - personal-stack-overlay
     volumes:
       - ./infra/observability/promtail/promtail.yaml:/etc/promtail/config.yml:ro
       - /var/log:/var/log:ro
@@ -416,7 +416,7 @@ services:
   tempo:
     image: grafana/tempo:2.7.2
     networks:
-      - private-stack-overlay
+      - personal-stack-overlay
     volumes:
       - ./infra/observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
       - tempo-data:/var/tempo
@@ -438,7 +438,7 @@ services:
   uptime-kuma:
     image: louislam/uptime-kuma:2
     networks:
-      - private-stack-overlay
+      - personal-stack-overlay
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - uptime-kuma-data:/app/data
@@ -470,7 +470,7 @@ volumes:
   uptime-kuma-data:
 
 networks:
-  private-stack-overlay:
+  personal-stack-overlay:
     driver: overlay
     attachable: true
 

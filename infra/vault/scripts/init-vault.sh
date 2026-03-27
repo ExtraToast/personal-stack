@@ -6,11 +6,11 @@ trap 'echo "ERR: init-vault.sh failed at line ${LINENO}" >&2' ERR
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 POLICIES_DIR="${SCRIPT_DIR}/../policies"
-VAULT_KEYS_FILE="/opt/private-stack/.vault-keys"
+VAULT_KEYS_FILE="/opt/personal-stack/.vault-keys"
 
-# ── Find vault container (Swarm names it like "private-stack_vault.1.<id>") ──
+# ── Find vault container (Swarm names it like "personal-stack_vault.1.<id>") ──
 echo "==> Waiting for vault container to start..."
-until VAULT_CONTAINER=$(docker ps --filter "name=private-stack_vault" --format "{{.ID}}" | head -1) \
+until VAULT_CONTAINER=$(docker ps --filter "name=personal-stack_vault" --format "{{.ID}}" | head -1) \
     && [ -n "$VAULT_CONTAINER" ]; do
   sleep 3
 done
@@ -162,7 +162,7 @@ ASSISTANT_API_ROLE_ID=$(vault_exec read -field=role_id auth/approle/role/assista
 ASSISTANT_API_SECRET_ID=$(vault_exec write -f -field=secret_id auth/approle/role/assistant-api/secret-id)
 
 # ── Populate Vault KV with application secrets ────────────────────────────
-VAULT_APP_SECRETS_FILE="/opt/private-stack/.vault-app-secrets"
+VAULT_APP_SECRETS_FILE="/opt/personal-stack/.vault-app-secrets"
 if [[ -f "$VAULT_APP_SECRETS_FILE" ]]; then
   echo "==> Populating Vault KV with application secrets..."
   # shellcheck source=/dev/null
@@ -184,11 +184,11 @@ echo "==> Detaching Vault secrets from services (required before removal)..."
 docker service update \
   --secret-rm vault_auth_api_role_id \
   --secret-rm vault_auth_api_secret_id \
-  private-stack_auth-api 2>/dev/null || true
+  personal-stack_auth-api 2>/dev/null || true
 docker service update \
   --secret-rm vault_assistant_api_role_id \
   --secret-rm vault_assistant_api_secret_id \
-  private-stack_assistant-api 2>/dev/null || true
+  personal-stack_assistant-api 2>/dev/null || true
 
 echo "==> Updating Docker Swarm Vault secrets..."
 

@@ -147,11 +147,11 @@ jobs:
           file: ${{ matrix.service.dockerfile }}
           push: false
           load: true
-          tags: private-stack/${{ matrix.service.name }}:ci
+          tags: personal-stack/${{ matrix.service.name }}:ci
           cache-from: type=gha,scope=${{ matrix.service.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}
       - name: Export image
-        run: docker save private-stack/${{ matrix.service.name }}:ci -o /tmp/${{ matrix.service.name }}.tar
+        run: docker save personal-stack/${{ matrix.service.name }}:ci -o /tmp/${{ matrix.service.name }}.tar
       - uses: actions/upload-artifact@v7
         with:
           name: image-${{ matrix.service.name }}
@@ -216,8 +216,8 @@ jobs:
           echo "==> All services healthy"
       - name: Verify database migrations ran
         run: |
-          docker exec private-stack-postgres psql -U auth_user -d auth_db -c '\dt' | grep -q app_user || { echo "auth_db migrations missing"; exit 1; }
-          docker exec private-stack-postgres psql -U assistant_user -d assistant_db -c '\dt' | grep -q conversation || { echo "assistant_db migrations missing"; exit 1; }
+          docker exec personal-stack-postgres psql -U auth_user -d auth_db -c '\dt' | grep -q app_user || { echo "auth_db migrations missing"; exit 1; }
+          docker exec personal-stack-postgres psql -U assistant_user -d assistant_db -c '\dt' | grep -q conversation || { echo "assistant_db migrations missing"; exit 1; }
           echo "==> Database migrations verified"
       - name: Run system tests
         run: >-

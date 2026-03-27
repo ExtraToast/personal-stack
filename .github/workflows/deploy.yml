@@ -72,7 +72,7 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: 2222
           script: |
-            cd /opt/private-stack
+            cd /opt/personal-stack
             git fetch origin main
             git reset --hard origin/main
-            docker stack deploy -c docker-compose.prod.yml private-stack --with-registry-auth
+            docker stack deploy -c docker-compose.prod.yml personal-stack --with-registry-auth

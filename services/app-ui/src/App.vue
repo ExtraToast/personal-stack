@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useTheme } from '@private-stack/vue-common'
+import { useTheme } from '@personal-stack/vue-common'
 import { useI18n } from 'vue-i18n'
 import { RouterView } from 'vue-router'
 import { setLocale } from './i18n'

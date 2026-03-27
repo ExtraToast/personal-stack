@@ -1,4 +1,4 @@
-rootProject.name = "private-stack"
+rootProject.name = "personal-stack"
 
 pluginManagement {
     includeBuild("build-logic")

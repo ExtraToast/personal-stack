@@ -1,0 +1,53 @@
+package com.jorisjonkers.personalstack.auth.infrastructure.security
+
+import org.springframework.security.oauth2.jwt.JwtClaimsSet
+import org.springframework.security.oauth2.jwt.JwtEncoder
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters
+import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings
+import org.springframework.stereotype.Service
+import java.time.Instant
+import java.time.temporal.ChronoUnit
+
+@Service
+class TokenService(
+    private val jwtEncoder: JwtEncoder,
+    private val authorizationServerSettings: AuthorizationServerSettings,
+) {
+    fun createAccessToken(
+        username: String,
+        userId: String,
+        roles: List<String>,
+    ): String {
+        val now = Instant.now()
+        val claims =
+            JwtClaimsSet
+                .builder()
+                .issuer(authorizationServerSettings.issuer)
+                .subject(userId)
+                .claim("username", username)
+                .claim("roles", roles)
+                .issuedAt(now)
+                .expiresAt(now.plus(ACCESS_TOKEN_MINUTES, ChronoUnit.MINUTES))
+                .build()
+        return jwtEncoder.encode(JwtEncoderParameters.from(claims)).tokenValue
+    }
+
+    fun createRefreshToken(userId: String): String {
+        val now = Instant.now()
+        val claims =
+            JwtClaimsSet
+                .builder()
+                .issuer(authorizationServerSettings.issuer)
+                .subject(userId)
+                .claim("type", "refresh")
+                .issuedAt(now)
+                .expiresAt(now.plus(REFRESH_TOKEN_DAYS, ChronoUnit.DAYS))
+                .build()
+        return jwtEncoder.encode(JwtEncoderParameters.from(claims)).tokenValue
+    }
+
+    companion object {
+        private const val ACCESS_TOKEN_MINUTES = 15L
+        private const val REFRESH_TOKEN_DAYS = 7L
+    }
+}

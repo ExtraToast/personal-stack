@@ -38,7 +38,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @private-stack/auth-ui stryker run || true
+      - run: pnpm --filter @personal-stack/auth-ui stryker run || true
 
   system-tests:
     name: System / Coherence Tests

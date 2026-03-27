@@ -1,4 +1,4 @@
-import type { AuthTokens } from '@private-stack/vue-common'
+import type { AuthTokens } from '@personal-stack/vue-common'
 
 interface LoginCredentials {
   username: string

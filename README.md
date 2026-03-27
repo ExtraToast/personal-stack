@@ -1,4 +1,4 @@
-# private-stack
+# personal-stack
 
 Self-hosted infrastructure for [jorisjonkers.dev](https://jorisjonkers.dev) — a personal portfolio, AI assistant, and services platform running on Contabo.
 
@@ -32,7 +32,7 @@ Self-hosted infrastructure for [jorisjonkers.dev](https://jorisjonkers.dev) — 
 ## Project Structure
 
 ```
-private-stack/
+personal-stack/
 ├── docs/
 │   ├── architecture/       # Architecture guide
 │   └── adr/                # Architecture Decision Records (ADR-001–020)
