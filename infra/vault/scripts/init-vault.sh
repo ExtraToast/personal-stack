@@ -167,34 +167,52 @@ if [[ -f "$VAULT_APP_SECRETS_FILE" ]]; then
   echo "==> Populating Vault KV with application secrets..."
   # shellcheck source=/dev/null
   source "$VAULT_APP_SECRETS_FILE"
+
+  # DB credential defaults (match init-databases.sh fallbacks)
+  : "${AUTH_DB_USER:=auth_user}"
+  : "${AUTH_DB_PASSWORD:=auth_password}"
+  : "${ASSISTANT_DB_USER:=assistant_user}"
+  : "${ASSISTANT_DB_PASSWORD:=assistant_password}"
+
   vault_exec kv put secret/auth-api \
     "spring.rabbitmq.username=${RABBITMQ_USER}" \
-    "spring.rabbitmq.password=${RABBITMQ_PASSWORD}"
+    "spring.rabbitmq.password=${RABBITMQ_PASSWORD}" \
+    "spring.datasource.username=${AUTH_DB_USER}" \
+    "spring.datasource.password=${AUTH_DB_PASSWORD}"
   vault_exec kv put secret/assistant-api \
     "spring.rabbitmq.username=${RABBITMQ_USER}" \
-    "spring.rabbitmq.password=${RABBITMQ_PASSWORD}"
+    "spring.rabbitmq.password=${RABBITMQ_PASSWORD}" \
+    "spring.datasource.username=${ASSISTANT_DB_USER}" \
+    "spring.datasource.password=${ASSISTANT_DB_PASSWORD}"
   echo "==> Vault KV secrets populated."
 else
   echo "WARN: ${VAULT_APP_SECRETS_FILE} not found; skipping KV population."
-  echo "     RabbitMQ credentials must be written to Vault manually."
+  echo "     RabbitMQ and DB credentials must be written to Vault manually."
 fi
 
 # ── Update Docker Swarm secrets ───────────────────────────────────────────────
-echo "==> Detaching Vault secrets from services (required before removal)..."
-docker service update \
-  --secret-rm vault_auth_api_role_id \
-  --secret-rm vault_auth_api_secret_id \
-  personal-stack_auth-api 2>/dev/null || true
-docker service update \
-  --secret-rm vault_assistant_api_role_id \
-  --secret-rm vault_assistant_api_secret_id \
-  personal-stack_assistant-api 2>/dev/null || true
+# Must remove the stack first — Swarm won't let you delete secrets attached to services,
+# and docker service update --secret-rm triggers failing task restarts.
+echo "==> Removing stack to release placeholder secrets..."
+docker stack rm personal-stack
+echo "==> Waiting for services to drain..."
+for i in $(seq 1 30); do
+  remaining=$(docker service ls --filter name=personal-stack_ -q 2>/dev/null | wc -l)
+  [ "$remaining" -eq 0 ] && break
+  sleep 2
+done
+echo "==> Waiting for network cleanup..."
+for i in $(seq 1 30); do
+  if ! docker network inspect personal-stack_personal-stack-overlay > /dev/null 2>&1; then
+    break
+  fi
+  sleep 2
+done
 
 echo "==> Updating Docker Swarm Vault secrets..."
 
 update_secret() {
   local name="$1" value="$2"
-  # Remove the placeholder secret and recreate with real value
   docker secret rm "$name" 2>/dev/null || true
   printf '%s' "$value" | docker secret create "$name" -
   echo "     $name updated"
@@ -204,6 +222,12 @@ update_secret vault_auth_api_role_id "$AUTH_API_ROLE_ID"
 update_secret vault_auth_api_secret_id "$AUTH_API_SECRET_ID"
 update_secret vault_assistant_api_role_id "$ASSISTANT_API_ROLE_ID"
 update_secret vault_assistant_api_secret_id "$ASSISTANT_API_SECRET_ID"
+
+echo "==> Redeploying stack with real Vault secrets..."
+docker stack deploy \
+  -c /opt/personal-stack/docker-compose.prod.yml \
+  personal-stack \
+  --with-registry-auth
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo ""
