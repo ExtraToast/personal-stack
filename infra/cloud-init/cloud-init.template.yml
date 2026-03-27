@@ -116,6 +116,14 @@ runcmd:
   # Deploy the stack
   - docker stack deploy -c /opt/private-stack/docker-compose.prod.yml private-stack --with-registry-auth
 
+  # Write application credentials for Vault KV population (read by init-vault.sh)
+  - |
+    cat > /opt/private-stack/.vault-app-secrets <<'EOF'
+    RABBITMQ_USER=__RABBITMQ_USER__
+    RABBITMQ_PASSWORD=__RABBITMQ_PASSWORD__
+    EOF
+    chmod 600 /opt/private-stack/.vault-app-secrets
+
   # Initialize Vault and update Docker secrets with real AppRole credentials
   - bash /opt/private-stack/infra/vault/scripts/init-vault.sh
 

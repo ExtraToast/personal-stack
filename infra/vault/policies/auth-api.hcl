@@ -1,3 +1,6 @@
+path "secret/data/auth-api" {
+  capabilities = ["read"]
+}
 path "secret/data/auth-api/*" {
   capabilities = ["read", "list"]
 }
