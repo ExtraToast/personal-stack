@@ -26,6 +26,7 @@ class GetUserQueryServiceTest {
                 username = "testuser",
                 email = "test@example.com",
                 role = Role.USER,
+                emailConfirmed = true,
                 totpEnabled = false,
                 createdAt = Instant.now(),
                 updatedAt = Instant.now(),

@@ -54,6 +54,7 @@ class EnrollTotpCommandHandlerTest {
             username = "alice",
             email = "alice@example.com",
             role = Role.USER,
+            emailConfirmed = true,
             totpEnabled = false,
             createdAt = now,
             updatedAt = now,

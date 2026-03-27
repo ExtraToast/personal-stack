@@ -32,6 +32,7 @@ class UserRegistrationControllerTest {
             username = "alice",
             email = "alice@example.com",
             role = Role.USER,
+            emailConfirmed = false,
             totpEnabled = false,
             createdAt = Instant.now(),
             updatedAt = Instant.now(),

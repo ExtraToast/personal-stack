@@ -43,6 +43,7 @@ class LoginControllerTest {
             passwordHash = "hashed-password",
             totpSecret = null,
             totpEnabled = false,
+            emailConfirmed = true,
             role = Role.USER,
         )
 

@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.post
 import org.springframework.test.web.servlet.setup.DefaultMockMvcBuilder
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
@@ -26,6 +27,9 @@ class TotpFlowIntegrationTest : IntegrationTestBase() {
 
     @Autowired
     private lateinit var totpService: TotpService
+
+    @Autowired
+    private lateinit var dsl: org.jooq.DSLContext
 
     private lateinit var mockMvc: MockMvc
 
@@ -71,6 +75,17 @@ class TotpFlowIntegrationTest : IntegrationTestBase() {
             }.andExpect { status { isCreated() } }
     }
 
+    private fun confirmEmail(username: String) {
+        val table = com.jorisjonkers.personalstack.auth.jooq.tables.EmailConfirmationToken.EMAIL_CONFIRMATION_TOKEN
+        val userTable = com.jorisjonkers.personalstack.auth.jooq.tables.AppUser.APP_USER
+        val userId = dsl.select(userTable.ID).from(userTable).where(userTable.USERNAME.eq(username)).fetchOne(userTable.ID)!!
+        val token = dsl.select(table.TOKEN).from(table).where(table.USER_ID.eq(userId)).fetchOne(table.TOKEN)!!
+        mockMvc
+            .get("/api/v1/auth/confirm-email") {
+                param("token", token)
+            }.andExpect { status { isOk() } }
+    }
+
     private fun login(
         username: String,
         password: String,
@@ -92,6 +107,7 @@ class TotpFlowIntegrationTest : IntegrationTestBase() {
         val password = "securepass123"
 
         registerUser(username, password)
+        confirmEmail(username)
 
         val json = login(username, password)
 
@@ -106,6 +122,7 @@ class TotpFlowIntegrationTest : IntegrationTestBase() {
         val password = "securepass123"
 
         registerUser(username, password)
+        confirmEmail(username)
 
         val loginJson = login(username, password)
         val accessToken = loginJson["accessToken"].asText()
@@ -148,6 +165,7 @@ class TotpFlowIntegrationTest : IntegrationTestBase() {
         val password = "securepass123"
 
         registerUser(username, password)
+        confirmEmail(username)
 
         val loginJson = login(username, password)
         val accessToken = loginJson["accessToken"].asText()
@@ -203,6 +221,7 @@ class TotpFlowIntegrationTest : IntegrationTestBase() {
         val password = "securepass123"
 
         registerUser(username, password)
+        confirmEmail(username)
 
         val loginJson = login(username, password)
         val accessToken = loginJson["accessToken"].asText()

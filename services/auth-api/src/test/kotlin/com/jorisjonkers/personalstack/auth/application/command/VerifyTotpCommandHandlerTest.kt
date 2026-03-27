@@ -86,6 +86,7 @@ class VerifyTotpCommandHandlerTest {
             username = "alice",
             email = "alice@example.com",
             role = Role.USER,
+            emailConfirmed = true,
             totpEnabled = false,
             createdAt = now,
             updatedAt = now,
@@ -103,6 +104,7 @@ class VerifyTotpCommandHandlerTest {
             passwordHash = "\$2a\$10\$hashed",
             totpSecret = totpSecret,
             totpEnabled = false,
+            emailConfirmed = true,
             role = Role.USER,
         )
 }

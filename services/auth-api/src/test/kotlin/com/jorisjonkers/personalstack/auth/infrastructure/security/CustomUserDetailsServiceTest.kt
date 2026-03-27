@@ -25,6 +25,7 @@ class CustomUserDetailsServiceTest {
                 passwordHash = "\$2a\$10\$hashed",
                 totpSecret = null,
                 totpEnabled = false,
+                emailConfirmed = true,
                 role = Role.USER,
             )
         every { userRepository.findCredentialsByUsername("alice") } returns credentials
@@ -53,6 +54,7 @@ class CustomUserDetailsServiceTest {
                 passwordHash = "\$2a\$10\$hashed",
                 totpSecret = null,
                 totpEnabled = false,
+                emailConfirmed = true,
                 role = Role.ADMIN,
             )
         every { userRepository.findCredentialsByUsername("admin") } returns credentials
