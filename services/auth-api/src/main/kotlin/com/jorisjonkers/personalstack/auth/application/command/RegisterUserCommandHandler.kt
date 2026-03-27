@@ -49,6 +49,7 @@ class RegisterUserCommandHandler(
             UserRegisteredEvent(
                 userId = savedUser.id,
                 username = savedUser.username,
+                email = savedUser.email,
             )
         // Intra-service event (Spring Modulith)
         eventPublisher.publishEvent(event)

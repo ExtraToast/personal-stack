@@ -160,6 +160,8 @@ services:
       SPRING_CONFIG_IMPORT: vault://
       VAULT_ENABLED: 'true'
       VAULT_ADDR: http://vault:8200
+      MAIL_HOST: stalwart
+      MAIL_PORT: 587
       OTEL_SERVICE_NAME: auth-api
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
       OTEL_LOGS_EXPORTER: none
