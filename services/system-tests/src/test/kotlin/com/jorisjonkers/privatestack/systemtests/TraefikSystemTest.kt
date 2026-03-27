@@ -9,15 +9,25 @@ import org.junit.jupiter.api.Test
 import java.util.UUID
 
 /**
- * System tests that go through Traefik (port 80) using Host headers.
+ * System tests that go through Traefik (port 80) using virtual-host URLs.
+ * Each service URL resolves to 127.0.0.1 (Traefik), which routes by Host header.
  * Verifies UI routes are accessible and that forward-auth protects
  * vault, n8n, and grafana — redirecting unauthenticated requests to the
  * auth login page and passing authenticated requests through.
  */
 @Tag("system")
 class TraefikSystemTest {
-    private val traefikUrl = System.getProperty("test.traefik.url", "http://localhost")
     private val authBaseUrl = System.getProperty("test.auth-api.url", "http://localhost:8081")
+
+    // UI services
+    private val appUiUrl = "http://localhost"
+    private val authUiUrl = "http://auth.localhost"
+    private val assistantUiUrl = "http://app.localhost"
+
+    // Forward-auth protected services
+    private val vaultUrl = "http://vault.localhost"
+    private val n8nUrl = "http://n8n.localhost"
+    private val grafanaUrl = "http://grafana.localhost"
 
     private fun obtainToken(): String {
         val username = "traefik_${UUID.randomUUID().toString().take(8)}"
@@ -49,7 +59,7 @@ class TraefikSystemTest {
     @Test
     fun `app-ui responds at localhost`() {
         given()
-            .baseUri(traefikUrl)
+            .baseUri(appUiUrl)
             .`when`()
             .get("/")
             .then()
@@ -59,8 +69,7 @@ class TraefikSystemTest {
     @Test
     fun `auth-ui responds at auth dot localhost`() {
         given()
-            .baseUri(traefikUrl)
-            .header("Host", "auth.localhost")
+            .baseUri(authUiUrl)
             .`when`()
             .get("/")
             .then()
@@ -70,8 +79,7 @@ class TraefikSystemTest {
     @Test
     fun `assistant-ui responds at app dot localhost`() {
         given()
-            .baseUri(traefikUrl)
-            .header("Host", "app.localhost")
+            .baseUri(assistantUiUrl)
             .`when`()
             .get("/")
             .then()
@@ -83,8 +91,7 @@ class TraefikSystemTest {
     @Test
     fun `vault unauthenticated redirects to auth login`() {
         given()
-            .baseUri(traefikUrl)
-            .header("Host", "vault.localhost")
+            .baseUri(vaultUrl)
             .redirects().follow(false)
             .`when`()
             .get("/")
@@ -96,8 +103,7 @@ class TraefikSystemTest {
     @Test
     fun `n8n unauthenticated redirects to auth login`() {
         given()
-            .baseUri(traefikUrl)
-            .header("Host", "n8n.localhost")
+            .baseUri(n8nUrl)
             .redirects().follow(false)
             .`when`()
             .get("/")
@@ -109,8 +115,7 @@ class TraefikSystemTest {
     @Test
     fun `grafana unauthenticated redirects to auth login`() {
         given()
-            .baseUri(traefikUrl)
-            .header("Host", "grafana.localhost")
+            .baseUri(grafanaUrl)
             .redirects().follow(false)
             .`when`()
             .get("/")
@@ -125,8 +130,7 @@ class TraefikSystemTest {
     fun `vault authenticated passes forward-auth`() {
         val token = obtainToken()
         given()
-            .baseUri(traefikUrl)
-            .header("Host", "vault.localhost")
+            .baseUri(vaultUrl)
             .header("Authorization", "Bearer $token")
             .redirects().follow(false)
             .`when`()
@@ -139,8 +143,7 @@ class TraefikSystemTest {
     fun `n8n authenticated passes forward-auth`() {
         val token = obtainToken()
         given()
-            .baseUri(traefikUrl)
-            .header("Host", "n8n.localhost")
+            .baseUri(n8nUrl)
             .header("Authorization", "Bearer $token")
             .redirects().follow(false)
             .`when`()
@@ -153,8 +156,7 @@ class TraefikSystemTest {
     fun `grafana authenticated passes forward-auth`() {
         val token = obtainToken()
         given()
-            .baseUri(traefikUrl)
-            .header("Host", "grafana.localhost")
+            .baseUri(grafanaUrl)
             .header("Authorization", "Bearer $token")
             .redirects().follow(false)
             .`when`()
