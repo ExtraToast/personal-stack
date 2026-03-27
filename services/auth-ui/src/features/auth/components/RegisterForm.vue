@@ -35,8 +35,7 @@ async function onSubmit(): Promise<void> {
   if (!validate()) return
   try {
     await authStore.register(form.value.username, form.value.email, form.value.password)
-    await authStore.login(form.value.username, form.value.password)
-    await router.push({ name: 'totp-setup' })
+    await router.push({ name: 'check-email', query: { email: form.value.email } })
   } catch {
     // error is set on the store
   }

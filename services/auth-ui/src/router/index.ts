@@ -23,6 +23,18 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: false },
   },
   {
+    path: '/check-email',
+    name: 'check-email',
+    component: () => import('@/features/auth/views/CheckEmailView.vue'),
+    meta: { requiresAuth: false },
+  },
+  {
+    path: '/confirm-email',
+    name: 'confirm-email',
+    component: () => import('@/features/auth/views/ConfirmEmailView.vue'),
+    meta: { requiresAuth: false },
+  },
+  {
     path: '/totp-setup',
     name: 'totp-setup',
     component: () => import('@/features/auth/views/TotpSetupView.vue'),

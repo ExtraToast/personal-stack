@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { LoginFormData } from '../schemas/loginSchema'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { loginSchema } from '../schemas/loginSchema'
+import { resendConfirmation } from '../services/authService'
 
 const router = useRouter()
 const route = useRoute()
@@ -12,6 +13,32 @@ const authStore = useAuthStore()
 const form = ref<LoginFormData>({ username: '', password: '' })
 const totpCode = ref('')
 const fieldErrors = ref<Partial<Record<keyof LoginFormData, string>>>({})
+
+const resendEmail = ref('')
+const resending = ref(false)
+const resendSuccess = ref('')
+const resendError = ref('')
+
+const isEmailNotConfirmed = computed(() => {
+  const err = authStore.error
+  if (!err) return false
+  return typeof err === 'string' && err.toLowerCase().includes('not been confirmed')
+})
+
+async function onResendConfirmation(): Promise<void> {
+  if (!resendEmail.value || resending.value) return
+  resending.value = true
+  resendSuccess.value = ''
+  resendError.value = ''
+  try {
+    await resendConfirmation(resendEmail.value)
+    resendSuccess.value = 'Confirmation email sent! Check your inbox.'
+  } catch {
+    resendError.value = 'Failed to resend confirmation email. Please try again.'
+  } finally {
+    resending.value = false
+  }
+}
 
 function validate(): boolean {
   const result = loginSchema.safeParse(form.value)
@@ -134,6 +161,34 @@ async function onTotpSubmit(): Promise<void> {
     <p v-if="authStore.error" class="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
       {{ authStore.error }}
     </p>
+
+    <!-- Resend confirmation when email not confirmed -->
+    <div v-if="isEmailNotConfirmed" class="space-y-3 rounded-md border border-surface-border bg-surface-elevated p-4">
+      <p class="text-sm text-gray-400">Enter your email to receive a new confirmation link.</p>
+      <input
+        v-model="resendEmail"
+        class="block w-full rounded-md border border-surface-border bg-surface-dark px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        placeholder="you@example.com"
+        type="email"
+      />
+      <p
+        v-if="resendSuccess"
+        class="rounded-md border border-terminal-green/20 bg-terminal-green/10 px-3 py-2 text-sm text-terminal-green"
+      >
+        {{ resendSuccess }}
+      </p>
+      <p v-if="resendError" class="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+        {{ resendError }}
+      </p>
+      <button
+        :disabled="resending || !resendEmail"
+        class="w-full rounded-md border border-accent bg-transparent px-4 py-2 font-mono text-sm font-semibold text-accent transition-colors hover:bg-accent/10 disabled:opacity-50"
+        type="button"
+        @click="onResendConfirmation"
+      >
+        {{ resending ? 'Sending...' : 'Resend confirmation email' }}
+      </button>
+    </div>
 
     <button
       :disabled="authStore.isLoading"

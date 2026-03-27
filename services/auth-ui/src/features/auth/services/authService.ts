@@ -75,3 +75,13 @@ export async function enrollTotp(): Promise<{
 export async function verifyTotp(code: string): Promise<void> {
   return authPost<void>('/totp/verify', { code })
 }
+
+export async function confirmEmail(token: string): Promise<{ message: string }> {
+  const response = await fetch(`${API_BASE}/auth/confirm-email?token=${encodeURIComponent(token)}`)
+  if (!response.ok) throw await response.json()
+  return response.json() as Promise<{ message: string }>
+}
+
+export async function resendConfirmation(email: string): Promise<{ message: string }> {
+  return post<{ message: string }>('/auth/resend-confirmation', { email })
+}
