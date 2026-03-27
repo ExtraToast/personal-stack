@@ -12,6 +12,8 @@ jobs:
   check-pr:
     name: Check for open PR
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
     outputs:
       has_pr: ${{ steps.check.outputs.has_pr }}
     steps:
