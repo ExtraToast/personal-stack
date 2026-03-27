@@ -435,6 +435,37 @@ services:
       restart_policy:
         condition: any
 
+  # ── Mail Server ──────────────────────────────────────────
+  stalwart:
+    image: stalwartlabs/stalwart:latest
+    hostname: mail.jorisjonkers.dev
+    networks:
+      - personal-stack-overlay
+    ports:
+      - '25:25'
+      - '465:465'
+      - '587:587'
+      - '993:993'
+    volumes:
+      - stalwart-data:/opt/stalwart
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:8080/healthz || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+      restart_policy:
+        condition: any
+
   uptime-kuma:
     image: louislam/uptime-kuma:2
     networks:
@@ -468,6 +499,7 @@ volumes:
   loki-data:
   tempo-data:
   uptime-kuma-data:
+  stalwart-data:
 
 networks:
   personal-stack-overlay:

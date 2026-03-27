@@ -7,6 +7,8 @@
 ;; Records:
 ;;   A/AAAA  jorisjonkers.dev      → Contabo VPS (167.86.79.203 / 2a02:c207:2318:569::1), proxied
 ;;   CNAME   *.jorisjonkers.dev    → jorisjonkers.dev, proxied
+;;   A/AAAA  mail.jorisjonkers.dev → Contabo VPS, NOT proxied (mail needs direct IP)
+;;   MX      jorisjonkers.dev      → mail.jorisjonkers.dev
 ;;
 ;; Subdomains in use (all resolved via wildcard CNAME):
 ;;   auth.jorisjonkers.dev
@@ -16,6 +18,7 @@
 ;;   grafana.jorisjonkers.dev
 ;;   status.jorisjonkers.dev
 ;;   traefik.jorisjonkers.dev
+;;   mail.jorisjonkers.dev (explicit A/AAAA, not proxied)
 
 ;; A Records
 jorisjonkers.dev.    1    IN    A    167.86.79.203 ; cf_tags=cf-proxied:true
@@ -25,3 +28,23 @@ jorisjonkers.dev.    1    IN    AAAA    2a02:c207:2318:569::1 ; cf_tags=cf-proxi
 
 ;; CNAME Records
 *.jorisjonkers.dev.    1    IN    CNAME    jorisjonkers.dev. ; cf_tags=cf-proxied:true
+
+;; ── Mail Server ─────────────────────────────────────────────────────────────
+;; mail.jorisjonkers.dev must NOT be Cloudflare-proxied (SMTP/IMAP need direct IP)
+mail.jorisjonkers.dev.    1    IN    A       167.86.79.203 ; cf_tags=cf-proxied:false
+mail.jorisjonkers.dev.    1    IN    AAAA    2a02:c207:2318:569::1 ; cf_tags=cf-proxied:false
+
+;; MX Record
+jorisjonkers.dev.    1    IN    MX    10 mail.jorisjonkers.dev.
+
+;; SPF — only the MX server may send mail for this domain
+jorisjonkers.dev.    1    IN    TXT    "v=spf1 mx -all"
+
+;; DMARC — start with p=none to collect reports, upgrade to p=reject later
+_dmarc.jorisjonkers.dev.    1    IN    TXT    "v=DMARC1; p=none; rua=mailto:postmaster@jorisjonkers.dev; fo=1"
+
+;; DKIM — add after Stalwart generates the key:
+;;   1. Open https://mail.jorisjonkers.dev → Management → Directory → Domains
+;;   2. Click "DNS Records" on jorisjonkers.dev
+;;   3. Copy the DKIM public key and uncomment/update the line below
+;; default._domainkey.jorisjonkers.dev.    1    IN    TXT    "v=DKIM1; k=rsa; p=<YOUR_PUBLIC_KEY_HERE>"

@@ -107,6 +107,17 @@ http:
         certResolver: cloudflare
 
     # ── Traefik Dashboard ───────────────────────────────────────
+    # ── Stalwart Mail (WebAdmin + JMAP) ─────────────────────
+    stalwart:
+      rule: 'Host(`mail.jorisjonkers.dev`)'
+      entryPoints:
+        - websecure
+      service: stalwart
+      middlewares:
+        - security-headers
+      tls:
+        certResolver: cloudflare
+
     traefik-dashboard:
       rule: 'Host(`traefik.jorisjonkers.dev`)'
       entryPoints:
@@ -164,3 +175,8 @@ http:
       loadBalancer:
         servers:
           - url: 'http://uptime-kuma:3001'
+
+    stalwart:
+      loadBalancer:
+        servers:
+          - url: 'http://stalwart:8080'
