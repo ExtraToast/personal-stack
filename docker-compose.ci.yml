@@ -2,7 +2,7 @@ services:
   auth-api:
     image: personal-stack/auth-api:ci
     environment:
-      AUTH_LOGINURL: http://auth.localhost/login
+      AUTH_LOGIN_URL: http://auth.localhost/login
       OTEL_METRICS_EXPORTER: none
       OTEL_TRACES_EXPORTER: none
       MANAGEMENT_HEALTH_MAIL_ENABLED: 'false'
