@@ -178,6 +178,26 @@ jobs:
           for tar in /tmp/images/image-*/*.tar; do docker load -i "$tar"; done
       - name: Build and start full stack
         run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d postgres valkey rabbitmq vault auth-api assistant-api traefik auth-ui assistant-ui app-ui n8n grafana --wait --wait-timeout 300
+      - name: Wait for Traefik routes to stabilize
+        run: |
+          echo "Waiting for Traefik to register all Docker routes..."
+          for route in app-ui auth-ui assistant-ui auth-api assistant-api; do
+            echo -n "  $route: "
+            for i in $(seq 1 30); do
+              STATUS=$(curl -sf http://localhost:8080/api/http/routers | \
+                jq -r --arg r "$route@docker" '.[] | select(.name == $r) | .status' 2>/dev/null || true)
+              if [ "$STATUS" = "enabled" ]; then
+                echo "enabled"
+                break
+              fi
+              if [ "$i" -eq 30 ]; then
+                echo "TIMEOUT"
+                curl -sf http://localhost:8080/api/http/routers | jq -r '.[].name' || true
+                exit 1
+              fi
+              sleep 1
+            done
+          done
       - name: Verify all services are healthy
         run: |
           echo "==> Service status:"

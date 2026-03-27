@@ -11,6 +11,9 @@ providers:
 
 ping: {}
 
+api:
+  insecure: true
+
 global:
   checkNewVersion: false
   sendAnonymousUsage: false
