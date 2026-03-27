@@ -14,8 +14,8 @@ COPY services/system-tests/build.gradle.kts services/system-tests/
 RUN gradle :services:auth-api:dependencies --no-daemon || true
 
 # Layer 2: Copy source code and build
-COPY libs/kotlin-common/src/ libs/kotlin-common/src/
-COPY services/auth-api/src/ services/auth-api/src/
+COPY libs/kotlin-common/src/main/ libs/kotlin-common/src/main/
+COPY services/auth-api/src/main/ services/auth-api/src/main/
 RUN gradle :services:auth-api:bootJar --no-daemon
 
 FROM eclipse-temurin:21-jre-alpine AS otel
