@@ -11,11 +11,9 @@ import java.util.UUID
 class GetConversationQueryService(
     private val conversationRepository: ConversationRepository,
 ) {
-
     fun findById(id: ConversationId): Conversation =
         conversationRepository.findById(id)
             ?: throw NotFoundException("Conversation", id.value.toString())
 
-    fun findByUserId(userId: UUID): List<Conversation> =
-        conversationRepository.findByUserId(userId)
+    fun findByUserId(userId: UUID): List<Conversation> = conversationRepository.findByUserId(userId)
 }

@@ -20,7 +20,6 @@ import java.time.Instant
 import java.util.UUID
 
 class SendMessageCommandHandlerTest {
-
     private val conversationRepository = mockk<ConversationRepository>()
     private val messageRepository = mockk<MessageRepository>()
     private val handler = SendMessageCommandHandler(conversationRepository, messageRepository)
@@ -29,13 +28,14 @@ class SendMessageCommandHandlerTest {
     fun `handle saves a new message when conversation exists`() {
         val conversationId = ConversationId(UUID.randomUUID())
         val messageId = MessageId(UUID.randomUUID())
-        val command = SendMessageCommand(
-            messageId = messageId,
-            conversationId = conversationId,
-            userId = UUID.randomUUID().toString(),
-            content = "Hello world",
-            role = MessageRole.USER,
-        )
+        val command =
+            SendMessageCommand(
+                messageId = messageId,
+                conversationId = conversationId,
+                userId = UUID.randomUUID().toString(),
+                content = "Hello world",
+                role = MessageRole.USER,
+            )
         val slot = slot<Message>()
 
         every { conversationRepository.findById(conversationId) } returns buildConversation(conversationId)
@@ -52,13 +52,14 @@ class SendMessageCommandHandlerTest {
     @Test
     fun `handle throws NotFoundException when conversation does not exist`() {
         val conversationId = ConversationId(UUID.randomUUID())
-        val command = SendMessageCommand(
-            messageId = MessageId(UUID.randomUUID()),
-            conversationId = conversationId,
-            userId = UUID.randomUUID().toString(),
-            content = "Hello",
-            role = MessageRole.USER,
-        )
+        val command =
+            SendMessageCommand(
+                messageId = MessageId(UUID.randomUUID()),
+                conversationId = conversationId,
+                userId = UUID.randomUUID().toString(),
+                content = "Hello",
+                role = MessageRole.USER,
+            )
 
         every { conversationRepository.findById(conversationId) } returns null
 
@@ -68,13 +69,14 @@ class SendMessageCommandHandlerTest {
 
     @Test
     fun `handle throws when content is blank`() {
-        val command = SendMessageCommand(
-            messageId = MessageId(UUID.randomUUID()),
-            conversationId = ConversationId(UUID.randomUUID()),
-            userId = UUID.randomUUID().toString(),
-            content = "   ",
-            role = MessageRole.USER,
-        )
+        val command =
+            SendMessageCommand(
+                messageId = MessageId(UUID.randomUUID()),
+                conversationId = ConversationId(UUID.randomUUID()),
+                userId = UUID.randomUUID().toString(),
+                content = "   ",
+                role = MessageRole.USER,
+            )
 
         assertThatThrownBy { handler.handle(command) }
             .isInstanceOf(IllegalArgumentException::class.java)

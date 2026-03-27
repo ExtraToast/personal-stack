@@ -41,7 +41,10 @@ async function handleSend(content: string): Promise<void> {
       <!-- Messages -->
       <main class="flex-1 overflow-y-auto px-6 py-4">
         <div v-if="!store.activeConversationId" class="flex h-full items-center justify-center">
-          <p class="font-mono text-sm text-gray-600">Select a conversation or start a new one</p>
+          <!-- prettier-ignore -->
+          <p class="font-mono text-sm text-gray-600">
+            Select a conversation or start a new one
+          </p>
         </div>
 
         <div v-else class="space-y-4">
@@ -69,8 +72,10 @@ async function handleSend(content: string): Promise<void> {
           </div>
 
           <div v-if="store.isSending" class="flex justify-start">
+            <!-- prettier-ignore -->
             <div
-              class="rounded-lg border border-surface-border bg-surface-elevated px-4 py-2 font-mono text-sm text-gray-500"
+              class="rounded-lg border border-surface-border bg-surface-elevated
+                px-4 py-2 font-mono text-sm text-gray-500"
             >
               Thinking...
             </div>

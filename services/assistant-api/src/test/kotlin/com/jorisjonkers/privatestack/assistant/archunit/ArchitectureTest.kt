@@ -8,10 +8,10 @@ import org.junit.jupiter.api.TestInstance
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ArchitectureTest {
-
-    private val classes = ClassFileImporter()
-        .withImportOption(ImportOption.DoNotIncludeTests())
-        .importPackages("com.jorisjonkers.privatestack.assistant")
+    private val classes =
+        ClassFileImporter()
+            .withImportOption(ImportOption.DoNotIncludeTests())
+            .importPackages("com.jorisjonkers.privatestack.assistant")
 
     @Test
     fun `domain must not depend on Spring framework`() {

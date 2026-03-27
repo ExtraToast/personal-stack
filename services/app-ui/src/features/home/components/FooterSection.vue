@@ -7,9 +7,7 @@ const year = new Date().getFullYear()
 
 <template>
   <footer class="border-t border-surface-border/40 px-4 py-6 sm:px-6 sm:py-8">
-    <div
-      class="mx-auto flex max-w-6xl flex-col items-center gap-2 text-center font-mono text-xs text-gray-600"
-    >
+    <div class="mx-auto flex max-w-6xl flex-col items-center gap-2 text-center font-mono text-xs text-gray-600">
       <p>
         &copy; {{ year }} Joris Jonkers &middot;
         {{ t('footer.built') }}

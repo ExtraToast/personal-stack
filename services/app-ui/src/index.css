@@ -129,14 +129,7 @@ html {
 /* Subtle grid pattern */
 .grid-pattern {
   background-image:
-    linear-gradient(
-      color-mix(in srgb, var(--color-surface-border) 30%, transparent) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--color-surface-border) 30%, transparent) 1px,
-      transparent 1px
-    );
+    linear-gradient(color-mix(in srgb, var(--color-surface-border) 30%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-surface-border) 30%, transparent) 1px, transparent 1px);
   background-size: 60px 60px;
 }

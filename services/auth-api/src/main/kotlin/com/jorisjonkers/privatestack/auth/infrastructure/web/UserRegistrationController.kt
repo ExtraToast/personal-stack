@@ -2,7 +2,6 @@ package com.jorisjonkers.privatestack.auth.infrastructure.web
 
 import com.jorisjonkers.privatestack.auth.application.command.RegisterUserCommand
 import com.jorisjonkers.privatestack.auth.application.query.GetUserQueryService
-import com.jorisjonkers.privatestack.auth.domain.model.UserId
 import com.jorisjonkers.privatestack.auth.infrastructure.web.dto.RegisterUserRequest
 import com.jorisjonkers.privatestack.auth.infrastructure.web.dto.UserResponse
 import com.jorisjonkers.privatestack.common.command.CommandBus
@@ -20,15 +19,17 @@ class UserRegistrationController(
     private val commandBus: CommandBus,
     private val getUserQueryService: GetUserQueryService,
 ) {
-
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    fun register(@Valid @RequestBody request: RegisterUserRequest): UserResponse {
-        val command = RegisterUserCommand(
-            username = request.username,
-            email = request.email,
-            password = request.password,
-        )
+    fun register(
+        @Valid @RequestBody request: RegisterUserRequest,
+    ): UserResponse {
+        val command =
+            RegisterUserCommand(
+                username = request.username,
+                email = request.email,
+                password = request.password,
+            )
         commandBus.dispatch(command)
         val user = getUserQueryService.findByUsername(request.username)
         return UserResponse.from(user)

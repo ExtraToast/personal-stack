@@ -9,10 +9,13 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping("/api/v1")
 class HealthController {
-
     @GetMapping("/health")
     @PermitAll
-    fun health(): ResponseEntity<Map<String, String>> {
-        return ResponseEntity.ok(mapOf("status" to "ok", "service" to "assistant-api"))
-    }
+    fun health(): ResponseEntity<Map<String, String>> =
+        ResponseEntity.ok(
+            mapOf(
+                "status" to "ok",
+                "service" to "assistant-api",
+            ),
+        )
 }

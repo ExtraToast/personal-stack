@@ -13,8 +13,10 @@ async function onNew(): Promise<void> {
   <aside class="flex h-full w-64 flex-col border-r border-surface-border bg-surface-card">
     <div class="flex items-center justify-between border-b border-surface-border px-4 py-3">
       <span class="font-mono text-sm font-semibold text-gray-300"> Conversations </span>
+      <!-- prettier-ignore -->
       <button
-        class="rounded-md bg-accent px-3 py-1 font-mono text-xs font-medium text-white transition-colors hover:bg-accent-light"
+        class="rounded-md bg-accent px-3 py-1 font-mono text-xs font-medium
+          text-white transition-colors hover:bg-accent-light"
         type="button"
         @click="onNew"
       >
@@ -23,11 +25,11 @@ async function onNew(): Promise<void> {
     </div>
 
     <nav class="flex-1 overflow-y-auto py-2">
-      <p v-if="store.isLoading" class="px-4 py-2 font-mono text-sm text-gray-600">Loading...</p>
-      <p
-        v-else-if="store.conversations.length === 0"
-        class="px-4 py-2 font-mono text-sm text-gray-600"
-      >
+      <!-- prettier-ignore -->
+      <p v-if="store.isLoading" class="px-4 py-2 font-mono text-sm text-gray-600">
+        Loading...
+      </p>
+      <p v-else-if="store.conversations.length === 0" class="px-4 py-2 font-mono text-sm text-gray-600">
         No conversations yet
       </p>
       <button

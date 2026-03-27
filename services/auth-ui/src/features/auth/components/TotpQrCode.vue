@@ -7,9 +7,7 @@ defineProps<{
 
 <template>
   <div class="space-y-4 text-center">
-    <p class="text-sm text-gray-400">
-      Scan the QR code with Google Authenticator, Authy, or any TOTP app.
-    </p>
+    <p class="text-sm text-gray-400">Scan the QR code with Google Authenticator, Authy, or any TOTP app.</p>
 
     <!-- QR code rendered via a free QR API -->
     <img

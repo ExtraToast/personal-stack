@@ -6,6 +6,8 @@ import java.util.UUID
 
 interface ConversationRepository {
     fun findById(id: ConversationId): Conversation?
+
     fun findByUserId(userId: UUID): List<Conversation>
+
     fun save(conversation: Conversation): Conversation
 }

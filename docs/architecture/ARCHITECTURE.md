@@ -33,7 +33,7 @@ Vault for secrets, custom auth, multiple Vue + Kotlin services, n8n automation, 
 ## Services
 
 | Service       | Type               | Subdomain                  | Description                                              |
-|---------------|--------------------|----------------------------|----------------------------------------------------------|
+| ------------- | ------------------ | -------------------------- | -------------------------------------------------------- |
 | app-ui        | Vue                | jorisjonkers.dev           | Marketing/portfolio page                                 |
 | auth-api      | Kotlin Spring Boot | auth.jorisjonkers.dev      | Centralized OAuth2/OIDC auth server                      |
 | auth-ui       | Vue                | auth.jorisjonkers.dev      | Login/register/MFA page                                  |
@@ -44,7 +44,7 @@ Vault for secrets, custom auth, multiple Vue + Kotlin services, n8n automation, 
 ## Infrastructure Services
 
 | Service         | Subdomain                | Notes                                        |
-|-----------------|--------------------------|----------------------------------------------|
+| --------------- | ------------------------ | -------------------------------------------- |
 | Traefik         | traefik.jorisjonkers.dev | Edge router, TLS termination, forward-auth   |
 | Vault           | vault.jorisjonkers.dev   | Secrets management, behind Traefik + auth    |
 | PostgreSQL 17   | internal only            | One instance, separate DB per service        |
@@ -224,7 +224,7 @@ Three stages:
 ### Test Pyramid
 
 | Level          | Kotlin Tools                                       | Vue Tools                   | Coverage    |
-|----------------|----------------------------------------------------|-----------------------------|-------------|
+| -------------- | -------------------------------------------------- | --------------------------- | ----------- |
 | Unit           | JUnit 5 + MockK + AssertJ                          | Vitest + Vue Test Utils     | 80% minimum |
 | Integration    | Testcontainers + @SpringBootTest slices            | Vitest + MSW                | --          |
 | E2E            | --                                                 | Playwright                  | --          |
@@ -255,7 +255,7 @@ Dedicated Kotlin service that tests all apps together:
 ### CI Pipeline Strategy
 
 | Trigger     | Pipeline      | Contents                                             | Target   |
-|-------------|---------------|------------------------------------------------------|----------|
+| ----------- | ------------- | ---------------------------------------------------- | -------- |
 | Every push  | Fast          | Unit tests + linting + type-check                    | < 5 min  |
 | PR to main  | Full          | Integration + E2E + system + security + architecture | < 30 min |
 | Nightly     | Full + extras | Full pipeline + system tests + security scans        | --       |
@@ -319,7 +319,7 @@ CLAUDE.md exists locally only (not committed).
 ## Naming Conventions
 
 | Item                  | Convention                              |
-|-----------------------|-----------------------------------------|
+| --------------------- | --------------------------------------- |
 | Directories           | kebab-case                              |
 | Kotlin packages       | com.jorisjonkers.privatestack.{service} |
 | Vue components        | PascalCase.vue                          |

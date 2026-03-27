@@ -18,7 +18,7 @@ have different validation responsibilities.
 ### Backend — Four-Layer Validation
 
 | Layer           | Responsibility                | Examples                                                                           |
-|-----------------|-------------------------------|------------------------------------------------------------------------------------|
+| --------------- | ----------------------------- | ---------------------------------------------------------------------------------- |
 | **Web**         | Structural/format validation  | Request body deserializes correctly, required fields present, format (email, UUID) |
 | **Command**     | Field-level constraints       | Value ranges, string lengths, enum validity (via annotations or manual checks)     |
 | **Application** | Business rules requiring data | "Username not already taken", "User has permission for this action"                |
@@ -29,7 +29,7 @@ Each layer validates only what it owns. Validation errors return RFC 7807 Proble
 ### Frontend — Three-Stage Pipeline
 
 | Stage                         | When              | Tool                  | Purpose                                                  |
-|-------------------------------|-------------------|-----------------------|----------------------------------------------------------|
+| ----------------------------- | ----------------- | --------------------- | -------------------------------------------------------- |
 | **1. UI Interaction**         | On blur/input     | Form validation rules | Real-time user feedback                                  |
 | **2. Schema Validation**      | Before submission | Zod                   | Validates command payload shape, catches type mismatches |
 | **3. Backend Reconciliation** | After submission  | RFC 7807 parser       | Maps backend Problem Details to field-level errors       |

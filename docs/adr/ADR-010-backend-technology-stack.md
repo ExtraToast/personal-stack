@@ -18,7 +18,7 @@ well-supported, and consistent across all services.
 ### Core Stack
 
 | Component   | Version               | Notes                                                   |
-|-------------|-----------------------|---------------------------------------------------------|
+| ----------- | --------------------- | ------------------------------------------------------- |
 | Kotlin      | 2.1.x (latest stable) | K2 compiler, latest language features                   |
 | Spring Boot | 4.0.x (latest)        | Bleeding edge — early adoption accepted for new project |
 | Java        | 21 LTS                | Virtual threads, pattern matching, sealed classes       |

@@ -49,15 +49,11 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll))
         </span>
       </h1>
 
-      <p
-        class="animate-fade-in-up delay-300 mt-4 text-sm leading-relaxed text-gray-400 opacity-0 sm:mt-6 sm:text-lg"
-      >
+      <p class="animate-fade-in-up delay-300 mt-4 text-sm leading-relaxed text-gray-400 opacity-0 sm:mt-6 sm:text-lg">
         {{ t('hero.tagline') }}
       </p>
 
-      <div
-        class="animate-fade-in-up delay-400 mt-6 flex flex-wrap justify-center gap-3 opacity-0 sm:mt-10 sm:gap-4"
-      >
+      <div class="animate-fade-in-up delay-400 mt-6 flex flex-wrap justify-center gap-3 opacity-0 sm:mt-10 sm:gap-4">
         <a
           class="glow-accent rounded-lg bg-accent px-5 py-2.5 font-mono text-xs font-semibold text-white transition-all hover:bg-accent-light sm:px-6 sm:py-3 sm:text-sm"
           href="https://github.com/ExtraToast"
@@ -91,13 +87,7 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll))
       <span class="font-mono text-xs uppercase tracking-widest">
         {{ t('hero.scroll') }}
       </span>
-      <svg
-        class="h-5 w-5 animate-bounce"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        viewBox="0 0 24 24"
-      >
+      <svg class="h-5 w-5 animate-bounce" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
     </div>

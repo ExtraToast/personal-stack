@@ -2,7 +2,7 @@ http:
   routers:
     # ── App UI (root domain) ────────────────────────────────────
     app-ui:
-      rule: "Host(`jorisjonkers.dev`)"
+      rule: 'Host(`jorisjonkers.dev`)'
       entryPoints:
         - websecure
       service: app-ui
@@ -13,7 +13,7 @@ http:
 
     # ── Auth API ────────────────────────────────────────────────
     auth-api:
-      rule: "Host(`auth.jorisjonkers.dev`) && PathPrefix(`/api/`)"
+      rule: 'Host(`auth.jorisjonkers.dev`) && PathPrefix(`/api/`)'
       entryPoints:
         - websecure
       service: auth-api
@@ -25,7 +25,7 @@ http:
 
     # ── Auth UI ─────────────────────────────────────────────────
     auth-ui:
-      rule: "Host(`auth.jorisjonkers.dev`) && !PathPrefix(`/api/`)"
+      rule: 'Host(`auth.jorisjonkers.dev`) && !PathPrefix(`/api/`)'
       entryPoints:
         - websecure
       service: auth-ui
@@ -36,7 +36,7 @@ http:
 
     # ── Assistant API ───────────────────────────────────────────
     assistant-api:
-      rule: "Host(`assistant.jorisjonkers.dev`) && PathPrefix(`/api/`)"
+      rule: 'Host(`assistant.jorisjonkers.dev`) && PathPrefix(`/api/`)'
       entryPoints:
         - websecure
       service: assistant-api
@@ -48,7 +48,7 @@ http:
 
     # ── Assistant UI ────────────────────────────────────────────
     assistant-ui:
-      rule: "Host(`assistant.jorisjonkers.dev`) && !PathPrefix(`/api/`)"
+      rule: 'Host(`assistant.jorisjonkers.dev`) && !PathPrefix(`/api/`)'
       entryPoints:
         - websecure
       service: assistant-ui
@@ -59,7 +59,7 @@ http:
 
     # ── Vault ───────────────────────────────────────────────────
     vault:
-      rule: "Host(`vault.jorisjonkers.dev`)"
+      rule: 'Host(`vault.jorisjonkers.dev`)'
       entryPoints:
         - websecure
       service: vault
@@ -72,7 +72,7 @@ http:
 
     # ── n8n ─────────────────────────────────────────────────────
     n8n:
-      rule: "Host(`n8n.jorisjonkers.dev`)"
+      rule: 'Host(`n8n.jorisjonkers.dev`)'
       entryPoints:
         - websecure
       service: n8n
@@ -85,7 +85,7 @@ http:
 
     # ── Grafana ─────────────────────────────────────────────────
     grafana:
-      rule: "Host(`grafana.jorisjonkers.dev`)"
+      rule: 'Host(`grafana.jorisjonkers.dev`)'
       entryPoints:
         - websecure
       service: grafana
@@ -97,7 +97,7 @@ http:
 
     # ── Uptime Kuma ─────────────────────────────────────────────
     uptime-kuma:
-      rule: "Host(`status.jorisjonkers.dev`)"
+      rule: 'Host(`status.jorisjonkers.dev`)'
       entryPoints:
         - websecure
       service: uptime-kuma
@@ -108,7 +108,7 @@ http:
 
     # ── Traefik Dashboard ───────────────────────────────────────
     traefik-dashboard:
-      rule: "Host(`traefik.jorisjonkers.dev`)"
+      rule: 'Host(`traefik.jorisjonkers.dev`)'
       entryPoints:
         - websecure
       service: api@internal
@@ -123,44 +123,44 @@ http:
     app-ui:
       loadBalancer:
         servers:
-          - url: "http://app-ui:80"
+          - url: 'http://app-ui:80'
 
     auth-api:
       loadBalancer:
         servers:
-          - url: "http://auth-api:8081"
+          - url: 'http://auth-api:8081'
 
     auth-ui:
       loadBalancer:
         servers:
-          - url: "http://auth-ui:80"
+          - url: 'http://auth-ui:80'
 
     assistant-api:
       loadBalancer:
         servers:
-          - url: "http://assistant-api:8082"
+          - url: 'http://assistant-api:8082'
 
     assistant-ui:
       loadBalancer:
         servers:
-          - url: "http://assistant-ui:80"
+          - url: 'http://assistant-ui:80'
 
     vault:
       loadBalancer:
         servers:
-          - url: "http://vault:8200"
+          - url: 'http://vault:8200'
 
     n8n:
       loadBalancer:
         servers:
-          - url: "http://n8n:5678"
+          - url: 'http://n8n:5678'
 
     grafana:
       loadBalancer:
         servers:
-          - url: "http://grafana:3000"
+          - url: 'http://grafana:3000'
 
     uptime-kuma:
       loadBalancer:
         servers:
-          - url: "http://uptime-kuma:3001"
+          - url: 'http://uptime-kuma:3001'

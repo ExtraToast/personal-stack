@@ -20,9 +20,7 @@ function cycleTheme(): void {
 
 <template>
   <div class="min-h-screen bg-surface-dark text-gray-200">
-    <nav
-      class="fixed top-0 z-50 w-full border-b border-surface-border/50 bg-surface-dark/90 backdrop-blur-md"
-    >
+    <nav class="fixed top-0 z-50 w-full border-b border-surface-border/50 bg-surface-dark/90 backdrop-blur-md">
       <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
         <a class="font-mono text-sm font-bold tracking-tight text-terminal-green" href="#">
           <span class="text-gray-600">~/</span>joris<span class="text-accent-light">.dev</span>

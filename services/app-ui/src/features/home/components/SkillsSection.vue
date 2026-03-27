@@ -22,15 +22,7 @@ const frameworks = [
   { name: 'Nomad', years: '<1' },
 ]
 
-const tools = [
-  'GitHub Actions',
-  'Docker Swarm',
-  'JSON:API',
-  'Traefik',
-  'React Native',
-  'PostgreSQL',
-  'Vault',
-]
+const tools = ['GitHub Actions', 'Docker Swarm', 'JSON:API', 'Traefik', 'React Native', 'PostgreSQL', 'Vault']
 
 const softSkills = ['Project Management', 'Public Relations', 'Communication', 'Critical Thinking']
 
@@ -56,9 +48,7 @@ function barWidth(years: number | string): string {
       <div class="mt-6 grid gap-8 sm:mt-10 sm:gap-12 md:grid-cols-2">
         <!-- Programming languages -->
         <div>
-          <h3
-            class="mb-4 font-mono text-xs font-semibold uppercase tracking-widest text-terminal-cyan"
-          >
+          <h3 class="mb-4 font-mono text-xs font-semibold uppercase tracking-widest text-terminal-cyan">
             {{ t('skills.categories.languages') }}
           </h3>
           <ul class="space-y-3">
@@ -79,9 +69,7 @@ function barWidth(years: number | string): string {
 
         <!-- Frameworks -->
         <div>
-          <h3
-            class="mb-4 font-mono text-xs font-semibold uppercase tracking-widest text-terminal-purple"
-          >
+          <h3 class="mb-4 font-mono text-xs font-semibold uppercase tracking-widest text-terminal-purple">
             {{ t('skills.categories.frameworks') }}
           </h3>
           <ul class="space-y-3">
@@ -102,9 +90,7 @@ function barWidth(years: number | string): string {
 
         <!-- Tools -->
         <div>
-          <h3
-            class="mb-4 font-mono text-xs font-semibold uppercase tracking-widest text-terminal-amber"
-          >
+          <h3 class="mb-4 font-mono text-xs font-semibold uppercase tracking-widest text-terminal-amber">
             {{ t('skills.categories.tools') }}
           </h3>
           <div class="flex flex-wrap gap-2">
@@ -120,9 +106,7 @@ function barWidth(years: number | string): string {
 
         <!-- Soft skills -->
         <div>
-          <h3
-            class="mb-4 font-mono text-xs font-semibold uppercase tracking-widest text-terminal-green"
-          >
+          <h3 class="mb-4 font-mono text-xs font-semibold uppercase tracking-widest text-terminal-green">
             {{ t('skills.categories.soft') }}
           </h3>
           <div class="flex flex-wrap gap-2">

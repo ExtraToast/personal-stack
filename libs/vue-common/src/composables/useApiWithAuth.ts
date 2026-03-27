@@ -21,7 +21,7 @@ export function useApiWithAuth(options: ApiWithAuthOptions = {}): ApiClient {
     const token = getAccessToken()
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...(init?.headers as Record<string, string> | undefined),
+      ...Object.fromEntries(Object.entries(init?.headers ?? {})),
     }
 
     if (token) {
@@ -42,18 +42,18 @@ export function useApiWithAuth(options: ApiWithAuthOptions = {}): ApiClient {
     }
 
     if (response.status === 204) {
+      // eslint-disable-next-line ts/consistent-type-assertions -- 204 No Content has no body; caller expects T but receives undefined
       return undefined as unknown as T
     }
 
-    return response.json() as Promise<T>
+    const json: Promise<T> = response.json()
+    return json
   }
 
   return {
     get: <T>(path: string) => request<T>(path),
-    post: <T>(path: string, body: unknown) =>
-      request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
-    put: <T>(path: string, body: unknown) =>
-      request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
+    post: <T>(path: string, body: unknown) => request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
+    put: <T>(path: string, body: unknown) => request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
     del: (path: string) => request<void>(path, { method: 'DELETE' }),
   }
 }

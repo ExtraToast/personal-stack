@@ -4,30 +4,30 @@ Self-hosted infrastructure for [jorisjonkers.dev](https://jorisjonkers.dev) — 
 
 ## Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Orchestration | Docker Swarm (single-node, expandable) |
-| Edge Router | Traefik with wildcard TLS via Cloudflare DNS-01 |
-| Auth | Custom OAuth2/OIDC server (Kotlin + Spring Authorization Server) |
-| Backend | Kotlin 2.1, Spring Boot 4.0, Java 21, Spring WebMVC + virtual threads |
-| Frontend | Vue 3, TypeScript (strict), PrimeVue, Tailwind CSS, Vite |
-| Database | PostgreSQL 17 (jOOQ + Flyway), Valkey (cache/sessions) |
-| Messaging | RabbitMQ |
-| Secrets | HashiCorp Vault (Raft storage, AppRole auth) |
-| Automation | n8n |
-| Observability | Grafana, Prometheus, Loki, Tempo, Uptime Kuma |
-| CI/CD | GitHub Actions, ghcr.io, rolling Swarm deploys |
+| Layer         | Technology                                                            |
+| ------------- | --------------------------------------------------------------------- |
+| Orchestration | Docker Swarm (single-node, expandable)                                |
+| Edge Router   | Traefik with wildcard TLS via Cloudflare DNS-01                       |
+| Auth          | Custom OAuth2/OIDC server (Kotlin + Spring Authorization Server)      |
+| Backend       | Kotlin 2.1, Spring Boot 4.0, Java 21, Spring WebMVC + virtual threads |
+| Frontend      | Vue 3, TypeScript (strict), PrimeVue, Tailwind CSS, Vite              |
+| Database      | PostgreSQL 17 (jOOQ + Flyway), Valkey (cache/sessions)                |
+| Messaging     | RabbitMQ                                                              |
+| Secrets       | HashiCorp Vault (Raft storage, AppRole auth)                          |
+| Automation    | n8n                                                                   |
+| Observability | Grafana, Prometheus, Loki, Tempo, Uptime Kuma                         |
+| CI/CD         | GitHub Actions, ghcr.io, rolling Swarm deploys                        |
 
 ## Services
 
-| Service | Type | URL |
-|---------|------|-----|
-| app-ui | Vue | jorisjonkers.dev |
-| auth-api | Kotlin Spring Boot | auth.jorisjonkers.dev |
-| auth-ui | Vue | auth.jorisjonkers.dev |
+| Service       | Type               | URL                        |
+| ------------- | ------------------ | -------------------------- |
+| app-ui        | Vue                | jorisjonkers.dev           |
+| auth-api      | Kotlin Spring Boot | auth.jorisjonkers.dev      |
+| auth-ui       | Vue                | auth.jorisjonkers.dev      |
 | assistant-api | Kotlin Spring Boot | assistant.jorisjonkers.dev |
-| assistant-ui | Vue | assistant.jorisjonkers.dev |
-| system-tests | Kotlin | — (CI + post-deploy) |
+| assistant-ui  | Vue                | assistant.jorisjonkers.dev |
+| system-tests  | Kotlin             | — (CI + post-deploy)       |
 
 ## Project Structure
 
@@ -68,39 +68,39 @@ See [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) for t
 
 ## Code Quality
 
-| Area | Tools |
-|------|-------|
-| Kotlin linting | detekt + ktlint (no `!!`, no `var`, 30-line function limit, complexity max 10) |
-| TypeScript linting | @antfu/eslint-config, strict mode, zero warnings policy |
-| Formatting | Prettier (TS/Vue/CSS/JSON), ktlint (Kotlin) |
-| Architecture | ArchUnit (Kotlin), dependency-cruiser (TypeScript), Spring Modulith |
-| Pre-commit | Husky + lint-staged (TS/Vue), Gradle Git hook (Kotlin) |
+| Area               | Tools                                                                          |
+| ------------------ | ------------------------------------------------------------------------------ |
+| Kotlin linting     | detekt + ktlint (no `!!`, no `var`, 30-line function limit, complexity max 10) |
+| TypeScript linting | @antfu/eslint-config, strict mode, zero warnings policy                        |
+| Formatting         | Prettier (TS/Vue/CSS/JSON), ktlint (Kotlin)                                    |
+| Architecture       | ArchUnit (Kotlin), dependency-cruiser (TypeScript), Spring Modulith            |
+| Pre-commit         | Husky + lint-staged (TS/Vue), Gradle Git hook (Kotlin)                         |
 
 ## Testing
 
-| Level | Kotlin | Vue/TypeScript |
-|-------|--------|---------------|
-| Unit | JUnit 5 + MockK + AssertJ | Vitest + Vue Test Utils |
-| Integration | Testcontainers + @SpringBootTest | Vitest + MSW |
-| E2E | — | Playwright |
-| Contract | OpenAPI spec validation | OpenAPI spec validation |
-| Architecture | ArchUnit + Spring Modulith | dependency-cruiser |
-| Mutation | Pitest | Stryker |
-| Performance | k6 | k6 |
-| Security | Trivy, OWASP Dep-Check, Semgrep, ZAP, gitleaks | npm audit, Trivy, Semgrep |
-| System | RestAssured + Testcontainers (full stack) | — |
-| Infrastructure | Testinfra (over SSH) | — |
+| Level          | Kotlin                                         | Vue/TypeScript            |
+| -------------- | ---------------------------------------------- | ------------------------- |
+| Unit           | JUnit 5 + MockK + AssertJ                      | Vitest + Vue Test Utils   |
+| Integration    | Testcontainers + @SpringBootTest               | Vitest + MSW              |
+| E2E            | —                                              | Playwright                |
+| Contract       | OpenAPI spec validation                        | OpenAPI spec validation   |
+| Architecture   | ArchUnit + Spring Modulith                     | dependency-cruiser        |
+| Mutation       | Pitest                                         | Stryker                   |
+| Performance    | k6                                             | k6                        |
+| Security       | Trivy, OWASP Dep-Check, Semgrep, ZAP, gitleaks | npm audit, Trivy, Semgrep |
+| System         | RestAssured + Testcontainers (full stack)      | —                         |
+| Infrastructure | Testinfra (over SSH)                           | —                         |
 
 Coverage minimum: **80% line coverage**, enforced in CI.
 
 ## CI Pipelines
 
-| Trigger | Pipeline | Target |
-|---------|----------|--------|
-| Every push | Unit tests + lint + type-check | < 5 min |
-| PR to main | Full (integration, E2E, architecture, security, contracts) | < 30 min |
-| Nightly | Full + mutation tests + ZAP + system tests | — |
-| Post-deploy | System/coherence tests against live | — |
+| Trigger     | Pipeline                                                   | Target   |
+| ----------- | ---------------------------------------------------------- | -------- |
+| Every push  | Unit tests + lint + type-check                             | < 5 min  |
+| PR to main  | Full (integration, E2E, architecture, security, contracts) | < 30 min |
+| Nightly     | Full + mutation tests + ZAP + system tests                 | —        |
+| Post-deploy | System/coherence tests against live                        | —        |
 
 ## Prerequisites
 

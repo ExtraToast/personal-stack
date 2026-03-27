@@ -6,8 +6,9 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
 class CommandBusTest {
-
-    private data class TestCommand(val value: String) : Command
+    private data class TestCommand(
+        val value: String,
+    ) : Command
 
     @Test
     fun `command bus dispatches to handler`() {

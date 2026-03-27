@@ -50,9 +50,9 @@ Kotlin/Spring ecosystem, and supports OAuth2/OIDC for standards compliance.
 - **Simple RBAC: admin / user / readonly**
 - Roles stored in JWT claims
 - Architecture designed for future evolution to fine-grained RBAC:
-    - Permission model abstracted behind interfaces
-    - Role-to-permission mapping in database (not hardcoded)
-    - @PreAuthorize uses hasPermission() evaluators, not hasAuthority()
+  - Permission model abstracted behind interfaces
+  - Role-to-permission mapping in database (not hardcoded)
+  - @PreAuthorize uses hasPermission() evaluators, not hasAuthority()
 
 ### Security on Every Endpoint
 

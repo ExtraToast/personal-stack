@@ -1,4 +1,4 @@
-FROM node:20-alpine AS build
+FROM node:24-alpine AS build
 RUN corepack enable pnpm
 WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
@@ -8,8 +8,7 @@ RUN pnpm install --frozen-lockfile
 COPY libs/vue-common/ libs/vue-common/
 COPY services/assistant-ui/ services/assistant-ui/
 ARG VITE_AUTH_URL=https://auth.jorisjonkers.dev
-ENV VITE_AUTH_URL=$VITE_AUTH_URL
-RUN pnpm --filter @private-stack/assistant-ui build
+RUN VITE_AUTH_URL=${VITE_AUTH_URL} pnpm --filter @private-stack/assistant-ui build
 
 FROM nginx:alpine
 COPY services/assistant-ui/nginx.conf /etc/nginx/conf.d/default.conf

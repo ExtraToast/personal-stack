@@ -13,13 +13,15 @@ import java.util.UUID
 class ArchiveConversationCommandHandler(
     private val conversationRepository: ConversationRepository,
 ) : CommandHandler<ArchiveConversationCommand> {
-
+    @Suppress("ThrowsCount")
     override fun handle(command: ArchiveConversationCommand) {
-        val conversation = conversationRepository.findById(command.conversationId)
-            ?: throw NotFoundException("Conversation", command.conversationId.value.toString())
+        val conversation =
+            conversationRepository.findById(command.conversationId)
+                ?: throw NotFoundException("Conversation", command.conversationId.value.toString())
 
-        val requestingUserId = runCatching { UUID.fromString(command.userId) }.getOrNull()
-            ?: throw DomainException("Invalid userId format: ${command.userId}", "INVALID_USER_ID")
+        val requestingUserId =
+            runCatching { UUID.fromString(command.userId) }.getOrNull()
+                ?: throw DomainException("Invalid userId format: ${command.userId}", "INVALID_USER_ID")
 
         if (conversation.userId != requestingUserId) {
             throw DomainException(
@@ -28,10 +30,11 @@ class ArchiveConversationCommandHandler(
             )
         }
 
-        val archived = conversation.copy(
-            status = ConversationStatus.ARCHIVED,
-            updatedAt = Instant.now(),
-        )
+        val archived =
+            conversation.copy(
+                status = ConversationStatus.ARCHIVED,
+                updatedAt = Instant.now(),
+            )
         conversationRepository.save(archived)
     }
 }

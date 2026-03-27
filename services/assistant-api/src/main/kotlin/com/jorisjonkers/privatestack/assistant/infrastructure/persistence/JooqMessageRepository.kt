@@ -16,10 +16,10 @@ import java.util.UUID
 class JooqMessageRepository(
     private val dsl: DSLContext,
 ) : MessageRepository {
-
     override fun save(message: Message): Message {
         val createdAt = message.createdAt.atOffset(ZoneOffset.UTC).toLocalDateTime()
-        dsl.insertInto(MESSAGE)
+        dsl
+            .insertInto(MESSAGE)
             .set(MESSAGE.ID, message.id.value)
             .set(MESSAGE.CONVERSATION_ID, message.conversationId.value)
             .set(MESSAGE.ROLE, message.role.name)
@@ -30,7 +30,8 @@ class JooqMessageRepository(
     }
 
     override fun findByConversationId(id: ConversationId): List<Message> =
-        dsl.selectFrom(MESSAGE)
+        dsl
+            .selectFrom(MESSAGE)
             .where(MESSAGE.CONVERSATION_ID.eq(id.value))
             .orderBy(MESSAGE.CREATED_AT.asc())
             .fetch()
@@ -42,7 +43,8 @@ class JooqMessageRepository(
             conversationId = ConversationId(this[MESSAGE.CONVERSATION_ID] as UUID),
             role = MessageRole.valueOf(this[MESSAGE.ROLE] as String),
             content = this[MESSAGE.CONTENT] as String,
-            createdAt = (this[MESSAGE.CREATED_AT] as java.time.LocalDateTime)
-                .toInstant(ZoneOffset.UTC),
+            createdAt =
+                (this[MESSAGE.CREATED_AT] as java.time.LocalDateTime)
+                    .toInstant(ZoneOffset.UTC),
         )
 }

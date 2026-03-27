@@ -1,3 +1,6 @@
+auth:
+  login-url: https://auth.jorisjonkers.dev/login
+
 spring:
   cloud:
     vault:

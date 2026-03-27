@@ -13,13 +13,14 @@ data class UserResponse(
     val createdAt: Instant,
 ) {
     companion object {
-        fun from(user: User): UserResponse = UserResponse(
-            id = user.id.value,
-            username = user.username,
-            email = user.email,
-            role = user.role.name,
-            totpEnabled = user.totpEnabled,
-            createdAt = user.createdAt,
-        )
+        fun from(user: User): UserResponse =
+            UserResponse(
+                id = user.id.value,
+                username = user.username,
+                email = user.email,
+                role = user.role.name,
+                totpEnabled = user.totpEnabled,
+                createdAt = user.createdAt,
+            )
     }
 }

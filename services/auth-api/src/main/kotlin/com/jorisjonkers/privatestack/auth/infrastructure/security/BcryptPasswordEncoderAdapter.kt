@@ -6,11 +6,12 @@ import org.springframework.stereotype.Component
 
 @Component
 class BcryptPasswordEncoderAdapter : PasswordEncoder {
-
     private val bcrypt = BCryptPasswordEncoder()
 
     override fun encode(rawPassword: String): String = bcrypt.encode(rawPassword)!!
 
-    override fun matches(rawPassword: String, encodedPassword: String): Boolean =
-        bcrypt.matches(rawPassword, encodedPassword)
+    override fun matches(
+        rawPassword: String,
+        encodedPassword: String,
+    ): Boolean = bcrypt.matches(rawPassword, encodedPassword)
 }

@@ -8,16 +8,30 @@ export default antfu(
   },
   {
     rules: {
+      'style/brace-style': ['error', '1tbs'],
+      'style/arrow-parens': ['error', 'always'],
+      'style/quotes': ['error', 'single', { avoidEscape: true }],
+      'style/member-delimiter-style': [
+        'error',
+        { multiline: { delimiter: 'none' }, singleline: { delimiter: 'semi' } },
+      ],
+      'antfu/if-newline': 'off',
       'no-console': 'warn',
       'ts/no-explicit-any': 'error',
-      'ts/explicit-function-return-type': ['error', {
-        allowExpressions: true,
-        allowTypedFunctionExpressions: true,
-        allowHigherOrderFunctions: true,
-      }],
-      'ts/consistent-type-assertions': ['warn', {
-        assertionStyle: 'never',
-      }],
+      'ts/explicit-function-return-type': [
+        'error',
+        {
+          allowExpressions: true,
+          allowTypedFunctionExpressions: true,
+          allowHigherOrderFunctions: true,
+        },
+      ],
+      'ts/consistent-type-assertions': [
+        'warn',
+        {
+          assertionStyle: 'never',
+        },
+      ],
     },
   },
   {
@@ -27,13 +41,28 @@ export default antfu(
       'vue/define-props-declaration': 'error',
       'vue/no-required-prop-with-default': 'error',
       'vue/require-prop-types': 'error',
-      'vue/max-len': ['error', {
-        code: 120,
-        template: 120,
-        ignoreUrls: true,
-        ignoreStrings: true,
-        ignoreTemplateLiterals: true,
-      }],
+      'vue/singleline-html-element-content-newline': 'off',
+      'vue/html-closing-bracket-newline': 'off',
+      'vue/html-indent': 'off',
+      'vue/html-self-closing': [
+        'error',
+        {
+          html: { void: 'any', normal: 'always', component: 'always' },
+          svg: 'always',
+          math: 'always',
+        },
+      ],
+      'vue/max-len': [
+        'error',
+        {
+          code: 120,
+          template: 120,
+          ignoreUrls: true,
+          ignoreStrings: true,
+          ignoreTemplateLiterals: true,
+          ignoreHTMLAttributeValues: true,
+        },
+      ],
     },
   },
   {

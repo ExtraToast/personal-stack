@@ -61,9 +61,7 @@ async function onSubmit(): Promise<void> {
     <h1 class="text-2xl font-bold text-gray-100">Create account</h1>
 
     <div>
-      <label class="block font-mono text-xs font-medium text-gray-400" for="username">
-        Username
-      </label>
+      <label class="block font-mono text-xs font-medium text-gray-400" for="username"> Username </label>
       <input
         id="username"
         v-model="form.username"
@@ -93,9 +91,7 @@ async function onSubmit(): Promise<void> {
     </div>
 
     <div>
-      <label class="block font-mono text-xs font-medium text-gray-400" for="password">
-        Password
-      </label>
+      <label class="block font-mono text-xs font-medium text-gray-400" for="password"> Password </label>
       <input
         id="password"
         v-model="form.password"
@@ -110,9 +106,7 @@ async function onSubmit(): Promise<void> {
     </div>
 
     <div>
-      <label class="block font-mono text-xs font-medium text-gray-400" for="confirmPassword">
-        Confirm password
-      </label>
+      <label class="block font-mono text-xs font-medium text-gray-400" for="confirmPassword"> Confirm password </label>
       <input
         id="confirmPassword"
         v-model="form.confirmPassword"
@@ -126,10 +120,7 @@ async function onSubmit(): Promise<void> {
       </p>
     </div>
 
-    <p
-      v-if="authStore.error"
-      class="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400"
-    >
+    <p v-if="authStore.error" class="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
       {{ authStore.error }}
     </p>
 
@@ -143,9 +134,7 @@ async function onSubmit(): Promise<void> {
 
     <p class="text-center text-sm text-gray-500">
       Already have an account?
-      <router-link class="font-medium text-accent-light hover:underline" to="/login">
-        Sign in
-      </router-link>
+      <router-link class="font-medium text-accent-light hover:underline" to="/login"> Sign in </router-link>
     </p>
   </form>
 </template>
