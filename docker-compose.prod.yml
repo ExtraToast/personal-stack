@@ -436,6 +436,7 @@ services:
     networks:
       - private-stack-overlay
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - uptime-kuma-data:/app/data
     healthcheck:
       test: ['CMD-SHELL', 'curl -f http://localhost:3001 || exit 1']
