@@ -10,7 +10,8 @@ concurrency:
 
 env:
   JAVA_VERSION: '21'
-  NODE_VERSION: '20'
+  NODE_VERSION: '24'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   lint-kotlin:
