@@ -11,25 +11,6 @@ http:
       tls:
         certResolver: cloudflare
 
-    # ── Health checks (public, no auth middleware) ──────────────
-    auth-api-health:
-      rule: 'Host(`auth.jorisjonkers.dev`) && (Path(`/actuator/health`) || Path(`/api/actuator/health`) || Path(`/api/v1/health`))'
-      entryPoints:
-        - websecure
-      service: auth-api
-      priority: 10
-      tls:
-        certResolver: cloudflare
-
-    assistant-api-health:
-      rule: 'Host(`assistant.jorisjonkers.dev`) && (Path(`/actuator/health`) || Path(`/api/actuator/health`) || Path(`/api/v1/health`))'
-      entryPoints:
-        - websecure
-      service: assistant-api
-      priority: 10
-      tls:
-        certResolver: cloudflare
-
     # ── Auth API ────────────────────────────────────────────────
     auth-api:
       rule: 'Host(`auth.jorisjonkers.dev`) && PathPrefix(`/api/`)'
