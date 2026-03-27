@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Show exactly which line fails
+trap 'echo "ERR: init-vault.sh failed at line ${LINENO}" >&2' ERR
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 POLICIES_DIR="${SCRIPT_DIR}/../policies"
 VAULT_KEYS_FILE="/opt/private-stack/.vault-keys"
@@ -35,12 +38,34 @@ INIT_STATUS=$(docker exec "$VAULT_CONTAINER" \
     wget -qO- http://127.0.0.1:8200/v1/sys/init 2>/dev/null || echo '{}')
 if echo "$INIT_STATUS" | grep -q '"initialized":false'; then
   echo "==> Initializing Vault (1 key share, threshold 1 for simplicity)..."
-  INIT_RESPONSE=$(vault_exec operator init -key-shares=1 -key-threshold=1 -format=json)
 
-  UNSEAL_KEY=$(echo "$INIT_RESPONSE" | grep -oP '"unseal_keys_b64"\s*:\s*\[\s*"\K[^"]+')
-  ROOT_TOKEN=$(echo "$INIT_RESPONSE" | grep -oP '"root_token"\s*:\s*"\K[^"]+')
+  if ! INIT_RESPONSE=$(vault_exec operator init -key-shares=1 -key-threshold=1 -format=json 2>&1); then
+    echo "ERR: vault operator init failed:"
+    echo "$INIT_RESPONSE"
+    exit 1
+  fi
+
+  echo "==> Parsing init response..."
+  # Use jq if available, otherwise fall back to python3, then grep
+  if command -v jq > /dev/null 2>&1; then
+    UNSEAL_KEY=$(echo "$INIT_RESPONSE" | jq -r '.unseal_keys_b64[0]')
+    ROOT_TOKEN=$(echo "$INIT_RESPONSE" | jq -r '.root_token')
+  elif command -v python3 > /dev/null 2>&1; then
+    UNSEAL_KEY=$(echo "$INIT_RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['unseal_keys_b64'][0])")
+    ROOT_TOKEN=$(echo "$INIT_RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['root_token'])")
+  else
+    UNSEAL_KEY=$(echo "$INIT_RESPONSE" | grep -o '"unseal_keys_b64":\["[^"]*"' | grep -o '"[^"]*"$' | tr -d '"')
+    ROOT_TOKEN=$(echo "$INIT_RESPONSE" | grep -o '"root_token":"[^"]*"' | cut -d'"' -f4)
+  fi
+
+  if [ -z "$UNSEAL_KEY" ] || [ -z "$ROOT_TOKEN" ]; then
+    echo "ERR: Failed to parse unseal key or root token from init response:"
+    echo "$INIT_RESPONSE"
+    exit 1
+  fi
 
   # Save keys to file (readable only by root)
+  mkdir -p "$(dirname "$VAULT_KEYS_FILE")"
   cat > "$VAULT_KEYS_FILE" <<EOF
 VAULT_UNSEAL_KEY=${UNSEAL_KEY}
 VAULT_ROOT_TOKEN=${ROOT_TOKEN}
@@ -73,9 +98,9 @@ else
   echo "==> Vault already unsealed."
 fi
 
-# ── Wait for Vault to be fully ready ─────────────────────────────────────────
+# ── Wait for Vault to be fully ready (exit code 0 = unsealed + active) ───────
 echo "==> Waiting for Vault to be active..."
-until vault_exec status -format=json 2>/dev/null | grep -q '"initialized":true'; do
+until vault_exec status > /dev/null 2>&1; do
   sleep 2
 done
 
@@ -136,14 +161,42 @@ vault_exec write auth/approle/role/assistant-api \
 ASSISTANT_API_ROLE_ID=$(vault_exec read -field=role_id auth/approle/role/assistant-api/role-id)
 ASSISTANT_API_SECRET_ID=$(vault_exec write -f -field=secret_id auth/approle/role/assistant-api/secret-id)
 
+# ── Populate Vault KV with application secrets ────────────────────────────
+VAULT_APP_SECRETS_FILE="/opt/private-stack/.vault-app-secrets"
+if [[ -f "$VAULT_APP_SECRETS_FILE" ]]; then
+  echo "==> Populating Vault KV with application secrets..."
+  # shellcheck source=/dev/null
+  source "$VAULT_APP_SECRETS_FILE"
+  vault_exec kv put secret/auth-api \
+    "spring.rabbitmq.username=${RABBITMQ_USER}" \
+    "spring.rabbitmq.password=${RABBITMQ_PASSWORD}"
+  vault_exec kv put secret/assistant-api \
+    "spring.rabbitmq.username=${RABBITMQ_USER}" \
+    "spring.rabbitmq.password=${RABBITMQ_PASSWORD}"
+  echo "==> Vault KV secrets populated."
+else
+  echo "WARN: ${VAULT_APP_SECRETS_FILE} not found; skipping KV population."
+  echo "     RabbitMQ credentials must be written to Vault manually."
+fi
+
 # ── Update Docker Swarm secrets ───────────────────────────────────────────────
+echo "==> Detaching Vault secrets from services (required before removal)..."
+docker service update \
+  --secret-rm vault_auth_api_role_id \
+  --secret-rm vault_auth_api_secret_id \
+  private-stack_auth-api 2>/dev/null || true
+docker service update \
+  --secret-rm vault_assistant_api_role_id \
+  --secret-rm vault_assistant_api_secret_id \
+  private-stack_assistant-api 2>/dev/null || true
+
 echo "==> Updating Docker Swarm Vault secrets..."
 
 update_secret() {
   local name="$1" value="$2"
   # Remove the placeholder secret and recreate with real value
   docker secret rm "$name" 2>/dev/null || true
-  echo "$value" | docker secret create "$name" -
+  printf '%s' "$value" | docker secret create "$name" -
   echo "     $name updated"
 }
 
