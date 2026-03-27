@@ -1,7 +1,6 @@
 package com.jorisjonkers.personalstack.systemtests
 
 import io.restassured.RestAssured.given
-import io.restassured.http.ContentType
 import org.assertj.core.api.Assertions.assertThat
 import org.hamcrest.Matchers.containsString
 import org.hamcrest.Matchers.not
@@ -10,7 +9,6 @@ import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
-import java.util.UUID
 import java.util.stream.Stream
 
 /**
@@ -38,30 +36,7 @@ class ForwardAuthChainSystemTest {
             )
     }
 
-    private fun registerAndLogin(): String {
-        val username = "chain_${UUID.randomUUID().toString().take(8)}"
-
-        given()
-            .baseUri(authBaseUrl)
-            .contentType(ContentType.JSON)
-            .body("""{"username":"$username","email":"$username@chain.example.com","password":"ChainTest1!"}""")
-            .`when`()
-            .post("/api/v1/users/register")
-            .then()
-            .statusCode(201)
-
-        return given()
-            .baseUri(authBaseUrl)
-            .contentType(ContentType.JSON)
-            .body("""{"username":"$username","password":"ChainTest1!"}""")
-            .`when`()
-            .post("/api/v1/auth/login")
-            .then()
-            .statusCode(200)
-            .extract()
-            .jsonPath()
-            .getString("accessToken")
-    }
+    private fun registerAndLogin(): String = TestHelper.registerConfirmAndLogin()
 
     @ParameterizedTest(name = "{0}: unauthenticated request redirects to login with redirect URL")
     @MethodSource("protectedServices")

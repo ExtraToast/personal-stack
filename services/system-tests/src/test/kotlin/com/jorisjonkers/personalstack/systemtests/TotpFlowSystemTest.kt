@@ -37,16 +37,8 @@ class TotpFlowSystemTest {
         return TimeBasedOneTimePasswordGenerator(secretBytes, config).generate()
     }
 
-    private fun register(username: String) {
-        given()
-            .baseUri(authBaseUrl)
-            .contentType(ContentType.JSON)
-            .body("""{"username":"$username","email":"$username@totp.example.com","password":"TotpTest1!"}""")
-            .`when`()
-            .post("/api/v1/users/register")
-            .then()
-            .statusCode(201)
-    }
+    private fun registerAndConfirm(username: String): TestHelper.RegisteredUser =
+        TestHelper.registerAndConfirm(username = username, password = "TotpTest1!")
 
     private fun login(username: String): io.restassured.path.json.JsonPath =
         given()
@@ -63,7 +55,7 @@ class TotpFlowSystemTest {
     @Test
     fun `login without TOTP returns tokens directly`() {
         val username = "totp_no_${UUID.randomUUID().toString().take(8)}"
-        register(username)
+        registerAndConfirm(username)
 
         val json = login(username)
 
@@ -76,7 +68,7 @@ class TotpFlowSystemTest {
     @Test
     fun `full TOTP flow - enroll verify and challenge`() {
         val username = "totp_full_${UUID.randomUUID().toString().take(8)}"
-        register(username)
+        registerAndConfirm(username)
 
         // Step 1: Login without TOTP — get full tokens
         val initialLogin = login(username)
@@ -153,7 +145,7 @@ class TotpFlowSystemTest {
     @Test
     fun `TOTP challenge with wrong code returns 400`() {
         val username = "totp_bad_${UUID.randomUUID().toString().take(8)}"
-        register(username)
+        registerAndConfirm(username)
 
         val token = login(username).getString("accessToken")
 

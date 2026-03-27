@@ -1,12 +1,10 @@
 package com.jorisjonkers.personalstack.systemtests
 
 import io.restassured.RestAssured.given
-import io.restassured.http.ContentType
 import org.hamcrest.Matchers.containsString
 import org.hamcrest.Matchers.not
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
-import java.util.UUID
 
 /**
  * System tests that go through Traefik (port 80) using virtual-host URLs.
@@ -29,30 +27,7 @@ class TraefikSystemTest {
     private val n8nUrl = "http://n8n.localhost"
     private val grafanaUrl = "http://grafana.localhost"
 
-    private fun obtainToken(): String {
-        val username = "traefik_${UUID.randomUUID().toString().take(8)}"
-
-        given()
-            .baseUri(authBaseUrl)
-            .contentType(ContentType.JSON)
-            .body("""{"username":"$username","email":"$username@test.com","password":"Test1234!"}""")
-            .`when`()
-            .post("/api/v1/users/register")
-            .then()
-            .statusCode(201)
-
-        return given()
-            .baseUri(authBaseUrl)
-            .contentType(ContentType.JSON)
-            .body("""{"username":"$username","password":"Test1234!"}""")
-            .`when`()
-            .post("/api/v1/auth/login")
-            .then()
-            .statusCode(200)
-            .extract()
-            .jsonPath()
-            .getString("accessToken")
-    }
+    private fun obtainToken(): String = TestHelper.registerConfirmAndLogin()
 
     // ── UI routes (no authentication required) ───────────────────────────────
 
