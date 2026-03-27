@@ -30,6 +30,13 @@ class JooqUserRepository(
             .fetchOne()
             ?.toUser()
 
+    override fun findByEmail(email: String): User? =
+        dsl
+            .selectFrom(APP_USER)
+            .where(APP_USER.EMAIL.eq(email))
+            .fetchOne()
+            ?.toUser()
+
     override fun findCredentialsByUsername(username: String): UserCredentials? =
         dsl
             .selectFrom(APP_USER)
@@ -49,6 +56,7 @@ class JooqUserRepository(
             .set(APP_USER.EMAIL, user.email)
             .set(APP_USER.PASSWORD_HASH, passwordHash)
             .set(APP_USER.TOTP_SECRET, null as String?)
+            .set(APP_USER.EMAIL_CONFIRMED, user.emailConfirmed)
             .set(APP_USER.TOTP_ENABLED, false)
             .set(APP_USER.ROLE, user.role.name)
             .set(APP_USER.CREATED_AT, now)
@@ -61,6 +69,7 @@ class JooqUserRepository(
         val now = user.updatedAt.atOffset(ZoneOffset.UTC).toLocalDateTime()
         dsl
             .update(APP_USER)
+            .set(APP_USER.EMAIL_CONFIRMED, user.emailConfirmed)
             .set(APP_USER.TOTP_ENABLED, user.totpEnabled)
             .set(APP_USER.ROLE, user.role.name)
             .set(APP_USER.UPDATED_AT, now)
@@ -92,6 +101,7 @@ class JooqUserRepository(
             username = this[APP_USER.USERNAME] as String,
             email = this[APP_USER.EMAIL] as String,
             role = Role.valueOf(this[APP_USER.ROLE] as String),
+            emailConfirmed = this[APP_USER.EMAIL_CONFIRMED] as Boolean,
             totpEnabled = this[APP_USER.TOTP_ENABLED] as Boolean,
             createdAt =
                 (this[APP_USER.CREATED_AT] as java.time.LocalDateTime)
@@ -108,6 +118,7 @@ class JooqUserRepository(
             passwordHash = this[APP_USER.PASSWORD_HASH] as String,
             totpSecret = this[APP_USER.TOTP_SECRET] as String?,
             totpEnabled = this[APP_USER.TOTP_ENABLED] as Boolean,
+            emailConfirmed = this[APP_USER.EMAIL_CONFIRMED] as Boolean,
             role = Role.valueOf(this[APP_USER.ROLE] as String),
         )
 }

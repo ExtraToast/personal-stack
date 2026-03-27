@@ -43,6 +43,7 @@ app:
   mail:
     from: ${MAIL_FROM:auth@jorisjonkers.dev}
     from-name: ${MAIL_FROM_NAME:jorisjonkers.dev}
+  confirmation-url: ${CONFIRMATION_URL:http://localhost:5174/confirm-email}
 
 auth:
   login-url: http://localhost:5174/login

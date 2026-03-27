@@ -2,6 +2,7 @@ package com.jorisjonkers.personalstack.auth.infrastructure.web
 
 import com.jorisjonkers.personalstack.auth.application.command.InvalidTotpCodeException
 import com.jorisjonkers.personalstack.auth.application.command.InvalidTotpStateException
+import com.jorisjonkers.personalstack.auth.domain.exception.EmailNotConfirmedException
 import com.jorisjonkers.personalstack.auth.domain.model.UserCredentials
 import com.jorisjonkers.personalstack.auth.domain.model.UserId
 import com.jorisjonkers.personalstack.auth.domain.port.PasswordEncoder
@@ -44,6 +45,10 @@ class LoginController(
 
         if (!passwordEncoder.matches(request.password, credentials.passwordHash)) {
             throw InvalidCredentialsException()
+        }
+
+        if (!credentials.emailConfirmed) {
+            throw EmailNotConfirmedException()
         }
 
         if (credentials.totpEnabled) {

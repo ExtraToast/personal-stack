@@ -9,6 +9,8 @@ interface UserRepository {
 
     fun findByUsername(username: String): User?
 
+    fun findByEmail(email: String): User?
+
     fun findCredentialsByUsername(username: String): UserCredentials?
 
     fun create(

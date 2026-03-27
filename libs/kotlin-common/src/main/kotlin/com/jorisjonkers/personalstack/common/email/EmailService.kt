@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service
 
 @Service
 @ConditionalOnClass(JavaMailSender::class)
-class EmailService(
+open class EmailService(
     private val mailSender: JavaMailSender,
     @Value("\${app.mail.from:auth@jorisjonkers.dev}")
     private val fromAddress: String,
@@ -23,7 +23,7 @@ class EmailService(
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Async
-    fun send(request: EmailRequest) {
+    open fun send(request: EmailRequest) {
         var lastException: Exception? = null
         for (attempt in 1..maxRetries) {
             try {
