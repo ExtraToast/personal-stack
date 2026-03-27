@@ -33,6 +33,7 @@ class ForwardAuthChainSystemTest {
                 Arguments.of("n8n", "http://n8n.localhost", "/"),
                 Arguments.of("grafana", "http://grafana.localhost", "/d/dashboard"),
                 Arguments.of("traefik", "http://traefik.localhost", "/dashboard/"),
+                Arguments.of("stalwart", "http://stalwart.localhost", "/"),
             )
     }
 

@@ -49,6 +49,12 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.traefik-dashboard.rule=Host(`traefik.localhost`)'
+      - 'traefik.http.routers.traefik-dashboard.entrypoints=web'
+      - 'traefik.http.routers.traefik-dashboard.service=api@internal'
+      - 'traefik.http.routers.traefik-dashboard.middlewares=forward-auth@docker'
 
   vault:
     healthcheck:
@@ -83,6 +89,20 @@ services:
       - 'traefik.http.routers.n8n.rule=Host(`n8n.localhost`)'
       - 'traefik.http.routers.n8n.middlewares=forward-auth@docker'
       - 'traefik.http.services.n8n.loadbalancer.server.port=5678'
+
+  stalwart:
+    image: stalwartlabs/stalwart:latest
+    healthcheck:
+      test: ['CMD', 'bash', '-c', 'echo >/dev/tcp/localhost/8080']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.stalwart.rule=Host(`stalwart.localhost`)'
+      - 'traefik.http.services.stalwart.loadbalancer.server.port=8080'
+      - 'traefik.http.routers.stalwart.middlewares=forward-auth@docker'
 
   grafana:
     image: grafana/grafana:11.6.0

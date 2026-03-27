@@ -26,6 +26,7 @@ class TraefikSystemTest {
     private val vaultUrl = "http://vault.localhost"
     private val n8nUrl = "http://n8n.localhost"
     private val grafanaUrl = "http://grafana.localhost"
+    private val stalwartUrl = "http://stalwart.localhost"
 
     private fun obtainToken(): String = TestHelper.registerConfirmAndLogin()
 
@@ -102,6 +103,19 @@ class TraefikSystemTest {
             .header("Location", containsString("auth.localhost/login"))
     }
 
+    @Test
+    fun `stalwart unauthenticated redirects to auth login`() {
+        given()
+            .baseUri(stalwartUrl)
+            .redirects()
+            .follow(false)
+            .`when`()
+            .get("/")
+            .then()
+            .statusCode(302)
+            .header("Location", containsString("auth.localhost/login"))
+    }
+
     // ── Authenticated: forward-auth passes, downstream service responds ───────
 
     @Test
@@ -137,6 +151,20 @@ class TraefikSystemTest {
         val token = obtainToken()
         given()
             .baseUri(grafanaUrl)
+            .header("Authorization", "Bearer $token")
+            .redirects()
+            .follow(false)
+            .`when`()
+            .get("/")
+            .then()
+            .header("Location", not(containsString("auth.localhost/login")))
+    }
+
+    @Test
+    fun `stalwart authenticated passes forward-auth`() {
+        val token = obtainToken()
+        given()
+            .baseUri(stalwartUrl)
             .header("Authorization", "Bearer $token")
             .redirects()
             .follow(false)
