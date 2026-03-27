@@ -68,7 +68,7 @@ export default {
       {
         role: 'Secretary & Commissioner of External Affairs',
         company: 'ESA Blueshell',
-        period: 'September 2024 – Present',
+        period: 'September 2024 – September 2025',
         description:
           "Overhauled sponsor outreach using scraping techniques and targeted email templates, resulting in contact with over 100 companies. Handles official communications, meeting minutes, and monthly newsletters. Since April 2024, has been the primary developer of the association's full-stack website, built with Spring Boot 4 (Kotlin) and Vue.js 3 (TypeScript) and deployed as a Docker Swarm stack.",
         technologies: ['Spring Boot', 'Kotlin', 'Vue.js', 'Docker Swarm', 'Traefik'],

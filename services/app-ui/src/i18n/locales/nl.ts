@@ -68,7 +68,7 @@ export default {
       {
         role: 'Secretaris & Commissaris Externe Zaken',
         company: 'ESA Blueshell',
-        period: 'September 2024 – Heden',
+        period: 'September 2024 – September 2025',
         description:
           'Sponsorbenaderingsproces vernieuwd met webscraping en gerichte mailcampagnes, wat heeft geleid tot contact met meer dan 100 bedrijven. Verantwoordelijk voor officiële communicatie, notulen en maandelijkse nieuwsbrieven. Sinds april 2024 ook de primaire ontwikkelaar van de full-stack verenigingswebsite, gebouwd met Spring Boot 4 (Kotlin) en Vue.js 3 (TypeScript) en uitgerold als Docker Swarm-stack.',
         technologies: ['Spring Boot', 'Kotlin', 'Vue.js', 'Docker Swarm', 'Traefik'],
