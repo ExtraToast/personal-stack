@@ -1,0 +1,19 @@
+entryPoints:
+  web:
+    address: ':80'
+  traefik:
+    address: ':8080'
+
+providers:
+  docker:
+    endpoint: 'unix:///var/run/docker.sock'
+    exposedByDefault: false
+
+ping: {}
+
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+log:
+  level: INFO
