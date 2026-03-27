@@ -25,9 +25,10 @@ class TotpController(
     private val commandBus: CommandBus,
     private val totpService: TotpService,
 ) {
-
     @PostMapping("/enroll")
-    fun enroll(@AuthenticationPrincipal jwt: Jwt): ResponseEntity<TotpEnrollResponse> {
+    fun enroll(
+        @AuthenticationPrincipal jwt: Jwt,
+    ): ResponseEntity<TotpEnrollResponse> {
         val userId = UserId(UUID.fromString(jwt.subject))
         val secret = enrollTotpCommandHandler.handle(EnrollTotpCommand(userId))
         val qrUri = totpService.generateQrUri(secret, jwt.getClaim("username") ?: jwt.subject)

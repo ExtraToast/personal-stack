@@ -12,7 +12,6 @@ import org.springframework.context.annotation.Configuration
 
 @Configuration
 open class RabbitMqConfig {
-
     companion object {
         const val EVENTS_EXCHANGE = "private-stack.events"
         const val DLX_EXCHANGE = "private-stack.events.dlx"
@@ -31,7 +30,8 @@ open class RabbitMqConfig {
 
     @Bean
     open fun userRegisteredQueue(): Queue =
-        QueueBuilder.durable(USER_REGISTERED_QUEUE)
+        QueueBuilder
+            .durable(USER_REGISTERED_QUEUE)
             .withArgument("x-dead-letter-exchange", DLX_EXCHANGE)
             .withArgument("x-dead-letter-routing-key", USER_REGISTERED_DLQ)
             .build()

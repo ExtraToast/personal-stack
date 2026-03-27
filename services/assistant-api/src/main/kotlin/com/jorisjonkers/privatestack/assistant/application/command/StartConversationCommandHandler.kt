@@ -14,19 +14,19 @@ class StartConversationCommandHandler(
     private val conversationRepository: ConversationRepository,
     private val eventPublisher: ApplicationEventPublisher,
 ) : CommandHandler<StartConversationCommand> {
-
     override fun handle(command: StartConversationCommand) {
         require(command.title.isNotBlank()) { "Title must not be blank" }
 
         val now = Instant.now()
-        val conversation = Conversation(
-            id = command.conversationId,
-            userId = command.userId,
-            title = command.title.trim(),
-            status = ConversationStatus.ACTIVE,
-            createdAt = now,
-            updatedAt = now,
-        )
+        val conversation =
+            Conversation(
+                id = command.conversationId,
+                userId = command.userId,
+                title = command.title.trim(),
+                status = ConversationStatus.ACTIVE,
+                createdAt = now,
+                updatedAt = now,
+            )
         conversationRepository.save(conversation)
 
         eventPublisher.publishEvent(

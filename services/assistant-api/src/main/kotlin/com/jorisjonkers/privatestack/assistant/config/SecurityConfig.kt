@@ -10,7 +10,6 @@ import org.springframework.web.filter.OncePerRequestFilter
 
 @Configuration
 class SecurityConfig {
-
     @Bean
     fun xUserIdFilterRegistration(): FilterRegistrationBean<XUserIdFilter> =
         FilterRegistrationBean(XUserIdFilter()).apply {
@@ -20,7 +19,6 @@ class SecurityConfig {
 }
 
 class XUserIdFilter : OncePerRequestFilter() {
-
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,

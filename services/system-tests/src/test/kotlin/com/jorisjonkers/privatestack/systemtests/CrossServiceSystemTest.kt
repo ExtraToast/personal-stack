@@ -23,23 +23,46 @@ class CrossServiceSystemTest {
 
     private fun registerAndAuthenticate(): String {
         val username = "cross_${UUID.randomUUID().toString().take(8)}"
+        registerUser(username)
+        val accessToken = login(username)
+        return verifyAndGetUserId(accessToken)
+    }
 
-        given().baseUri(authBaseUrl).contentType(ContentType.JSON)
+    private fun registerUser(username: String) {
+        given()
+            .baseUri(authBaseUrl)
+            .contentType(ContentType.JSON)
             .body("""{"username":"$username","email":"$username@cross.example.com","password":"CrossTest1!"}""")
-            .`when`().post("/api/v1/users/register").then().statusCode(201)
+            .`when`()
+            .post("/api/v1/users/register")
+            .then()
+            .statusCode(201)
+    }
 
-        val accessToken =
-            given().baseUri(authBaseUrl).contentType(ContentType.JSON)
-                .body("""{"username":"$username","password":"CrossTest1!"}""")
-                .`when`().post("/api/v1/auth/login")
-                .then().statusCode(200).extract().jsonPath().getString("accessToken")
+    private fun login(username: String): String =
+        given()
+            .baseUri(authBaseUrl)
+            .contentType(ContentType.JSON)
+            .body("""{"username":"$username","password":"CrossTest1!"}""")
+            .`when`()
+            .post("/api/v1/auth/login")
+            .then()
+            .statusCode(200)
+            .extract()
+            .jsonPath()
+            .getString("accessToken")
 
+    private fun verifyAndGetUserId(accessToken: String): String {
         val userId =
-            given().baseUri(authBaseUrl)
+            given()
+                .baseUri(authBaseUrl)
                 .header("Authorization", "Bearer $accessToken")
-                .`when`().get("/api/v1/auth/verify")
-                .then().statusCode(200).extract().header("X-User-Id")
-
+                .`when`()
+                .get("/api/v1/auth/verify")
+                .then()
+                .statusCode(200)
+                .extract()
+                .header("X-User-Id")
         assertThat(userId).isNotBlank()
         return userId
     }
@@ -47,26 +70,57 @@ class CrossServiceSystemTest {
     @Test
     fun `full flow register login create conversation`() {
         val userId = registerAndAuthenticate()
-
-        val conversationId =
-            given().baseUri(assistantBaseUrl).contentType(ContentType.JSON)
-                .header("X-User-Id", userId)
-                .body("""{"title":"My first conversation"}""")
-                .`when`().post("/api/v1/conversations")
-                .then().statusCode(201).extract().jsonPath().getString("id")
-        assertThat(conversationId).isNotBlank()
-
-        given().baseUri(assistantBaseUrl).contentType(ContentType.JSON)
-            .header("X-User-Id", userId)
-            .body("""{"content":"Hello from system test","role":"USER"}""")
-            .`when`().post("/api/v1/conversations/$conversationId/messages")
-            .then().statusCode(201)
-
-        val messages: List<Map<String, Any>> =
-            given().baseUri(assistantBaseUrl)
-                .header("X-User-Id", userId)
-                .`when`().get("/api/v1/conversations/$conversationId/messages")
-                .then().statusCode(200).extract().jsonPath().getList("")
+        val conversationId = createConversation(userId)
+        sendMessage(userId, conversationId)
+        val messages = getMessages(userId, conversationId)
         assertThat(messages).isNotEmpty()
     }
+
+    private fun createConversation(userId: String): String {
+        val conversationId =
+            given()
+                .baseUri(assistantBaseUrl)
+                .contentType(ContentType.JSON)
+                .header("X-User-Id", userId)
+                .body("""{"title":"My first conversation"}""")
+                .`when`()
+                .post("/api/v1/conversations")
+                .then()
+                .statusCode(201)
+                .extract()
+                .jsonPath()
+                .getString("id")
+        assertThat(conversationId).isNotBlank()
+        return conversationId
+    }
+
+    private fun sendMessage(
+        userId: String,
+        conversationId: String,
+    ) {
+        given()
+            .baseUri(assistantBaseUrl)
+            .contentType(ContentType.JSON)
+            .header("X-User-Id", userId)
+            .body("""{"content":"Hello from system test","role":"USER"}""")
+            .`when`()
+            .post("/api/v1/conversations/$conversationId/messages")
+            .then()
+            .statusCode(201)
+    }
+
+    private fun getMessages(
+        userId: String,
+        conversationId: String,
+    ): List<Map<String, Any>> =
+        given()
+            .baseUri(assistantBaseUrl)
+            .header("X-User-Id", userId)
+            .`when`()
+            .get("/api/v1/conversations/$conversationId/messages")
+            .then()
+            .statusCode(200)
+            .extract()
+            .jsonPath()
+            .getList("")
 }

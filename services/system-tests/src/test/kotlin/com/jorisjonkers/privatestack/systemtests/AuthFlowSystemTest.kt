@@ -25,20 +25,30 @@ class AuthFlowSystemTest {
         mail: String,
         pass: String,
     ) {
-        given().baseUri(authBaseUrl).contentType(ContentType.JSON)
+        given()
+            .baseUri(authBaseUrl)
+            .contentType(ContentType.JSON)
             .body("""{"username":"$user","email":"$mail","password":"$pass"}""")
-            .`when`().post("/api/v1/users/register")
-            .then().statusCode(201)
+            .`when`()
+            .post("/api/v1/users/register")
+            .then()
+            .statusCode(201)
     }
 
     private fun login(
         user: String,
         pass: String,
     ): JsonPath =
-        given().baseUri(authBaseUrl).contentType(ContentType.JSON)
+        given()
+            .baseUri(authBaseUrl)
+            .contentType(ContentType.JSON)
             .body("""{"username":"$user","password":"$pass"}""")
-            .`when`().post("/api/v1/auth/login")
-            .then().statusCode(200).extract().jsonPath()
+            .`when`()
+            .post("/api/v1/auth/login")
+            .then()
+            .statusCode(200)
+            .extract()
+            .jsonPath()
 
     @Test
     fun `register user and receive token successfully`() {
@@ -48,18 +58,25 @@ class AuthFlowSystemTest {
         val accessToken = tokenResponse.getString("accessToken")
         assertThat(accessToken).isNotBlank()
 
-        given().baseUri(authBaseUrl)
+        given()
+            .baseUri(authBaseUrl)
             .header("Authorization", "Bearer $accessToken")
-            .`when`().get("/api/v1/auth/verify")
-            .then().statusCode(200)
+            .`when`()
+            .get("/api/v1/auth/verify")
+            .then()
+            .statusCode(200)
 
         val refreshToken = tokenResponse.getString("refreshToken")
         assertThat(refreshToken).isNotBlank()
 
-        given().baseUri(authBaseUrl).contentType(ContentType.JSON)
+        given()
+            .baseUri(authBaseUrl)
+            .contentType(ContentType.JSON)
             .body("""{"refreshToken":"$refreshToken"}""")
-            .`when`().post("/api/v1/auth/refresh")
-            .then().statusCode(200)
+            .`when`()
+            .post("/api/v1/auth/refresh")
+            .then()
+            .statusCode(200)
     }
 
     @Test
@@ -67,25 +84,45 @@ class AuthFlowSystemTest {
         val user = "duptest_${UUID.randomUUID().toString().take(8)}"
         val body = """{"username":"$user","email":"$user@test.com","password":"Test1234!"}"""
 
-        given().baseUri(authBaseUrl).contentType(ContentType.JSON).body(body)
-            .`when`().post("/api/v1/users/register").then().statusCode(201)
+        given()
+            .baseUri(authBaseUrl)
+            .contentType(ContentType.JSON)
+            .body(body)
+            .`when`()
+            .post("/api/v1/users/register")
+            .then()
+            .statusCode(201)
 
-        given().baseUri(authBaseUrl).contentType(ContentType.JSON).body(body)
-            .`when`().post("/api/v1/users/register").then().statusCode(400)
+        given()
+            .baseUri(authBaseUrl)
+            .contentType(ContentType.JSON)
+            .body(body)
+            .`when`()
+            .post("/api/v1/users/register")
+            .then()
+            .statusCode(400)
     }
 
     @Test
     fun `verify endpoint redirects to login without token`() {
-        given().baseUri(authBaseUrl).redirects().follow(false)
-            .`when`().get("/api/v1/auth/verify")
-            .then().statusCode(302)
+        given()
+            .baseUri(authBaseUrl)
+            .redirects()
+            .follow(false)
+            .`when`()
+            .get("/api/v1/auth/verify")
+            .then()
+            .statusCode(302)
             .header("Location", org.hamcrest.Matchers.containsString("/login?redirect="))
     }
 
     @Test
     fun `other protected endpoints reject request without token`() {
-        given().baseUri(authBaseUrl)
-            .`when`().get("/api/v1/users/me")
-            .then().statusCode(401)
+        given()
+            .baseUri(authBaseUrl)
+            .`when`()
+            .get("/api/v1/users/me")
+            .then()
+            .statusCode(401)
     }
 }

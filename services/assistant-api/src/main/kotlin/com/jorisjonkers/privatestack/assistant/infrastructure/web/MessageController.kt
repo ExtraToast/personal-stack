@@ -26,7 +26,6 @@ class MessageController(
     private val commandBus: CommandBus,
     private val getMessageQueryService: GetMessageQueryService,
 ) {
-
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun send(
@@ -45,16 +44,21 @@ class MessageController(
                 role = MessageRole.USER,
             ),
         )
-        val saved = getMessageQueryService.findByConversationId(convId)
-            .firstOrNull { it.id == messageId }
-            ?: error("Message not found after saving")
+        val saved =
+            getMessageQueryService
+                .findByConversationId(convId)
+                .firstOrNull { it.id == messageId }
+                ?: error("Message not found after saving")
         return MessageResponse.from(saved)
     }
 
     @GetMapping
-    fun list(@PathVariable conversationId: UUID): List<MessageResponse> {
+    fun list(
+        @PathVariable conversationId: UUID,
+    ): List<MessageResponse> {
         val convId = ConversationId(conversationId)
-        return getMessageQueryService.findByConversationId(convId)
+        return getMessageQueryService
+            .findByConversationId(convId)
             .map { MessageResponse.from(it) }
     }
 }

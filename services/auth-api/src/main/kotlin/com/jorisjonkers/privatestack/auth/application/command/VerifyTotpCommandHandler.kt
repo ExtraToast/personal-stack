@@ -13,10 +13,10 @@ class VerifyTotpCommandHandler(
     private val userRepository: UserRepository,
     private val totpService: TotpService,
 ) : CommandHandler<VerifyTotpCommand> {
-
     override fun handle(command: VerifyTotpCommand) {
-        val user = userRepository.findById(command.userId)
-            ?: throw NotFoundException("User", command.userId.value.toString())
+        val user =
+            userRepository.findById(command.userId)
+                ?: throw NotFoundException("User", command.userId.value.toString())
 
         val secret = findTotpSecret(user)
 
@@ -28,13 +28,17 @@ class VerifyTotpCommandHandler(
     }
 
     private fun findTotpSecret(user: User): String {
-        val credentials = userRepository.findCredentialsByUsername(user.username)
-            ?: throw NotFoundException("User credentials", user.id.value.toString())
+        val credentials =
+            userRepository.findCredentialsByUsername(user.username)
+                ?: throw NotFoundException("User credentials", user.id.value.toString())
 
         return credentials.totpSecret
             ?: throw InvalidTotpStateException("TOTP enrollment not started — call enroll first")
     }
 }
 
-class InvalidTotpStateException(message: String) : DomainException(message, "INVALID_TOTP_STATE")
+class InvalidTotpStateException(
+    message: String,
+) : DomainException(message, "INVALID_TOTP_STATE")
+
 class InvalidTotpCodeException : DomainException("Invalid or expired TOTP code", "INVALID_TOTP_CODE")

@@ -7,6 +7,7 @@ import com.jorisjonkers.privatestack.auth.domain.model.User
 import com.jorisjonkers.privatestack.auth.domain.model.UserId
 import com.jorisjonkers.privatestack.auth.domain.port.PasswordEncoder
 import com.jorisjonkers.privatestack.auth.domain.port.UserRepository
+import com.jorisjonkers.privatestack.common.messaging.RabbitMqEventPublisher
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -14,29 +15,32 @@ import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
-import com.jorisjonkers.privatestack.common.messaging.RabbitMqEventPublisher
 import org.springframework.context.ApplicationEventPublisher
 import java.time.Instant
 import java.util.UUID
 
 class RegisterUserCommandHandlerTest {
-
     private val userRepository = mockk<UserRepository>()
     private val passwordEncoder = mockk<PasswordEncoder>()
     private val eventPublisher = mockk<ApplicationEventPublisher>(relaxed = true)
     private val rabbitMqEventPublisher = mockk<RabbitMqEventPublisher>(relaxed = true)
 
-    private val handler = RegisterUserCommandHandler(
-        userRepository, passwordEncoder, eventPublisher, rabbitMqEventPublisher,
-    )
+    private val handler =
+        RegisterUserCommandHandler(
+            userRepository,
+            passwordEncoder,
+            eventPublisher,
+            rabbitMqEventPublisher,
+        )
 
     @Test
     fun `handle registers a new user successfully`() {
-        val command = RegisterUserCommand(
-            username = "alice",
-            email = "alice@example.com",
-            password = "secret123",
-        )
+        val command =
+            RegisterUserCommand(
+                username = "alice",
+                email = "alice@example.com",
+                password = "secret123",
+            )
         val userSlot = slot<User>()
         val hashSlot = slot<String>()
 
@@ -76,7 +80,10 @@ class RegisterUserCommandHandlerTest {
         }.isInstanceOf(DuplicateEmailException::class.java)
     }
 
-    private fun buildUser(username: String, email: String): User {
+    private fun buildUser(
+        username: String,
+        email: String,
+    ): User {
         val now = Instant.now()
         return User(
             id = UserId(UUID.randomUUID()),

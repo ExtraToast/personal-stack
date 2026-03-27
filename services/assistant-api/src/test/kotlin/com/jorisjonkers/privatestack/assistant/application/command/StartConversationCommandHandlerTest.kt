@@ -15,7 +15,6 @@ import org.springframework.context.ApplicationEventPublisher
 import java.util.UUID
 
 class StartConversationCommandHandlerTest {
-
     private val conversationRepository = mockk<ConversationRepository>()
     private val eventPublisher = mockk<ApplicationEventPublisher>(relaxed = true)
     private val handler = StartConversationCommandHandler(conversationRepository, eventPublisher)
@@ -41,11 +40,12 @@ class StartConversationCommandHandlerTest {
     @Test
     fun `handle trims whitespace from title`() {
         val conversationId = ConversationId(UUID.randomUUID())
-        val command = StartConversationCommand(
-            conversationId = conversationId,
-            userId = UUID.randomUUID(),
-            title = "  Padded Title  ",
-        )
+        val command =
+            StartConversationCommand(
+                conversationId = conversationId,
+                userId = UUID.randomUUID(),
+                title = "  Padded Title  ",
+            )
         val slot = slot<Conversation>()
 
         every { conversationRepository.save(capture(slot)) } answers { slot.captured }
@@ -57,11 +57,12 @@ class StartConversationCommandHandlerTest {
 
     @Test
     fun `handle throws when title is blank`() {
-        val command = StartConversationCommand(
-            conversationId = ConversationId(UUID.randomUUID()),
-            userId = UUID.randomUUID(),
-            title = "   ",
-        )
+        val command =
+            StartConversationCommand(
+                conversationId = ConversationId(UUID.randomUUID()),
+                userId = UUID.randomUUID(),
+                title = "   ",
+            )
 
         assertThatThrownBy { handler.handle(command) }
             .isInstanceOf(IllegalArgumentException::class.java)

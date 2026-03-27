@@ -30,7 +30,6 @@ class SecurityConfig(
     @Value("\${auth.login-url:http://localhost:5174/login}")
     private val loginUrl: String,
 ) {
-
     /**
      * Forward-auth filter chain (order 2).
      * The /api/v1/auth/verify endpoint redirects to the login page when unauthenticated,
@@ -38,7 +37,10 @@ class SecurityConfig(
      */
     @Bean
     @Order(2)
-    fun forwardAuthSecurityFilterChain(http: HttpSecurity, jwtDecoder: JwtDecoder): SecurityFilterChain {
+    fun forwardAuthSecurityFilterChain(
+        http: HttpSecurity,
+        jwtDecoder: JwtDecoder,
+    ): SecurityFilterChain {
         http
             .securityMatcher("/api/v1/auth/verify")
             .cors { it.configurationSource(corsConfigurationSource()) }
@@ -59,7 +61,10 @@ class SecurityConfig(
      */
     @Bean
     @Order(3)
-    fun resourceServerSecurityFilterChain(http: HttpSecurity, jwtDecoder: JwtDecoder): SecurityFilterChain {
+    fun resourceServerSecurityFilterChain(
+        http: HttpSecurity,
+        jwtDecoder: JwtDecoder,
+    ): SecurityFilterChain {
         http
             .cors { it.configurationSource(corsConfigurationSource()) }
             .csrf { it.disable() }
@@ -75,26 +80,27 @@ class SecurityConfig(
                         "/api/v1/auth/login",
                         "/api/v1/auth/refresh",
                     ).permitAll()
-                    .anyRequest().authenticated()
-            }
-            .oauth2ResourceServer { rs ->
+                    .anyRequest()
+                    .authenticated()
+            }.oauth2ResourceServer { rs ->
                 rs.jwt { jwt -> jwt.decoder(jwtDecoder) }
             }
         return http.build()
     }
 
-    private fun forwardAuthEntryPoint() = AuthenticationEntryPoint {
-        request: HttpServletRequest,
-        response: HttpServletResponse,
-        _: AuthenticationException,
-        ->
-        val proto = request.getHeader("X-Forwarded-Proto") ?: "https"
-        val host = request.getHeader("X-Forwarded-Host") ?: request.serverName
-        val uri = request.getHeader("X-Forwarded-Uri") ?: "/"
-        val originalUrl = "$proto://$host$uri"
-        val redirectUrl = "$loginUrl?redirect=${URLEncoder.encode(originalUrl, Charsets.UTF_8)}"
-        response.sendRedirect(redirectUrl)
-    }
+    private fun forwardAuthEntryPoint() =
+        AuthenticationEntryPoint {
+            request: HttpServletRequest,
+            response: HttpServletResponse,
+            _: AuthenticationException,
+            ->
+            val proto = request.getHeader("X-Forwarded-Proto") ?: "https"
+            val host = request.getHeader("X-Forwarded-Host") ?: request.serverName
+            val uri = request.getHeader("X-Forwarded-Uri") ?: "/"
+            val originalUrl = "$proto://$host$uri"
+            val redirectUrl = "$loginUrl?redirect=${URLEncoder.encode(originalUrl, Charsets.UTF_8)}"
+            response.sendRedirect(redirectUrl)
+        }
 
     @Bean
     fun passwordEncoder(): PasswordEncoder = BCryptPasswordEncoder()
@@ -104,24 +110,27 @@ class SecurityConfig(
         userDetailsService: UserDetailsService,
         passwordEncoder: PasswordEncoder,
     ): AuthenticationManager {
-        val provider = DaoAuthenticationProvider(userDetailsService).apply {
-            setPasswordEncoder(passwordEncoder)
-        }
+        val provider =
+            DaoAuthenticationProvider(userDetailsService).apply {
+                setPasswordEncoder(passwordEncoder)
+            }
         return ProviderManager(provider)
     }
 
     private fun corsConfigurationSource(): CorsConfigurationSource {
-        val config = CorsConfiguration().apply {
-            allowedOrigins = listOf(
-                "https://auth.jorisjonkers.dev",
-                "https://app.jorisjonkers.dev",
-                "http://localhost:5174",
-                "http://localhost:5175",
-            )
-            allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
-            allowedHeaders = listOf("*")
-            allowCredentials = true
-        }
+        val config =
+            CorsConfiguration().apply {
+                allowedOrigins =
+                    listOf(
+                        "https://auth.jorisjonkers.dev",
+                        "https://app.jorisjonkers.dev",
+                        "http://localhost:5174",
+                        "http://localhost:5175",
+                    )
+                allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                allowedHeaders = listOf("*")
+                allowCredentials = true
+            }
         return UrlBasedCorsConfigurationSource().apply {
             registerCorsConfiguration("/**", config)
         }

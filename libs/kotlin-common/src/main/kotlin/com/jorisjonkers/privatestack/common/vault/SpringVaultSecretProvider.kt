@@ -13,10 +13,13 @@ import org.springframework.vault.core.VaultTemplate
 open class SpringVaultSecretProvider(
     private val vaultTemplate: VaultTemplate,
 ) : VaultSecretProvider {
-
-    override fun getSecret(path: String, key: String): String {
-        val response = vaultTemplate.read(path)
-            ?: error("No secret found at Vault path: $path")
+    override fun getSecret(
+        path: String,
+        key: String,
+    ): String {
+        val response =
+            vaultTemplate.read(path)
+                ?: error("No secret found at Vault path: $path")
         return response.data?.get(key)?.toString()
             ?: error("Key '$key' not found at Vault path: $path")
     }

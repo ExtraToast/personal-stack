@@ -16,7 +16,6 @@ import java.time.Instant
 import java.util.UUID
 
 class ArchiveConversationCommandHandlerTest {
-
     private val conversationRepository = mockk<ConversationRepository>()
     private val handler = ArchiveConversationCommandHandler(conversationRepository)
 

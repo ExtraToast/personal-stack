@@ -13,20 +13,20 @@ class SendMessageCommandHandler(
     private val conversationRepository: ConversationRepository,
     private val messageRepository: MessageRepository,
 ) : CommandHandler<SendMessageCommand> {
-
     override fun handle(command: SendMessageCommand) {
         require(command.content.isNotBlank()) { "Message content must not be blank" }
 
         conversationRepository.findById(command.conversationId)
             ?: throw NotFoundException("Conversation", command.conversationId.value.toString())
 
-        val message = Message(
-            id = command.messageId,
-            conversationId = command.conversationId,
-            role = command.role,
-            content = command.content,
-            createdAt = Instant.now(),
-        )
+        val message =
+            Message(
+                id = command.messageId,
+                conversationId = command.conversationId,
+                role = command.role,
+                content = command.content,
+                createdAt = Instant.now(),
+            )
         messageRepository.save(message)
     }
 }

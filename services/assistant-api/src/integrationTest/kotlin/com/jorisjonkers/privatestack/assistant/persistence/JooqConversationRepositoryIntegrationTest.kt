@@ -12,7 +12,6 @@ import java.time.Instant
 import java.util.UUID
 
 class JooqConversationRepositoryIntegrationTest : IntegrationTestBase() {
-
     @Autowired
     private lateinit var conversationRepository: ConversationRepository
 
@@ -56,11 +55,12 @@ class JooqConversationRepositoryIntegrationTest : IntegrationTestBase() {
         val conversation = buildConversation(title = "Original")
         conversationRepository.save(conversation)
 
-        val updated = conversation.copy(
-            title = "Updated",
-            status = ConversationStatus.ARCHIVED,
-            updatedAt = Instant.now(),
-        )
+        val updated =
+            conversation.copy(
+                title = "Updated",
+                status = ConversationStatus.ARCHIVED,
+                updatedAt = Instant.now(),
+            )
         conversationRepository.save(updated)
 
         val found = conversationRepository.findById(conversation.id)

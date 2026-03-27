@@ -21,7 +21,6 @@ import java.util.UUID
 
 @Configuration
 class JwtConfig {
-
     /**
      * Generates an RSA key pair at startup for JWT signing.
      * In production this key pair should be loaded from Vault to survive restarts.
@@ -29,24 +28,26 @@ class JwtConfig {
     @Bean
     fun jwkSource(): JWKSource<SecurityContext> {
         val keyPair = KeyPairGenerator.getInstance("RSA").apply { initialize(RSA_KEY_SIZE) }.generateKeyPair()
-        val rsaKey = RSAKey.Builder(keyPair.public as RSAPublicKey)
-            .privateKey(keyPair.private as RSAPrivateKey)
-            .keyID(UUID.randomUUID().toString())
-            .build()
+        val rsaKey =
+            RSAKey
+                .Builder(keyPair.public as RSAPublicKey)
+                .privateKey(keyPair.private as RSAPrivateKey)
+                .keyID(UUID.randomUUID().toString())
+                .build()
         return ImmutableJWKSet(JWKSet(rsaKey))
     }
 
     @Bean
     fun jwtDecoder(jwkSource: JWKSource<SecurityContext>): JwtDecoder {
-        val jwtProcessor = DefaultJWTProcessor<SecurityContext>().apply {
-            jwsKeySelector = JWSVerificationKeySelector(JWSAlgorithm.RS256, jwkSource)
-        }
+        val jwtProcessor =
+            DefaultJWTProcessor<SecurityContext>().apply {
+                jwsKeySelector = JWSVerificationKeySelector(JWSAlgorithm.RS256, jwkSource)
+            }
         return NimbusJwtDecoder(jwtProcessor)
     }
 
     @Bean
-    fun jwtEncoder(jwkSource: JWKSource<SecurityContext>): JwtEncoder =
-        NimbusJwtEncoder(jwkSource)
+    fun jwtEncoder(jwkSource: JWKSource<SecurityContext>): JwtEncoder = NimbusJwtEncoder(jwkSource)
 
     companion object {
         private const val RSA_KEY_SIZE = 2048

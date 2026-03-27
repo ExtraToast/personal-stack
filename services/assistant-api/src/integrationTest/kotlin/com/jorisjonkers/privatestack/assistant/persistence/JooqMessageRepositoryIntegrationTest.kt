@@ -16,7 +16,6 @@ import java.time.Instant
 import java.util.UUID
 
 class JooqMessageRepositoryIntegrationTest : IntegrationTestBase() {
-
     @Autowired
     private lateinit var conversationRepository: ConversationRepository
 
@@ -54,12 +53,13 @@ class JooqMessageRepositoryIntegrationTest : IntegrationTestBase() {
         conversationRepository.save(conversation)
 
         val first = buildMessage(conversationId = conversation.id, content = "First", role = MessageRole.USER)
-        val second = buildMessage(
-            conversationId = conversation.id,
-            content = "Second",
-            role = MessageRole.ASSISTANT,
-            createdAt = Instant.now().plusSeconds(1),
-        )
+        val second =
+            buildMessage(
+                conversationId = conversation.id,
+                content = "Second",
+                role = MessageRole.ASSISTANT,
+                createdAt = Instant.now().plusSeconds(1),
+            )
         messageRepository.save(first)
         messageRepository.save(second)
 

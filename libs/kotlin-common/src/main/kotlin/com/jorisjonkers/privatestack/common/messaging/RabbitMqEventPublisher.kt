@@ -10,15 +10,16 @@ import org.springframework.stereotype.Component
 open class RabbitMqEventPublisher(
     private val rabbitTemplate: RabbitTemplate,
 ) {
-
     private val log = LoggerFactory.getLogger(RabbitMqEventPublisher::class.java)
 
-    fun publish(routingKey: String, event: DomainEvent) {
+    fun publish(
+        routingKey: String,
+        event: DomainEvent,
+    ) {
         try {
             rabbitTemplate.convertAndSend(RabbitMqConfig.EVENTS_EXCHANGE, routingKey, event)
             log.debug("Published event {} to routing key {}", event::class.simpleName, routingKey)
-        }
-        catch (e: AmqpException) {
+        } catch (e: AmqpException) {
             log.error("Failed to publish event {} to RabbitMQ", event::class.simpleName, e)
             throw e
         }

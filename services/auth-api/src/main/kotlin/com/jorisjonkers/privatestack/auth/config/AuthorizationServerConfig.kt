@@ -4,15 +4,15 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.annotation.Order
 import org.springframework.http.MediaType
+import org.springframework.security.config.Customizer
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
+import org.springframework.security.config.annotation.web.configurers.oauth2.server.authorization.OAuth2AuthorizationServerConfigurer
 import org.springframework.security.oauth2.core.AuthorizationGrantType
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod
 import org.springframework.security.oauth2.core.oidc.OidcScopes
 import org.springframework.security.oauth2.server.authorization.client.InMemoryRegisteredClientRepository
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository
-import org.springframework.security.config.Customizer
-import org.springframework.security.config.annotation.web.configurers.oauth2.server.authorization.OAuth2AuthorizationServerConfigurer
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings
 import org.springframework.security.oauth2.server.authorization.settings.TokenSettings
@@ -24,7 +24,6 @@ import java.util.UUID
 
 @Configuration
 class AuthorizationServerConfig {
-
     @Bean
     @Order(1)
     fun authorizationServerSecurityFilterChain(http: HttpSecurity): SecurityFilterChain {
@@ -51,12 +50,14 @@ class AuthorizationServerConfig {
 
     @Bean
     fun authorizationServerSettings(): AuthorizationServerSettings =
-        AuthorizationServerSettings.builder()
+        AuthorizationServerSettings
+            .builder()
             .issuer("https://auth.jorisjonkers.dev")
             .build()
 
     private fun buildAuthUiClient(): RegisteredClient =
-        RegisteredClient.withId(UUID.randomUUID().toString())
+        RegisteredClient
+            .withId(UUID.randomUUID().toString())
             .clientId("auth-ui")
             .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
             .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
@@ -68,22 +69,23 @@ class AuthorizationServerConfig {
             .scope(OidcScopes.PROFILE)
             .scope(OidcScopes.EMAIL)
             .clientSettings(
-                ClientSettings.builder()
+                ClientSettings
+                    .builder()
                     .requireProofKey(true)
                     .requireAuthorizationConsent(false)
                     .build(),
-            )
-            .tokenSettings(
-                TokenSettings.builder()
+            ).tokenSettings(
+                TokenSettings
+                    .builder()
                     .accessTokenTimeToLive(ACCESS_TOKEN_TTL)
                     .refreshTokenTimeToLive(REFRESH_TOKEN_TTL)
                     .reuseRefreshTokens(false)
                     .build(),
-            )
-            .build()
+            ).build()
 
     private fun buildAssistantApiClient(): RegisteredClient =
-        RegisteredClient.withId(UUID.randomUUID().toString())
+        RegisteredClient
+            .withId(UUID.randomUUID().toString())
             .clientId("assistant-api")
             .clientSecret("{noop}assistant-secret") // Production: load from Vault
             .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
@@ -91,11 +93,11 @@ class AuthorizationServerConfig {
             .scope("api.read")
             .scope("api.write")
             .tokenSettings(
-                TokenSettings.builder()
+                TokenSettings
+                    .builder()
                     .accessTokenTimeToLive(ACCESS_TOKEN_TTL)
                     .build(),
-            )
-            .build()
+            ).build()
 
     companion object {
         private val ACCESS_TOKEN_TTL: Duration = Duration.ofMinutes(15)
