@@ -92,7 +92,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: ./gradlew test --tests "*ArchitectureTest*"
+      - run: ./gradlew :services:auth-api:test :services:assistant-api:test --tests "*ArchitectureTest*"
       - run: pnpm -r depcruise
 
   test-system:
