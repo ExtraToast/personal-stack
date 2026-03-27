@@ -131,7 +131,5 @@ runcmd:
     chmod 600 /opt/personal-stack/.vault-app-secrets
 
   # Initialize Vault and update Docker secrets with real AppRole credentials
+  # Initialize Vault, swap placeholder secrets with real AppRole credentials, and redeploy
   - bash /opt/personal-stack/infra/vault/scripts/init-vault.sh
-
-  # Redeploy so auth-api and assistant-api pick up the real Vault secrets
-  - docker stack deploy -c /opt/personal-stack/docker-compose.prod.yml personal-stack --with-registry-auth

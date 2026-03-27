@@ -191,21 +191,22 @@ else
 fi
 
 # ── Update Docker Swarm secrets ───────────────────────────────────────────────
-echo "==> Detaching Vault secrets from services (required before removal)..."
-docker service update \
-  --secret-rm vault_auth_api_role_id \
-  --secret-rm vault_auth_api_secret_id \
-  personal-stack_auth-api 2>/dev/null || true
-docker service update \
-  --secret-rm vault_assistant_api_role_id \
-  --secret-rm vault_assistant_api_secret_id \
-  personal-stack_assistant-api 2>/dev/null || true
+# Must remove the stack first — Swarm won't let you delete secrets attached to services,
+# and docker service update --secret-rm triggers failing task restarts.
+echo "==> Removing stack to release placeholder secrets..."
+docker stack rm personal-stack
+echo "==> Waiting for services to drain..."
+for i in $(seq 1 30); do
+  remaining=$(docker service ls --filter name=personal-stack_ -q 2>/dev/null | wc -l)
+  [ "$remaining" -eq 0 ] && break
+  sleep 2
+done
+sleep 5
 
 echo "==> Updating Docker Swarm Vault secrets..."
 
 update_secret() {
   local name="$1" value="$2"
-  # Remove the placeholder secret and recreate with real value
   docker secret rm "$name" 2>/dev/null || true
   printf '%s' "$value" | docker secret create "$name" -
   echo "     $name updated"
@@ -215,6 +216,12 @@ update_secret vault_auth_api_role_id "$AUTH_API_ROLE_ID"
 update_secret vault_auth_api_secret_id "$AUTH_API_SECRET_ID"
 update_secret vault_assistant_api_role_id "$ASSISTANT_API_ROLE_ID"
 update_secret vault_assistant_api_secret_id "$ASSISTANT_API_SECRET_ID"
+
+echo "==> Redeploying stack with real Vault secrets..."
+docker stack deploy \
+  -c /opt/personal-stack/docker-compose.prod.yml \
+  personal-stack \
+  --with-registry-auth
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo ""
