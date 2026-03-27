@@ -12,5 +12,6 @@ data class EmailConfirmationToken(
     val createdAt: Instant,
 ) {
     fun isExpired(): Boolean = Instant.now().isAfter(expiresAt)
+
     fun isUsed(): Boolean = usedAt != null
 }

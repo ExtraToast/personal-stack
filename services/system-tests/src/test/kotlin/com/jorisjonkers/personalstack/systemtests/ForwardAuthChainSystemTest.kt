@@ -73,7 +73,8 @@ class ForwardAuthChainSystemTest {
         val response =
             given()
                 .baseUri(baseUrl)
-                .redirects().follow(false)
+                .redirects()
+                .follow(false)
                 .`when`()
                 .get(path)
 
@@ -91,6 +92,7 @@ class ForwardAuthChainSystemTest {
             .containsIgnoringCase(serviceName)
     }
 
+    @Suppress("UnusedParameter")
     @ParameterizedTest(name = "{0}: authenticated request passes forward-auth")
     @MethodSource("protectedServices")
     fun `authenticated request passes forward-auth`(
@@ -103,7 +105,8 @@ class ForwardAuthChainSystemTest {
         given()
             .baseUri(baseUrl)
             .header("Authorization", "Bearer $token")
-            .redirects().follow(false)
+            .redirects()
+            .follow(false)
             .`when`()
             .get("/")
             .then()

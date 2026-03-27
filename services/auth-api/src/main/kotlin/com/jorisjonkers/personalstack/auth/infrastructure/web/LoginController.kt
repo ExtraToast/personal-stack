@@ -35,6 +35,7 @@ class LoginController(
     private val totpService: TotpService,
     private val jwtDecoder: JwtDecoder,
 ) {
+    @Suppress("ThrowsCount")
     @PostMapping("/login")
     fun login(
         @Valid @RequestBody request: LoginRequest,
@@ -68,6 +69,7 @@ class LoginController(
         return ResponseEntity.ok(issueFullTokens(credentials))
     }
 
+    @Suppress("ThrowsCount")
     @PostMapping("/totp-challenge")
     fun totpChallenge(
         @Valid @RequestBody request: TotpChallengeRequest,

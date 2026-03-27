@@ -28,6 +28,7 @@ class RegisterUserCommandHandler(
     private val rabbitMqEventPublisher: RabbitMqEventPublisher,
     private val emailConfirmationTokenRepository: EmailConfirmationTokenRepository,
 ) : CommandHandler<RegisterUserCommand> {
+    @Suppress("LongMethod")
     override fun handle(command: RegisterUserCommand) {
         if (userRepository.existsByUsername(command.username)) {
             throw DuplicateUsernameException(command.username)
@@ -56,7 +57,7 @@ class RegisterUserCommandHandler(
                 id = UUID.randomUUID(),
                 userId = savedUser.id,
                 token = UUID.randomUUID().toString(),
-                expiresAt = Instant.now().plus(24, ChronoUnit.HOURS),
+                expiresAt = Instant.now().plus(TOKEN_EXPIRY_HOURS, ChronoUnit.HOURS),
                 usedAt = null,
                 createdAt = Instant.now(),
             )
@@ -82,5 +83,9 @@ class RegisterUserCommandHandler(
                 confirmationToken = confirmationToken.token,
             ),
         )
+    }
+
+    companion object {
+        private const val TOKEN_EXPIRY_HOURS = 24L
     }
 }

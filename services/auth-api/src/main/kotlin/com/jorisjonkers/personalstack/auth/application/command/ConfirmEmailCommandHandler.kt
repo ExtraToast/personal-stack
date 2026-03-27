@@ -12,6 +12,7 @@ class ConfirmEmailCommandHandler(
     private val emailConfirmationTokenRepository: EmailConfirmationTokenRepository,
     private val userRepository: UserRepository,
 ) : CommandHandler<ConfirmEmailCommand> {
+    @Suppress("ThrowsCount")
     override fun handle(command: ConfirmEmailCommand) {
         val token =
             emailConfirmationTokenRepository.findByToken(command.token)

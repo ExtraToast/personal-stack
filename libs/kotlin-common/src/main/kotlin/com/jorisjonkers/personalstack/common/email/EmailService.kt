@@ -26,30 +26,8 @@ open class EmailService(
     open fun send(request: EmailRequest) {
         var lastException: Exception? = null
         for (attempt in 1..maxRetries) {
-            try {
-                doSend(request)
-                log.info(
-                    "Email sent to={} subject=\"{}\" attempt={}/{}",
-                    request.to,
-                    request.subject,
-                    attempt,
-                    maxRetries,
-                )
-                return
-            } catch (e: MailException) {
-                lastException = e
-                log.warn(
-                    "Email send failed to={} subject=\"{}\" attempt={}/{}: {}",
-                    request.to,
-                    request.subject,
-                    attempt,
-                    maxRetries,
-                    e.message,
-                )
-                if (attempt < maxRetries) {
-                    Thread.sleep(attempt * 1000L)
-                }
-            }
+            if (trySend(request, attempt)) return
+            lastException = lastException
         }
         log.error(
             "Email delivery failed after {} attempts to={} subject=\"{}\"",
@@ -59,6 +37,29 @@ open class EmailService(
             lastException,
         )
     }
+
+    private fun trySend(
+        request: EmailRequest,
+        attempt: Int,
+    ): Boolean =
+        try {
+            doSend(request)
+            log.info("Email sent to={} subject=\"{}\" attempt={}/{}", request.to, request.subject, attempt, maxRetries)
+            true
+        } catch (e: MailException) {
+            log.warn(
+                "Email send failed to={} subject=\"{}\" attempt={}/{}: {}",
+                request.to,
+                request.subject,
+                attempt,
+                maxRetries,
+                e.message,
+            )
+            if (attempt < maxRetries) {
+                Thread.sleep(attempt * RETRY_BACKOFF_MS)
+            }
+            false
+        }
 
     private fun doSend(request: EmailRequest) {
         val message = mailSender.createMimeMessage()
@@ -85,4 +86,8 @@ open class EmailService(
             .replace(Regex("&nbsp;"), " ")
             .replace(Regex("\\n{3,}"), "\n\n")
             .trim()
+
+    companion object {
+        private const val RETRY_BACKOFF_MS = 1000L
+    }
 }

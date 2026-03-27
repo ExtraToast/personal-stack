@@ -1,5 +1,6 @@
 package com.jorisjonkers.personalstack.auth.infrastructure.email
 
+@Suppress("LongMethod")
 object AuthEmailTemplates {
     fun welcomeEmail(username: String): Pair<String, String> {
         val textBody =
@@ -67,7 +68,10 @@ object AuthEmailTemplates {
         return Pair(textBody, htmlBody)
     }
 
-    fun confirmationEmail(username: String, confirmUrl: String): Pair<String, String> {
+    fun confirmationEmail(
+        username: String,
+        confirmUrl: String,
+    ): Pair<String, String> {
         val textBody =
             """
             |Hi $username,

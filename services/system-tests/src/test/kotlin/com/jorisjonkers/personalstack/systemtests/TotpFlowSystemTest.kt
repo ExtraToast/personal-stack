@@ -72,6 +72,7 @@ class TotpFlowSystemTest {
         assertThat(json.getString("refreshToken")).isNotBlank()
     }
 
+    @Suppress("LongMethod")
     @Test
     fun `full TOTP flow - enroll verify and challenge`() {
         val username = "totp_full_${UUID.randomUUID().toString().take(8)}"
@@ -148,6 +149,7 @@ class TotpFlowSystemTest {
             .statusCode(200)
     }
 
+    @Suppress("LongMethod")
     @Test
     fun `TOTP challenge with wrong code returns 400`() {
         val username = "totp_bad_${UUID.randomUUID().toString().take(8)}"

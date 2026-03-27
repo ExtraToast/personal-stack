@@ -52,7 +52,8 @@ class TraefikHealthCheckSystemTest {
         val response =
             given()
                 .baseUri(baseUrl)
-                .redirects().follow(false)
+                .redirects()
+                .follow(false)
                 .`when`()
                 .get(path)
 

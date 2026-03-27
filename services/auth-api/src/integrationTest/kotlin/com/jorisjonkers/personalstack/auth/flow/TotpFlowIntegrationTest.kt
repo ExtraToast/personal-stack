@@ -78,8 +78,19 @@ class TotpFlowIntegrationTest : IntegrationTestBase() {
     private fun confirmEmail(username: String) {
         val table = com.jorisjonkers.personalstack.auth.jooq.tables.EmailConfirmationToken.EMAIL_CONFIRMATION_TOKEN
         val userTable = com.jorisjonkers.personalstack.auth.jooq.tables.AppUser.APP_USER
-        val userId = dsl.select(userTable.ID).from(userTable).where(userTable.USERNAME.eq(username)).fetchOne(userTable.ID)!!
-        val token = dsl.select(table.TOKEN).from(table).where(table.USER_ID.eq(userId)).fetchOne(table.TOKEN)!!
+        val userId =
+            dsl
+                .select(
+                    userTable.ID,
+                ).from(userTable)
+                .where(userTable.USERNAME.eq(username))
+                .fetchOne(userTable.ID)!!
+        val token =
+            dsl
+                .select(table.TOKEN)
+                .from(table)
+                .where(table.USER_ID.eq(userId))
+                .fetchOne(table.TOKEN)!!
         mockMvc
             .get("/api/v1/auth/confirm-email") {
                 param("token", token)

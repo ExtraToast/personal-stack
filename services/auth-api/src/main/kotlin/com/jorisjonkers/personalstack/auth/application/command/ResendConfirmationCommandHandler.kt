@@ -30,7 +30,7 @@ class ResendConfirmationCommandHandler(
                 id = UUID.randomUUID(),
                 userId = user.id,
                 token = UUID.randomUUID().toString(),
-                expiresAt = now.plus(24, ChronoUnit.HOURS),
+                expiresAt = now.plus(TOKEN_EXPIRY_HOURS, ChronoUnit.HOURS),
                 usedAt = null,
                 createdAt = now,
             )
@@ -44,5 +44,9 @@ class ResendConfirmationCommandHandler(
                 confirmationToken = confirmationToken.token,
             ),
         )
+    }
+
+    companion object {
+        private const val TOKEN_EXPIRY_HOURS = 24L
     }
 }

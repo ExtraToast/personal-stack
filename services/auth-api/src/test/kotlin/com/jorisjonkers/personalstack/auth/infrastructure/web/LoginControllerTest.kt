@@ -61,7 +61,8 @@ class LoginControllerTest {
     fun `POST login returns tokens when TOTP is not enabled`() {
         every { userRepository.findCredentialsByUsername("alice") } returns credentials
         every { passwordEncoder.matches("securepass123", "hashed-password") } returns true
-        every { tokenService.createAccessToken("alice", userId.value.toString(), listOf("ROLE_USER")) } returns "access-token"
+        every { tokenService.createAccessToken("alice", userId.value.toString(), listOf("ROLE_USER")) } returns
+            "access-token"
         every { tokenService.createRefreshToken(userId.value.toString()) } returns "refresh-token"
 
         val request = LoginRequest(username = "alice", password = "securepass123")
@@ -152,7 +153,8 @@ class LoginControllerTest {
         every { jwtDecoder.decode("challenge-token") } returns mockJwt
         every { userRepository.findCredentialsByUsername("alice") } returns totpCredentials
         every { totpService.verifyCode("totp-secret", "123456") } returns true
-        every { tokenService.createAccessToken("alice", userId.value.toString(), listOf("ROLE_USER")) } returns "access-token"
+        every { tokenService.createAccessToken("alice", userId.value.toString(), listOf("ROLE_USER")) } returns
+            "access-token"
         every { tokenService.createRefreshToken(userId.value.toString()) } returns "refresh-token"
 
         val request = TotpChallengeRequest(totpChallengeToken = "challenge-token", code = "123456")
