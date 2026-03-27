@@ -258,3 +258,26 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  pipeline-complete:
+    name: Pipeline Complete
+    if: always()
+    needs:
+      - lint-kotlin
+      - lint-frontend
+      - test-kotlin-unit
+      - test-frontend-unit
+      - test-kotlin-integration
+      - test-architecture
+      - build-images
+      - test-system
+      - security-scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check pipeline result
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" || "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "Pipeline failed or was cancelled"
+            exit 1
+          fi
+          echo "All checks passed"
