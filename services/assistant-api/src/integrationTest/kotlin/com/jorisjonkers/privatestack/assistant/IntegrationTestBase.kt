@@ -13,19 +13,20 @@ import org.testcontainers.junit.jupiter.Testcontainers
 @SpringBootTest
 @Testcontainers
 abstract class IntegrationTestBase {
-
     companion object {
         @Suppress("DEPRECATION")
-        private val postgres = PostgreSQLContainer<Nothing>("postgres:17-alpine").apply {
-            withDatabaseName("assistant_db")
-            withUsername("assistant_user")
-            withPassword("assistant_pass")
-        }
+        private val postgres =
+            PostgreSQLContainer<Nothing>("postgres:17-alpine").apply {
+                withDatabaseName("assistant_db")
+                withUsername("assistant_user")
+                withPassword("assistant_pass")
+            }
 
         @Suppress("DEPRECATION")
-        private val valkey = GenericContainer<Nothing>("valkey/valkey:7-alpine").apply {
-            withExposedPorts(6379)
-        }
+        private val valkey =
+            GenericContainer<Nothing>("valkey/valkey:7-alpine").apply {
+                withExposedPorts(6379)
+            }
 
         @Suppress("DEPRECATION")
         private val rabbitmq = RabbitMQContainer("rabbitmq:3-management-alpine")

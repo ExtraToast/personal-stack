@@ -18,7 +18,7 @@ TypeScript support and be consistent across all frontend apps.
 ### Core Stack
 
 | Component  | Version      | Notes                                  |
-|------------|--------------|----------------------------------------|
+| ---------- | ------------ | -------------------------------------- |
 | Vue        | 3.x (latest) | Composition API only                   |
 | TypeScript | 5.x (latest) | Strict mode                            |
 | Vite       | Latest       | Build tool                             |
@@ -38,10 +38,10 @@ TypeScript support and be consistent across all frontend apps.
 
 - **pnpm workspaces** for frontend package management
 - Workspace packages:
-    - services/auth-ui
-    - services/assistant-ui
-    - services/app-ui
-    - libs/vue-common (shared components, composables, types)
+  - services/auth-ui
+  - services/assistant-ui
+  - services/app-ui
+  - libs/vue-common (shared components, composables, types)
 
 ### Shared Library (libs/vue-common)
 

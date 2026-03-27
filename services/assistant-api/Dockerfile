@@ -1,6 +1,21 @@
 FROM gradle:9.4-jdk21-alpine AS build
 WORKDIR /app
-COPY . .
+
+# Layer 1: Copy only build scripts for dependency caching
+COPY settings.gradle.kts build.gradle.kts gradle.properties* ./
+COPY gradle/ gradle/
+COPY build-logic/ build-logic/
+COPY libs/kotlin-common/build.gradle.kts libs/kotlin-common/
+COPY services/auth-api/build.gradle.kts services/auth-api/
+COPY services/assistant-api/build.gradle.kts services/assistant-api/
+COPY services/system-tests/build.gradle.kts services/system-tests/
+
+# Resolve dependencies (cached unless build files change)
+RUN gradle :services:assistant-api:dependencies --no-daemon || true
+
+# Layer 2: Copy source code and build
+COPY libs/kotlin-common/src/main/ libs/kotlin-common/src/main/
+COPY services/assistant-api/src/main/ services/assistant-api/src/main/
 RUN gradle :services:assistant-api:bootJar --no-daemon
 
 FROM eclipse-temurin:21-jre-alpine AS otel
@@ -13,11 +28,4 @@ WORKDIR /app
 COPY --from=build /app/services/assistant-api/build/libs/*.jar app.jar
 COPY --from=otel /otel-javaagent.jar otel-javaagent.jar
 EXPOSE 8082
-ENTRYPOINT [ \
-  "java", \
-  "-javaagent:otel-javaagent.jar", \
-  "-Dotel.service.name=assistant-api", \
-  "-Dotel.exporter.otlp.endpoint=${OTEL_ENDPOINT:-http://otel-collector:4318}", \
-  "-Dotel.logs.exporter=none", \
-  "-jar", "app.jar" \
-]
+ENTRYPOINT ["java", "-javaagent:otel-javaagent.jar", "-jar", "app.jar"]

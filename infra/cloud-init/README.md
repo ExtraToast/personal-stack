@@ -42,6 +42,26 @@ Look for `Ubuntu 24.04` in the output and copy its `imageId` into `CONTABO_IMAGE
 
 At the time of writing, the standard Contabo image ID for Ubuntu 24.04 is `afecbb85-e2fc-46f0-9684-b46b1faf00bb`.
 
+### Cloudflare DNS API Token
+
+Traefik uses Cloudflare DNS-01 challenges to issue wildcard TLS certificates via Let's Encrypt. You need an API token with DNS edit permissions.
+
+1. Go to https://dash.cloudflare.com/profile/api-tokens
+2. Click **Create Token**
+3. Use the **Edit zone DNS** template, or create a custom token with:
+   - **Permissions**: Zone / DNS / Edit
+   - **Zone Resources**: Include / Specific zone / `jorisjonkers.dev`
+4. Copy the token into `CF_DNS_API_TOKEN` in `.env`
+
+### GitHub Container Registry Token
+
+The VPS pulls private Docker images from GHCR. You need a Personal Access Token (classic) with `read:packages` scope.
+
+1. Go to https://github.com/settings/tokens
+2. Click **Generate new token (classic)**
+3. Select the `read:packages` scope
+4. Copy the token into `GHCR_TOKEN` in `.env`
+
 ## Step 2 — Provision
 
 ```bash

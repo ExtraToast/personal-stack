@@ -11,9 +11,10 @@ dependencies {
     compileOnly("org.springframework.boot:spring-boot-starter-amqp:4.0.4")
     compileOnly("org.springframework.boot:spring-boot-starter-web:4.0.4")
     compileOnly("org.springframework.boot:spring-boot-starter-validation:4.0.4")
-    compileOnly("org.springframework.vault:spring-vault-core:3.1.2")
+    compileOnly("org.springframework.vault:spring-vault-core:4.0.1")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("io.mockk:mockk:1.13.16")
     testImplementation("org.assertj:assertj-core:3.27.3")
     implementation("com.tngtech.archunit:archunit-junit5:1.4.0")

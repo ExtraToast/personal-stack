@@ -39,7 +39,7 @@ isolation and choose appropriate data access patterns.
 
 - **Flyway** — SQL-based migrations
 - Migration files live in each service's resources/db/migration/
-- Naming: V{version}__{description}.sql
+- Naming: V{version}\_\_{description}.sql
 - Applied automatically on service startup
 - Migration state verified by system tests
 

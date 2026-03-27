@@ -1,8 +1,8 @@
 # Joris Wouter Jonkers BSc
+
 **Jr. Software Engineer**
 
-✉️ info@jorisjonkers.dev · 🔗 [linkedin.com/in/joris-jonkers-25520293](https://www.linkedin.com/in/joris-jonkers-25520293/) · 🐙 [github.com/ExtraToast](https://github.com/ExtraToast) · 📍 Enschede, Netherlands
----
+## ✉️ info@jorisjonkers.dev · 🔗 [linkedin.com/in/joris-jonkers-25520293](https://www.linkedin.com/in/joris-jonkers-25520293/) · 🐙 [github.com/ExtraToast](https://github.com/ExtraToast) · 📍 Enschede, Netherlands
 
 ## Profile
 
@@ -13,6 +13,7 @@ A motivated software engineer and MSc student seeking meaningful challenges that
 ## Employment History
 
 ### Junior Software Developer — Nedap N.V.
+
 **June 2025 – Present**
 
 - Working on the migration of the ONS Plannen & Roosteren healthcare logistics application from single-tenant to multi-tenant architecture
@@ -22,6 +23,7 @@ A motivated software engineer and MSc student seeking meaningful challenges that
 - Performing Ruby on Rails development tasks across the backend codebase
 
 ### Junior Software Engineer — DynaLynx B.V.
+
 **May 2022 – July 2025**
 
 - Developed and refactored software for a transport company, including integrations with government portals for regulatory compliance
@@ -36,6 +38,7 @@ A motivated software engineer and MSc student seeking meaningful challenges that
 - Utilized various technologies, including Ruby on Rails, Aurelia, Angular, and .NET
 
 ### Secretary and Commissioner of External Affairs — ESA Blueshell
+
 **September 2024 – Present**
 
 - Drafted and distributed official communications, including meeting minutes and monthly newsletters
@@ -53,11 +56,13 @@ A motivated software engineer and MSc student seeking meaningful challenges that
   - Repository: [github.com/ESA-Blueshell/website](https://github.com/ESA-Blueshell/website)
 
 ### Chauffeur — Fleetport Nederland
+
 **December 2019 – January 2022**
 
 - Strengthened communication skills as a chauffeur, explaining modern vehicle functionalities to customers
 
 ### Waiter and Barista — Brasserie Oostereiland & Lunchroom Hemels
+
 **January 2015 – April 2016**
 
 - Demonstrated hospitality and adaptability, interacting with diverse customers
@@ -66,17 +71,18 @@ A motivated software engineer and MSc student seeking meaningful challenges that
 
 ## Education
 
-| Period | Institution | Degree |
-|---|---|---|
-| 2024 – Present | University of Twente | MSc Software Technology |
-| 2020 – 2024 | University of Twente | BSc Technical Computer Science |
-| 2010 – 2016 | Oscar Romero | VWO NT/NG |
+| Period         | Institution          | Degree                         |
+| -------------- | -------------------- | ------------------------------ |
+| 2024 – Present | University of Twente | MSc Software Technology        |
+| 2020 – 2024    | University of Twente | BSc Technical Computer Science |
+| 2010 – 2016    | Oscar Romero         | VWO NT/NG                      |
 
 ---
 
 ## Skills
 
 ### Soft Skills
+
 - Project Management
 - Public Relations
 - Communication
@@ -84,28 +90,29 @@ A motivated software engineer and MSc student seeking meaningful challenges that
 
 ### Programming Languages
 
-| Language | Experience |
-|---|---|
-| Python | 6 years |
-| JavaScript / TypeScript | 5 years |
-| Java | 5 years |
-| Ruby | 3 years |
-| MATLAB | 2 years |
-| Kotlin | 1 year |
+| Language                | Experience |
+| ----------------------- | ---------- |
+| Python                  | 6 years    |
+| JavaScript / TypeScript | 5 years    |
+| Java                    | 5 years    |
+| Ruby                    | 3 years    |
+| MATLAB                  | 2 years    |
+| Kotlin                  | 1 year     |
 
 ### Frameworks & Technologies
 
-| Technology | Experience |
-|---|---|
-| Ruby on Rails | 3 years |
-| Angular | 3 years |
-| Docker | 2 years |
-| PyTorch | 2 years |
-| Vue.js | 2 years |
-| Spring Boot | 2 years |
-| Nomad | < 1 year |
+| Technology    | Experience |
+| ------------- | ---------- |
+| Ruby on Rails | 3 years    |
+| Angular       | 3 years    |
+| Docker        | 2 years    |
+| PyTorch       | 2 years    |
+| Vue.js        | 2 years    |
+| Spring Boot   | 2 years    |
+| Nomad         | < 1 year   |
 
 ### Other Tools & Platforms
+
 - GitHub Actions (CI/CD)
 - Docker Swarm
 - JSON:API
@@ -116,7 +123,7 @@ A motivated software engineer and MSc student seeking meaningful challenges that
 
 ## Languages
 
-| Language | Level |
-|---|---|
-| Dutch | Native |
-| English | Fluent |
+| Language | Level  |
+| -------- | ------ |
+| Dutch    | Native |
+| English  | Fluent |

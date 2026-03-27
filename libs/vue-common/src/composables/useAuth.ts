@@ -5,7 +5,11 @@ import { decodeJwt, isTokenExpired } from '../utils/jwt'
 const ACCESS_TOKEN_KEY = 'ps_access_token'
 const REFRESH_TOKEN_KEY = 'ps_refresh_token'
 
-const VALID_ROLES: readonly User['role'][] = ['ADMIN', 'USER', 'READONLY']
+const VALID_ROLES: readonly string[] = ['ADMIN', 'USER', 'READONLY']
+
+function isValidRole(value: string): value is User['role'] {
+  return VALID_ROLES.includes(value)
+}
 
 // Module-level state — shared across all useAuth() calls (singleton pattern)
 const user = ref<User | null>(null)
@@ -14,9 +18,7 @@ function userFromToken(token: string): User | null {
   try {
     const payload = decodeJwt(token)
     const roleRaw = payload.roles?.[0]?.replace('ROLE_', '') ?? 'USER'
-    const role: User['role'] = VALID_ROLES.includes(roleRaw as User['role'])
-      ? (roleRaw as User['role'])
-      : 'USER'
+    const role: User['role'] = isValidRole(roleRaw) ? roleRaw : 'USER'
     return {
       id: payload.sub,
       username: payload.username ?? payload.sub,

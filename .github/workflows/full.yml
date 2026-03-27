@@ -9,29 +9,39 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  JAVA_VERSION: "21"
-  NODE_VERSION: "20"
+  JAVA_VERSION: '21'
+  NODE_VERSION: '24'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   lint-kotlin:
-    name: Lint Kotlin
+    name: Lint Kotlin (${{ matrix.module }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - module: auth-api
+            gradle-path: :services:auth-api
+          - module: assistant-api
+            gradle-path: :services:assistant-api
+          - module: kotlin-common
+            gradle-path: :libs:kotlin-common
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
-      - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew detekt ktlintCheck
+      - uses: gradle/actions/setup-gradle@v6
+      - run: ./gradlew ${{ matrix.gradle-path }}:detekt ${{ matrix.gradle-path }}:ktlintCheck
 
   lint-frontend:
     name: Lint Frontend
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -40,24 +50,33 @@ jobs:
       - run: pnpm format:check
 
   test-kotlin-unit:
-    name: Kotlin Unit Tests
+    name: Kotlin Unit Tests (${{ matrix.module }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - module: auth-api
+            gradle-path: :services:auth-api
+          - module: assistant-api
+            gradle-path: :services:assistant-api
+          - module: kotlin-common
+            gradle-path: :libs:kotlin-common
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
-      - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew test -x integrationTest
+      - uses: gradle/actions/setup-gradle@v6
+      - run: ./gradlew ${{ matrix.gradle-path }}:test
 
   test-frontend-unit:
     name: Frontend Unit Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -65,48 +84,171 @@ jobs:
       - run: pnpm -r test
 
   test-kotlin-integration:
-    name: Kotlin Integration Tests
+    name: Kotlin Integration Tests (${{ matrix.module }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - module: auth-api
+            gradle-path: :services:auth-api
+          - module: assistant-api
+            gradle-path: :services:assistant-api
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
-      - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew integrationTest
+      - uses: gradle/actions/setup-gradle@v6
+      - run: ./gradlew ${{ matrix.gradle-path }}:integrationTest
 
   test-architecture:
     name: Architecture Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
-      - uses: gradle/actions/setup-gradle@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: ./gradlew test --tests "*ArchitectureTest*"
+      - run: ./gradlew :services:auth-api:test :services:assistant-api:test --tests "*ArchitectureTest*"
       - run: pnpm -r depcruise
+
+  build-images:
+    name: Build Image (${{ matrix.service.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - name: auth-api
+            dockerfile: services/auth-api/Dockerfile
+          - name: assistant-api
+            dockerfile: services/assistant-api/Dockerfile
+          - name: auth-ui
+            dockerfile: services/auth-ui/Dockerfile
+          - name: assistant-ui
+            dockerfile: services/assistant-ui/Dockerfile
+          - name: app-ui
+            dockerfile: services/app-ui/Dockerfile
+    steps:
+      - uses: actions/checkout@v6
+      - uses: docker/setup-buildx-action@v4
+      - name: Build image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.service.dockerfile }}
+          push: false
+          load: true
+          tags: private-stack/${{ matrix.service.name }}:ci
+          cache-from: type=gha,scope=${{ matrix.service.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}
+      - name: Export image
+        run: docker save private-stack/${{ matrix.service.name }}:ci -o /tmp/${{ matrix.service.name }}.tar
+      - uses: actions/upload-artifact@v7
+        with:
+          name: image-${{ matrix.service.name }}
+          path: /tmp/${{ matrix.service.name }}.tar
+          retention-days: 1
+
+  test-system:
+    name: System Tests
+    runs-on: ubuntu-latest
+    needs: [test-kotlin-unit, test-kotlin-integration, build-images]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: image-*
+          path: /tmp/images
+      - name: Load images
+        run: |
+          for tar in /tmp/images/image-*/*.tar; do docker load -i "$tar"; done
+      - name: Build and start full stack
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d postgres valkey rabbitmq vault auth-api assistant-api traefik auth-ui assistant-ui app-ui n8n grafana --wait --wait-timeout 300
+      - name: Wait for Traefik routes to stabilize
+        run: |
+          echo "Waiting for Traefik to register all Docker routes..."
+          for route in app-ui auth-ui assistant-ui auth-api assistant-api; do
+            echo -n "  $route: "
+            for i in $(seq 1 30); do
+              STATUS=$(curl -sf http://localhost:8080/api/http/routers | \
+                jq -r --arg r "$route@docker" '.[] | select(.name == $r) | .status' 2>/dev/null || true)
+              if [ "$STATUS" = "enabled" ]; then
+                echo "enabled"
+                break
+              fi
+              if [ "$i" -eq 30 ]; then
+                echo "TIMEOUT"
+                curl -sf http://localhost:8080/api/http/routers | jq -r '.[].name' || true
+                exit 1
+              fi
+              sleep 1
+            done
+          done
+      - name: Verify all services are healthy
+        run: |
+          echo "==> Service status:"
+          docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Health}}"
+          echo ""
+          UNHEALTHY=$(docker compose ps --format json | jq -r 'select(.Health == "unhealthy") | .Name')
+          if [ -n "$UNHEALTHY" ]; then
+            echo "==> UNHEALTHY services detected:"
+            echo "$UNHEALTHY"
+            for svc in $UNHEALTHY; do
+              echo "==> Logs for $svc:"
+              docker logs "$svc" --tail 30 2>&1
+            done
+            exit 1
+          fi
+          echo "==> All services healthy"
+      - name: Verify database migrations ran
+        run: |
+          docker exec private-stack-postgres psql -U auth_user -d auth_db -c '\dt' | grep -q app_user || { echo "auth_db migrations missing"; exit 1; }
+          docker exec private-stack-postgres psql -U assistant_user -d assistant_db -c '\dt' | grep -q conversation || { echo "assistant_db migrations missing"; exit 1; }
+          echo "==> Database migrations verified"
+      - name: Run system tests
+        run: >-
+          ./gradlew :services:system-tests:test
+          -Dtest.auth-api.url=http://localhost:8081
+          -Dtest.assistant-api.url=http://localhost:8082
+      - name: Dump service logs on failure
+        if: failure()
+        run: |
+          for svc in postgres valkey rabbitmq vault auth-api assistant-api traefik auth-ui assistant-ui app-ui n8n grafana; do
+            echo "========== $svc =========="
+            docker compose -f docker-compose.yml -f docker-compose.ci.yml logs "$svc" --tail 80
+          done
 
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
           scan-ref: .
           severity: CRITICAL,HIGH
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -116,3 +258,26 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  pipeline-complete:
+    name: Pipeline Complete
+    if: always()
+    needs:
+      - lint-kotlin
+      - lint-frontend
+      - test-kotlin-unit
+      - test-frontend-unit
+      - test-kotlin-integration
+      - test-architecture
+      - build-images
+      - test-system
+      - security-scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check pipeline result
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" || "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "Pipeline failed or was cancelled"
+            exit 1
+          fi
+          echo "All checks passed"

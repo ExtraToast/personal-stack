@@ -23,7 +23,6 @@ class RegisterUserCommandHandler(
     private val eventPublisher: ApplicationEventPublisher,
     private val rabbitMqEventPublisher: RabbitMqEventPublisher,
 ) : CommandHandler<RegisterUserCommand> {
-
     override fun handle(command: RegisterUserCommand) {
         if (userRepository.existsByUsername(command.username)) {
             throw DuplicateUsernameException(command.username)
@@ -33,22 +32,24 @@ class RegisterUserCommandHandler(
         }
 
         val now = Instant.now()
-        val user = User(
-            id = UserId(UUID.randomUUID()),
-            username = command.username,
-            email = command.email,
-            role = Role.USER,
-            totpEnabled = false,
-            createdAt = now,
-            updatedAt = now,
-        )
+        val user =
+            User(
+                id = UserId(UUID.randomUUID()),
+                username = command.username,
+                email = command.email,
+                role = Role.USER,
+                totpEnabled = false,
+                createdAt = now,
+                updatedAt = now,
+            )
         val passwordHash = passwordEncoder.encode(command.password)
         val savedUser = userRepository.create(user, passwordHash)
 
-        val event = UserRegisteredEvent(
-            userId = savedUser.id,
-            username = savedUser.username,
-        )
+        val event =
+            UserRegisteredEvent(
+                userId = savedUser.id,
+                username = savedUser.username,
+            )
         // Intra-service event (Spring Modulith)
         eventPublisher.publishEvent(event)
         // Inter-service event (RabbitMQ for other services to consume)

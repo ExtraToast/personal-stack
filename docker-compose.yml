@@ -71,11 +71,6 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./infra/traefik/traefik-dev.yml:/etc/traefik/traefik.yml:ro
-    depends_on:
-      auth-api:
-        condition: service_healthy
-      assistant-api:
-        condition: service_healthy
 
   # ── Backend Services ────────────────────────────────────────────
 
@@ -95,7 +90,9 @@ services:
       VALKEY_PORT: 6379
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
-      OTEL_ENDPOINT: http://otel-collector:4318
+      OTEL_SERVICE_NAME: auth-api
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_LOGS_EXPORTER: none
     depends_on:
       postgres:
         condition: service_healthy
@@ -130,7 +127,9 @@ services:
       VALKEY_PORT: 6379
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
-      OTEL_ENDPOINT: http://otel-collector:4318
+      OTEL_SERVICE_NAME: assistant-api
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_LOGS_EXPORTER: none
     depends_on:
       postgres:
         condition: service_healthy

@@ -44,5 +44,8 @@ accessLog:
     statusCodes:
       - '400-599'
 
+ping:
+  entryPoint: web
+
 log:
   level: INFO

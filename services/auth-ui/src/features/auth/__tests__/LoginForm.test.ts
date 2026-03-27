@@ -43,8 +43,6 @@ describe('loginForm', () => {
     const wrapper = mount(LoginForm, {
       global: { plugins: [router] },
     })
-    expect(
-      wrapper.find('a[href*="register"]').exists() || wrapper.text().includes('Register'),
-    ).toBe(true)
+    expect(wrapper.find('a[href*="register"]').exists() || wrapper.text().includes('Register')).toBe(true)
   })
 })

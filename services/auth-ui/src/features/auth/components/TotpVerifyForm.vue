@@ -25,26 +25,26 @@ function onSubmit(): void {
 <template>
   <form class="space-y-4" @submit.prevent="onSubmit">
     <div>
-      <label class="block text-sm font-medium text-gray-700" for="totp-code">
+      <label class="block font-mono text-xs font-medium text-gray-400" for="totp-code">
         6-digit code from your authenticator app
       </label>
       <input
         id="totp-code"
         v-model="code"
         autocomplete="one-time-code"
-        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-center text-xl tracking-widest text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+        class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 text-center font-mono text-xl tracking-widest text-gray-200 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
         inputmode="numeric"
         maxlength="6"
         pattern="\d{6}"
         placeholder="000000"
         type="text"
       />
-      <p v-if="error" class="mt-1 text-sm text-red-600">
+      <p v-if="error" class="mt-1 text-sm text-red-400">
         {{ error }}
       </p>
     </div>
     <button
-      class="w-full rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+      class="glow-accent w-full rounded-md bg-accent px-4 py-2 font-mono text-sm font-semibold text-white transition-colors hover:bg-accent-light"
       type="submit"
     >
       Verify

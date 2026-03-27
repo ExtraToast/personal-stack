@@ -13,11 +13,9 @@ data class RegisterUserRequest(
         message = "Username may only contain letters, digits, underscores, and hyphens",
     )
     val username: String,
-
     @field:NotBlank(message = "Email is required")
     @field:Email(message = "Must be a valid email address")
     val email: String,
-
     @field:NotBlank(message = "Password is required")
     @field:Size(min = 8, message = "Password must be at least 8 characters")
     val password: String,

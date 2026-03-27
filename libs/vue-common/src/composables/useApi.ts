@@ -26,7 +26,8 @@ export function useApi(options: ApiOptions = {}): UseApiReturn {
       const problem: ProblemDetail = await response.json()
       throw problem
     }
-    return response.json() as Promise<T>
+    const json: Promise<T> = response.json()
+    return json
   }
 
   return {

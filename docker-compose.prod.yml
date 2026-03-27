@@ -13,6 +13,7 @@ services:
     secrets:
       - postgres_user
       - postgres_password
+      - n8n_db_password
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 10s
@@ -25,7 +26,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   valkey:
     image: valkey/valkey:8-alpine
@@ -45,7 +46,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   rabbitmq:
     image: rabbitmq:4.2-management-alpine
@@ -75,7 +76,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   vault:
     image: hashicorp/vault:1.19
@@ -87,7 +88,13 @@ services:
     volumes:
       - vault-data:/vault/data
       - ./infra/vault/config/vault.hcl:/vault/config/vault.hcl:ro
-    command: vault server -config=/vault/config/vault.hcl
+    entrypoint:
+      - sh
+      - -ec
+      - |
+        mkdir -p /vault/data
+        chown -R vault:vault /vault/data
+        exec su-exec vault vault server -config=/vault/config/vault.hcl
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8200/v1/sys/seal-status || exit 0']
       interval: 15s
@@ -100,7 +107,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   traefik:
     image: traefik:v3.6
@@ -133,7 +140,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   # ── Application services ────────────────────────────────────────
   auth-api:
@@ -142,15 +149,36 @@ services:
       - private-stack-overlay
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: auth_user
+      DB_PASSWORD: auth_password
+      VALKEY_HOST: valkey
+      VALKEY_PORT: 6379
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_CONFIG_IMPORT: vault://
       VAULT_ADDR: http://vault:8200
+      OTEL_SERVICE_NAME: auth-api
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
+      OTEL_LOGS_EXPORTER: none
+      OTEL_METRICS_EXPORTER: none
+    entrypoint:
+      - sh
+      - -c
+      - |
+        export VAULT_ROLE_ID=$$(cat /run/secrets/vault_auth_api_role_id)
+        export VAULT_SECRET_ID=$$(cat /run/secrets/vault_auth_api_secret_id)
+        exec java -javaagent:otel-javaagent.jar -jar app.jar
     secrets:
       - vault_auth_api_role_id
       - vault_auth_api_secret_id
     healthcheck:
-      test: ['CMD-SHELL', 'curl -f http://localhost:8081/actuator/health || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:8081/actuator/health || exit 1']
       interval: 15s
       timeout: 5s
       retries: 5
+      start_period: 90s
     deploy:
       replicas: 2
       update_config:
@@ -158,7 +186,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   assistant-api:
     image: ghcr.io/extratoast/private-stack/assistant-api:latest
@@ -166,15 +194,36 @@ services:
       - private-stack-overlay
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: assistant_user
+      DB_PASSWORD: assistant_password
+      VALKEY_HOST: valkey
+      VALKEY_PORT: 6379
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_CONFIG_IMPORT: vault://
       VAULT_ADDR: http://vault:8200
+      OTEL_SERVICE_NAME: assistant-api
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
+      OTEL_LOGS_EXPORTER: none
+      OTEL_METRICS_EXPORTER: none
+    entrypoint:
+      - sh
+      - -c
+      - |
+        export VAULT_ROLE_ID=$$(cat /run/secrets/vault_assistant_api_role_id)
+        export VAULT_SECRET_ID=$$(cat /run/secrets/vault_assistant_api_secret_id)
+        exec java -javaagent:otel-javaagent.jar -jar app.jar
     secrets:
       - vault_assistant_api_role_id
       - vault_assistant_api_secret_id
     healthcheck:
-      test: ['CMD-SHELL', 'curl -f http://localhost:8082/actuator/health || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:8082/actuator/health || exit 1']
       interval: 15s
       timeout: 5s
       retries: 5
+      start_period: 90s
     deploy:
       replicas: 2
       update_config:
@@ -182,7 +231,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   auth-ui:
     image: ghcr.io/extratoast/private-stack/auth-ui:latest
@@ -200,7 +249,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   assistant-ui:
     image: ghcr.io/extratoast/private-stack/assistant-ui:latest
@@ -218,7 +267,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   app-ui:
     image: ghcr.io/extratoast/private-stack/app-ui:latest
@@ -236,10 +285,10 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   n8n:
-    image: n8nio/n8n:2.13
+    image: n8nio/n8n:2.13.4
     networks:
       - private-stack-overlay
     environment:
@@ -258,10 +307,11 @@ services:
       - n8n_db_user
       - n8n_db_password
     healthcheck:
-      test: ['CMD-SHELL', 'curl -f http://localhost:5678/healthz || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:5678/healthz || exit 1']
       interval: 15s
       timeout: 5s
       retries: 5
+      start_period: 120s
     deploy:
       replicas: 1
       update_config:
@@ -269,7 +319,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   # ── Observability ───────────────────────────────────────────────
   prometheus:
@@ -294,7 +344,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   grafana:
     image: grafana/grafana:11.6.0
@@ -321,7 +371,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   loki:
     image: grafana/loki:3.5.0
@@ -343,7 +393,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   promtail:
     image: grafana/promtail:3.5.0
@@ -361,7 +411,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   tempo:
     image: grafana/tempo:2.7.2
@@ -383,13 +433,14 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
   uptime-kuma:
     image: louislam/uptime-kuma:2
     networks:
       - private-stack-overlay
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - uptime-kuma-data:/app/data
     healthcheck:
       test: ['CMD-SHELL', 'curl -f http://localhost:3001 || exit 1']
@@ -403,7 +454,7 @@ services:
         delay: 10s
         failure_action: rollback
       restart_policy:
-        condition: on-failure
+        condition: any
 
 volumes:
   postgres-data:

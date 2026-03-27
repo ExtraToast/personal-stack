@@ -4,28 +4,29 @@ import org.junit.jupiter.api.Tag
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
+import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.containers.RabbitMQContainer
-import org.testcontainers.containers.GenericContainer
 import org.testcontainers.junit.jupiter.Testcontainers
 
 @Tag("integration")
 @SpringBootTest
 @Testcontainers
 abstract class IntegrationTestBase {
-
     companion object {
         @Suppress("DEPRECATION")
-        private val postgres = PostgreSQLContainer<Nothing>("postgres:17-alpine").apply {
-            withDatabaseName("auth_db")
-            withUsername("auth_user")
-            withPassword("auth_password")
-        }
+        private val postgres =
+            PostgreSQLContainer<Nothing>("postgres:17-alpine").apply {
+                withDatabaseName("auth_db")
+                withUsername("auth_user")
+                withPassword("auth_password")
+            }
 
         @Suppress("DEPRECATION")
-        private val valkey = GenericContainer<Nothing>("valkey/valkey:7-alpine").apply {
-            withExposedPorts(6379)
-        }
+        private val valkey =
+            GenericContainer<Nothing>("valkey/valkey:7-alpine").apply {
+                withExposedPorts(6379)
+            }
 
         @Suppress("DEPRECATION")
         private val rabbitmq = RabbitMQContainer("rabbitmq:3-management-alpine")

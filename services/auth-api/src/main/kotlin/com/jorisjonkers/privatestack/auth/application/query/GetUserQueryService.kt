@@ -10,9 +10,7 @@ import org.springframework.stereotype.Service
 class GetUserQueryService(
     private val userRepository: UserRepository,
 ) {
-
-    fun findById(id: UserId): User =
-        userRepository.findById(id) ?: throw NotFoundException("User", id.value.toString())
+    fun findById(id: UserId): User = userRepository.findById(id) ?: throw NotFoundException("User", id.value.toString())
 
     fun findByUsername(username: String): User =
         userRepository.findByUsername(username) ?: throw NotFoundException("User", username)

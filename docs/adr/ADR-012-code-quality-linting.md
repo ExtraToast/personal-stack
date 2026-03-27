@@ -38,7 +38,7 @@ Maximum type safety — catches the most bugs at compile time.
 #### Key Rules (Error Level)
 
 | Rule                                     | Level         | Rationale                                     |
-|------------------------------------------|---------------|-----------------------------------------------|
+| ---------------------------------------- | ------------- | --------------------------------------------- |
 | no-explicit-any                          | error         | Forces proper typing                          |
 | no-type-assertion (as)                   | warn          | Prefer type guards, but sometimes unavoidable |
 | explicit-function-return-type (exported) | error         | Public API must be explicitly typed           |
@@ -66,7 +66,7 @@ Maximum type safety — catches the most bugs at compile time.
 #### Strictness Thresholds
 
 | Rule                                      | Threshold                       |
-|-------------------------------------------|---------------------------------|
+| ----------------------------------------- | ------------------------------- |
 | Max function length                       | 30 lines                        |
 | Max file length                           | 300 lines                       |
 | Cyclomatic complexity                     | max 10                          |

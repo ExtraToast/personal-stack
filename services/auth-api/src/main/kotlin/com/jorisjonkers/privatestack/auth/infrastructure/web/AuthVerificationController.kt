@@ -15,13 +15,15 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping("/api/v1/auth")
 class AuthVerificationController {
-
     @GetMapping("/verify")
-    fun verify(@AuthenticationPrincipal jwt: Jwt): ResponseEntity<Void> {
+    fun verify(
+        @AuthenticationPrincipal jwt: Jwt,
+    ): ResponseEntity<Void> {
         val userId = jwt.subject
         val roles = jwt.getClaimAsStringList("roles")?.joinToString(",") ?: ""
 
-        return ResponseEntity.ok()
+        return ResponseEntity
+            .ok()
             .header("X-User-Id", userId)
             .header("X-User-Roles", roles)
             .build()

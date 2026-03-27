@@ -14,22 +14,22 @@ import java.time.Instant
 import java.util.UUID
 
 class GetUserQueryServiceTest {
-
     private val userRepository = mockk<UserRepository>()
     private val service = GetUserQueryService(userRepository)
 
     @Test
     fun `findById returns user when found`() {
         val userId = UserId(UUID.randomUUID())
-        val user = User(
-            id = userId,
-            username = "testuser",
-            email = "test@example.com",
-            role = Role.USER,
-            totpEnabled = false,
-            createdAt = Instant.now(),
-            updatedAt = Instant.now(),
-        )
+        val user =
+            User(
+                id = userId,
+                username = "testuser",
+                email = "test@example.com",
+                role = Role.USER,
+                totpEnabled = false,
+                createdAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
         every { userRepository.findById(userId) } returns user
 
         val result = service.findById(userId)

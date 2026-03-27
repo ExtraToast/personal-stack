@@ -5,5 +5,6 @@ import com.jorisjonkers.privatestack.assistant.domain.model.Message
 
 interface MessageRepository {
     fun save(message: Message): Message
+
     fun findByConversationId(id: ConversationId): List<Message>
 }

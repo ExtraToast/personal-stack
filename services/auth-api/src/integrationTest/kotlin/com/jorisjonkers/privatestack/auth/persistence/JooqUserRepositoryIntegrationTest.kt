@@ -12,7 +12,6 @@ import java.time.Instant
 import java.util.UUID
 
 class JooqUserRepositoryIntegrationTest : IntegrationTestBase() {
-
     @Autowired
     private lateinit var userRepository: UserRepository
 
@@ -85,7 +84,10 @@ class JooqUserRepositoryIntegrationTest : IntegrationTestBase() {
         assertThat(found.role).isEqualTo(Role.ADMIN)
     }
 
-    private fun buildUser(username: String, email: String): User {
+    private fun buildUser(
+        username: String,
+        email: String,
+    ): User {
         val now = Instant.now()
         return User(
             id = UserId(UUID.randomUUID()),

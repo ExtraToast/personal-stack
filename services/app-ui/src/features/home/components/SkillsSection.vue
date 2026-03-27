@@ -22,15 +22,7 @@ const frameworks = [
   { name: 'Nomad', years: '<1' },
 ]
 
-const tools = [
-  'GitHub Actions',
-  'Docker Swarm',
-  'JSON:API',
-  'Traefik',
-  'React Native',
-  'PostgreSQL',
-  'Vault',
-]
+const tools = ['GitHub Actions', 'Docker Swarm', 'JSON:API', 'Traefik', 'React Native', 'PostgreSQL', 'Vault']
 
 const softSkills = ['Project Management', 'Public Relations', 'Communication', 'Critical Thinking']
 
@@ -43,32 +35,31 @@ function barWidth(years: number | string): string {
 </script>
 
 <template>
-  <section id="skills" class="px-6 py-24">
+  <section id="skills" class="px-4 py-12 sm:px-6 sm:py-24">
     <div class="mx-auto max-w-4xl">
-      <h2 class="text-3xl font-bold tracking-tight">
+      <h2 class="font-mono text-sm font-semibold uppercase tracking-widest text-terminal-green">
+        <span class="text-gray-600">04.</span>
         {{ t('skills.title') }}
       </h2>
-      <p class="mt-3 text-gray-500 dark:text-gray-400">
+      <p class="mt-3 text-gray-500">
         {{ t('skills.subtitle') }}
       </p>
 
-      <div class="mt-10 grid gap-12 md:grid-cols-2">
+      <div class="mt-6 grid gap-8 sm:mt-10 sm:gap-12 md:grid-cols-2">
         <!-- Programming languages -->
         <div>
-          <h3
-            class="mb-4 text-xs font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400"
-          >
+          <h3 class="mb-4 font-mono text-xs font-semibold uppercase tracking-widest text-terminal-cyan">
             {{ t('skills.categories.languages') }}
           </h3>
           <ul class="space-y-3">
             <li v-for="lang in languages" :key="lang.name">
-              <div class="flex items-center justify-between text-sm">
-                <span class="font-medium">{{ lang.name }}</span>
-                <span class="text-gray-400 dark:text-gray-500"> {{ lang.years }}y </span>
+              <div class="flex items-center justify-between font-mono text-sm">
+                <span class="text-gray-300">{{ lang.name }}</span>
+                <span class="text-gray-600">{{ lang.years }}y</span>
               </div>
-              <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+              <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-elevated">
                 <div
-                  class="h-full rounded-full bg-indigo-500 transition-all duration-500"
+                  class="h-full rounded-full bg-gradient-to-r from-accent to-terminal-cyan transition-all duration-500"
                   :style="{ width: barWidth(lang.years) }"
                 />
               </div>
@@ -78,20 +69,18 @@ function barWidth(years: number | string): string {
 
         <!-- Frameworks -->
         <div>
-          <h3
-            class="mb-4 text-xs font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400"
-          >
+          <h3 class="mb-4 font-mono text-xs font-semibold uppercase tracking-widest text-terminal-purple">
             {{ t('skills.categories.frameworks') }}
           </h3>
           <ul class="space-y-3">
             <li v-for="fw in frameworks" :key="fw.name">
-              <div class="flex items-center justify-between text-sm">
-                <span class="font-medium">{{ fw.name }}</span>
-                <span class="text-gray-400 dark:text-gray-500"> {{ fw.years }}y </span>
+              <div class="flex items-center justify-between font-mono text-sm">
+                <span class="text-gray-300">{{ fw.name }}</span>
+                <span class="text-gray-600">{{ fw.years }}y</span>
               </div>
-              <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+              <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-elevated">
                 <div
-                  class="h-full rounded-full bg-violet-500 transition-all duration-500"
+                  class="h-full rounded-full bg-gradient-to-r from-terminal-purple to-terminal-pink transition-all duration-500"
                   :style="{ width: barWidth(fw.years) }"
                 />
               </div>
@@ -101,16 +90,14 @@ function barWidth(years: number | string): string {
 
         <!-- Tools -->
         <div>
-          <h3
-            class="mb-4 text-xs font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400"
-          >
+          <h3 class="mb-4 font-mono text-xs font-semibold uppercase tracking-widest text-terminal-amber">
             {{ t('skills.categories.tools') }}
           </h3>
           <div class="flex flex-wrap gap-2">
             <span
               v-for="tool in tools"
               :key="tool"
-              class="rounded-md bg-sky-50 px-2.5 py-1 text-sm font-medium text-sky-700 dark:bg-sky-900/30 dark:text-sky-300"
+              class="rounded-md border border-terminal-cyan/20 bg-terminal-cyan/10 px-3 py-1.5 font-mono text-sm text-terminal-cyan"
             >
               {{ tool }}
             </span>
@@ -119,16 +106,14 @@ function barWidth(years: number | string): string {
 
         <!-- Soft skills -->
         <div>
-          <h3
-            class="mb-4 text-xs font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400"
-          >
+          <h3 class="mb-4 font-mono text-xs font-semibold uppercase tracking-widest text-terminal-green">
             {{ t('skills.categories.soft') }}
           </h3>
           <div class="flex flex-wrap gap-2">
             <span
               v-for="skill in softSkills"
               :key="skill"
-              class="rounded-md bg-emerald-50 px-2.5 py-1 text-sm font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+              class="rounded-md border border-terminal-green/20 bg-terminal-green/10 px-3 py-1.5 font-mono text-sm text-terminal-green"
             >
               {{ skill }}
             </span>

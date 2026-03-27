@@ -26,7 +26,6 @@ class ConversationController(
     private val commandBus: CommandBus,
     private val getConversationQueryService: GetConversationQueryService,
 ) {
-
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun create(
@@ -47,7 +46,9 @@ class ConversationController(
     }
 
     @GetMapping("/{id}")
-    fun getById(@PathVariable id: UUID): ConversationResponse {
+    fun getById(
+        @PathVariable id: UUID,
+    ): ConversationResponse {
         val conversation = getConversationQueryService.findById(ConversationId(id))
         return ConversationResponse.from(conversation)
     }
@@ -62,9 +63,12 @@ class ConversationController(
     }
 
     @GetMapping
-    fun listByUser(@RequestHeader("X-User-Id") userId: String): List<ConversationResponse> {
+    fun listByUser(
+        @RequestHeader("X-User-Id") userId: String,
+    ): List<ConversationResponse> {
         val userUuid = UUID.fromString(userId)
-        return getConversationQueryService.findByUserId(userUuid)
+        return getConversationQueryService
+            .findByUserId(userUuid)
             .map { ConversationResponse.from(it) }
     }
 }

@@ -19,45 +19,56 @@ function cycleTheme(): void {
 </script>
 
 <template>
-  <div class="min-h-screen bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-    <!-- Sticky nav -->
-    <nav
-      class="fixed top-0 z-50 w-full border-b border-gray-200/60 bg-white/80 backdrop-blur dark:border-gray-800/60 dark:bg-gray-950/80"
-    >
-      <div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-        <a class="text-sm font-bold tracking-tight" href="#"> JJ </a>
+  <div class="min-h-screen bg-surface-dark text-gray-200">
+    <nav class="fixed top-0 z-50 w-full border-b border-surface-border/50 bg-surface-dark/90 backdrop-blur-md">
+      <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
+        <a class="font-mono text-sm font-bold tracking-tight text-terminal-green" href="#">
+          <span class="text-gray-600">~/</span>joris<span class="text-accent-light">.dev</span>
+        </a>
 
-        <div class="hidden items-center gap-6 text-sm sm:flex">
-          <a class="hover:text-indigo-600 dark:hover:text-indigo-400" href="#about">
+        <div class="hidden items-center gap-1 font-mono text-xs sm:flex">
+          <a
+            class="rounded-md px-3 py-1.5 text-gray-400 transition-colors hover:bg-surface-elevated hover:text-terminal-green"
+            href="#about"
+          >
             {{ t('nav.about') }}
           </a>
-          <a class="hover:text-indigo-600 dark:hover:text-indigo-400" href="#experience">
+          <a
+            class="rounded-md px-3 py-1.5 text-gray-400 transition-colors hover:bg-surface-elevated hover:text-terminal-green"
+            href="#experience"
+          >
             {{ t('nav.experience') }}
           </a>
-          <a class="hover:text-indigo-600 dark:hover:text-indigo-400" href="#projects">
+          <a
+            class="rounded-md px-3 py-1.5 text-gray-400 transition-colors hover:bg-surface-elevated hover:text-terminal-green"
+            href="#projects"
+          >
             {{ t('nav.projects') }}
           </a>
-          <a class="hover:text-indigo-600 dark:hover:text-indigo-400" href="#skills">
+          <a
+            class="rounded-md px-3 py-1.5 text-gray-400 transition-colors hover:bg-surface-elevated hover:text-terminal-green"
+            href="#skills"
+          >
             {{ t('nav.skills') }}
           </a>
-          <a class="hover:text-indigo-600 dark:hover:text-indigo-400" href="#contact">
+          <a
+            class="rounded-md px-3 py-1.5 text-gray-400 transition-colors hover:bg-surface-elevated hover:text-terminal-green"
+            href="#contact"
+          >
             {{ t('nav.contact') }}
           </a>
         </div>
 
-        <div class="flex items-center gap-2">
-          <!-- Language toggle -->
+        <div class="flex items-center gap-1">
           <button
-            class="rounded-md px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+            class="rounded-md px-2 py-1 font-mono text-xs text-gray-500 transition-colors hover:bg-surface-elevated hover:text-terminal-cyan"
             type="button"
             @click="toggleLocale"
           >
             {{ locale === 'en' ? 'NL' : 'EN' }}
           </button>
-
-          <!-- Theme cycle -->
           <button
-            class="rounded-md px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+            class="rounded-md px-2 py-1 font-mono text-xs text-gray-500 transition-colors hover:bg-surface-elevated hover:text-terminal-amber"
             type="button"
             :title="t(`theme.${mode}`)"
             @click="cycleTheme"

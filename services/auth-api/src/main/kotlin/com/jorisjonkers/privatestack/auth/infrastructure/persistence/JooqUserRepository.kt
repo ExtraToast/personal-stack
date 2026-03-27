@@ -9,7 +9,6 @@ import com.jorisjonkers.privatestack.auth.jooq.tables.AppUser.APP_USER
 import org.jooq.DSLContext
 import org.jooq.Record
 import org.springframework.stereotype.Repository
-import java.time.Instant
 import java.time.ZoneOffset
 import java.util.UUID
 
@@ -17,28 +16,34 @@ import java.util.UUID
 class JooqUserRepository(
     private val dsl: DSLContext,
 ) : UserRepository {
-
     override fun findById(id: UserId): User? =
-        dsl.selectFrom(APP_USER)
+        dsl
+            .selectFrom(APP_USER)
             .where(APP_USER.ID.eq(id.value))
             .fetchOne()
             ?.toUser()
 
     override fun findByUsername(username: String): User? =
-        dsl.selectFrom(APP_USER)
+        dsl
+            .selectFrom(APP_USER)
             .where(APP_USER.USERNAME.eq(username))
             .fetchOne()
             ?.toUser()
 
     override fun findCredentialsByUsername(username: String): UserCredentials? =
-        dsl.selectFrom(APP_USER)
+        dsl
+            .selectFrom(APP_USER)
             .where(APP_USER.USERNAME.eq(username))
             .fetchOne()
             ?.toUserCredentials()
 
-    override fun create(user: User, passwordHash: String): User {
+    override fun create(
+        user: User,
+        passwordHash: String,
+    ): User {
         val now = user.createdAt.atOffset(ZoneOffset.UTC).toLocalDateTime()
-        dsl.insertInto(APP_USER)
+        dsl
+            .insertInto(APP_USER)
             .set(APP_USER.ID, user.id.value)
             .set(APP_USER.USERNAME, user.username)
             .set(APP_USER.EMAIL, user.email)
@@ -54,7 +59,8 @@ class JooqUserRepository(
 
     override fun update(user: User): User {
         val now = user.updatedAt.atOffset(ZoneOffset.UTC).toLocalDateTime()
-        dsl.update(APP_USER)
+        dsl
+            .update(APP_USER)
             .set(APP_USER.TOTP_ENABLED, user.totpEnabled)
             .set(APP_USER.ROLE, user.role.name)
             .set(APP_USER.UPDATED_AT, now)
@@ -63,8 +69,12 @@ class JooqUserRepository(
         return user
     }
 
-    override fun saveTotpSecret(userId: UserId, secret: String) {
-        dsl.update(APP_USER)
+    override fun saveTotpSecret(
+        userId: UserId,
+        secret: String,
+    ) {
+        dsl
+            .update(APP_USER)
             .set(APP_USER.TOTP_SECRET, secret)
             .where(APP_USER.ID.eq(userId.value))
             .execute()
@@ -83,10 +93,12 @@ class JooqUserRepository(
             email = this[APP_USER.EMAIL] as String,
             role = Role.valueOf(this[APP_USER.ROLE] as String),
             totpEnabled = this[APP_USER.TOTP_ENABLED] as Boolean,
-            createdAt = (this[APP_USER.CREATED_AT] as java.time.LocalDateTime)
-                .toInstant(ZoneOffset.UTC),
-            updatedAt = (this[APP_USER.UPDATED_AT] as java.time.LocalDateTime)
-                .toInstant(ZoneOffset.UTC),
+            createdAt =
+                (this[APP_USER.CREATED_AT] as java.time.LocalDateTime)
+                    .toInstant(ZoneOffset.UTC),
+            updatedAt =
+                (this[APP_USER.UPDATED_AT] as java.time.LocalDateTime)
+                    .toInstant(ZoneOffset.UTC),
         )
 
     private fun Record.toUserCredentials(): UserCredentials =

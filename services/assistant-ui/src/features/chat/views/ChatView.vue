@@ -24,23 +24,27 @@ async function handleSend(content: string): Promise<void> {
 </script>
 
 <template>
-  <div class="flex h-screen dark:bg-gray-950">
+  <div class="flex h-screen bg-surface-dark">
     <ConversationList />
 
     <div class="flex flex-1 flex-col overflow-hidden">
       <!-- Header -->
-      <header
-        class="flex items-center border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900"
-      >
-        <h1 class="text-lg font-semibold">
-          {{ store.activeConversation()?.title ?? 'Select a conversation' }}
+      <header class="flex items-center border-b border-surface-border bg-surface-card px-6 py-4">
+        <h1 class="font-mono text-sm font-semibold text-gray-200">
+          <span class="text-gray-600">~/chat/</span>
+          <span class="text-terminal-green">
+            {{ store.activeConversation()?.title ?? 'Select a conversation' }}
+          </span>
         </h1>
       </header>
 
       <!-- Messages -->
       <main class="flex-1 overflow-y-auto px-6 py-4">
         <div v-if="!store.activeConversationId" class="flex h-full items-center justify-center">
-          <p class="text-gray-500 dark:text-gray-400">Select a conversation or start a new one</p>
+          <!-- prettier-ignore -->
+          <p class="font-mono text-sm text-gray-600">
+            Select a conversation or start a new one
+          </p>
         </div>
 
         <div v-else class="space-y-4">
@@ -54,24 +58,26 @@ async function handleSend(content: string): Promise<void> {
               class="max-w-lg rounded-lg px-4 py-2 text-sm"
               :class="[
                 msg.role === 'USER'
-                  ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'
-                  : 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100',
+                  ? 'bg-accent text-white'
+                  : 'border border-surface-border bg-surface-elevated text-gray-300',
               ]"
             >
               <p class="whitespace-pre-wrap">
                 {{ msg.content }}
               </p>
-              <time class="mt-1 block text-xs opacity-60">
+              <time class="mt-1 block font-mono text-xs opacity-50">
                 {{ new Date(msg.createdAt).toLocaleTimeString() }}
               </time>
             </div>
           </div>
 
           <div v-if="store.isSending" class="flex justify-start">
+            <!-- prettier-ignore -->
             <div
-              class="rounded-lg bg-gray-100 px-4 py-2 text-sm text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+              class="rounded-lg border border-surface-border bg-surface-elevated
+                px-4 py-2 font-mono text-sm text-gray-500"
             >
-              Thinking&hellip;
+              Thinking...
             </div>
           </div>
 
