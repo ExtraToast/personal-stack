@@ -11,6 +11,7 @@ class ServicePermissionTest {
         "vault.jorisjonkers.dev, VAULT",
         "vault.localhost, VAULT",
         "mail.jorisjonkers.dev, MAIL",
+        "stalwart.localhost, MAIL",
         "n8n.jorisjonkers.dev, N8N",
         "grafana.jorisjonkers.dev, GRAFANA",
         "assistant.jorisjonkers.dev, ASSISTANT",

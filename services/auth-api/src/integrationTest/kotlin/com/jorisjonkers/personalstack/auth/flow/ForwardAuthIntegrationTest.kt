@@ -35,13 +35,13 @@ class ForwardAuthIntegrationTest : IntegrationTestBase() {
                 with(
                     jwt().jwt { jwt ->
                         jwt.subject("user-123")
-                        jwt.claim("roles", listOf("USER"))
+                        jwt.claim("roles", listOf("ROLE_USER"))
                     },
                 )
             }.andExpect {
                 status { isOk() }
                 header { string("X-User-Id", "user-123") }
-                header { string("X-User-Roles", "USER") }
+                header { string("X-User-Roles", "ROLE_USER") }
             }
     }
 
@@ -70,6 +70,104 @@ class ForwardAuthIntegrationTest : IntegrationTestBase() {
                         "http://localhost:5174/login?redirect=https%3A%2F%2Fgrafana.jorisjonkers.dev%2Fd%2Fdashboard",
                     )
                 }
+            }
+    }
+
+    @Test
+    fun `ADMIN user is granted access to any service regardless of explicit permissions`() {
+        mockMvc
+            .get("/api/v1/auth/verify") {
+                with(
+                    jwt().jwt { jwt ->
+                        jwt.subject("admin-1")
+                        jwt.claim("roles", listOf("ROLE_ADMIN"))
+                    },
+                )
+                header("X-Forwarded-Host", "vault.jorisjonkers.dev")
+            }.andExpect {
+                status { isOk() }
+            }
+    }
+
+    @Test
+    fun `USER with SERVICE_GRAFANA claim is allowed through grafana forward-auth`() {
+        mockMvc
+            .get("/api/v1/auth/verify") {
+                with(
+                    jwt().jwt { jwt ->
+                        jwt.subject("user-2")
+                        jwt.claim("roles", listOf("ROLE_USER", "SERVICE_GRAFANA"))
+                    },
+                )
+                header("X-Forwarded-Host", "grafana.jorisjonkers.dev")
+            }.andExpect {
+                status { isOk() }
+            }
+    }
+
+    @Test
+    fun `USER without vault permission is denied access to vault`() {
+        mockMvc
+            .get("/api/v1/auth/verify") {
+                with(
+                    jwt().jwt { jwt ->
+                        jwt.subject("user-3")
+                        jwt.claim("roles", listOf("ROLE_USER", "SERVICE_GRAFANA"))
+                    },
+                )
+                header("X-Forwarded-Host", "vault.jorisjonkers.dev")
+            }.andExpect {
+                status { isForbidden() }
+            }
+    }
+
+    @Test
+    fun `authenticated request without X-Forwarded-Host returns 200`() {
+        mockMvc
+            .get("/api/v1/auth/verify") {
+                with(
+                    jwt().jwt { jwt ->
+                        jwt.subject("user-4")
+                        jwt.claim("roles", listOf("ROLE_USER"))
+                    },
+                )
+            }.andExpect {
+                status { isOk() }
+            }
+    }
+
+    @Test
+    fun `USER with no service permissions is denied access to all protected services`() {
+        listOf("vault", "mail", "n8n", "grafana", "traefik").forEach { subdomain ->
+            mockMvc
+                .get("/api/v1/auth/verify") {
+                    with(
+                        jwt().jwt { jwt ->
+                            jwt.subject("user-5")
+                            jwt.claim("roles", listOf("ROLE_USER"))
+                        },
+                    )
+                    header("X-Forwarded-Host", "$subdomain.jorisjonkers.dev")
+                }.andExpect {
+                    status { isForbidden() }
+                }
+        }
+    }
+
+    @Test
+    fun `X-User-Roles header includes all roles from JWT`() {
+        mockMvc
+            .get("/api/v1/auth/verify") {
+                with(
+                    jwt().jwt { jwt ->
+                        jwt.subject("user-6")
+                        jwt.claim("roles", listOf("ROLE_USER", "SERVICE_ASSISTANT"))
+                    },
+                )
+                header("X-Forwarded-Host", "assistant.jorisjonkers.dev")
+            }.andExpect {
+                status { isOk() }
+                header { string("X-User-Roles", "ROLE_USER,SERVICE_ASSISTANT") }
             }
     }
 }

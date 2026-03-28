@@ -2,17 +2,17 @@ package com.jorisjonkers.personalstack.auth.domain.model
 
 /**
  * Represents a named service in the personal stack that requires explicit access grants.
- * The [subdomain] field is the subdomain prefix used in hostname matching (e.g. "vault" matches
- * vault.jorisjonkers.dev and vault.localhost).
+ * Each entry declares the subdomain prefixes that map to it. Multiple subdomains are
+ * supported to handle production hostnames (e.g. "mail") and local dev names (e.g. "stalwart").
  *
  * ADMIN users bypass all service permission checks.
  * USER/READONLY users require explicit grants stored in user_service_permissions.
  */
 enum class ServicePermission(
-    val subdomain: String,
+    vararg subdomains: String,
 ) {
     VAULT("vault"),
-    MAIL("mail"),
+    MAIL("mail", "stalwart"),
     N8N("n8n"),
     GRAFANA("grafana"),
     ASSISTANT("assistant"),
@@ -20,15 +20,23 @@ enum class ServicePermission(
     STATUS("status"),
     ;
 
+    val subdomains: Set<String> = subdomains.toSet()
+
     companion object {
+        private val subdomainIndex: Map<String, ServicePermission> =
+            entries
+                .flatMap { permission -> permission.subdomains.map { it to permission } }
+                .toMap()
+
         /**
-         * Resolves a [ServicePermission] from a hostname such as "vault.jorisjonkers.dev"
-         * or "vault.localhost". Returns null when the host is blank or unrecognised.
+         * Resolves a [ServicePermission] from a hostname such as "vault.jorisjonkers.dev",
+         * "mail.jorisjonkers.dev", or "stalwart.localhost". Returns null when the host is
+         * blank or unrecognised.
          */
         fun fromHost(host: String?): ServicePermission? {
             if (host.isNullOrBlank()) return null
             val subdomain = host.substringBefore(".").lowercase()
-            return entries.find { it.subdomain == subdomain }
+            return subdomainIndex[subdomain]
         }
     }
 }
