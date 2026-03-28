@@ -123,20 +123,19 @@ log "  Starting full stack..."
 docker compose up -d --no-build $SERVICES_FULL --wait --wait-timeout 300
 
 log "  Waiting for Traefik routes to stabilize..."
-for check in \
-  "app-ui|http://localhost:80/" \
-  "auth-ui|http://auth.localhost:80/" \
-  "assistant-ui|http://app.localhost:80/" \
-  "auth-api|http://auth.localhost:80/api/actuator/health" \
-  "assistant-api|http://app.localhost:80/api/actuator/health"; do
-  route="${check%%|*}"
-  url="${check#*|}"
+check_route() {
+  local route="$1" url="$2"
   for i in $(seq 1 30); do
-    if curl -sf --max-time 2 -o /dev/null "$url" 2>/dev/null; then break; fi
+    if curl -sf --max-time 2 -o /dev/null "$url" 2>/dev/null; then return 0; fi
     if [ "$i" -eq 30 ]; then warn "Route $route ($url) not reachable after 30s"; fi
     sleep 1
   done
-done
+}
+check_route app-ui         "http://localhost:80/"
+check_route auth-ui        "http://auth.localhost:80/"
+check_route assistant-ui   "http://app.localhost:80/"
+check_route auth-api       "http://auth.localhost:80/api/actuator/health"
+check_route assistant-api  "http://app.localhost:80/api/actuator/health"
 
 log "  Running system tests..."
 ./gradlew :services:system-tests:test \
