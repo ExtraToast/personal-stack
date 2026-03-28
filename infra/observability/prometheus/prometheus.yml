@@ -8,14 +8,14 @@ scrape_configs:
       - targets: ['localhost:9090']
 
   - job_name: auth-api
-    metrics_path: /actuator/prometheus
+    metrics_path: /api/actuator/prometheus
     dns_sd_configs:
       - names: ['tasks.auth-api']
         type: A
         port: 8081
 
   - job_name: assistant-api
-    metrics_path: /actuator/prometheus
+    metrics_path: /api/actuator/prometheus
     dns_sd_configs:
       - names: ['tasks.assistant-api']
         type: A

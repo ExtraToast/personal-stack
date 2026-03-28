@@ -94,6 +94,7 @@ class JooqUserRepositoryIntegrationTest : IntegrationTestBase() {
             username = username,
             email = email,
             role = Role.USER,
+            emailConfirmed = true,
             totpEnabled = false,
             createdAt = now,
             updatedAt = now,

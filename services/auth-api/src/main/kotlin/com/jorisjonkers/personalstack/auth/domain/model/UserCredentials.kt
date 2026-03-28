@@ -6,5 +6,6 @@ data class UserCredentials(
     val passwordHash: String,
     val totpSecret: String?,
     val totpEnabled: Boolean,
+    val emailConfirmed: Boolean,
     val role: Role,
 )

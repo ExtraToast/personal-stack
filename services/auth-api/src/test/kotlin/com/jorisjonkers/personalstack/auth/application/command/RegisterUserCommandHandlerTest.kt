@@ -5,6 +5,7 @@ import com.jorisjonkers.personalstack.auth.domain.exception.DuplicateUsernameExc
 import com.jorisjonkers.personalstack.auth.domain.model.Role
 import com.jorisjonkers.personalstack.auth.domain.model.User
 import com.jorisjonkers.personalstack.auth.domain.model.UserId
+import com.jorisjonkers.personalstack.auth.domain.port.EmailConfirmationTokenRepository
 import com.jorisjonkers.personalstack.auth.domain.port.PasswordEncoder
 import com.jorisjonkers.personalstack.auth.domain.port.UserRepository
 import com.jorisjonkers.personalstack.common.messaging.RabbitMqEventPublisher
@@ -24,6 +25,7 @@ class RegisterUserCommandHandlerTest {
     private val passwordEncoder = mockk<PasswordEncoder>()
     private val eventPublisher = mockk<ApplicationEventPublisher>(relaxed = true)
     private val rabbitMqEventPublisher = mockk<RabbitMqEventPublisher>(relaxed = true)
+    private val emailConfirmationTokenRepository = mockk<EmailConfirmationTokenRepository>(relaxed = true)
 
     private val handler =
         RegisterUserCommandHandler(
@@ -31,6 +33,7 @@ class RegisterUserCommandHandlerTest {
             passwordEncoder,
             eventPublisher,
             rabbitMqEventPublisher,
+            emailConfirmationTokenRepository,
         )
 
     @Test
@@ -90,6 +93,7 @@ class RegisterUserCommandHandlerTest {
             username = username,
             email = email,
             role = Role.USER,
+            emailConfirmed = false,
             totpEnabled = false,
             createdAt = now,
             updatedAt = now,

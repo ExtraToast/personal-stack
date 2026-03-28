@@ -72,13 +72,16 @@ class SecurityConfig(
             .authorizeHttpRequests { auth ->
                 auth
                     .requestMatchers(
-                        "/actuator/health",
-                        "/actuator/info",
+                        "/api/actuator/health",
+                        "/api/actuator/info",
                         "/api/v1/api-docs/**",
                         "/api/v1/swagger-ui/**",
                         "/api/v1/users/register",
                         "/api/v1/auth/login",
+                        "/api/v1/auth/totp-challenge",
                         "/api/v1/auth/refresh",
+                        "/api/v1/auth/confirm-email",
+                        "/api/v1/auth/resend-confirmation",
                     ).permitAll()
                     .anyRequest()
                     .authenticated()

@@ -12,6 +12,8 @@ dependencies {
     compileOnly("org.springframework.boot:spring-boot-starter-web:4.0.4")
     compileOnly("org.springframework.boot:spring-boot-starter-validation:4.0.4")
     compileOnly("org.springframework.vault:spring-vault-core:4.0.1")
+    compileOnly("org.springframework.boot:spring-boot-starter-mail:4.0.4")
+    compileOnly("org.springframework:spring-context:7.0.3")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

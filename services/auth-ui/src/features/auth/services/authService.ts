@@ -1,4 +1,5 @@
 import type { AuthTokens } from '@personal-stack/vue-common'
+import { useAuth } from '@personal-stack/vue-common'
 
 interface LoginCredentials {
   username: string
@@ -11,13 +12,22 @@ interface RegisterData {
   password: string
 }
 
+export interface LoginResponse {
+  totpRequired: boolean
+  totpChallengeToken?: string
+  accessToken?: string
+  refreshToken?: string
+  expiresIn?: number
+  tokenType?: string
+}
+
 const API_BASE = '/api/v1'
 
 /* eslint-disable ts/consistent-type-assertions -- generic response handling requires casts */
-async function post<T>(path: string, body: unknown): Promise<T> {
+async function post<T>(path: string, body: unknown, headers: Record<string, string> = {}): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(body),
   })
   if (!response.ok) {
@@ -28,10 +38,23 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   }
   return response.json() as Promise<T>
 }
+
+function authPost<T>(path: string, body: unknown): Promise<T> {
+  const { getAccessToken } = useAuth()
+  const token = getAccessToken()
+  if (!token) {
+    return Promise.reject(new Error('Not authenticated'))
+  }
+  return post<T>(path, body, { Authorization: `Bearer ${token}` })
+}
 /* eslint-enable ts/consistent-type-assertions */
 
-export async function login(credentials: LoginCredentials): Promise<AuthTokens> {
-  return post<AuthTokens>('/auth/login', credentials)
+export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
+  return post<LoginResponse>('/auth/login', credentials)
+}
+
+export async function submitTotpChallenge(totpChallengeToken: string, code: string): Promise<LoginResponse> {
+  return post<LoginResponse>('/auth/totp-challenge', { totpChallengeToken, code })
 }
 
 export async function refresh(refreshToken: string): Promise<AuthTokens> {
@@ -46,9 +69,20 @@ export async function enrollTotp(): Promise<{
   secret: string
   qrUri: string
 }> {
-  return post<{ secret: string; qrUri: string }>('/totp/enroll', {})
+  return authPost<{ secret: string; qrUri: string }>('/totp/enroll', {})
 }
 
 export async function verifyTotp(code: string): Promise<void> {
-  return post<void>('/totp/verify', { code })
+  return authPost<void>('/totp/verify', { code })
+}
+
+export async function confirmEmail(token: string): Promise<{ message: string }> {
+  const response = await fetch(`${API_BASE}/auth/confirm-email?token=${encodeURIComponent(token)}`)
+  if (!response.ok) throw await response.json()
+  const json: { message: string } = await response.json()
+  return json
+}
+
+export async function resendConfirmation(email: string): Promise<{ message: string }> {
+  return post<{ message: string }>('/auth/resend-confirmation', { email })
 }
