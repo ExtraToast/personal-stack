@@ -108,6 +108,9 @@ class SecurityConfig(
             .authorizeHttpRequests { auth ->
                 auth
                     .requestMatchers(
+                        "/api/actuator/health",
+                        "/api/actuator/info",
+                        "/api/v1/health",
                         "/api/v1/api-docs/**",
                         "/api/v1/swagger-ui/**",
                         "/api/v1/users/register",
