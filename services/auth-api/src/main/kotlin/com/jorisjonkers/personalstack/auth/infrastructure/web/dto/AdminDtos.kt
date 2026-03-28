@@ -41,6 +41,7 @@ data class UpdateServicePermissionsRequest(
 )
 
 fun UpdateServicePermissionsRequest.toServicePermissions(): Set<ServicePermission> =
-    services.mapNotNull { name ->
-        runCatching { ServicePermission.valueOf(name.uppercase()) }.getOrNull()
-    }.toSet()
+    services
+        .mapNotNull { name ->
+            runCatching { ServicePermission.valueOf(name.uppercase()) }.getOrNull()
+        }.toSet()

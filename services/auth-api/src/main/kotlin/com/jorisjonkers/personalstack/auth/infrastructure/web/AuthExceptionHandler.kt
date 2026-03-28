@@ -1,11 +1,11 @@
 package com.jorisjonkers.personalstack.auth.infrastructure.web
 
 import com.jorisjonkers.personalstack.common.web.ProblemDetail
+import org.springframework.core.Ordered
+import org.springframework.core.annotation.Order
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.AccessDeniedException
-import org.springframework.core.Ordered
-import org.springframework.core.annotation.Order
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import java.net.URI
@@ -14,7 +14,9 @@ import java.net.URI
 @Order(Ordered.HIGHEST_PRECEDENCE)
 class AuthExceptionHandler {
     @ExceptionHandler(AccessDeniedException::class)
-    fun handleAccessDenied(ex: AccessDeniedException): ResponseEntity<ProblemDetail> {
+    fun handleAccessDenied(
+        @Suppress("UNUSED_PARAMETER") ex: AccessDeniedException,
+    ): ResponseEntity<ProblemDetail> {
         val body =
             ProblemDetail(
                 type = URI.create("https://jorisjonkers.dev/errors/forbidden"),
