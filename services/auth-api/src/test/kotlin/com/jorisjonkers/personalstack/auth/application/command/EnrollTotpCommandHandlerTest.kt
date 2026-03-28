@@ -37,6 +37,18 @@ class EnrollTotpCommandHandlerTest {
     }
 
     @Test
+    fun `handle throws TotpAlreadyEnrolledException when TOTP is already enabled`() {
+        val userId = UserId(UUID.randomUUID())
+        val user = buildUser(userId).copy(totpEnabled = true)
+
+        every { userRepository.findById(userId) } returns user
+
+        assertThatThrownBy {
+            handler.handle(EnrollTotpCommand(userId))
+        }.isInstanceOf(TotpAlreadyEnrolledException::class.java)
+    }
+
+    @Test
     fun `handle throws NotFoundException when user does not exist`() {
         val userId = UserId(UUID.randomUUID())
 

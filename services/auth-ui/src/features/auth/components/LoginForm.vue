@@ -55,10 +55,12 @@ function validate(): boolean {
   return false
 }
 
-function redirectAfterLogin(): void {
+function redirectAfterLogin(destination: 'totp-setup' | 'app' = 'totp-setup'): void {
   const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : undefined
   if (redirect) {
     window.location.href = redirect
+  } else if (destination === 'app') {
+    window.location.href = window.location.origin.replace('auth.', 'app.')
   } else {
     router.push({ name: 'totp-setup' })
   }
@@ -80,7 +82,7 @@ async function onTotpSubmit(): Promise<void> {
   if (totpCode.value.length !== 6) return
   try {
     await authStore.verifyTotpChallenge(totpCode.value)
-    redirectAfterLogin()
+    redirectAfterLogin('app')
   } catch {
     totpCode.value = ''
   }
