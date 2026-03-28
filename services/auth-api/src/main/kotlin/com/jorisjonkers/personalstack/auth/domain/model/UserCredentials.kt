@@ -8,4 +8,5 @@ data class UserCredentials(
     val totpEnabled: Boolean,
     val emailConfirmed: Boolean,
     val role: Role,
+    val servicePermissions: Set<ServicePermission> = emptySet(),
 )
