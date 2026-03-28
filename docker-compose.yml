@@ -69,7 +69,7 @@ services:
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.vault.rule=Host(`vault.localhost`)'
-      - 'traefik.http.routers.vault.middlewares=forward-auth@docker'
+      - 'traefik.http.routers.vault.middlewares=forward-auth@docker,security-headers@file'
       - 'traefik.http.services.vault.loadbalancer.server.port=8200'
       - 'traefik.http.middlewares.forward-auth.forwardauth.address=http://auth-api:8081/api/v1/auth/verify'
       - 'traefik.http.middlewares.forward-auth.forwardauth.trustForwardHeader=true'
@@ -97,7 +97,7 @@ services:
       - 'traefik.http.routers.traefik-dashboard.rule=Host(`traefik.localhost`)'
       - 'traefik.http.routers.traefik-dashboard.entrypoints=web'
       - 'traefik.http.routers.traefik-dashboard.service=api@internal'
-      - 'traefik.http.routers.traefik-dashboard.middlewares=forward-auth@docker'
+      - 'traefik.http.routers.traefik-dashboard.middlewares=forward-auth@docker,security-headers@file'
 
   n8n:
     image: n8nio/n8n:2.13.4
@@ -117,7 +117,7 @@ services:
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.n8n.rule=Host(`n8n.localhost`)'
-      - 'traefik.http.routers.n8n.middlewares=forward-auth@docker'
+      - 'traefik.http.routers.n8n.middlewares=forward-auth@docker,security-headers@file'
       - 'traefik.http.services.n8n.loadbalancer.server.port=5678'
 
   grafana:
@@ -134,7 +134,7 @@ services:
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.grafana.rule=Host(`grafana.localhost`)'
-      - 'traefik.http.routers.grafana.middlewares=forward-auth@docker'
+      - 'traefik.http.routers.grafana.middlewares=forward-auth@docker,security-headers@file'
       - 'traefik.http.services.grafana.loadbalancer.server.port=3000'
 
   stalwart:
@@ -150,11 +150,12 @@ services:
       - 'traefik.enable=true'
       - 'traefik.http.routers.stalwart.rule=Host(`stalwart.localhost`)'
       - 'traefik.http.services.stalwart.loadbalancer.server.port=8080'
-      - 'traefik.http.routers.stalwart.middlewares=forward-auth@docker'
+      - 'traefik.http.routers.stalwart.middlewares=forward-auth@docker,security-headers@file'
 
   # ── Backend Services ────────────────────────────────────────────
 
   auth-api:
+    image: personal-stack/auth-api:ci
     build:
       context: .
       dockerfile: services/auth-api/Dockerfile
@@ -194,9 +195,11 @@ services:
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.auth-api.rule=Host(`auth.localhost`) && PathPrefix(`/api/`)'
+      - 'traefik.http.routers.auth-api.middlewares=security-headers@file'
       - 'traefik.http.services.auth-api.loadbalancer.server.port=8081'
 
   assistant-api:
+    image: personal-stack/assistant-api:ci
     build:
       context: .
       dockerfile: services/assistant-api/Dockerfile
@@ -232,11 +235,13 @@ services:
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.assistant-api.rule=Host(`app.localhost`) && PathPrefix(`/api/`)'
+      - 'traefik.http.routers.assistant-api.middlewares=security-headers@file'
       - 'traefik.http.services.assistant-api.loadbalancer.server.port=8082'
 
   # ── Frontend Services ───────────────────────────────────────────
 
   auth-ui:
+    image: personal-stack/auth-ui:ci
     build:
       context: .
       dockerfile: services/auth-ui/Dockerfile
@@ -255,6 +260,7 @@ services:
       - 'traefik.http.services.auth-ui.loadbalancer.server.port=80'
 
   assistant-ui:
+    image: personal-stack/assistant-ui:ci
     build:
       context: .
       dockerfile: services/assistant-ui/Dockerfile
@@ -273,6 +279,7 @@ services:
       - 'traefik.http.services.assistant-ui.loadbalancer.server.port=80'
 
   app-ui:
+    image: personal-stack/app-ui:ci
     build:
       context: .
       dockerfile: services/app-ui/Dockerfile

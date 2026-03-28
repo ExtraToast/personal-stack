@@ -177,7 +177,7 @@ jobs:
         run: |
           for tar in /tmp/images/image-*/*.tar; do docker load -i "$tar"; done
       - name: Build and start full stack
-        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d postgres valkey rabbitmq vault auth-api assistant-api traefik auth-ui assistant-ui app-ui n8n grafana stalwart --wait --wait-timeout 300
+        run: docker compose up -d --no-build postgres valkey rabbitmq vault auth-api assistant-api traefik auth-ui assistant-ui app-ui n8n grafana stalwart --wait --wait-timeout 300
       - name: Wait for Traefik routes to stabilize
         run: |
           echo "Waiting for Traefik routes to become reachable..."
@@ -233,7 +233,7 @@ jobs:
         run: |
           for svc in postgres valkey rabbitmq vault auth-api assistant-api traefik auth-ui assistant-ui app-ui n8n grafana stalwart; do
             echo "========== $svc =========="
-            docker compose -f docker-compose.yml -f docker-compose.ci.yml logs "$svc" --tail 80
+            docker compose logs "$svc" --tail 80
           done
 
   security-scan:

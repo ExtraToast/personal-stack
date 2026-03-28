@@ -4,8 +4,6 @@
 # Fails as fast as possible.
 set -euo pipefail
 
-COMPOSE_BASE="-f docker-compose.yml"
-COMPOSE_CI="-f docker-compose.yml -f docker-compose.ci.yml"
 SERVICES_FULL="postgres valkey rabbitmq vault auth-api assistant-api traefik auth-ui assistant-ui app-ui n8n grafana stalwart"
 
 RED='\033[0;31m'
@@ -21,9 +19,9 @@ TMPDIR_JOBS=$(mktemp -d)
 trap 'rm -rf "$TMPDIR_JOBS"; teardown_stack' EXIT
 
 teardown_stack() {
-  if docker compose $COMPOSE_CI ps --quiet 2>/dev/null | grep -q .; then
+  if docker compose ps --quiet 2>/dev/null | grep -q .; then
     log "Tearing down stack..."
-    docker compose $COMPOSE_CI down --remove-orphans --timeout 10 2>/dev/null || true
+    docker compose down --remove-orphans --timeout 10 2>/dev/null || true
   fi
 }
 
@@ -105,7 +103,7 @@ wait_jobs "unit+arch+build" \
 log "Stage 3: Integration tests"
 
 log "  Starting infrastructure services..."
-docker compose $COMPOSE_BASE up -d postgres valkey rabbitmq --wait --wait-timeout 120
+docker compose up -d postgres valkey rabbitmq --wait --wait-timeout 120
 
 run_job "integ-auth-api"      ./gradlew :services:auth-api:integrationTest
 run_job "integ-assistant-api" ./gradlew :services:assistant-api:integrationTest
@@ -113,7 +111,7 @@ run_job "integ-assistant-api" ./gradlew :services:assistant-api:integrationTest
 wait_jobs "integration" integ-auth-api integ-assistant-api
 
 log "  Stopping infrastructure services..."
-docker compose $COMPOSE_BASE down --remove-orphans --timeout 10 2>/dev/null || true
+docker compose down --remove-orphans --timeout 10 2>/dev/null || true
 
 # ─────────────────────────────────────────────────────────────────
 # STAGE 4 — System tests (full stack required)
@@ -122,7 +120,7 @@ log "Stage 4: System tests (full stack)"
 
 log "  Starting full stack..."
 # shellcheck disable=SC2086
-docker compose $COMPOSE_CI up -d $SERVICES_FULL --wait --wait-timeout 300
+docker compose up -d --no-build $SERVICES_FULL --wait --wait-timeout 300
 
 log "  Waiting for Traefik routes to stabilize..."
 for check in \
