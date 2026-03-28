@@ -86,7 +86,7 @@ class ForwardAuthChainSystemTest {
             .`when`()
             .get("/")
             .then()
-            .header("Location", not(containsString("login")))
+            .header("Location", not(containsString("auth.localhost")))
     }
 
     @org.junit.jupiter.api.Test
