@@ -119,7 +119,6 @@ http:
         certResolver: cloudflare
 
     # ── Traefik Dashboard ───────────────────────────────────────
-
     traefik-dashboard:
       rule: 'Host(`traefik.jorisjonkers.dev`)'
       entryPoints:
