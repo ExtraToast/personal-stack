@@ -31,6 +31,22 @@ class SecurityConfig(
     private val loginUrl: String,
 ) {
     /**
+     * Health endpoint filter chain (order 0).
+     * Runs before all other chains so health/info endpoints are always publicly
+     * accessible, regardless of OAuth2 authorization server or JWT resource
+     * server rules in lower-priority chains.
+     */
+    @Bean
+    @Order(0)
+    fun healthEndpointSecurityFilterChain(http: HttpSecurity): SecurityFilterChain {
+        http
+            .securityMatcher("/api/actuator/health", "/api/actuator/info", "/api/v1/health")
+            .authorizeHttpRequests { it.anyRequest().permitAll() }
+            .csrf { it.disable() }
+        return http.build()
+    }
+
+    /**
      * Forward-auth filter chain (order 2).
      * The /api/v1/auth/verify endpoint redirects to the login page when unauthenticated,
      * so Traefik's forwardAuth middleware delivers a 302 to the browser instead of a raw 401.
@@ -72,9 +88,6 @@ class SecurityConfig(
             .authorizeHttpRequests { auth ->
                 auth
                     .requestMatchers(
-                        "/api/actuator/health",
-                        "/api/actuator/info",
-                        "/api/v1/health",
                         "/api/v1/api-docs/**",
                         "/api/v1/swagger-ui/**",
                         "/api/v1/users/register",
