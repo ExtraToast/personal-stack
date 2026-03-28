@@ -25,7 +25,11 @@ import org.springframework.security.oauth2.server.authorization.token.JwtEncodin
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint
+import org.springframework.security.web.util.matcher.AndRequestMatcher
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher
+import org.springframework.security.web.util.matcher.NegatedRequestMatcher
+import org.springframework.security.web.util.matcher.OrRequestMatcher
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher
 import java.time.Duration
 import java.util.UUID
 
@@ -37,8 +41,16 @@ class AuthorizationServerConfig {
         val authServerConfigurer = OAuth2AuthorizationServerConfigurer()
         authServerConfigurer.oidc(Customizer.withDefaults())
 
+        val healthMatcher =
+            OrRequestMatcher(
+                PathPatternRequestMatcher.pathPattern("/api/actuator/health"),
+                PathPatternRequestMatcher.pathPattern("/api/actuator/info"),
+                PathPatternRequestMatcher.pathPattern("/api/v1/health"),
+            )
+        val matcher = AndRequestMatcher(authServerConfigurer.endpointsMatcher, NegatedRequestMatcher(healthMatcher))
+
         http
-            .securityMatcher(authServerConfigurer.endpointsMatcher)
+            .securityMatcher(matcher)
             .with(authServerConfigurer, Customizer.withDefaults())
             .authorizeHttpRequests { it.anyRequest().authenticated() }
             .exceptionHandling { exceptions ->
