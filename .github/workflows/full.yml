@@ -180,19 +180,23 @@ jobs:
         run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d postgres valkey rabbitmq vault auth-api assistant-api traefik auth-ui assistant-ui app-ui n8n grafana stalwart --wait --wait-timeout 300
       - name: Wait for Traefik routes to stabilize
         run: |
-          echo "Waiting for Traefik to register all Docker routes..."
-          for route in app-ui auth-ui assistant-ui auth-api assistant-api stalwart traefik-dashboard; do
-            echo -n "  $route: "
+          echo "Waiting for Traefik routes to become reachable..."
+          for check in \
+            "app-ui|http://localhost:80/" \
+            "auth-ui|http://auth.localhost:80/" \
+            "assistant-ui|http://app.localhost:80/" \
+            "auth-api|http://auth.localhost:80/api/actuator/health" \
+            "assistant-api|http://app.localhost:80/api/actuator/health"; do
+            route="${check%%|*}"
+            url="${check#*|}"
+            echo -n "  $route ($url): "
             for i in $(seq 1 30); do
-              STATUS=$(curl -sf http://localhost:8080/api/http/routers | \
-                jq -r --arg r "$route@docker" '.[] | select(.name == $r) | .status' 2>/dev/null || true)
-              if [ "$STATUS" = "enabled" ]; then
-                echo "enabled"
+              if curl -sf --max-time 2 -o /dev/null "$url" 2>/dev/null; then
+                echo "reachable"
                 break
               fi
               if [ "$i" -eq 30 ]; then
                 echo "TIMEOUT"
-                curl -sf http://localhost:8080/api/http/routers | jq -r '.[].name' || true
                 exit 1
               fi
               sleep 1

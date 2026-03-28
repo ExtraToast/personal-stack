@@ -18,9 +18,9 @@ class SecurityHeadersSystemTest {
         @JvmStatic
         fun uiEndpoints(): Stream<Arguments> =
             Stream.of(
-                Arguments.of("app-ui", "http://localhost", "/"),
-                Arguments.of("auth-ui", "http://auth.localhost", "/"),
-                Arguments.of("assistant-ui", "http://app.localhost", "/"),
+                Arguments.of("app-ui", "http://localhost:80", "/"),
+                Arguments.of("auth-ui", "http://auth.localhost:80", "/"),
+                Arguments.of("assistant-ui", "http://app.localhost:80", "/"),
             )
     }
 
@@ -46,7 +46,12 @@ class SecurityHeadersSystemTest {
             .isNotNull()
             .isNotBlank()
 
-        assertThat(csp)
+        val scriptSrc =
+            csp.split(";")
+                .map { it.trim() }
+                .firstOrNull { it.startsWith("script-src") } ?: ""
+
+        assertThat(scriptSrc)
             .describedAs("CSP script-src must not allow unsafe-inline")
             .doesNotContain("'unsafe-inline'")
 

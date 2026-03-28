@@ -85,6 +85,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./infra/traefik/traefik-dev.yml:/etc/traefik/traefik.yml:ro
+      - ./infra/traefik/dynamic:/etc/traefik/dynamic:ro
     healthcheck:
       test: ['CMD', 'traefik', 'healthcheck', '--ping']
       interval: 5s
@@ -250,6 +251,7 @@ services:
       - 'traefik.enable=true'
       - 'traefik.http.routers.auth-ui.rule=Host(`auth.localhost`)'
       - 'traefik.http.routers.auth-ui.priority=1'
+      - 'traefik.http.routers.auth-ui.middlewares=security-headers@file'
       - 'traefik.http.services.auth-ui.loadbalancer.server.port=80'
 
   assistant-ui:
@@ -267,6 +269,7 @@ services:
       - 'traefik.enable=true'
       - 'traefik.http.routers.assistant-ui.rule=Host(`app.localhost`)'
       - 'traefik.http.routers.assistant-ui.priority=1'
+      - 'traefik.http.routers.assistant-ui.middlewares=security-headers@file'
       - 'traefik.http.services.assistant-ui.loadbalancer.server.port=80'
 
   app-ui:
@@ -283,6 +286,7 @@ services:
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.app-ui.rule=Host(`localhost`)'
+      - 'traefik.http.routers.app-ui.middlewares=security-headers@file'
       - 'traefik.http.services.app-ui.loadbalancer.server.port=80'
 
 volumes:
