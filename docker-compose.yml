@@ -234,7 +234,7 @@ services:
       start_period: 30s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.assistant-api.rule=Host(`app.localhost`) && PathPrefix(`/api/`)'
+      - 'traefik.http.routers.assistant-api.rule=Host(`assistant.localhost`) && PathPrefix(`/api/`)'
       - 'traefik.http.routers.assistant-api.middlewares=security-headers@file'
       - 'traefik.http.services.assistant-api.loadbalancer.server.port=8082'
 
@@ -273,7 +273,7 @@ services:
       start_period: 5s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.assistant-ui.rule=Host(`app.localhost`)'
+      - 'traefik.http.routers.assistant-ui.rule=Host(`assistant.localhost`)'
       - 'traefik.http.routers.assistant-ui.priority=1'
       - 'traefik.http.routers.assistant-ui.middlewares=security-headers@file'
       - 'traefik.http.services.assistant-ui.loadbalancer.server.port=80'

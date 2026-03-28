@@ -45,7 +45,7 @@ const routes: RouteRecordRaw[] = [
     name: 'dashboard',
     meta: { requiresAuth: true },
     beforeEnter: () => {
-      window.location.href = window.location.origin.replace('auth.', 'app.')
+      window.location.href = window.location.origin.replace('auth.', '')
       return false
     },
     component: () => import('@/features/auth/views/LoginView.vue'), // never rendered, kept for route definition
