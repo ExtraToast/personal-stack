@@ -5,6 +5,8 @@ export default {
     projects: 'Projects',
     skills: 'Skills',
     contact: 'Contact',
+    login: 'Login',
+    logout: 'Logout',
   },
   hero: {
     subtitle: 'Jr. Software Engineer',
