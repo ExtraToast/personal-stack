@@ -101,14 +101,14 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:8081/actuator/health || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:8081/api/actuator/health || exit 1']
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.auth-api.rule=Host(`auth.localhost`) && PathPrefix(`/api`)'
+      - 'traefik.http.routers.auth-api.rule=Host(`auth.localhost`) && PathPrefix(`/api/`)'
       - 'traefik.http.services.auth-api.loadbalancer.server.port=8081'
 
   assistant-api:
@@ -138,14 +138,14 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:8082/actuator/health || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:8082/api/actuator/health || exit 1']
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.assistant-api.rule=Host(`app.localhost`) && PathPrefix(`/api`)'
+      - 'traefik.http.routers.assistant-api.rule=Host(`app.localhost`) && PathPrefix(`/api/`)'
       - 'traefik.http.services.assistant-api.loadbalancer.server.port=8082'
 
   # ── Frontend Services ───────────────────────────────────────────
