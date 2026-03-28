@@ -35,6 +35,7 @@ class XUserIdFilter : OncePerRequestFilter() {
     override fun shouldNotFilter(request: HttpServletRequest): Boolean {
         val path = request.servletPath
         return path.startsWith("/api/actuator") ||
+            path.startsWith("/api/v1/health") ||
             path.startsWith("/api/v1/api-docs") ||
             path.startsWith("/api/v1/swagger-ui")
     }
