@@ -17,6 +17,11 @@ const routes: RouteRecordRaw[] = [
     name: 'apps',
     component: () => import('@/features/apps/views/AppsView.vue'),
   },
+  {
+    path: '/admin',
+    name: 'admin',
+    component: () => import('@/features/admin/views/AdminView.vue'),
+  },
 ]
 
 export const router = createRouter({

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useTheme } from '@personal-stack/vue-common'
 import { useI18n } from 'vue-i18n'
-import { RouterView } from 'vue-router'
+import { RouterLink, RouterView } from 'vue-router'
 import { useAuthStore } from './features/auth'
 import { setLocale } from './i18n'
 
@@ -79,6 +79,13 @@ function cycleTheme(): void {
             <span v-else-if="mode === 'dark'">&#9790;</span>
             <span v-else>&#128187;</span>
           </button>
+          <RouterLink
+            v-if="authStore.isAdmin"
+            class="rounded-md px-3 py-1 font-mono text-xs text-gray-400 transition-colors hover:bg-surface-elevated hover:text-terminal-green"
+            to="/admin"
+          >
+            {{ t('nav.admin') }}
+          </RouterLink>
           <button
             v-if="authStore.isAuthenticated"
             class="rounded-md px-3 py-1 font-mono text-xs text-gray-400 transition-colors hover:bg-surface-elevated hover:text-terminal-green"
