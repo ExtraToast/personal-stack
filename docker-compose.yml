@@ -60,6 +60,20 @@ services:
       - IPC_LOCK
     volumes:
       - vault-data:/vault/data
+    healthcheck:
+      test: ['CMD', 'vault', 'status', '-address=http://127.0.0.1:8200']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.vault.rule=Host(`vault.localhost`)'
+      - 'traefik.http.routers.vault.middlewares=forward-auth@docker'
+      - 'traefik.http.services.vault.loadbalancer.server.port=8200'
+      - 'traefik.http.middlewares.forward-auth.forwardauth.address=http://auth-api:8081/api/v1/auth/verify'
+      - 'traefik.http.middlewares.forward-auth.forwardauth.trustForwardHeader=true'
+      - 'traefik.http.middlewares.forward-auth.forwardauth.authResponseHeaders=X-User-Id,X-User-Email,X-User-Roles'
 
   traefik:
     image: traefik:v3.6
@@ -71,6 +85,71 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./infra/traefik/traefik-dev.yml:/etc/traefik/traefik.yml:ro
+    healthcheck:
+      test: ['CMD', 'traefik', 'healthcheck', '--ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.traefik-dashboard.rule=Host(`traefik.localhost`)'
+      - 'traefik.http.routers.traefik-dashboard.entrypoints=web'
+      - 'traefik.http.routers.traefik-dashboard.service=api@internal'
+      - 'traefik.http.routers.traefik-dashboard.middlewares=forward-auth@docker'
+
+  n8n:
+    image: n8nio/n8n:2.13.4
+    container_name: personal-stack-n8n
+    environment:
+      N8N_HOST: n8n.localhost
+      N8N_PROTOCOL: http
+      N8N_PORT: '5678'
+    volumes:
+      - n8n-data:/home/node/.n8n
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:5678/healthz || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.n8n.rule=Host(`n8n.localhost`)'
+      - 'traefik.http.routers.n8n.middlewares=forward-auth@docker'
+      - 'traefik.http.services.n8n.loadbalancer.server.port=5678'
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    container_name: personal-stack-grafana
+    volumes:
+      - grafana-data:/var/lib/grafana
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/api/health || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.grafana.rule=Host(`grafana.localhost`)'
+      - 'traefik.http.routers.grafana.middlewares=forward-auth@docker'
+      - 'traefik.http.services.grafana.loadbalancer.server.port=3000'
+
+  stalwart:
+    image: stalwartlabs/stalwart:latest
+    container_name: personal-stack-stalwart
+    healthcheck:
+      test: ['CMD', 'bash', '-c', 'echo >/dev/tcp/localhost/8080']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.stalwart.rule=Host(`stalwart.localhost`)'
+      - 'traefik.http.services.stalwart.loadbalancer.server.port=8080'
+      - 'traefik.http.routers.stalwart.middlewares=forward-auth@docker'
 
   # ── Backend Services ────────────────────────────────────────────
 
@@ -90,9 +169,14 @@ services:
       VALKEY_PORT: 6379
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
+      MAIL_HOST: stalwart
+      MAIL_PORT: 587
+      MANAGEMENT_HEALTH_MAIL_ENABLED: 'false'
+      AUTH_LOGIN_URL: http://auth.localhost/login
       OTEL_SERVICE_NAME: auth-api
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_LOGS_EXPORTER: none
+      OTEL_TRACES_EXPORTER: none
+      OTEL_METRICS_EXPORTER: none
     depends_on:
       postgres:
         condition: service_healthy
@@ -128,8 +212,9 @@ services:
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       OTEL_SERVICE_NAME: assistant-api
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_LOGS_EXPORTER: none
+      OTEL_TRACES_EXPORTER: none
+      OTEL_METRICS_EXPORTER: none
     depends_on:
       postgres:
         condition: service_healthy
@@ -155,6 +240,12 @@ services:
       context: .
       dockerfile: services/auth-ui/Dockerfile
     container_name: personal-stack-auth-ui
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO /dev/null http://127.0.0.1/ || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.auth-ui.rule=Host(`auth.localhost`)'
@@ -166,6 +257,12 @@ services:
       context: .
       dockerfile: services/assistant-ui/Dockerfile
     container_name: personal-stack-assistant-ui
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO /dev/null http://127.0.0.1/ || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.assistant-ui.rule=Host(`app.localhost`)'
@@ -177,6 +274,12 @@ services:
       context: .
       dockerfile: services/app-ui/Dockerfile
     container_name: personal-stack-app-ui
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO /dev/null http://127.0.0.1/ || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.app-ui.rule=Host(`localhost`)'
@@ -187,3 +290,5 @@ volumes:
   valkey-data:
   rabbitmq-data:
   vault-data:
+  n8n-data:
+  grafana-data:

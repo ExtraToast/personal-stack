@@ -166,6 +166,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
       OTEL_LOGS_EXPORTER: none
       OTEL_METRICS_EXPORTER: none
+      OTEL_TRACES_EXPORTER: otlp
     entrypoint:
       - sh
       - -c
@@ -210,6 +211,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
       OTEL_LOGS_EXPORTER: none
       OTEL_METRICS_EXPORTER: none
+      OTEL_TRACES_EXPORTER: otlp
     entrypoint:
       - sh
       - -c

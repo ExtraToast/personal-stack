@@ -1,7 +1,7 @@
 entryPoints:
   web:
     address: ':80'
-  dashboard:
+  traefik:
     address: ':8080'
 
 providers:
@@ -9,9 +9,15 @@ providers:
     endpoint: 'unix:///var/run/docker.sock'
     exposedByDefault: false
 
+ping: {}
+
 api:
-  dashboard: true
   insecure: true
+  dashboard: true
+
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
 
 log:
   level: DEBUG
