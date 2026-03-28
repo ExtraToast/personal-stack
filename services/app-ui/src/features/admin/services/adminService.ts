@@ -15,14 +15,10 @@ export interface AdminUser {
 }
 
 async function authedFetch(token: string, url: string, init?: RequestInit): Promise<Response> {
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      ...init?.headers,
-    },
-  })
+  const headers = new Headers(init?.headers)
+  headers.set('Authorization', `Bearer ${token}`)
+  headers.set('Content-Type', 'application/json')
+  const response = await fetch(url, { ...init, headers })
   if (!response.ok) throw new Error(`Request failed: ${response.status}`)
   return response
 }
