@@ -227,6 +227,140 @@ class TotpFlowIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
+    fun `cannot re-enroll TOTP when already enabled`() {
+        val username = "totp-reenroll-${UUID.randomUUID().toString().take(8)}"
+        val password = "securepass123"
+
+        registerUser(username, password)
+        confirmEmail(username)
+
+        val loginJson = login(username, password)
+        val accessToken = loginJson["accessToken"].asText()
+
+        // Enroll TOTP
+        val enrollResult =
+            mockMvc
+                .post("/api/v1/totp/enroll") {
+                    header("Authorization", "Bearer $accessToken")
+                }.andExpect { status { isOk() } }
+                .andReturn()
+
+        val enrollJson = objectMapper.readTree(enrollResult.response.contentAsString)
+        val secret = enrollJson["secret"].asText()
+
+        // Verify TOTP to enable it
+        val code = generateTotpCode(secret)
+        mockMvc
+            .post("/api/v1/totp/verify") {
+                contentType = MediaType.APPLICATION_JSON
+                header("Authorization", "Bearer $accessToken")
+                content = """{"code":"$code"}"""
+            }.andExpect { status { isNoContent() } }
+
+        // Attempt to re-enroll should fail
+        mockMvc
+            .post("/api/v1/totp/enroll") {
+                header("Authorization", "Bearer $accessToken")
+            }.andExpect { status { isBadRequest() } }
+    }
+
+    @Test
+    fun `TOTP code from different secret fails verification`() {
+        val username = "totp-wrongsecret-${UUID.randomUUID().toString().take(8)}"
+        val password = "securepass123"
+
+        registerUser(username, password)
+        confirmEmail(username)
+
+        val loginJson = login(username, password)
+        val accessToken = loginJson["accessToken"].asText()
+
+        // Enroll TOTP
+        mockMvc
+            .post("/api/v1/totp/enroll") {
+                header("Authorization", "Bearer $accessToken")
+            }.andExpect { status { isOk() } }
+
+        // Generate a code from a completely different secret
+        val wrongSecret = "JBSWY3DPEHPK3PXP"
+        val wrongCode = generateTotpCode(wrongSecret)
+
+        mockMvc
+            .post("/api/v1/totp/verify") {
+                contentType = MediaType.APPLICATION_JSON
+                header("Authorization", "Bearer $accessToken")
+                content = """{"code":"$wrongCode"}"""
+            }.andExpect { status { isBadRequest() } }
+    }
+
+    @Test
+    fun `session login enforces TOTP when enabled`() {
+        val username = "totp-session-${UUID.randomUUID().toString().take(8)}"
+        val password = "securepass123"
+
+        registerUser(username, password)
+        confirmEmail(username)
+
+        val loginJson = login(username, password)
+        val accessToken = loginJson["accessToken"].asText()
+
+        // Enroll TOTP
+        val enrollResult =
+            mockMvc
+                .post("/api/v1/totp/enroll") {
+                    header("Authorization", "Bearer $accessToken")
+                }.andExpect { status { isOk() } }
+                .andReturn()
+
+        val enrollJson = objectMapper.readTree(enrollResult.response.contentAsString)
+        val secret = enrollJson["secret"].asText()
+
+        // Verify TOTP to enable it
+        val code = generateTotpCode(secret)
+        mockMvc
+            .post("/api/v1/totp/verify") {
+                contentType = MediaType.APPLICATION_JSON
+                header("Authorization", "Bearer $accessToken")
+                content = """{"code":"$code"}"""
+            }.andExpect { status { isNoContent() } }
+
+        // Session login without TOTP code should return totpRequired
+        val sessionResult =
+            mockMvc
+                .post("/api/v1/auth/session-login") {
+                    contentType = MediaType.APPLICATION_JSON
+                    content = """{"username":"$username","password":"$password"}"""
+                }.andExpect { status { isOk() } }
+                .andReturn()
+
+        val sessionJson = objectMapper.readTree(sessionResult.response.contentAsString)
+        assert(sessionJson["totpRequired"].asBoolean()) { "Expected totpRequired=true for session login" }
+        assert(!sessionJson["success"].asBoolean()) { "Expected success=false when TOTP not provided" }
+    }
+
+    @Test
+    fun `login without TOTP returns tokens without totpRequired`() {
+        val username = "totp-notenabled-${UUID.randomUUID().toString().take(8)}"
+        val password = "securepass123"
+
+        registerUser(username, password)
+        confirmEmail(username)
+
+        val json = login(username, password)
+
+        assert(!json["totpRequired"].asBoolean()) { "Expected totpRequired=false" }
+        assert(json["accessToken"] != null && !json["accessToken"].isNull) { "Expected accessToken" }
+        assert(json["refreshToken"] != null && !json["refreshToken"].isNull) { "Expected refreshToken" }
+    }
+
+    @Test
+    fun `TOTP enrollment without auth token fails`() {
+        mockMvc
+            .post("/api/v1/totp/enroll") {
+            }.andExpect { status { isUnauthorized() } }
+    }
+
+    @Test
     fun `totp challenge with invalid code returns 400`() {
         val username = "totp-invalid-${UUID.randomUUID().toString().take(8)}"
         val password = "securepass123"

@@ -4,7 +4,7 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { loginSchema } from '../schemas/loginSchema'
-import { resendConfirmation } from '../services/authService'
+import { resendConfirmation, sessionLogin } from '../services/authService'
 
 const router = useRouter()
 const route = useRoute()
@@ -55,23 +55,74 @@ function validate(): boolean {
   return false
 }
 
+const sessionLoginLoading = ref(false)
+
+/** True when the login was initiated by an OAuth2 Authorization Code redirect. */
+const isOAuth2Context = computed(() => {
+  const redirect = route.query.redirect
+  return typeof redirect === 'string' && redirect.includes('oauth2/authorize')
+})
+
+const pendingRedirect = computed(() => {
+  const redirect = route.query.redirect
+  return typeof redirect === 'string' ? redirect : undefined
+})
+
 function redirectAfterLogin(destination: 'totp-setup' | 'app' = 'totp-setup'): void {
-  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : undefined
-  if (redirect) {
-    window.location.href = redirect
+  if (destination === 'app' && pendingRedirect.value) {
+    window.location.href = pendingRedirect.value
   } else if (destination === 'app') {
     window.location.href = window.location.origin.replace('auth.', '')
   } else {
+    // TOTP not yet configured — store the pending redirect so TotpSetupView
+    // can resume the flow after enrollment.
+    if (pendingRedirect.value) {
+      sessionStorage.setItem('pendingRedirect', pendingRedirect.value)
+    }
     router.push({ name: 'totp-setup' })
+  }
+}
+
+async function handleOAuth2SessionLogin(totpCodeValue?: string): Promise<void> {
+  sessionLoginLoading.value = true
+  try {
+    const result = await sessionLogin(form.value.username, form.value.password, totpCodeValue)
+    if (result.totpRequired) {
+      // TOTP is enabled — show the TOTP input.
+      // We use the store flag so the template switches to the TOTP form.
+      authStore.totpRequired = true
+      return
+    }
+    // Session established — redirect back to the OAuth2 authorize endpoint.
+    if (pendingRedirect.value) {
+      window.location.href = pendingRedirect.value
+    }
+  } catch (e: unknown) {
+    let msg = 'Login failed'
+    if (typeof e === 'object' && e !== null && 'detail' in e) {
+      const detail = (e as Record<string, unknown>).detail
+      if (typeof detail === 'string') msg = detail
+    }
+    authStore.error = msg
+    if (totpCodeValue) totpCode.value = ''
+  } finally {
+    sessionLoginLoading.value = false
   }
 }
 
 async function onSubmit(): Promise<void> {
   if (!validate()) return
+
+  if (isOAuth2Context.value) {
+    await handleOAuth2SessionLogin()
+    return
+  }
+
   try {
     await authStore.login(form.value.username, form.value.password)
     if (!authStore.totpRequired) {
-      redirectAfterLogin()
+      // TOTP is NOT enabled — force user to set it up before proceeding.
+      redirectAfterLogin('totp-setup')
     }
   } catch {
     // error is set on the store
@@ -80,6 +131,12 @@ async function onSubmit(): Promise<void> {
 
 async function onTotpSubmit(): Promise<void> {
   if (totpCode.value.length !== 6) return
+
+  if (isOAuth2Context.value) {
+    await handleOAuth2SessionLogin(totpCode.value)
+    return
+  }
+
   try {
     await authStore.verifyTotpChallenge(totpCode.value)
     redirectAfterLogin('app')
@@ -193,11 +250,11 @@ async function onTotpSubmit(): Promise<void> {
     </div>
 
     <button
-      :disabled="authStore.isLoading"
+      :disabled="authStore.isLoading || sessionLoginLoading"
       class="glow-accent w-full rounded-md bg-accent px-4 py-2 font-mono text-sm font-semibold text-white transition-colors hover:bg-accent-light disabled:opacity-50"
       type="submit"
     >
-      {{ authStore.isLoading ? 'Verifying...' : authStore.totpRequired ? 'Verify' : 'Sign in' }}
+      {{ authStore.isLoading || sessionLoginLoading ? 'Verifying...' : authStore.totpRequired ? 'Verify' : 'Sign in' }}
     </button>
 
     <p v-if="!authStore.totpRequired" class="text-center text-sm text-gray-500">

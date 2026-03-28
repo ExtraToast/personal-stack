@@ -47,6 +47,7 @@ app:
 
 auth:
   login-url: http://localhost:5174/login
+  issuer: ${AUTH_ISSUER:http://localhost:8081}
 
 server:
   port: 8081

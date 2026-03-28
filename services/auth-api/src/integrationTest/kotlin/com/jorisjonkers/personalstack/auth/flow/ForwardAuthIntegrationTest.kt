@@ -155,6 +155,95 @@ class ForwardAuthIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
+    fun `forward-auth with multiple service permissions works`() {
+        mockMvc
+            .get("/api/v1/auth/verify") {
+                with(
+                    jwt().jwt { jwt ->
+                        jwt.subject("user-multi")
+                        jwt.claim("roles", listOf("ROLE_USER", "SERVICE_GRAFANA", "SERVICE_VAULT", "SERVICE_N8N"))
+                    },
+                )
+                header("X-Forwarded-Host", "grafana.jorisjonkers.dev")
+            }.andExpect {
+                status { isOk() }
+            }
+
+        mockMvc
+            .get("/api/v1/auth/verify") {
+                with(
+                    jwt().jwt { jwt ->
+                        jwt.subject("user-multi")
+                        jwt.claim("roles", listOf("ROLE_USER", "SERVICE_GRAFANA", "SERVICE_VAULT", "SERVICE_N8N"))
+                    },
+                )
+                header("X-Forwarded-Host", "vault.jorisjonkers.dev")
+            }.andExpect {
+                status { isOk() }
+            }
+
+        mockMvc
+            .get("/api/v1/auth/verify") {
+                with(
+                    jwt().jwt { jwt ->
+                        jwt.subject("user-multi")
+                        jwt.claim("roles", listOf("ROLE_USER", "SERVICE_GRAFANA", "SERVICE_VAULT", "SERVICE_N8N"))
+                    },
+                )
+                header("X-Forwarded-Host", "n8n.jorisjonkers.dev")
+            }.andExpect {
+                status { isOk() }
+            }
+    }
+
+    @Test
+    fun `forward-auth with ADMIN plus SERVICE claims works`() {
+        mockMvc
+            .get("/api/v1/auth/verify") {
+                with(
+                    jwt().jwt { jwt ->
+                        jwt.subject("admin-multi")
+                        jwt.claim("roles", listOf("ROLE_ADMIN", "SERVICE_GRAFANA"))
+                    },
+                )
+                header("X-Forwarded-Host", "vault.jorisjonkers.dev")
+            }.andExpect {
+                status { isOk() }
+            }
+
+        mockMvc
+            .get("/api/v1/auth/verify") {
+                with(
+                    jwt().jwt { jwt ->
+                        jwt.subject("admin-multi")
+                        jwt.claim("roles", listOf("ROLE_ADMIN", "SERVICE_GRAFANA"))
+                    },
+                )
+                header("X-Forwarded-Host", "grafana.jorisjonkers.dev")
+            }.andExpect {
+                status { isOk() }
+            }
+    }
+
+    @Test
+    fun `forward-auth preserves forwarded headers in redirect`() {
+        mockMvc
+            .get("/api/v1/auth/verify") {
+                header("X-Forwarded-Proto", "https")
+                header("X-Forwarded-Host", "n8n.jorisjonkers.dev")
+                header("X-Forwarded-Uri", "/workflows/123")
+            }.andExpect {
+                status { is3xxRedirection() }
+                header {
+                    string(
+                        "Location",
+                        "http://localhost:5174/login?redirect=https%3A%2F%2Fn8n.jorisjonkers.dev%2Fworkflows%2F123",
+                    )
+                }
+            }
+    }
+
+    @Test
     fun `X-User-Roles header includes all roles from JWT`() {
         mockMvc
             .get("/api/v1/auth/verify") {

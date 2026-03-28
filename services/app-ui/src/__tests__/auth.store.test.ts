@@ -88,4 +88,92 @@ describe('auth store', () => {
     expect(store.user?.username).toBe('bob')
     expect(localStorage.getItem('refresh_token')).toBe('new-rt')
   })
+
+  it('servicePermissions filters only SERVICE_ prefixed roles', () => {
+    const token = makeJwt({
+      sub: 'u1',
+      username: 'alice',
+      roles: ['ROLE_USER', 'ROLE_ADMIN', 'SERVICE_GRAFANA', 'SERVICE_VAULT'],
+    })
+    localStorage.setItem('access_token', token)
+    localStorage.setItem('refresh_token', 'rt')
+
+    const store = useAuthStore()
+    expect(store.servicePermissions).toEqual(['GRAFANA', 'VAULT'])
+    expect(store.servicePermissions).not.toContain('USER')
+    expect(store.servicePermissions).not.toContain('ADMIN')
+  })
+
+  it('isAdmin is false when no ROLE_ADMIN in roles', () => {
+    const token = makeJwt({ sub: 'u1', username: 'alice', roles: ['ROLE_USER', 'SERVICE_GRAFANA'] })
+    localStorage.setItem('access_token', token)
+    localStorage.setItem('refresh_token', 'rt')
+
+    const store = useAuthStore()
+    expect(store.isAdmin).toBe(false)
+  })
+
+  it('refresh updates tokens on success', async () => {
+    const oldToken = makeJwt({ sub: 'u1', username: 'alice', roles: ['ROLE_USER'] })
+    localStorage.setItem('access_token', oldToken)
+    localStorage.setItem('refresh_token', 'old-rt')
+
+    const newToken = makeJwt({ sub: 'u1', username: 'alice', roles: ['ROLE_USER', 'SERVICE_GRAFANA'] })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            access_token: newToken,
+            refresh_token: 'new-rt',
+            expires_in: 900,
+            token_type: 'Bearer',
+          }),
+      }),
+    )
+
+    const store = useAuthStore()
+    await store.refresh()
+
+    expect(store.isAuthenticated).toBe(true)
+    expect(localStorage.getItem('refresh_token')).toBe('new-rt')
+    expect(store.servicePermissions).toContain('GRAFANA')
+  })
+
+  it('refresh clears tokens on failure', async () => {
+    const token = makeJwt({ sub: 'u1', username: 'alice', roles: ['ROLE_USER'] })
+    localStorage.setItem('access_token', token)
+    localStorage.setItem('refresh_token', 'old-rt')
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401 }))
+
+    const store = useAuthStore()
+    await expect(store.refresh()).rejects.toThrow('Token refresh failed')
+  })
+
+  it('handleCallback clears PKCE params from sessionStorage', async () => {
+    const accessToken = makeJwt({ sub: 'u1', username: 'bob', roles: ['ROLE_USER'] })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            access_token: accessToken,
+            refresh_token: 'rt',
+            expires_in: 900,
+            token_type: 'Bearer',
+          }),
+      }),
+    )
+    sessionStorage.setItem('pkce_verifier', 'verifier')
+    sessionStorage.setItem('pkce_state', 'state-abc')
+
+    const store = useAuthStore()
+    await store.handleCallback('auth-code', 'state-abc')
+
+    expect(sessionStorage.getItem('pkce_verifier')).toBeNull()
+    expect(sessionStorage.getItem('pkce_state')).toBeNull()
+  })
 })

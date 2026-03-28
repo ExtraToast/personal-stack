@@ -66,4 +66,35 @@ describe('useAuth', () => {
     const { getAccessToken } = useAuth()
     expect(getAccessToken()).toBeNull()
   })
+
+  it('setTokens persists to localStorage with correct keys', async () => {
+    const { useAuth } = await import('../composables/useAuth')
+    const { setTokens } = useAuth()
+
+    const tokens = {
+      accessToken: makeTestToken({ sub: 'user-456', username: 'bob', roles: ['ROLE_USER'] }),
+      refreshToken: makeTestToken({ sub: 'user-456', type: 'refresh' }),
+      expiresIn: 900,
+    }
+
+    setTokens(tokens)
+
+    expect(localStorage.getItem('ps_access_token')).toBe(tokens.accessToken)
+    expect(localStorage.getItem('ps_refresh_token')).toBe(tokens.refreshToken)
+  })
+
+  it('getAccessToken returns null when token is expired', async () => {
+    const { useAuth } = await import('../composables/useAuth')
+    const { setTokens, getAccessToken } = useAuth()
+
+    const expiredToken = makeTestToken({ sub: 'user-789', username: 'charlie' }, -3600)
+
+    setTokens({
+      accessToken: expiredToken,
+      refreshToken: makeTestToken({ sub: 'user-789' }),
+      expiresIn: 900,
+    })
+
+    expect(getAccessToken()).toBeNull()
+  })
 })

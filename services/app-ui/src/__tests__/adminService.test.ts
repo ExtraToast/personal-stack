@@ -62,3 +62,63 @@ describe('deleteUser', () => {
     await expect(deleteUser(TOKEN, '1')).rejects.toThrow('Request failed: 404')
   })
 })
+
+describe('request details', () => {
+  it('fetchUsers sends GET request with auth header', async () => {
+    mockFetch([])
+    await fetchUsers(TOKEN)
+
+    const fetchCall = vi.mocked(fetch).mock.calls[0]
+    expect(fetchCall[0]).toContain('/users')
+    expect(fetchCall[1]?.headers?.get('Authorization')).toBe(`Bearer ${TOKEN}`)
+  })
+
+  it('updateUserRole sends PATCH with correct body', async () => {
+    mockFetch({ id: '1', username: 'alice', role: 'ADMIN', servicePermissions: [] })
+    await updateUserRole(TOKEN, '1', 'ADMIN')
+
+    const fetchCall = vi.mocked(fetch).mock.calls[0]
+    expect(fetchCall[1]?.method).toBe('PATCH')
+    expect(JSON.parse(fetchCall[1]?.body)).toEqual({ role: 'ADMIN' })
+  })
+
+  it('updateUserServices sends PUT with services array', async () => {
+    mockFetch({ id: '1', username: 'alice', role: 'USER', servicePermissions: ['GRAFANA', 'VAULT'] })
+    await updateUserServices(TOKEN, '1', ['GRAFANA', 'VAULT'])
+
+    const fetchCall = vi.mocked(fetch).mock.calls[0]
+    expect(fetchCall[1]?.method).toBe('PUT')
+    expect(JSON.parse(fetchCall[1]?.body)).toEqual({ services: ['GRAFANA', 'VAULT'] })
+  })
+
+  it('deleteUser sends DELETE request', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(null) }))
+    await deleteUser(TOKEN, '42')
+
+    const fetchCall = vi.mocked(fetch).mock.calls[0]
+    expect(fetchCall[1]?.method).toBe('DELETE')
+    expect(fetchCall[0]).toContain('/users/42')
+  })
+
+  it('all requests include Authorization Bearer header', async () => {
+    mockFetch([])
+    await fetchUsers(TOKEN)
+    const call1 = vi.mocked(fetch).mock.calls[0]
+    expect(call1[1]?.headers?.get('Authorization')).toBe(`Bearer ${TOKEN}`)
+
+    mockFetch({ id: '1', username: 'alice', role: 'USER', servicePermissions: [] })
+    await updateUserRole(TOKEN, '1', 'USER')
+    const call2 = vi.mocked(fetch).mock.calls[0]
+    expect(call2[1]?.headers?.get('Authorization')).toBe(`Bearer ${TOKEN}`)
+
+    mockFetch({ id: '1', username: 'alice', role: 'USER', servicePermissions: [] })
+    await updateUserServices(TOKEN, '1', [])
+    const call3 = vi.mocked(fetch).mock.calls[0]
+    expect(call3[1]?.headers?.get('Authorization')).toBe(`Bearer ${TOKEN}`)
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(null) }))
+    await deleteUser(TOKEN, '1')
+    const call4 = vi.mocked(fetch).mock.calls[0]
+    expect(call4[1]?.headers?.get('Authorization')).toBe(`Bearer ${TOKEN}`)
+  })
+})
