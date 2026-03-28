@@ -86,11 +86,11 @@ run_job "arch-frontend"      bash -c 'pnpm install --frozen-lockfile && pnpm -r 
 
 # Build Docker images in parallel while tests run (needed for stage 4)
 log "  Building Docker images in parallel..."
-run_job "build-auth-api"      docker build -f services/auth-api/Dockerfile      -t personal-stack/auth-api:ci      .
-run_job "build-assistant-api" docker build -f services/assistant-api/Dockerfile -t personal-stack/assistant-api:ci .
-run_job "build-auth-ui"       docker build -f services/auth-ui/Dockerfile       -t personal-stack/auth-ui:ci       .
-run_job "build-assistant-ui"  docker build -f services/assistant-ui/Dockerfile  -t personal-stack/assistant-ui:ci  .
-run_job "build-app-ui"        docker build -f services/app-ui/Dockerfile        -t personal-stack/app-ui:ci        .
+run_job "build-auth-api"      docker build -f services/auth-api/Dockerfile      -t personal-stack/auth-api:latest      .
+run_job "build-assistant-api" docker build -f services/assistant-api/Dockerfile -t personal-stack/assistant-api:latest .
+run_job "build-auth-ui"       docker build -f services/auth-ui/Dockerfile       -t personal-stack/auth-ui:latest       .
+run_job "build-assistant-ui"  docker build -f services/assistant-ui/Dockerfile  -t personal-stack/assistant-ui:latest  .
+run_job "build-app-ui"        docker build -f services/app-ui/Dockerfile        -t personal-stack/app-ui:latest        .
 
 wait_jobs "unit+arch+build" \
   unit-auth-api unit-assistant-api unit-kotlin-common unit-frontend \
