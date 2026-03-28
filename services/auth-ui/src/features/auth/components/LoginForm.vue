@@ -60,7 +60,7 @@ function redirectAfterLogin(destination: 'totp-setup' | 'app' = 'totp-setup'): v
   if (redirect) {
     window.location.href = redirect
   } else if (destination === 'app') {
-    window.location.href = window.location.origin.replace('auth.', 'app.')
+    window.location.href = window.location.origin.replace('auth.', '')
   } else {
     router.push({ name: 'totp-setup' })
   }

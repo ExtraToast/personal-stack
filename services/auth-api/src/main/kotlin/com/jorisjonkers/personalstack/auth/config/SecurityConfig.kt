@@ -126,8 +126,9 @@ class SecurityConfig(
             CorsConfiguration().apply {
                 allowedOrigins =
                     listOf(
+                        "https://jorisjonkers.dev",
                         "https://auth.jorisjonkers.dev",
-                        "https://app.jorisjonkers.dev",
+                        "https://assistant.jorisjonkers.dev",
                         "http://localhost:5174",
                         "http://localhost:5175",
                     )
