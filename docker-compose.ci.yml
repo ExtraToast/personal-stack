@@ -69,7 +69,7 @@ services:
 
   traefik:
     volumes:
-      - ./infra/traefik/traefik-ci.yml:/etc/traefik/traefik.yml:ro
+      - ./infra/traefik/traefik-dev.yml:/etc/traefik/traefik.yml:ro
       - ./infra/traefik/dynamic:/etc/traefik/dynamic:ro
     healthcheck:
       test: ['CMD', 'traefik', 'healthcheck', '--ping']
