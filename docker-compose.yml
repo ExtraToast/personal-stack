@@ -192,7 +192,7 @@ services:
       start_period: 30s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.auth-api.rule=Host(`auth.localhost`) && PathPrefix(`/api`)'
+      - 'traefik.http.routers.auth-api.rule=Host(`auth.localhost`) && PathPrefix(`/api/`)'
       - 'traefik.http.services.auth-api.loadbalancer.server.port=8081'
 
   assistant-api:
@@ -230,7 +230,7 @@ services:
       start_period: 30s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.assistant-api.rule=Host(`app.localhost`) && PathPrefix(`/api`)'
+      - 'traefik.http.routers.assistant-api.rule=Host(`app.localhost`) && PathPrefix(`/api/`)'
       - 'traefik.http.services.assistant-api.loadbalancer.server.port=8082'
 
   # ── Frontend Services ───────────────────────────────────────────
