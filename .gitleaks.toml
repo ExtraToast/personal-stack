@@ -1,0 +1,7 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Localhost URLs in CI route health checks"
+regexTarget = "match"
+regexes = ['''localhost:\d+/api/actuator/health''']
