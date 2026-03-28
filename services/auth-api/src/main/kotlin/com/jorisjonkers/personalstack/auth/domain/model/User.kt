@@ -11,4 +11,5 @@ data class User(
     val totpEnabled: Boolean,
     val createdAt: Instant,
     val updatedAt: Instant,
+    val servicePermissions: Set<ServicePermission> = emptySet(),
 )

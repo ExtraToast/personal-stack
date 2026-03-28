@@ -1,4 +1,5 @@
 import { mount } from '@vue/test-utils'
+import { createPinia } from 'pinia'
 import { describe, expect, it } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import App from '../App.vue'
@@ -14,7 +15,7 @@ describe('app', () => {
   it('renders without crashing', () => {
     const wrapper = mount(App, {
       global: {
-        plugins: [i18n],
+        plugins: [createPinia(), i18n],
         stubs: ['RouterView'],
       },
     })

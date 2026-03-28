@@ -13,10 +13,12 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.core.AuthenticationException
+import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.oauth2.jwt.JwtDecoder
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter
 import org.springframework.security.web.AuthenticationEntryPoint
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.web.cors.CorsConfiguration
@@ -47,6 +49,19 @@ class SecurityConfig(
     }
 
     /**
+     * Converts the `roles` JWT claim to Spring [SimpleGrantedAuthority] objects so that
+     * [org.springframework.security.access.prepost.PreAuthorize] role checks work correctly.
+     */
+    @Bean
+    fun jwtAuthenticationConverter(): JwtAuthenticationConverter =
+        JwtAuthenticationConverter().apply {
+            setJwtGrantedAuthoritiesConverter { jwt ->
+                (jwt.getClaimAsStringList("roles") ?: emptyList())
+                    .map { SimpleGrantedAuthority(it) }
+            }
+        }
+
+    /**
      * Forward-auth filter chain (order 2).
      * The /api/v1/auth/verify endpoint redirects to the login page when unauthenticated,
      * so Traefik's forwardAuth middleware delivers a 302 to the browser instead of a raw 401.
@@ -56,6 +71,7 @@ class SecurityConfig(
     fun forwardAuthSecurityFilterChain(
         http: HttpSecurity,
         jwtDecoder: JwtDecoder,
+        jwtAuthenticationConverter: JwtAuthenticationConverter,
     ): SecurityFilterChain {
         http
             .securityMatcher("/api/v1/auth/verify")
@@ -64,7 +80,10 @@ class SecurityConfig(
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests { it.anyRequest().authenticated() }
             .oauth2ResourceServer { rs ->
-                rs.jwt { jwt -> jwt.decoder(jwtDecoder) }
+                rs.jwt { jwt ->
+                    jwt.decoder(jwtDecoder)
+                    jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)
+                }
                 rs.authenticationEntryPoint(forwardAuthEntryPoint())
             }
         return http.build()
@@ -80,6 +99,7 @@ class SecurityConfig(
     fun resourceServerSecurityFilterChain(
         http: HttpSecurity,
         jwtDecoder: JwtDecoder,
+        jwtAuthenticationConverter: JwtAuthenticationConverter,
     ): SecurityFilterChain {
         http
             .cors { it.configurationSource(corsConfigurationSource()) }
@@ -100,7 +120,10 @@ class SecurityConfig(
                     .anyRequest()
                     .authenticated()
             }.oauth2ResourceServer { rs ->
-                rs.jwt { jwt -> jwt.decoder(jwtDecoder) }
+                rs.jwt { jwt ->
+                    jwt.decoder(jwtDecoder)
+                    jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)
+                }
             }
         return http.build()
     }
@@ -142,10 +165,11 @@ class SecurityConfig(
                         "https://jorisjonkers.dev",
                         "https://auth.jorisjonkers.dev",
                         "https://assistant.jorisjonkers.dev",
+                        "http://localhost:5173",
                         "http://localhost:5174",
                         "http://localhost:5175",
                     )
-                allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 allowedHeaders = listOf("*")
                 allowCredentials = true
             }

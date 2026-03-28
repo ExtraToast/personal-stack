@@ -1,0 +1,49 @@
+package com.jorisjonkers.personalstack.auth.domain.model
+
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
+
+class ServicePermissionTest {
+    @ParameterizedTest(name = "fromHost({0}) = {1}")
+    @CsvSource(
+        "vault.jorisjonkers.dev, VAULT",
+        "vault.localhost, VAULT",
+        "mail.jorisjonkers.dev, MAIL",
+        "stalwart.localhost, MAIL",
+        "n8n.jorisjonkers.dev, N8N",
+        "grafana.jorisjonkers.dev, GRAFANA",
+        "assistant.jorisjonkers.dev, ASSISTANT",
+        "traefik.jorisjonkers.dev, TRAEFIK_DASHBOARD",
+        "status.jorisjonkers.dev, STATUS",
+    )
+    fun `fromHost resolves production and local dev hostnames`(
+        host: String,
+        expectedName: String,
+    ) {
+        val result = ServicePermission.fromHost(host)
+        assertThat(result).isNotNull
+        assertThat(result!!.name).isEqualTo(expectedName)
+    }
+
+    @Test
+    fun `fromHost returns null for unknown host`() {
+        assertThat(ServicePermission.fromHost("unknown.jorisjonkers.dev")).isNull()
+    }
+
+    @Test
+    fun `fromHost returns null for null input`() {
+        assertThat(ServicePermission.fromHost(null)).isNull()
+    }
+
+    @Test
+    fun `fromHost returns null for blank input`() {
+        assertThat(ServicePermission.fromHost("")).isNull()
+    }
+
+    @Test
+    fun `fromHost is case-insensitive`() {
+        assertThat(ServicePermission.fromHost("VAULT.jorisjonkers.dev")).isEqualTo(ServicePermission.VAULT)
+    }
+}

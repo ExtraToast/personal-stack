@@ -1,5 +1,8 @@
 package com.jorisjonkers.personalstack.auth.config
 
+import com.jorisjonkers.personalstack.auth.domain.model.Role
+import com.jorisjonkers.personalstack.auth.domain.model.ServicePermission
+import com.jorisjonkers.personalstack.auth.domain.port.UserRepository
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.annotation.Order
@@ -7,15 +10,19 @@ import org.springframework.http.MediaType
 import org.springframework.security.config.Customizer
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configurers.oauth2.server.authorization.OAuth2AuthorizationServerConfigurer
+import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.core.AuthorizationGrantType
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod
 import org.springframework.security.oauth2.core.oidc.OidcScopes
+import org.springframework.security.oauth2.server.authorization.OAuth2TokenType
 import org.springframework.security.oauth2.server.authorization.client.InMemoryRegisteredClientRepository
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings
 import org.springframework.security.oauth2.server.authorization.settings.TokenSettings
+import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext
+import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher
@@ -46,7 +53,28 @@ class AuthorizationServerConfig {
 
     @Bean
     fun registeredClientRepository(): RegisteredClientRepository =
-        InMemoryRegisteredClientRepository(buildAuthUiClient(), buildAssistantApiClient())
+        InMemoryRegisteredClientRepository(buildAuthUiClient(), buildAppUiClient(), buildAssistantApiClient())
+
+    @Bean
+    fun jwtTokenCustomizer(userRepository: UserRepository): OAuth2TokenCustomizer<JwtEncodingContext> =
+        OAuth2TokenCustomizer { context ->
+            if (context.tokenType != OAuth2TokenType.ACCESS_TOKEN) return@OAuth2TokenCustomizer
+            val principal = context.getPrincipal<Authentication>()
+            val credentials =
+                userRepository.findCredentialsByUsername(principal.name) ?: return@OAuth2TokenCustomizer
+            val roles =
+                buildList {
+                    add("ROLE_${credentials.role.name}")
+                    if (credentials.role == Role.ADMIN) {
+                        addAll(ServicePermission.entries.map { "SERVICE_${it.name}" })
+                    } else {
+                        addAll(credentials.servicePermissions.map { "SERVICE_${it.name}" })
+                    }
+                }
+            context.claims.claim("roles", roles)
+            context.claims.claim("username", credentials.username)
+            context.claims.subject(credentials.userId.value.toString())
+        }
 
     @Bean
     fun authorizationServerSettings(): AuthorizationServerSettings =
@@ -65,6 +93,35 @@ class AuthorizationServerConfig {
             .redirectUri("https://auth.jorisjonkers.dev/callback")
             .redirectUri("http://localhost:5174/callback")
             .postLogoutRedirectUri("https://auth.jorisjonkers.dev/logged-out")
+            .scope(OidcScopes.OPENID)
+            .scope(OidcScopes.PROFILE)
+            .scope(OidcScopes.EMAIL)
+            .clientSettings(
+                ClientSettings
+                    .builder()
+                    .requireProofKey(true)
+                    .requireAuthorizationConsent(false)
+                    .build(),
+            ).tokenSettings(
+                TokenSettings
+                    .builder()
+                    .accessTokenTimeToLive(ACCESS_TOKEN_TTL)
+                    .refreshTokenTimeToLive(REFRESH_TOKEN_TTL)
+                    .reuseRefreshTokens(false)
+                    .build(),
+            ).build()
+
+    private fun buildAppUiClient(): RegisteredClient =
+        RegisteredClient
+            .withId(UUID.randomUUID().toString())
+            .clientId("app-ui")
+            .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
+            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+            .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+            .redirectUri("https://jorisjonkers.dev/callback")
+            .redirectUri("http://localhost:5175/callback")
+            .postLogoutRedirectUri("https://jorisjonkers.dev")
+            .postLogoutRedirectUri("http://localhost:5175")
             .scope(OidcScopes.OPENID)
             .scope(OidcScopes.PROFILE)
             .scope(OidcScopes.EMAIL)

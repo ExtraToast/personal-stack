@@ -1,0 +1,20 @@
+package com.jorisjonkers.personalstack.auth.application.command
+
+import com.jorisjonkers.personalstack.auth.domain.model.User
+import com.jorisjonkers.personalstack.auth.domain.port.UserRepository
+import com.jorisjonkers.personalstack.common.command.CommandHandlerWithResult
+import com.jorisjonkers.personalstack.common.exception.NotFoundException
+import org.springframework.stereotype.Service
+
+@Service
+class UpdateUserServicePermissionsCommandHandler(
+    private val userRepository: UserRepository,
+) : CommandHandlerWithResult<UpdateUserServicePermissionsCommand, User> {
+    override fun handle(command: UpdateUserServicePermissionsCommand): User {
+        val user =
+            userRepository.findById(command.userId)
+                ?: throw NotFoundException("User", command.userId.value.toString())
+        userRepository.saveServicePermissions(command.userId, command.permissions)
+        return user.copy(servicePermissions = command.permissions)
+    }
+}

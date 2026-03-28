@@ -1,9 +1,12 @@
 package com.jorisjonkers.personalstack.auth.infrastructure.web
 
+import com.jorisjonkers.personalstack.auth.domain.model.ServicePermission
+import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
@@ -11,6 +14,10 @@ import org.springframework.web.bind.annotation.RestController
  * Forward-auth endpoint consumed by Traefik's forwardAuth middleware.
  * Validates the JWT and propagates user identity via response headers so
  * downstream services can trust the caller without re-verifying the token.
+ *
+ * When [xForwardedHost] is present, the host is resolved to a [ServicePermission].
+ * If a permission is required and the user's roles do not contain either ROLE_ADMIN
+ * or the corresponding SERVICE_* claim, a 403 is returned.
  */
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -18,14 +25,27 @@ class AuthVerificationController {
     @GetMapping("/verify")
     fun verify(
         @AuthenticationPrincipal jwt: Jwt,
+        @RequestHeader(value = "X-Forwarded-Host", required = false) xForwardedHost: String?,
     ): ResponseEntity<Void> {
+        val roles = jwt.getClaimAsStringList("roles") ?: emptyList()
+
+        val requiredPermission = ServicePermission.fromHost(xForwardedHost)
+        if (requiredPermission != null && !isAuthorizedForService(roles, requiredPermission)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        }
+
         val userId = jwt.subject
-        val roles = jwt.getClaimAsStringList("roles")?.joinToString(",") ?: ""
+        val rolesHeader = roles.joinToString(",")
 
         return ResponseEntity
             .ok()
             .header("X-User-Id", userId)
-            .header("X-User-Roles", roles)
+            .header("X-User-Roles", rolesHeader)
             .build()
     }
+
+    private fun isAuthorizedForService(
+        roles: List<String>,
+        permission: ServicePermission,
+    ): Boolean = roles.contains("ROLE_ADMIN") || roles.contains("SERVICE_${permission.name}")
 }

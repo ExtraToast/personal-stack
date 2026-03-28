@@ -103,7 +103,7 @@ class LoginController(
         val credentials = resolveRefreshCredentials(request.refreshToken)
 
         val userId = credentials.userId.value.toString()
-        val roles = listOf("ROLE_${credentials.role.name}")
+        val roles = buildRoles(credentials)
         val response =
             TokenResponse(
                 accessToken = tokenService.createAccessToken(credentials.username, userId, roles),
@@ -115,7 +115,7 @@ class LoginController(
 
     private fun issueFullTokens(credentials: UserCredentials): LoginResponse {
         val userId = credentials.userId.value.toString()
-        val roles = listOf("ROLE_${credentials.role.name}")
+        val roles = buildRoles(credentials)
         return LoginResponse(
             totpRequired = false,
             accessToken = tokenService.createAccessToken(credentials.username, userId, roles),
@@ -123,6 +123,10 @@ class LoginController(
             expiresIn = 900,
         )
     }
+
+    private fun buildRoles(credentials: UserCredentials): List<String> =
+        listOf("ROLE_${credentials.role.name}") +
+            credentials.servicePermissions.map { "SERVICE_${it.name}" }
 
     private fun resolveRefreshCredentials(refreshToken: String): UserCredentials {
         val jwt = decodeRefreshToken(refreshToken)

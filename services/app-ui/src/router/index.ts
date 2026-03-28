@@ -7,6 +7,21 @@ const routes: RouteRecordRaw[] = [
     name: 'home',
     component: () => import('@/features/home/views/HomeView.vue'),
   },
+  {
+    path: '/callback',
+    name: 'auth-callback',
+    component: () => import('@/features/auth/views/CallbackView.vue'),
+  },
+  {
+    path: '/apps',
+    name: 'apps',
+    component: () => import('@/features/apps/views/AppsView.vue'),
+  },
+  {
+    path: '/admin',
+    name: 'admin',
+    component: () => import('@/features/admin/views/AdminView.vue'),
+  },
 ]
 
 export const router = createRouter({
