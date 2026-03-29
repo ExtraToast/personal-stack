@@ -84,16 +84,19 @@ abstract class PlaywrightTestBase {
         totpCode: String? = null,
     ) {
         val session = TestHelper.sessionLogin(user, totpCode)
-        context.addCookies(
-            listOf(
-                Cookie("SESSION", session.sessionCookie)
-                    .setDomain("localhost")
-                    .setPath("/"),
-                Cookie("XSRF-TOKEN", session.csrfToken)
-                    .setDomain("localhost")
-                    .setPath("/"),
-            ),
-        )
+        val domains = listOf("localhost", "auth.localhost", "assistant.localhost")
+        val cookies =
+            domains.flatMap { domain ->
+                listOf(
+                    Cookie("SESSION", session.sessionCookie)
+                        .setDomain(domain)
+                        .setPath("/"),
+                    Cookie("XSRF-TOKEN", session.csrfToken)
+                        .setDomain(domain)
+                        .setPath("/"),
+                )
+            }
+        context.addCookies(cookies)
     }
 
     protected fun loginAsAdmin(): TestHelper.RegisteredUser {

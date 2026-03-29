@@ -98,7 +98,10 @@ class AuthTotpFlowTest : PlaywrightTestBase() {
     fun `totp setup page requires authentication`() {
         page.navigate("$AUTH_UI_URL/totp-setup")
 
-        page.waitForURL("**/login**", Page.WaitForURLOptions().setTimeout(10000.0))
+        page.waitForURL(
+            { it.contains("/login") },
+            Page.WaitForURLOptions().setTimeout(10000.0),
+        )
     }
 
     private fun enrollTotpViaApi(user: com.jorisjonkers.personalstack.systemtests.TestHelper.RegisteredUser): String {

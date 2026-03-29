@@ -264,6 +264,8 @@ services:
     build:
       context: .
       dockerfile: services/assistant-ui/Dockerfile
+      args:
+        VITE_AUTH_URL: http://auth.localhost
     container_name: personal-stack-assistant-ui
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO /dev/null http://127.0.0.1/ || exit 1']
@@ -283,6 +285,8 @@ services:
     build:
       context: .
       dockerfile: services/app-ui/Dockerfile
+      args:
+        VITE_AUTH_URL: http://auth.localhost
     container_name: personal-stack-app-ui
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO /dev/null http://127.0.0.1/ || exit 1']

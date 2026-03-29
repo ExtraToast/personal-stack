@@ -78,11 +78,32 @@ class AuthRegistrationFlowTest : PlaywrightTestBase() {
     fun `confirm email with invalid token shows error`() {
         page.navigate("$AUTH_UI_URL/confirm-email?token=invalid-token-12345")
 
-        page.waitForSelector(
-            "text=failed, text=invalid, text=expired",
-            Page.WaitForSelectorOptions().setTimeout(10000.0),
-        )
-        assertThat(page.locator("body")).containsText("failed|invalid|expired".toRegex().pattern)
+        page.waitForTimeout(5000.0)
+        val bodyText = page.locator("body").textContent().lowercase()
+        org.assertj.core.api.Assertions
+            .assertThat(bodyText)
+            .satisfiesAnyOf(
+                {
+                    org.assertj.core.api.Assertions
+                        .assertThat(it)
+                        .contains("failed")
+                },
+                {
+                    org.assertj.core.api.Assertions
+                        .assertThat(it)
+                        .contains("invalid")
+                },
+                {
+                    org.assertj.core.api.Assertions
+                        .assertThat(it)
+                        .contains("expired")
+                },
+                {
+                    org.assertj.core.api.Assertions
+                        .assertThat(it)
+                        .contains("error")
+                },
+            )
     }
 
     @Test

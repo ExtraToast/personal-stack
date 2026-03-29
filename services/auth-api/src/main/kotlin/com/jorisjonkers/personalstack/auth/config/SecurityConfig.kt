@@ -143,9 +143,12 @@ class SecurityConfig(
                         "https://jorisjonkers.dev",
                         "https://auth.jorisjonkers.dev",
                         "https://assistant.jorisjonkers.dev",
+                        "http://localhost",
                         "http://localhost:5173",
                         "http://localhost:5174",
                         "http://localhost:5175",
+                        "http://auth.localhost",
+                        "http://assistant.localhost",
                     )
                 allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 allowedHeaders = listOf("*")
