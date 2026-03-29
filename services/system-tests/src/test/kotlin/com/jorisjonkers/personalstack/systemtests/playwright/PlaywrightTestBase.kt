@@ -6,7 +6,6 @@ import com.microsoft.playwright.BrowserContext
 import com.microsoft.playwright.BrowserType
 import com.microsoft.playwright.Page
 import com.microsoft.playwright.Playwright
-import com.microsoft.playwright.options.Cookie
 import dev.turingcomplete.kotlinonetimepassword.HmacAlgorithm
 import dev.turingcomplete.kotlinonetimepassword.TimeBasedOneTimePasswordConfig
 import dev.turingcomplete.kotlinonetimepassword.TimeBasedOneTimePasswordGenerator
@@ -83,20 +82,25 @@ abstract class PlaywrightTestBase {
         user: TestHelper.RegisteredUser,
         totpCode: String? = null,
     ) {
-        val session = TestHelper.sessionLogin(user, totpCode)
-        val domains = listOf("localhost", "auth.localhost", "assistant.localhost")
-        val cookies =
-            domains.flatMap { domain ->
-                listOf(
-                    Cookie("SESSION", session.sessionCookie)
-                        .setDomain(domain)
-                        .setPath("/"),
-                    Cookie("XSRF-TOKEN", session.csrfToken)
-                        .setDomain(domain)
-                        .setPath("/"),
-                )
+        // Use Playwright's API request context to POST session-login through
+        // Traefik, so the browser gets real Set-Cookie headers from auth.localhost.
+        val body =
+            if (totpCode != null) {
+                """{"username":"${user.username}","password":"${user.password}","totpCode":"$totpCode"}"""
+            } else {
+                """{"username":"${user.username}","password":"${user.password}"}"""
             }
-        context.addCookies(cookies)
+        val response =
+            context.request().post(
+                "$AUTH_UI_URL/api/v1/auth/session-login",
+                com.microsoft.playwright.options.RequestOptions
+                    .create()
+                    .setHeader("Content-Type", "application/json")
+                    .setData(body),
+            )
+        require(response.status() == 200) {
+            "Session login failed with ${response.status()}: ${response.text()}"
+        }
     }
 
     protected fun loginAsAdmin(): TestHelper.RegisteredUser {

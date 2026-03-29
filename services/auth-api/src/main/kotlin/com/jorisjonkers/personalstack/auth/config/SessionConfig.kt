@@ -8,10 +8,12 @@ import org.springframework.session.web.http.CookieSerializer
 import org.springframework.session.web.http.DefaultCookieSerializer
 
 @Configuration
-@EnableRedisHttpSession
+@EnableRedisHttpSession(redisNamespace = "auth-api")
 class SessionConfig(
     @param:Value("\${session.cookie.domain:}")
     private val cookieDomain: String,
+    @param:Value("\${session.cookie.secure:false}")
+    private val secureCookie: Boolean,
 ) {
     @Bean
     fun cookieSerializer(): CookieSerializer =
@@ -22,7 +24,7 @@ class SessionConfig(
             setUseHttpOnlyCookie(true)
             if (cookieDomain.isNotBlank()) {
                 setDomainName(cookieDomain)
-                setUseSecureCookie(true)
             }
+            setUseSecureCookie(secureCookie)
         }
 }

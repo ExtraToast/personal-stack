@@ -33,6 +33,8 @@ import java.net.URLEncoder
 class SecurityConfig(
     @param:Value("\${auth.login-url:http://localhost:5174/login}")
     private val loginUrl: String,
+    @param:Value("\${auth.cors.allowed-origins:http://localhost:5173,http://localhost:5174,http://localhost:5175}")
+    private val corsAllowedOrigins: String,
 ) {
     @Bean
     @Order(0)
@@ -138,18 +140,7 @@ class SecurityConfig(
     fun corsConfigurationSource(): CorsConfigurationSource {
         val config =
             CorsConfiguration().apply {
-                allowedOrigins =
-                    listOf(
-                        "https://jorisjonkers.dev",
-                        "https://auth.jorisjonkers.dev",
-                        "https://assistant.jorisjonkers.dev",
-                        "http://localhost",
-                        "http://localhost:5173",
-                        "http://localhost:5174",
-                        "http://localhost:5175",
-                        "http://auth.localhost",
-                        "http://assistant.localhost",
-                    )
+                allowedOrigins = corsAllowedOrigins.split(",").map { it.trim() }
                 allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 allowedHeaders = listOf("*")
                 allowCredentials = true
