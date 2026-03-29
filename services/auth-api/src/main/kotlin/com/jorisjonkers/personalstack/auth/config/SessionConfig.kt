@@ -4,8 +4,10 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisHttpSession
+import org.springframework.session.web.http.CookieHttpSessionIdResolver
 import org.springframework.session.web.http.CookieSerializer
 import org.springframework.session.web.http.DefaultCookieSerializer
+import org.springframework.session.web.http.HttpSessionIdResolver
 
 @Configuration
 @EnableRedisHttpSession(redisNamespace = "auth-api")
@@ -26,5 +28,11 @@ class SessionConfig(
                 setDomainName(cookieDomain)
             }
             setUseSecureCookie(secureCookie)
+        }
+
+    @Bean
+    fun httpSessionIdResolver(): HttpSessionIdResolver =
+        CookieHttpSessionIdResolver().apply {
+            setCookieSerializer(cookieSerializer())
         }
 }

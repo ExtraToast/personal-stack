@@ -6,6 +6,8 @@ import com.microsoft.playwright.BrowserContext
 import com.microsoft.playwright.BrowserType
 import com.microsoft.playwright.Page
 import com.microsoft.playwright.Playwright
+import com.microsoft.playwright.options.Cookie
+import com.microsoft.playwright.options.SameSiteAttribute
 import dev.turingcomplete.kotlinonetimepassword.HmacAlgorithm
 import dev.turingcomplete.kotlinonetimepassword.TimeBasedOneTimePasswordConfig
 import dev.turingcomplete.kotlinonetimepassword.TimeBasedOneTimePasswordGenerator
@@ -39,7 +41,23 @@ abstract class PlaywrightTestBase {
         playwright = Playwright.create()
         browser =
             playwright.chromium().launch(
-                BrowserType.LaunchOptions().setHeadless(true),
+                BrowserType
+                    .LaunchOptions()
+                    .setHeadless(true)
+                    .setArgs(
+                        listOf(
+                            // .test TLD is reserved (RFC 6761) and Chromium blocks cookies for it.
+                            // This flag allows cookie storage for our dev domains.
+                            "--unsafely-treat-insecure-origin-as-secure=" +
+                                "http://jorisjonkers.test," +
+                                "http://auth.jorisjonkers.test," +
+                                "http://assistant.jorisjonkers.test," +
+                                "http://vault.jorisjonkers.test," +
+                                "http://grafana.jorisjonkers.test," +
+                                "http://n8n.jorisjonkers.test," +
+                                "http://stalwart.jorisjonkers.test",
+                        ),
+                    ),
             )
     }
 
@@ -82,25 +100,16 @@ abstract class PlaywrightTestBase {
         user: TestHelper.RegisteredUser,
         totpCode: String? = null,
     ) {
-        // Use Playwright's API request context to POST session-login through
-        // Traefik, so the browser gets real Set-Cookie headers from auth.jorisjonkers.test.
-        val body =
-            if (totpCode != null) {
-                """{"username":"${user.username}","password":"${user.password}","totpCode":"$totpCode"}"""
-            } else {
-                """{"username":"${user.username}","password":"${user.password}"}"""
-            }
-        val response =
-            context.request().post(
-                "$AUTH_UI_URL/api/v1/auth/session-login",
-                com.microsoft.playwright.options.RequestOptions
-                    .create()
-                    .setHeader("Content-Type", "application/json")
-                    .setData(body),
-            )
-        require(response.status() == 200) {
-            "Session login failed with ${response.status()}: ${response.text()}"
-        }
+        val session = TestHelper.sessionLogin(user, totpCode)
+        context.addCookies(
+            listOf(
+                Cookie("SESSION", session.sessionCookie)
+                    .setDomain("jorisjonkers.test")
+                    .setPath("/")
+                    .setHttpOnly(true)
+                    .setSameSite(SameSiteAttribute.NONE),
+            ),
+        )
     }
 
     protected fun loginAsAdmin(): TestHelper.RegisteredUser {
