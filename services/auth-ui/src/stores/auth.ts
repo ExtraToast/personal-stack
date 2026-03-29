@@ -28,7 +28,7 @@ export const useAuthStore = defineStore('auth', () => {
           id: response.user.id,
           username: response.user.username,
           email: '',
-          role: (response.user.role as 'ADMIN' | 'USER' | 'READONLY') ?? 'USER',
+          role: (['ADMIN', 'USER', 'READONLY'] as const).find((r) => r === response.user.role) ?? 'USER',
         })
       }
     } catch (e: unknown) {
