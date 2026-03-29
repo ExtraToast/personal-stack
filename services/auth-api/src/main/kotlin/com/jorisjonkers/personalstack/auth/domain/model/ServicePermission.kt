@@ -30,7 +30,7 @@ enum class ServicePermission(
 
         /**
          * Resolves a [ServicePermission] from a hostname such as "vault.jorisjonkers.dev",
-         * "mail.jorisjonkers.dev", or "stalwart.localhost". Returns null when the host is
+         * "mail.jorisjonkers.dev", or "stalwart.jorisjonkers.test". Returns null when the host is
          * blank or unrecognised.
          */
         fun fromHost(host: String?): ServicePermission? {

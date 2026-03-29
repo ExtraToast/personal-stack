@@ -131,11 +131,11 @@ check_route() {
     sleep 1
   done
 }
-check_route app-ui         "http://localhost:80/"
-check_route auth-ui        "http://auth.localhost:80/"
-check_route assistant-ui   "http://assistant.localhost:80/"
-check_route auth-api       "http://auth.localhost:80/api/actuator/health"
-check_route assistant-api  "http://assistant.localhost:80/api/actuator/health"
+check_route app-ui         "http://jorisjonkers.test:80/"
+check_route auth-ui        "http://auth.jorisjonkers.test:80/"
+check_route assistant-ui   "http://assistant.jorisjonkers.test:80/"
+check_route auth-api       "http://auth.jorisjonkers.test:80/api/actuator/health"
+check_route assistant-api  "http://assistant.jorisjonkers.test:80/api/actuator/health"
 
 log "  Running system tests..."
 ./gradlew :services:system-tests:test \

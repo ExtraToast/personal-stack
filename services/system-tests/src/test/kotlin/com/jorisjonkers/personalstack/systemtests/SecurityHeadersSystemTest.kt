@@ -18,9 +18,9 @@ class SecurityHeadersSystemTest {
         @JvmStatic
         fun uiEndpoints(): Stream<Arguments> =
             Stream.of(
-                Arguments.of("app-ui", "http://localhost:80", "/"),
-                Arguments.of("auth-ui", "http://auth.localhost:80", "/"),
-                Arguments.of("assistant-ui", "http://assistant.localhost:80", "/"),
+                Arguments.of("app-ui", "http://jorisjonkers.test:80", "/"),
+                Arguments.of("auth-ui", "http://auth.jorisjonkers.test:80", "/"),
+                Arguments.of("assistant-ui", "http://assistant.jorisjonkers.test:80", "/"),
             )
     }
 

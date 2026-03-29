@@ -18,15 +18,15 @@ class TraefikSystemTest {
     private val authBaseUrl = System.getProperty("test.auth-api.url", "http://localhost:8081")
 
     // UI services
-    private val appUiUrl = "http://localhost:80"
-    private val authUiUrl = "http://auth.localhost:80"
-    private val assistantUiUrl = "http://assistant.localhost:80"
+    private val appUiUrl = "http://jorisjonkers.test:80"
+    private val authUiUrl = "http://auth.jorisjonkers.test:80"
+    private val assistantUiUrl = "http://assistant.jorisjonkers.test:80"
 
     // Forward-auth protected services
-    private val vaultUrl = "http://vault.localhost:80"
-    private val n8nUrl = "http://n8n.localhost:80"
-    private val grafanaUrl = "http://grafana.localhost:80"
-    private val stalwartUrl = "http://stalwart.localhost:80"
+    private val vaultUrl = "http://vault.jorisjonkers.test:80"
+    private val n8nUrl = "http://n8n.jorisjonkers.test:80"
+    private val grafanaUrl = "http://grafana.jorisjonkers.test:80"
+    private val stalwartUrl = "http://stalwart.jorisjonkers.test:80"
 
     private fun obtainSession(): TestHelper.SessionUser = TestHelper.registerConfirmAndGetSession()
 
@@ -74,7 +74,7 @@ class TraefikSystemTest {
             .get("/")
             .then()
             .statusCode(302)
-            .header("Location", containsString("auth.localhost/login"))
+            .header("Location", containsString("auth.jorisjonkers.test/login"))
     }
 
     @Test
@@ -87,7 +87,7 @@ class TraefikSystemTest {
             .get("/")
             .then()
             .statusCode(302)
-            .header("Location", containsString("auth.localhost/login"))
+            .header("Location", containsString("auth.jorisjonkers.test/login"))
     }
 
     @Test
@@ -100,7 +100,7 @@ class TraefikSystemTest {
             .get("/")
             .then()
             .statusCode(302)
-            .header("Location", containsString("auth.localhost/login"))
+            .header("Location", containsString("auth.jorisjonkers.test/login"))
     }
 
     @Test
@@ -113,7 +113,7 @@ class TraefikSystemTest {
             .get("/")
             .then()
             .statusCode(302)
-            .header("Location", containsString("auth.localhost/login"))
+            .header("Location", containsString("auth.jorisjonkers.test/login"))
     }
 
     // ── Authenticated: forward-auth passes, downstream service responds ───────
@@ -129,7 +129,7 @@ class TraefikSystemTest {
             .`when`()
             .get("/")
             .then()
-            .header("Location", not(containsString("auth.localhost/login")))
+            .header("Location", not(containsString("auth.jorisjonkers.test/login")))
     }
 
     @Test
@@ -143,7 +143,7 @@ class TraefikSystemTest {
             .`when`()
             .get("/")
             .then()
-            .header("Location", not(containsString("auth.localhost/login")))
+            .header("Location", not(containsString("auth.jorisjonkers.test/login")))
     }
 
     @Test
@@ -157,7 +157,7 @@ class TraefikSystemTest {
             .`when`()
             .get("/")
             .then()
-            .header("Location", not(containsString("auth.localhost/login")))
+            .header("Location", not(containsString("auth.jorisjonkers.test/login")))
     }
 
     @Test
@@ -171,6 +171,6 @@ class TraefikSystemTest {
             .`when`()
             .get("/")
             .then()
-            .header("Location", not(containsString("auth.localhost/login")))
+            .header("Location", not(containsString("auth.jorisjonkers.test/login")))
     }
 }

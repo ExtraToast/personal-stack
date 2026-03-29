@@ -22,11 +22,11 @@ import java.util.concurrent.TimeUnit
 abstract class PlaywrightTestBase {
     companion object {
         val AUTH_UI_URL: String =
-            System.getProperty("test.auth-ui.url", "http://auth.localhost")
+            System.getProperty("test.auth-ui.url", "http://auth.jorisjonkers.test")
         val APP_UI_URL: String =
-            System.getProperty("test.app-ui.url", "http://localhost")
+            System.getProperty("test.app-ui.url", "http://jorisjonkers.test")
         val ASSISTANT_UI_URL: String =
-            System.getProperty("test.assistant-ui.url", "http://assistant.localhost")
+            System.getProperty("test.assistant-ui.url", "http://assistant.jorisjonkers.test")
     }
 
     private lateinit var playwright: Playwright
@@ -83,7 +83,7 @@ abstract class PlaywrightTestBase {
         totpCode: String? = null,
     ) {
         // Use Playwright's API request context to POST session-login through
-        // Traefik, so the browser gets real Set-Cookie headers from auth.localhost.
+        // Traefik, so the browser gets real Set-Cookie headers from auth.jorisjonkers.test.
         val body =
             if (totpCode != null) {
                 """{"username":"${user.username}","password":"${user.password}","totpCode":"$totpCode"}"""

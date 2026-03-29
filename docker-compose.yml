@@ -68,7 +68,7 @@ services:
       start_period: 10s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.vault.rule=Host(`vault.localhost`)'
+      - 'traefik.http.routers.vault.rule=Host(`vault.jorisjonkers.test`)'
       - 'traefik.http.routers.vault.middlewares=forward-auth@docker,security-headers@file'
       - 'traefik.http.services.vault.loadbalancer.server.port=8200'
       - 'traefik.http.middlewares.forward-auth.forwardauth.address=http://auth-api:8081/api/v1/auth/verify'
@@ -94,7 +94,7 @@ services:
       start_period: 10s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.traefik-dashboard.rule=Host(`traefik.localhost`)'
+      - 'traefik.http.routers.traefik-dashboard.rule=Host(`traefik.jorisjonkers.test`)'
       - 'traefik.http.routers.traefik-dashboard.entrypoints=web'
       - 'traefik.http.routers.traefik-dashboard.service=api@internal'
       - 'traefik.http.routers.traefik-dashboard.middlewares=forward-auth@docker,security-headers@file'
@@ -103,7 +103,7 @@ services:
     image: n8nio/n8n:2.13.4
     container_name: personal-stack-n8n
     environment:
-      N8N_HOST: n8n.localhost
+      N8N_HOST: n8n.jorisjonkers.test
       N8N_PROTOCOL: http
       N8N_PORT: '5678'
     volumes:
@@ -116,7 +116,7 @@ services:
       start_period: 30s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.n8n.rule=Host(`n8n.localhost`)'
+      - 'traefik.http.routers.n8n.rule=Host(`n8n.jorisjonkers.test`)'
       - 'traefik.http.routers.n8n.middlewares=forward-auth@docker,security-headers@file'
       - 'traefik.http.services.n8n.loadbalancer.server.port=5678'
 
@@ -133,7 +133,7 @@ services:
       start_period: 20s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.grafana.rule=Host(`grafana.localhost`)'
+      - 'traefik.http.routers.grafana.rule=Host(`grafana.jorisjonkers.test`)'
       - 'traefik.http.routers.grafana.middlewares=forward-auth@docker,security-headers@file'
       - 'traefik.http.services.grafana.loadbalancer.server.port=3000'
 
@@ -148,7 +148,7 @@ services:
       start_period: 30s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.stalwart.rule=Host(`stalwart.localhost`)'
+      - 'traefik.http.routers.stalwart.rule=Host(`stalwart.jorisjonkers.test`)'
       - 'traefik.http.services.stalwart.loadbalancer.server.port=8080'
       - 'traefik.http.routers.stalwart.middlewares=forward-auth@docker,security-headers@file'
 
@@ -174,9 +174,9 @@ services:
       MAIL_HOST: stalwart
       MAIL_PORT: 587
       MANAGEMENT_HEALTH_MAIL_ENABLED: 'false'
-      AUTH_LOGIN_URL: http://auth.localhost/login
-      SESSION_COOKIE_DOMAIN: localhost
-      AUTH_CORS_ALLOWED_ORIGINS: http://localhost,http://auth.localhost,http://assistant.localhost
+      AUTH_LOGIN_URL: http://auth.jorisjonkers.test/login
+      SESSION_COOKIE_DOMAIN: jorisjonkers.test
+      AUTH_CORS_ALLOWED_ORIGINS: http://jorisjonkers.test,http://auth.jorisjonkers.test,http://assistant.jorisjonkers.test
       OTEL_SERVICE_NAME: auth-api
       OTEL_LOGS_EXPORTER: none
       OTEL_TRACES_EXPORTER: none
@@ -196,7 +196,7 @@ services:
       start_period: 30s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.auth-api.rule=Host(`auth.localhost`) && PathPrefix(`/api/`)'
+      - 'traefik.http.routers.auth-api.rule=Host(`auth.jorisjonkers.test`) && PathPrefix(`/api/`)'
       - 'traefik.http.routers.auth-api.middlewares=security-headers@file'
       - 'traefik.http.services.auth-api.loadbalancer.server.port=8081'
 
@@ -236,7 +236,7 @@ services:
       start_period: 30s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.assistant-api.rule=Host(`assistant.localhost`) && PathPrefix(`/api/`)'
+      - 'traefik.http.routers.assistant-api.rule=Host(`assistant.jorisjonkers.test`) && PathPrefix(`/api/`)'
       - 'traefik.http.routers.assistant-api.middlewares=security-headers@file'
       - 'traefik.http.services.assistant-api.loadbalancer.server.port=8082'
 
@@ -256,7 +256,7 @@ services:
       start_period: 5s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.auth-ui.rule=Host(`auth.localhost`)'
+      - 'traefik.http.routers.auth-ui.rule=Host(`auth.jorisjonkers.test`)'
       - 'traefik.http.routers.auth-ui.priority=1'
       - 'traefik.http.routers.auth-ui.middlewares=security-headers@file'
       - 'traefik.http.services.auth-ui.loadbalancer.server.port=80'
@@ -267,7 +267,7 @@ services:
       context: .
       dockerfile: services/assistant-ui/Dockerfile
       args:
-        VITE_AUTH_URL: http://auth.localhost
+        VITE_AUTH_URL: http://auth.jorisjonkers.test
     container_name: personal-stack-assistant-ui
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO /dev/null http://127.0.0.1/ || exit 1']
@@ -277,7 +277,7 @@ services:
       start_period: 5s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.assistant-ui.rule=Host(`assistant.localhost`)'
+      - 'traefik.http.routers.assistant-ui.rule=Host(`assistant.jorisjonkers.test`)'
       - 'traefik.http.routers.assistant-ui.priority=1'
       - 'traefik.http.routers.assistant-ui.middlewares=security-headers@file'
       - 'traefik.http.services.assistant-ui.loadbalancer.server.port=80'
@@ -288,7 +288,7 @@ services:
       context: .
       dockerfile: services/app-ui/Dockerfile
       args:
-        VITE_AUTH_URL: http://auth.localhost
+        VITE_AUTH_URL: http://auth.jorisjonkers.test
     container_name: personal-stack-app-ui
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO /dev/null http://127.0.0.1/ || exit 1']
@@ -298,7 +298,7 @@ services:
       start_period: 5s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.app-ui.rule=Host(`localhost`)'
+      - 'traefik.http.routers.app-ui.rule=Host(`jorisjonkers.test`)'
       - 'traefik.http.routers.app-ui.middlewares=security-headers@file'
       - 'traefik.http.services.app-ui.loadbalancer.server.port=80'
 
