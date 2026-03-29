@@ -25,9 +25,9 @@ export function useAuth() {
         return null
       }
       const data: { id: string; username: string; role: string } = await response.json()
-      const validRoles: readonly string[] = ['ADMIN', 'USER', 'READONLY']
-      const role: User['role'] = validRoles.includes(data.role) ? (data.role as 'ADMIN' | 'USER' | 'READONLY') : 'USER'
-      const u: User = { id: data.id, username: data.username, email: '', role }
+      const validRoles = ['ADMIN', 'USER', 'READONLY'] as const
+      const matched = validRoles.find((r) => r === data.role)
+      const u: User = { id: data.id, username: data.username, email: '', role: matched ?? 'USER' }
       user.value = u
       return u
     } catch {
