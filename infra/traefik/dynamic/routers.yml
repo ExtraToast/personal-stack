@@ -53,6 +53,7 @@ http:
         - websecure
       service: assistant-api
       middlewares:
+        - forward-auth
         - security-headers
         - rate-limit
       tls:

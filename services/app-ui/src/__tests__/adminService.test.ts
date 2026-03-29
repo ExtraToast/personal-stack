@@ -13,6 +13,7 @@ function mockFetch(body: unknown, ok = true, status = 200) {
 }
 
 afterEach(() => {
+  document.cookie = 'XSRF-TOKEN=; Max-Age=0; path=/'
   vi.restoreAllMocks()
 })
 
@@ -82,6 +83,25 @@ describe('request details', () => {
     )
   })
 
+  it('updateUserRole sends CSRF header when token cookie exists', async () => {
+    document.cookie = 'XSRF-TOKEN=test-csrf-token; path=/'
+    mockFetch({ id: '1', username: 'alice', role: 'ADMIN', servicePermissions: [] })
+
+    await updateUserRole('1', 'ADMIN')
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        headers: expect.any(Headers),
+      }),
+    )
+
+    const [, init] = vi.mocked(fetch).mock.calls.at(-1) ?? []
+    expect(init).toBeDefined()
+    expect((init as RequestInit).headers).toBeInstanceOf(Headers)
+    expect(((init as RequestInit).headers as Headers).get('X-XSRF-TOKEN')).toBe('test-csrf-token')
+  })
+
   it('updateUserServices sends PUT with services array', async () => {
     mockFetch({ id: '1', username: 'alice', role: 'USER', servicePermissions: ['GRAFANA', 'VAULT'] })
     await updateUserServices('1', ['GRAFANA', 'VAULT'])
@@ -100,6 +120,18 @@ describe('request details', () => {
       expect.stringContaining('/users/42'),
       expect.objectContaining({ method: 'DELETE', credentials: 'include' }),
     )
+  })
+
+  it('deleteUser sends CSRF header when token cookie exists', async () => {
+    document.cookie = 'XSRF-TOKEN=delete-token; path=/'
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(null) }))
+
+    await deleteUser('42')
+
+    const [, init] = vi.mocked(fetch).mock.calls.at(-1) ?? []
+    expect(init).toBeDefined()
+    expect((init as RequestInit).headers).toBeInstanceOf(Headers)
+    expect(((init as RequestInit).headers as Headers).get('X-XSRF-TOKEN')).toBe('delete-token')
   })
 
   it('all requests use credentials include', async () => {

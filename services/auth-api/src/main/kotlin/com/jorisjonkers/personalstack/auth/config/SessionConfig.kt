@@ -14,15 +14,17 @@ import org.springframework.session.web.http.HttpSessionIdResolver
 class SessionConfig(
     @param:Value("\${session.cookie.domain:}")
     private val cookieDomain: String,
-    @param:Value("\${session.cookie.secure:false}")
+    @param:Value("\${session.cookie.secure:true}")
     private val secureCookie: Boolean,
+    @param:Value("\${session.cookie.same-site:None}")
+    private val sameSite: String,
 ) {
     @Bean
     fun cookieSerializer(): CookieSerializer =
         DefaultCookieSerializer().apply {
             setCookieName("SESSION")
             setCookiePath("/")
-            setSameSite("Lax")
+            setSameSite(sameSite)
             setUseHttpOnlyCookie(true)
             if (cookieDomain.isNotBlank()) {
                 setDomainName(cookieDomain)

@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test
 
 @Tag("system")
 class RoleBasedAccessTest : PlaywrightTestBase() {
+    private fun userCard(username: String) = page.locator("div.rounded-lg:has-text('$username')").first()
+
     @Test
     fun `admin user sees admin link in navbar`() {
         loginAsAdmin()
@@ -37,8 +39,7 @@ class RoleBasedAccessTest : PlaywrightTestBase() {
         page.waitForLoadState()
         page.waitForTimeout(3000.0)
 
-        // Admin page should show user table
-        assertThat(page.locator("body")).containsText("username")
+        assertThat(page.locator("body")).containsText("User Management")
     }
 
     @Test
@@ -78,7 +79,7 @@ class RoleBasedAccessTest : PlaywrightTestBase() {
         page.waitForTimeout(3000.0)
 
         // Find the target user's row and change role
-        val userRow = page.locator("text=${targetUser.username}").locator("..")
+        val userRow = userCard(targetUser.username)
         val roleSelect = userRow.locator("select").first()
         roleSelect.selectOption("READONLY")
 
@@ -88,7 +89,7 @@ class RoleBasedAccessTest : PlaywrightTestBase() {
         page.reload()
         page.waitForTimeout(3000.0)
 
-        val updatedRow = page.locator("text=${targetUser.username}").locator("..")
+        val updatedRow = userCard(targetUser.username)
         val updatedSelect = updatedRow.locator("select").first()
         org.assertj.core.api.Assertions
             .assertThat(updatedSelect.inputValue())
@@ -107,7 +108,7 @@ class RoleBasedAccessTest : PlaywrightTestBase() {
         assertThat(page.locator("body")).containsText(targetUser.username)
 
         // Click delete button for target user
-        val userRow = page.locator("text=${targetUser.username}").locator("..")
+        val userRow = userCard(targetUser.username)
         userRow.locator("text=Delete").first().click()
 
         // Confirm deletion in dialog
@@ -128,7 +129,7 @@ class RoleBasedAccessTest : PlaywrightTestBase() {
         page.waitForTimeout(3000.0)
 
         // Find the target user's row and toggle a service permission
-        val userRow = page.locator("text=${targetUser.username}").locator("..")
+        val userRow = userCard(targetUser.username)
         val grafanaButton =
             userRow.locator("button:has-text('GRAFANA'), button:has-text('Grafana')").first()
         grafanaButton.click()
@@ -140,7 +141,7 @@ class RoleBasedAccessTest : PlaywrightTestBase() {
         page.waitForTimeout(3000.0)
 
         // Verify the permission was toggled (button should have active state)
-        val updatedRow = page.locator("text=${targetUser.username}").locator("..")
+        val updatedRow = userCard(targetUser.username)
         assertThat(
             updatedRow.locator("button:has-text('GRAFANA'), button:has-text('Grafana')").first(),
         ).isVisible()

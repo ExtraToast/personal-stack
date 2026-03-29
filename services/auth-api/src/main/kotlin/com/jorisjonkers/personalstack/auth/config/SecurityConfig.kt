@@ -20,9 +20,12 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.AuthenticationEntryPoint
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.HttpStatusEntryPoint
+import org.springframework.security.web.csrf.CsrfFilter
+import org.springframework.security.web.csrf.CsrfToken
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler
+import org.springframework.web.filter.OncePerRequestFilter
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
@@ -35,6 +38,8 @@ class SecurityConfig(
     private val loginUrl: String,
     @param:Value("\${auth.cors.allowed-origins:http://localhost:5173,http://localhost:5174,http://localhost:5175}")
     private val corsAllowedOrigins: String,
+    @param:Value("\${session.cookie.domain:}")
+    private val cookieDomain: String,
 ) {
     @Bean
     @Order(0)
@@ -81,6 +86,7 @@ class SecurityConfig(
             .cors { it.configurationSource(corsConfigurationSource) }
             .securityContext { it.securityContextRepository(HttpSessionSecurityContextRepository()) }
             .csrf { configureCsrf(it) }
+            .addFilterAfter(CsrfCookieFilter(), CsrfFilter::class.java)
             .authorizeHttpRequests { configureAuthorization(it) }
             .exceptionHandling { it.authenticationEntryPoint(HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)) }
         return http.build()
@@ -90,7 +96,15 @@ class SecurityConfig(
         csrf: org.springframework.security.config.annotation.web.configurers
             .CsrfConfigurer<HttpSecurity>,
     ) {
-        csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+        csrf.csrfTokenRepository(
+            CookieCsrfTokenRepository.withHttpOnlyFalse().apply {
+                setCookieCustomizer { builder ->
+                    if (cookieDomain.isNotBlank()) {
+                        builder.domain(cookieDomain)
+                    }
+                }
+            },
+        )
         csrf.csrfTokenRequestHandler(CsrfTokenRequestAttributeHandler())
         csrf.ignoringRequestMatchers(*PUBLIC_POST_ENDPOINTS)
     }
@@ -173,5 +187,16 @@ class SecurityConfig(
                 "/api/v1/auth/resend-confirmation",
                 "/api/v1/auth/session-login",
             )
+    }
+
+    private class CsrfCookieFilter : OncePerRequestFilter() {
+        override fun doFilterInternal(
+            request: HttpServletRequest,
+            response: HttpServletResponse,
+            filterChain: jakarta.servlet.FilterChain,
+        ) {
+            (request.getAttribute(CsrfToken::class.java.name) as CsrfToken?)?.token
+            filterChain.doFilter(request, response)
+        }
     }
 }

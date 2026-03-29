@@ -217,7 +217,7 @@ jobs:
             local route="$1" url="$2"
             echo -n "  $route ($url): "
             for i in $(seq 1 30); do
-              if curl -sf --max-time 2 -o /dev/null "$url" 2>/dev/null; then
+              if curl -sfk --max-time 2 -o /dev/null "$url" 2>/dev/null; then
                 echo "reachable"
                 break
               fi
@@ -228,11 +228,11 @@ jobs:
               sleep 1
             done
           }
-          check_route app-ui         "http://jorisjonkers.test:80/"
-          check_route auth-ui        "http://auth.jorisjonkers.test:80/"
-          check_route assistant-ui   "http://assistant.jorisjonkers.test:80/"
-          check_route auth-api       "http://auth.jorisjonkers.test:80/api/actuator/health"
-          check_route assistant-api  "http://assistant.jorisjonkers.test:80/api/actuator/health"
+          check_route app-ui         "https://jorisjonkers.test/"
+          check_route auth-ui        "https://auth.jorisjonkers.test/"
+          check_route assistant-ui   "https://assistant.jorisjonkers.test/"
+          check_route auth-api       "https://auth.jorisjonkers.test/api/actuator/health"
+          check_route assistant-api  "https://assistant.jorisjonkers.test/api/actuator/health"
       - name: Verify all services are healthy
         run: |
           echo "==> Service status:"

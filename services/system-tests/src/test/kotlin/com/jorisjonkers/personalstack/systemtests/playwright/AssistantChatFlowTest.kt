@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test
 
 @Tag("system")
 class AssistantChatFlowTest : PlaywrightTestBase() {
+    private fun conversationButtons() = page.locator("aside nav button")
+
     @Test
     fun `chat page shows empty state`() {
         val user = registerAndConfirm()
@@ -35,7 +37,7 @@ class AssistantChatFlowTest : PlaywrightTestBase() {
         page.waitForTimeout(2000.0)
 
         // New conversation should appear in the sidebar
-        assertThat(page.locator("aside button, aside a").first()).isVisible()
+        assertThat(conversationButtons().first()).isVisible()
     }
 
     @Test
@@ -86,7 +88,7 @@ class AssistantChatFlowTest : PlaywrightTestBase() {
         page.waitForTimeout(3000.0)
 
         // Click first conversation in sidebar
-        val conversations = page.locator("aside button, aside [role='button']")
+        val conversations = conversationButtons()
         if (conversations.count() >= 2) {
             conversations.nth(1).click()
             page.waitForTimeout(2000.0)
@@ -119,7 +121,7 @@ class AssistantChatFlowTest : PlaywrightTestBase() {
         page.waitForTimeout(3000.0)
 
         // Select the conversation again
-        val conversations = page.locator("aside button, aside [role='button']")
+        val conversations = conversationButtons()
         if (conversations.count() > 0) {
             conversations.first().click()
             page.waitForTimeout(2000.0)

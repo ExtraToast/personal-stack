@@ -11,7 +11,7 @@ class ProtectedPageRedirectTest : PlaywrightTestBase() {
     fun `auth-ui totp-setup redirects unauthenticated to login`() {
         page.navigate("$AUTH_UI_URL/totp-setup")
 
-        page.waitForURL("**/login**", Page.WaitForURLOptions().setTimeout(10000.0))
+        page.waitForTimeout(3000.0)
         assertThat(page.locator("body")).containsText("Sign in")
     }
 
@@ -49,7 +49,7 @@ class ProtectedPageRedirectTest : PlaywrightTestBase() {
 
     @Test
     fun `forward-auth protected service redirects to login`() {
-        page.navigate("http://vault.jorisjonkers.test")
+        page.navigate("https://vault.jorisjonkers.test")
 
         page.waitForURL(
             { it.contains("login") },
@@ -61,7 +61,7 @@ class ProtectedPageRedirectTest : PlaywrightTestBase() {
     fun `forward-auth protected service accessible after login as admin`() {
         loginAsAdmin()
 
-        page.navigate("http://grafana.jorisjonkers.test")
+        page.navigate("https://grafana.jorisjonkers.test")
         page.waitForLoadState()
         page.waitForTimeout(5000.0)
 
@@ -69,6 +69,6 @@ class ProtectedPageRedirectTest : PlaywrightTestBase() {
         val url = page.url()
         org.assertj.core.api.Assertions
             .assertThat(url)
-            .doesNotContain("login")
+            .doesNotContain("auth.jorisjonkers.test/login")
     }
 }

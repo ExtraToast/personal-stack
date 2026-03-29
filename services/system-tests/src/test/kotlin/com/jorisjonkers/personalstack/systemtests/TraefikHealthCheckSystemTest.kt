@@ -21,10 +21,10 @@ class TraefikHealthCheckSystemTest {
         @JvmStatic
         fun actuatorEndpoints(): Stream<Arguments> =
             Stream.of(
-                Arguments.of("auth-api /actuator/health", "http://auth.jorisjonkers.test:80", "/api/actuator/health"),
+                Arguments.of("auth-api /actuator/health", "https://auth.jorisjonkers.test", "/api/actuator/health"),
                 Arguments.of(
                     "assistant-api /actuator/health",
-                    "http://assistant.jorisjonkers.test:80",
+                    "https://assistant.jorisjonkers.test",
                     "/api/actuator/health",
                 ),
             )
@@ -32,10 +32,10 @@ class TraefikHealthCheckSystemTest {
         @JvmStatic
         fun v1HealthEndpoints(): Stream<Arguments> =
             Stream.of(
-                Arguments.of("auth-api /v1/health", "http://auth.jorisjonkers.test:80", "/api/v1/health", "auth-api"),
+                Arguments.of("auth-api /v1/health", "https://auth.jorisjonkers.test", "/api/v1/health", "auth-api"),
                 Arguments.of(
                     "assistant-api /v1/health",
-                    "http://assistant.jorisjonkers.test:80",
+                    "https://assistant.jorisjonkers.test",
                     "/api/v1/health",
                     "assistant-api",
                 ),

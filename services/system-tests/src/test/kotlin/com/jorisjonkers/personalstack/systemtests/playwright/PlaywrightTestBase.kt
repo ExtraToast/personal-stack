@@ -24,11 +24,11 @@ import java.util.concurrent.TimeUnit
 abstract class PlaywrightTestBase {
     companion object {
         val AUTH_UI_URL: String =
-            System.getProperty("test.auth-ui.url", "http://auth.jorisjonkers.test")
+            System.getProperty("test.auth-ui.url", "https://auth.jorisjonkers.test")
         val APP_UI_URL: String =
-            System.getProperty("test.app-ui.url", "http://jorisjonkers.test")
+            System.getProperty("test.app-ui.url", "https://jorisjonkers.test")
         val ASSISTANT_UI_URL: String =
-            System.getProperty("test.assistant-ui.url", "http://assistant.jorisjonkers.test")
+            System.getProperty("test.assistant-ui.url", "https://assistant.jorisjonkers.test")
     }
 
     private lateinit var playwright: Playwright
@@ -41,23 +41,7 @@ abstract class PlaywrightTestBase {
         playwright = Playwright.create()
         browser =
             playwright.chromium().launch(
-                BrowserType
-                    .LaunchOptions()
-                    .setHeadless(true)
-                    .setArgs(
-                        listOf(
-                            // .test TLD is reserved (RFC 6761) and Chromium blocks cookies for it.
-                            // This flag allows cookie storage for our dev domains.
-                            "--unsafely-treat-insecure-origin-as-secure=" +
-                                "http://jorisjonkers.test," +
-                                "http://auth.jorisjonkers.test," +
-                                "http://assistant.jorisjonkers.test," +
-                                "http://vault.jorisjonkers.test," +
-                                "http://grafana.jorisjonkers.test," +
-                                "http://n8n.jorisjonkers.test," +
-                                "http://stalwart.jorisjonkers.test",
-                        ),
-                    ),
+                BrowserType.LaunchOptions().setHeadless(true),
             )
     }
 
@@ -69,7 +53,10 @@ abstract class PlaywrightTestBase {
 
     @BeforeEach
     fun createContext() {
-        context = browser.newContext()
+        context =
+            browser.newContext(
+                Browser.NewContextOptions().setIgnoreHTTPSErrors(true),
+            )
         page = context.newPage()
     }
 
@@ -104,10 +91,16 @@ abstract class PlaywrightTestBase {
         context.addCookies(
             listOf(
                 Cookie("SESSION", session.sessionCookie)
-                    .setDomain("jorisjonkers.test")
+                    .setDomain(".jorisjonkers.test")
                     .setPath("/")
                     .setHttpOnly(true)
-                    .setSameSite(SameSiteAttribute.NONE),
+                    .setSecure(true)
+                    .setSameSite(SameSiteAttribute.LAX),
+                Cookie("XSRF-TOKEN", session.csrfToken)
+                    .setDomain(".jorisjonkers.test")
+                    .setPath("/")
+                    .setSecure(true)
+                    .setSameSite(SameSiteAttribute.LAX),
             ),
         )
     }

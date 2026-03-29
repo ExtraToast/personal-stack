@@ -18,15 +18,15 @@ class TraefikSystemTest {
     private val authBaseUrl = System.getProperty("test.auth-api.url", "http://localhost:8081")
 
     // UI services
-    private val appUiUrl = "http://jorisjonkers.test:80"
-    private val authUiUrl = "http://auth.jorisjonkers.test:80"
-    private val assistantUiUrl = "http://assistant.jorisjonkers.test:80"
+    private val appUiUrl = "https://jorisjonkers.test"
+    private val authUiUrl = "https://auth.jorisjonkers.test"
+    private val assistantUiUrl = "https://assistant.jorisjonkers.test"
 
     // Forward-auth protected services
-    private val vaultUrl = "http://vault.jorisjonkers.test:80"
-    private val n8nUrl = "http://n8n.jorisjonkers.test:80"
-    private val grafanaUrl = "http://grafana.jorisjonkers.test:80"
-    private val stalwartUrl = "http://stalwart.jorisjonkers.test:80"
+    private val vaultUrl = "https://vault.jorisjonkers.test"
+    private val n8nUrl = "https://n8n.jorisjonkers.test"
+    private val grafanaUrl = "https://grafana.jorisjonkers.test"
+    private val stalwartUrl = "https://stalwart.jorisjonkers.test"
 
     private fun obtainSession(): TestHelper.SessionUser = TestHelper.registerConfirmAndGetSession()
 

@@ -33,23 +33,23 @@ class ForwardAuthChainSystemTest {
         @JvmStatic
         fun protectedServices(): Stream<Arguments> =
             Stream.of(
-                Arguments.of("vault", "http://vault.jorisjonkers.test:80", "/"),
-                Arguments.of("n8n", "http://n8n.jorisjonkers.test:80", "/"),
-                Arguments.of("grafana", "http://grafana.jorisjonkers.test:80", "/d/dashboard"),
-                Arguments.of("traefik", "http://traefik.jorisjonkers.test:80", "/dashboard/"),
-                Arguments.of("stalwart", "http://stalwart.jorisjonkers.test:80", "/"),
+                Arguments.of("vault", "https://vault.jorisjonkers.test", "/"),
+                Arguments.of("n8n", "https://n8n.jorisjonkers.test", "/"),
+                Arguments.of("grafana", "https://grafana.jorisjonkers.test", "/d/dashboard"),
+                Arguments.of("traefik", "https://traefik.jorisjonkers.test", "/dashboard/"),
+                Arguments.of("stalwart", "https://stalwart.jorisjonkers.test", "/"),
             )
 
         @JvmStatic
         fun allServiceHosts(): Stream<Arguments> =
             Stream.of(
-                Arguments.of("vault", "http://vault.jorisjonkers.test:80"),
-                Arguments.of("n8n", "http://n8n.jorisjonkers.test:80"),
-                Arguments.of("grafana", "http://grafana.jorisjonkers.test:80"),
-                Arguments.of("traefik", "http://traefik.jorisjonkers.test:80"),
-                Arguments.of("stalwart", "http://stalwart.jorisjonkers.test:80"),
-                Arguments.of("assistant", "http://assistant.jorisjonkers.test:80"),
-                Arguments.of("auth", "http://auth.jorisjonkers.test:80"),
+                Arguments.of("vault", "https://vault.jorisjonkers.test"),
+                Arguments.of("n8n", "https://n8n.jorisjonkers.test"),
+                Arguments.of("grafana", "https://grafana.jorisjonkers.test"),
+                Arguments.of("traefik", "https://traefik.jorisjonkers.test"),
+                Arguments.of("stalwart", "https://stalwart.jorisjonkers.test"),
+                Arguments.of("assistant", "https://assistant.jorisjonkers.test"),
+                Arguments.of("auth", "https://auth.jorisjonkers.test"),
             )
     }
 
@@ -170,7 +170,7 @@ class ForwardAuthChainSystemTest {
 
         val response =
             given()
-                .baseUri("http://grafana.jorisjonkers.test:80")
+                .baseUri("https://grafana.jorisjonkers.test")
                 .cookie("SESSION", sessionCookie)
                 .redirects()
                 .follow(false)
@@ -257,7 +257,7 @@ class ForwardAuthChainSystemTest {
 
         val response =
             given()
-                .baseUri("http://grafana.jorisjonkers.test:80")
+                .baseUri("https://grafana.jorisjonkers.test")
                 .cookie("SESSION", sessionCookie)
                 .redirects()
                 .follow(false)
