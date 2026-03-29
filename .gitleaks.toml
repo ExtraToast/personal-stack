@@ -2,6 +2,9 @@
 useDefault = true
 
 [allowlist]
-description = "Localhost URLs in CI route health checks"
+description = "False positives in test fixtures and CI route checks"
 regexTarget = "match"
-regexes = ['''localhost:\d+/api/actuator/health''']
+regexes = [
+  '''localhost:\d+/api/actuator/health''',
+  '''eyJhbGciOiJSUzI1NiJ9\.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxfQ\.invalid''',
+]

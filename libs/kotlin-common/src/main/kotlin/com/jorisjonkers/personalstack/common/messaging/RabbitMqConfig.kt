@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.jorisjonkers.personalstack.common.messaging
 
 import org.springframework.amqp.core.Binding

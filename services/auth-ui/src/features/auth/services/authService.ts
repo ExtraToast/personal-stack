@@ -86,3 +86,31 @@ export async function confirmEmail(token: string): Promise<{ message: string }> 
 export async function resendConfirmation(email: string): Promise<{ message: string }> {
   return post<{ message: string }>('/auth/resend-confirmation', { email })
 }
+
+export interface SessionLoginResponse {
+  success: boolean
+  totpRequired: boolean
+}
+
+/**
+ * Authenticates the user and creates a server-side session (JSESSIONID cookie).
+ * Used during the OAuth2 Authorization Code flow so the Authorization Server
+ * recognises the user when the browser is redirected to /oauth2/authorize.
+ */
+export async function sessionLogin(
+  username: string,
+  password: string,
+  totpCode?: string,
+): Promise<SessionLoginResponse> {
+  const response = await fetch(`${API_BASE}/auth/session-login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ username, password, ...(totpCode ? { totpCode } : {}) }),
+  })
+  if (!response.ok) {
+    throw await response.json()
+  }
+  const json: SessionLoginResponse = await response.json()
+  return json
+}

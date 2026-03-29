@@ -53,4 +53,45 @@ describe('appsGrid', () => {
     const cards = wrapper.findAll('a')
     expect(cards).toHaveLength(7)
   })
+
+  it('renders nothing when user has no service permissions', () => {
+    const authStore = useAuthStore()
+    authStore.roles = ['ROLE_USER']
+
+    const wrapper = mountGrid()
+    expect(wrapper.find('section').exists()).toBe(false)
+    expect(wrapper.findAll('a')).toHaveLength(0)
+  })
+
+  it('filters services correctly by single permission', () => {
+    const authStore = useAuthStore()
+    authStore.roles = ['ROLE_USER', 'SERVICE_GRAFANA']
+
+    const wrapper = mountGrid()
+    const cards = wrapper.findAll('a')
+    expect(cards).toHaveLength(1)
+    expect(wrapper.text()).toContain('Grafana')
+  })
+
+  it('service cards have correct href attributes', () => {
+    const authStore = useAuthStore()
+    authStore.roles = ['ROLE_USER', 'SERVICE_GRAFANA', 'SERVICE_VAULT']
+
+    const wrapper = mountGrid()
+    const links = wrapper.findAll('a')
+    const hrefs = links.map((l) => l.attributes('href'))
+    expect(hrefs).toContain('https://grafana.jorisjonkers.dev')
+    expect(hrefs).toContain('https://vault.jorisjonkers.dev')
+  })
+
+  it('service cards have target=_blank', () => {
+    const authStore = useAuthStore()
+    authStore.roles = ['ROLE_USER', 'SERVICE_GRAFANA']
+
+    const wrapper = mountGrid()
+    const links = wrapper.findAll('a')
+    for (const link of links) {
+      expect(link.attributes('target')).toBe('_blank')
+    }
+  })
 })

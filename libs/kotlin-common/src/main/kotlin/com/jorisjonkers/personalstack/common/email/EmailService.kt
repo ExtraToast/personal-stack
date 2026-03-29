@@ -13,11 +13,11 @@ import org.springframework.stereotype.Service
 @ConditionalOnBean(JavaMailSender::class)
 open class EmailService(
     private val mailSender: JavaMailSender,
-    @Value("\${app.mail.from:auth@jorisjonkers.dev}")
+    @param:Value("\${app.mail.from:auth@jorisjonkers.dev}")
     private val fromAddress: String,
-    @Value("\${app.mail.from-name:jorisjonkers.dev}")
+    @param:Value("\${app.mail.from-name:jorisjonkers.dev}")
     private val fromName: String,
-    @Value("\${app.mail.max-retries:3}")
+    @param:Value("\${app.mail.max-retries:3}")
     private val maxRetries: Int,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)

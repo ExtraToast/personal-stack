@@ -36,4 +36,36 @@ class TotpServiceTest {
         val secret = totpService.generateSecret()
         assertThat(totpService.verifyCode(secret, "000000")).isFalse()
     }
+
+    @Test
+    fun `generateSecret returns valid base32 string`() {
+        val secret = totpService.generateSecret()
+        assertThat(secret).matches("[A-Z2-7]+")
+    }
+
+    @Test
+    fun `generateSecret produces unique values`() {
+        val secrets = (1..20).map { totpService.generateSecret() }.toSet()
+        assertThat(secrets).hasSize(20)
+    }
+
+    @Test
+    fun `verifyCode rejects empty string`() {
+        val secret = totpService.generateSecret()
+        assertThat(totpService.verifyCode(secret, "")).isFalse()
+    }
+
+    @Test
+    fun `generateQrUri contains otpauth scheme`() {
+        val secret = totpService.generateSecret()
+        val uri = totpService.generateQrUri(secret, "bob")
+        assertThat(uri).startsWith("otpauth://")
+    }
+
+    @Test
+    fun `generateQrUri encodes username in URI`() {
+        val secret = totpService.generateSecret()
+        val uri = totpService.generateQrUri(secret, "bob")
+        assertThat(uri).contains("bob")
+    }
 }

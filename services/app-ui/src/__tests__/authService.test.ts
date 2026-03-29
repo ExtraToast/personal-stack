@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  buildLogoutUrl,
   exchangeCodeForToken,
   generateCodeChallenge,
   generateCodeVerifier,
+  refreshAccessToken,
   startLoginFlow,
 } from '../features/auth/services/authService'
 
@@ -102,5 +104,55 @@ describe('exchangeCodeForToken', () => {
   it('throws on non-ok fetch response', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 400 }))
     await expect(exchangeCodeForToken('code', 'test-state')).rejects.toThrow('Token exchange failed')
+  })
+})
+
+describe('refreshAccessToken', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('sends correct grant_type and client_id', async () => {
+    const mockTokens = { access_token: 'at', refresh_token: 'rt', expires_in: 900, token_type: 'Bearer' }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(mockTokens) }))
+
+    await refreshAccessToken('old-rt')
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/oauth2/token'),
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.any(URLSearchParams),
+      }),
+    )
+  })
+})
+
+describe('buildLogoutUrl', () => {
+  const originalLocation = window.location
+
+  beforeEach(() => {
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: { origin: 'http://localhost:5175', href: '' },
+    })
+  })
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: originalLocation,
+    })
+  })
+
+  it('contains client_id parameter', () => {
+    const url = buildLogoutUrl()
+    expect(url).toContain('client_id=app-ui')
+  })
+
+  it('contains post_logout_redirect_uri', () => {
+    const url = buildLogoutUrl()
+    expect(url).toContain('post_logout_redirect_uri=')
+    expect(url).toContain('http%3A%2F%2Flocalhost%3A5175')
   })
 })

@@ -47,6 +47,8 @@ abstract class IntegrationTestBase {
             registry.add("spring.data.redis.port") { valkey.getMappedPort(6379).toString() }
             registry.add("spring.rabbitmq.host") { rabbitmq.host }
             registry.add("spring.rabbitmq.port") { rabbitmq.amqpPort.toString() }
+            // MockMvc uses http://localhost by default; issuer must match for OAuth2 endpoints
+            registry.add("auth.issuer") { "http://localhost" }
         }
     }
 }

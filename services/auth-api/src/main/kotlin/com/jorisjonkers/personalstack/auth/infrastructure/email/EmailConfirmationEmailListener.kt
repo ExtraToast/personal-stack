@@ -12,7 +12,7 @@ import java.util.Optional
 @Component
 class EmailConfirmationEmailListener(
     private val emailService: Optional<EmailService>,
-    @Value("\${app.confirmation-url:http://localhost:5174/confirm-email}")
+    @param:Value("\${app.confirmation-url:http://localhost:5174/confirm-email}")
     private val confirmationBaseUrl: String,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)

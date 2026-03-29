@@ -58,7 +58,7 @@ class JooqEmailConfirmationTokenRepository(
                 (this[EMAIL_CONFIRMATION_TOKEN.EXPIRES_AT] as java.time.LocalDateTime)
                     .toInstant(ZoneOffset.UTC),
             usedAt =
-                (this[EMAIL_CONFIRMATION_TOKEN.USED_AT] as? java.time.LocalDateTime)
+                this[EMAIL_CONFIRMATION_TOKEN.USED_AT]
                     ?.toInstant(ZoneOffset.UTC),
             createdAt =
                 (this[EMAIL_CONFIRMATION_TOKEN.CREATED_AT] as java.time.LocalDateTime)

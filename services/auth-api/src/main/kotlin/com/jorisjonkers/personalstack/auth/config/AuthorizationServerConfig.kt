@@ -25,6 +25,7 @@ import org.springframework.security.oauth2.server.authorization.token.JwtEncodin
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher
 import org.springframework.security.web.util.matcher.AndRequestMatcher
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher
@@ -34,7 +35,10 @@ import java.time.Duration
 import java.util.UUID
 
 @Configuration
-class AuthorizationServerConfig {
+class AuthorizationServerConfig(
+    @param:org.springframework.beans.factory.annotation.Value("\${auth.issuer:https://auth.jorisjonkers.dev}")
+    private val issuer: String,
+) {
     @Bean
     @Order(1)
     fun authorizationServerSecurityFilterChain(http: HttpSecurity): SecurityFilterChain {
@@ -53,7 +57,9 @@ class AuthorizationServerConfig {
             .securityMatcher(matcher)
             .with(authServerConfigurer, Customizer.withDefaults())
             .authorizeHttpRequests { it.anyRequest().authenticated() }
-            .exceptionHandling { exceptions ->
+            .securityContext { ctx ->
+                ctx.securityContextRepository(HttpSessionSecurityContextRepository())
+            }.exceptionHandling { exceptions ->
                 exceptions.defaultAuthenticationEntryPointFor(
                     LoginUrlAuthenticationEntryPoint("/login"),
                     MediaTypeRequestMatcher(MediaType.TEXT_HTML),
@@ -92,7 +98,7 @@ class AuthorizationServerConfig {
     fun authorizationServerSettings(): AuthorizationServerSettings =
         AuthorizationServerSettings
             .builder()
-            .issuer("https://auth.jorisjonkers.dev")
+            .issuer(issuer)
             .build()
 
     private fun buildAuthUiClient(): RegisteredClient =

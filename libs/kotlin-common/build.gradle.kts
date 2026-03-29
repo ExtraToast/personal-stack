@@ -2,6 +2,34 @@ plugins {
     id("kotlin-conventions")
     id("detekt-conventions")
     id("ktlint-conventions")
+    id("test-logging-conventions")
+    jacoco
+}
+
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+}
+
+tasks.jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                minimum = "0.80".toBigDecimal()
+            }
+        }
+    }
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
 }
 
 dependencies {
@@ -19,5 +47,10 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("io.mockk:mockk:1.13.16")
     testImplementation("org.assertj:assertj-core:3.27.3")
+    testImplementation("org.springframework.boot:spring-boot-starter-amqp:4.0.4")
+    testImplementation("org.springframework.boot:spring-boot-starter-web:4.0.4")
+    testImplementation("org.springframework.boot:spring-boot-starter-mail:4.0.4")
+    testImplementation("org.springframework.vault:spring-vault-core:4.0.1")
+    testImplementation("org.springframework:spring-context:7.0.3")
     implementation("com.tngtech.archunit:archunit-junit5:1.4.0")
 }

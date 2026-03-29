@@ -29,7 +29,7 @@ import java.net.URLEncoder
 @Configuration
 @EnableMethodSecurity(prePostEnabled = true)
 class SecurityConfig(
-    @Value("\${auth.login-url:http://localhost:5174/login}")
+    @param:Value("\${auth.login-url:http://localhost:5174/login}")
     private val loginUrl: String,
 ) {
     /**
@@ -62,12 +62,34 @@ class SecurityConfig(
         }
 
     /**
-     * Forward-auth filter chain (order 2).
+     * Session-login filter chain (order 2).
+     * The /api/v1/auth/session-login endpoint creates a server-side HttpSession so the
+     * OAuth2 Authorization Server (order 1) can recognise the user on the next request.
+     * Unlike the resource-server chain, this chain allows session creation.
+     */
+    @Bean
+    @Order(2)
+    fun sessionLoginSecurityFilterChain(http: HttpSecurity): SecurityFilterChain {
+        http
+            .securityMatcher("/api/v1/auth/session-login")
+            .cors { it.configurationSource(corsConfigurationSource()) }
+            .csrf { it.disable() }
+            .securityContext { ctx ->
+                ctx.securityContextRepository(
+                    org.springframework.security.web.context
+                        .HttpSessionSecurityContextRepository(),
+                )
+            }.authorizeHttpRequests { it.anyRequest().permitAll() }
+        return http.build()
+    }
+
+    /**
+     * Forward-auth filter chain (order 3).
      * The /api/v1/auth/verify endpoint redirects to the login page when unauthenticated,
      * so Traefik's forwardAuth middleware delivers a 302 to the browser instead of a raw 401.
      */
     @Bean
-    @Order(2)
+    @Order(3)
     fun forwardAuthSecurityFilterChain(
         http: HttpSecurity,
         jwtDecoder: JwtDecoder,
@@ -90,12 +112,12 @@ class SecurityConfig(
     }
 
     /**
-     * Resource server filter chain (order 3).
+     * Resource server filter chain (order 4).
      * Protects the REST API endpoints with JWT bearer tokens.
      * Auth server endpoints (order 1) are handled by [AuthorizationServerConfig].
      */
     @Bean
-    @Order(3)
+    @Order(4)
     fun resourceServerSecurityFilterChain(
         http: HttpSecurity,
         jwtDecoder: JwtDecoder,

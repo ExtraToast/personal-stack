@@ -33,6 +33,13 @@ async function onVerify(code: string): Promise<void> {
   verifyError.value = null
   try {
     await verifyTotp(code)
+    // Resume pending redirect (e.g. OAuth2 authorize URL) if stored by LoginForm.
+    const pendingRedirect = sessionStorage.getItem('pendingRedirect')
+    if (pendingRedirect) {
+      sessionStorage.removeItem('pendingRedirect')
+      window.location.href = pendingRedirect
+      return
+    }
     await router.push({ name: 'dashboard' })
   } catch {
     verifyError.value = 'Code verification failed. Please try again.'
