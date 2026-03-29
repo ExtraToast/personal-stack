@@ -494,7 +494,7 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
                 contentType = MediaType.APPLICATION_JSON
                 content = """{"username":"","password":"password"}"""
             }.andExpect {
-                status { isUnprocessableEntity() }
+                status { isUnprocessableContent() }
             }
     }
 

@@ -45,7 +45,7 @@ class InputSanitizationIntegrationTest : IntegrationTestBase() {
                     """.trimIndent()
             }.andExpect {
                 // Username pattern validation rejects special characters
-                status { isUnprocessableEntity() }
+                status { isUnprocessableContent() }
             }
     }
 
@@ -66,7 +66,7 @@ class InputSanitizationIntegrationTest : IntegrationTestBase() {
                     """.trimIndent()
             }.andExpect {
                 // Username pattern validation rejects special characters
-                status { isUnprocessableEntity() }
+                status { isUnprocessableContent() }
             }
     }
 

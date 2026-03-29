@@ -42,7 +42,7 @@ class RegisterValidationIntegrationTest : IntegrationTestBase() {
                     }
                     """.trimIndent()
             }.andExpect {
-                status { isUnprocessableEntity() }
+                status { isUnprocessableContent() }
                 jsonPath("$.title") { value("Validation Error") }
                 jsonPath("$.errors[0].field") { value("username") }
             }
@@ -62,7 +62,7 @@ class RegisterValidationIntegrationTest : IntegrationTestBase() {
                     }
                     """.trimIndent()
             }.andExpect {
-                status { isUnprocessableEntity() }
+                status { isUnprocessableContent() }
                 jsonPath("$.errors") { isNotEmpty() }
             }
     }
@@ -81,7 +81,7 @@ class RegisterValidationIntegrationTest : IntegrationTestBase() {
                     }
                     """.trimIndent()
             }.andExpect {
-                status { isUnprocessableEntity() }
+                status { isUnprocessableContent() }
                 jsonPath("$.errors") { isNotEmpty() }
             }
     }
@@ -100,7 +100,7 @@ class RegisterValidationIntegrationTest : IntegrationTestBase() {
                     }
                     """.trimIndent()
             }.andExpect {
-                status { isUnprocessableEntity() }
+                status { isUnprocessableContent() }
                 jsonPath("$.errors[0].field") { value("email") }
             }
     }
@@ -121,7 +121,7 @@ class RegisterValidationIntegrationTest : IntegrationTestBase() {
                     }
                     """.trimIndent()
             }.andExpect {
-                status { isUnprocessableEntity() }
+                status { isUnprocessableContent() }
                 jsonPath("$.errors") { isNotEmpty() }
             }
     }

@@ -78,7 +78,7 @@ class MessageControllerTest {
                     .header("X-User-Id", userId.toString())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(mapOf("content" to ""))),
-            ).andExpect(status().isUnprocessableEntity)
+            ).andExpect(status().isUnprocessableContent)
             .andExpect(jsonPath("$.title").value("Validation Error"))
     }
 
@@ -94,7 +94,7 @@ class MessageControllerTest {
                     .header("X-User-Id", userId.toString())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(mapOf("content" to longContent))),
-            ).andExpect(status().isUnprocessableEntity)
+            ).andExpect(status().isUnprocessableContent)
             .andExpect(jsonPath("$.title").value("Validation Error"))
     }
 

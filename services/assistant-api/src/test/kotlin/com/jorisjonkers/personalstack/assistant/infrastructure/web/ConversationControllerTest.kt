@@ -70,7 +70,7 @@ class ConversationControllerTest {
                     .header("X-User-Id", userId.toString())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(mapOf("title" to ""))),
-            ).andExpect(status().isUnprocessableEntity)
+            ).andExpect(status().isUnprocessableContent)
             .andExpect(jsonPath("$.title").value("Validation Error"))
     }
 
@@ -85,7 +85,7 @@ class ConversationControllerTest {
                     .header("X-User-Id", userId.toString())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(mapOf("title" to longTitle))),
-            ).andExpect(status().isUnprocessableEntity)
+            ).andExpect(status().isUnprocessableContent)
             .andExpect(jsonPath("$.title").value("Validation Error"))
     }
 

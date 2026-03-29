@@ -206,7 +206,7 @@ class SessionLoginControllerTest {
                 contentType = MediaType.APPLICATION_JSON
                 content = objectMapper.writeValueAsString(request)
             }.andExpect {
-                status { isUnprocessableEntity() }
+                status { isUnprocessableContent() }
             }
     }
 
@@ -220,7 +220,7 @@ class SessionLoginControllerTest {
                 contentType = MediaType.APPLICATION_JSON
                 content = objectMapper.writeValueAsString(request)
             }.andExpect {
-                status { isUnprocessableEntity() }
+                status { isUnprocessableContent() }
             }
     }
 

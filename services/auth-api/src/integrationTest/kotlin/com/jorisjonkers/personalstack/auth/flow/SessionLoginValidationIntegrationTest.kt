@@ -41,7 +41,7 @@ class SessionLoginValidationIntegrationTest : IntegrationTestBase() {
                     }
                     """.trimIndent()
             }.andExpect {
-                status { isUnprocessableEntity() }
+                status { isUnprocessableContent() }
                 jsonPath("$.title") { value("Validation Error") }
                 jsonPath("$.errors") { isNotEmpty() }
             }
@@ -60,7 +60,7 @@ class SessionLoginValidationIntegrationTest : IntegrationTestBase() {
                     }
                     """.trimIndent()
             }.andExpect {
-                status { isUnprocessableEntity() }
+                status { isUnprocessableContent() }
                 jsonPath("$.errors") { isNotEmpty() }
             }
     }

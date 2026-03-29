@@ -36,7 +36,7 @@ class TotpValidationIntegrationTest : IntegrationTestBase() {
                 contentType = MediaType.APPLICATION_JSON
                 content = """{"code":"123"}"""
             }.andExpect {
-                status { isUnprocessableEntity() }
+                status { isUnprocessableContent() }
                 jsonPath("$.title") { value("Validation Error") }
                 jsonPath("$.errors[0].field") { value("code") }
             }
@@ -50,7 +50,7 @@ class TotpValidationIntegrationTest : IntegrationTestBase() {
                 contentType = MediaType.APPLICATION_JSON
                 content = """{"code":"abcdef"}"""
             }.andExpect {
-                status { isUnprocessableEntity() }
+                status { isUnprocessableContent() }
                 jsonPath("$.errors[0].field") { value("code") }
             }
     }
@@ -62,7 +62,7 @@ class TotpValidationIntegrationTest : IntegrationTestBase() {
                 contentType = MediaType.APPLICATION_JSON
                 content = """{"totpChallengeToken":"","code":"123456"}"""
             }.andExpect {
-                status { isUnprocessableEntity() }
+                status { isUnprocessableContent() }
                 jsonPath("$.errors") { isNotEmpty() }
             }
     }

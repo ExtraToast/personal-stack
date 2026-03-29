@@ -78,7 +78,7 @@ class ErrorResponseIntegrationTest : IntegrationTestBase() {
                     }
                     """.trimIndent()
             }.andExpect {
-                status { isUnprocessableEntity() }
+                status { isUnprocessableContent() }
                 content { contentType(MediaType.APPLICATION_JSON) }
                 jsonPath("$.title") { value("Validation Error") }
                 jsonPath("$.status") { value(422) }

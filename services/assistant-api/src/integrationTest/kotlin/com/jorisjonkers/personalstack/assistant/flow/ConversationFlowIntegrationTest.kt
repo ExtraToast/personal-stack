@@ -138,7 +138,7 @@ class ConversationFlowIntegrationTest : IntegrationTestBase() {
                     .header("X-User-Id", userId)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(mapOf("title" to ""))),
-            ).andExpect(status().isUnprocessableEntity)
+            ).andExpect(status().isUnprocessableContent)
     }
 
     @Test

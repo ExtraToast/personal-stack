@@ -29,7 +29,7 @@ import java.net.URLEncoder
 @Configuration
 @EnableMethodSecurity(prePostEnabled = true)
 class SecurityConfig(
-    @Value("\${auth.login-url:http://localhost:5174/login}")
+    @param:Value("\${auth.login-url:http://localhost:5174/login}")
     private val loginUrl: String,
 ) {
     /**

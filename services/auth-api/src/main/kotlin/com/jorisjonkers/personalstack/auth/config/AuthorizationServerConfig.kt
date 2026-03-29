@@ -36,7 +36,7 @@ import java.util.UUID
 
 @Configuration
 class AuthorizationServerConfig(
-    @org.springframework.beans.factory.annotation.Value("\${auth.issuer:https://auth.jorisjonkers.dev}")
+    @param:org.springframework.beans.factory.annotation.Value("\${auth.issuer:https://auth.jorisjonkers.dev}")
     private val issuer: String,
 ) {
     @Bean
