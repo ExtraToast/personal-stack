@@ -83,7 +83,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm -r test
+      - run: pnpm -r test -- --coverage
 
   test-kotlin-integration:
     name: Kotlin Integration Tests (${{ matrix.module }})

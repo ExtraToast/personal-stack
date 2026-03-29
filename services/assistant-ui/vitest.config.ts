@@ -15,6 +15,8 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
+      include: ['src/**/*.{ts,vue}'],
+      exclude: ['src/**/*.d.ts', 'src/**/types/**', 'src/main.ts'],
       thresholds: {
         lines: 80,
       },

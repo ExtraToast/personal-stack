@@ -15,8 +15,17 @@ vi.mock('@personal-stack/vue-common', () => ({
 }))
 
 // Import after mocks are set up
-const { login, submitTotpChallenge, refresh, register, sessionLogin, confirmEmail } =
-  await import('../services/authService')
+const {
+  login,
+  submitTotpChallenge,
+  refresh,
+  register,
+  sessionLogin,
+  confirmEmail,
+  resendConfirmation,
+  enrollTotp,
+  verifyTotp,
+} = await import('../services/authService')
 
 /* eslint-disable ts/consistent-type-assertions -- test utility needs partial Response mock */
 function jsonResponse(data: unknown, status = 200): Response {
@@ -127,5 +136,87 @@ describe('authService', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/v1/auth/confirm-email?token=abc-123')
     expect(result.message).toBe('Email confirmed')
+  })
+
+  it('resendConfirmation sends email via POST', async () => {
+    const responseData = { message: 'Confirmation sent' }
+    mockFetch.mockResolvedValue(jsonResponse(responseData))
+
+    const result = await resendConfirmation('alice@example.com')
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/v1/auth/resend-confirmation',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ email: 'alice@example.com' }),
+      }),
+    )
+    expect(result.message).toBe('Confirmation sent')
+  })
+
+  it('enrollTotp sends authenticated POST', async () => {
+    const responseData = { secret: 'ABCDEF', qrUri: 'otpauth://totp/test' }
+    mockFetch.mockResolvedValue(jsonResponse(responseData))
+
+    const result = await enrollTotp()
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/v1/totp/enroll',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ Authorization: 'Bearer fake-token' }),
+      }),
+    )
+    expect(result.secret).toBe('ABCDEF')
+  })
+
+  it('verifyTotp sends authenticated POST with code', async () => {
+    mockFetch.mockResolvedValue(jsonResponse(undefined, 204))
+
+    await verifyTotp('654321')
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/v1/totp/verify',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ Authorization: 'Bearer fake-token' }),
+        body: JSON.stringify({ code: '654321' }),
+      }),
+    )
+  })
+
+  it('throws parsed JSON error on non-ok response', async () => {
+    const errorData = { title: 'Bad Request', status: 400, detail: 'Invalid input' }
+    mockFetch.mockResolvedValue(jsonResponse(errorData, 400))
+
+    await expect(login({ username: 'x', password: 'y' })).rejects.toEqual(errorData)
+  })
+
+  it('confirmEmail throws on non-ok response', async () => {
+    const errorData = { title: 'Gone', status: 410 }
+    mockFetch.mockResolvedValue(jsonResponse(errorData, 410))
+
+    await expect(confirmEmail('expired-token')).rejects.toEqual(errorData)
+  })
+
+  it('sessionLogin includes totpCode when provided', async () => {
+    const responseData = { success: true, totpRequired: false }
+    mockFetch.mockResolvedValue(jsonResponse(responseData))
+
+    await sessionLogin('alice', 'secret', '123456')
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/v1/auth/session-login',
+      expect.objectContaining({
+        body: JSON.stringify({ username: 'alice', password: 'secret', totpCode: '123456' }),
+      }),
+    )
+  })
+
+  it('sessionLogin throws on non-ok response', async () => {
+    const errorData = { title: 'Unauthorized', status: 401 }
+    mockFetch.mockResolvedValue(jsonResponse(errorData, 401))
+
+    await expect(sessionLogin('alice', 'wrong')).rejects.toEqual(errorData)
   })
 })
