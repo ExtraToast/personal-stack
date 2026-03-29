@@ -39,6 +39,9 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+      group:
+        liveness:
+          include: ping
 
 springdoc:
   api-docs:
