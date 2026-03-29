@@ -12,8 +12,13 @@ vi.mock('@personal-stack/vue-common', () => ({
   }),
 }))
 
-const { getConversations, createConversation, getMessages, sendMessage, archiveConversation, getConversation } =
-  await import('../services/chatService')
+const mod = await import('../services/chatService')
+const getConversations = mod.getConversations
+const createConversation = mod.createConversation
+const getMessages = mod.getMessages
+const sendMessage = mod.sendMessage
+const archiveConversation = mod.archiveConversation
+const getConversation = mod.getConversation
 
 describe('chatService', () => {
   beforeEach(() => {

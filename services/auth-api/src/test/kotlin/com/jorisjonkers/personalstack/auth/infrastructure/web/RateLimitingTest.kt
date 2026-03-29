@@ -8,12 +8,10 @@ import com.jorisjonkers.personalstack.auth.domain.port.PasswordEncoder
 import com.jorisjonkers.personalstack.auth.domain.port.UserRepository
 import com.jorisjonkers.personalstack.auth.domain.service.TotpService
 import com.jorisjonkers.personalstack.auth.infrastructure.security.TokenService
-import com.jorisjonkers.personalstack.auth.infrastructure.web.dto.LoginRequest
-import com.jorisjonkers.personalstack.auth.infrastructure.web.dto.RefreshRequest
-import com.jorisjonkers.personalstack.auth.infrastructure.web.dto.SessionLoginRequest
 import com.jorisjonkers.personalstack.common.web.GlobalExceptionHandler
 import io.mockk.every
 import io.mockk.mockk
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.http.MediaType
@@ -67,30 +65,25 @@ class RateLimitingTest {
                 .build()
     }
 
-    @Test
-    fun `login endpoint handles concurrent requests without error`() {
-        every { userRepository.findCredentialsByUsername("alice") } returns credentials
-        every { passwordEncoder.matches("securepass123", "hashed-password") } returns true
-        every { tokenService.createAccessToken("alice", userId.value.toString(), listOf("ROLE_USER")) } returns
-            "access-token"
-        every { tokenService.createRefreshToken(userId.value.toString()) } returns "refresh-token"
-
-        val request = LoginRequest(username = "alice", password = "securepass123")
-        val requestBody = objectMapper.writeValueAsString(request)
-        val concurrentRequests = 10
+    private fun runConcurrent(
+        mvc: MockMvc,
+        path: String,
+        body: String,
+        count: Int = 10,
+    ): Pair<Int, Int> {
         val successCount = AtomicInteger(0)
         val errorCount = AtomicInteger(0)
-        val latch = CountDownLatch(concurrentRequests)
-        val executor = Executors.newFixedThreadPool(concurrentRequests)
+        val latch = CountDownLatch(count)
+        val executor = Executors.newFixedThreadPool(count)
 
-        repeat(concurrentRequests) {
+        repeat(count) {
             executor.submit {
                 try {
                     val result =
-                        loginMockMvc
-                            .post("/api/v1/auth/login") {
+                        mvc
+                            .post(path) {
                                 contentType = MediaType.APPLICATION_JSON
-                                content = requestBody
+                                content = body
                             }.andReturn()
                     if (result.response.status == 200) {
                         successCount.incrementAndGet()
@@ -107,55 +100,35 @@ class RateLimitingTest {
 
         latch.await()
         executor.shutdown()
-
-        assert(successCount.get() == concurrentRequests) {
-            "Expected $concurrentRequests successes but got ${successCount.get()} (errors: ${errorCount.get()})"
-        }
+        return successCount.get() to errorCount.get()
     }
 
     @Test
-    fun `session-login endpoint handles concurrent requests without error`() {
+    fun `login endpoint handles concurrent requests`() {
+        every { userRepository.findCredentialsByUsername("alice") } returns credentials
+        every { passwordEncoder.matches("securepass123", "hashed-password") } returns true
+        every { tokenService.createAccessToken(any(), any(), any()) } returns "access-token"
+        every { tokenService.createRefreshToken(any()) } returns "refresh-token"
+
+        val body = objectMapper.writeValueAsString(mapOf("username" to "alice", "password" to "securepass123"))
+        val (successes, _) = runConcurrent(loginMockMvc, "/api/v1/auth/login", body)
+
+        assertThat(successes).isEqualTo(10)
+    }
+
+    @Test
+    fun `session-login endpoint handles concurrent requests`() {
         every { userRepository.findCredentialsByUsername("alice") } returns credentials
         every { passwordEncoder.matches("securepass123", "hashed-password") } returns true
 
-        val request = SessionLoginRequest(username = "alice", password = "securepass123")
-        val requestBody = objectMapper.writeValueAsString(request)
-        val concurrentRequests = 10
-        val successCount = AtomicInteger(0)
-        val latch = CountDownLatch(concurrentRequests)
-        val executor = Executors.newFixedThreadPool(concurrentRequests)
+        val body = objectMapper.writeValueAsString(mapOf("username" to "alice", "password" to "securepass123"))
+        val (successes, _) = runConcurrent(sessionLoginMockMvc, "/api/v1/auth/session-login", body)
 
-        repeat(concurrentRequests) {
-            executor.submit {
-                try {
-                    val result =
-                        sessionLoginMockMvc
-                            .post("/api/v1/auth/session-login") {
-                                contentType = MediaType.APPLICATION_JSON
-                                content = requestBody
-                            }.andReturn()
-                    if (result.response.status == 200) {
-                        successCount.incrementAndGet()
-                    }
-                } catch (_: Exception) {
-                    // Session-related issues in standalone MockMvc are expected
-                } finally {
-                    latch.countDown()
-                }
-            }
-        }
-
-        latch.await()
-        executor.shutdown()
-
-        // All requests should complete without crashing the server
-        assert(successCount.get() > 0) {
-            "Expected at least some successful concurrent session-login requests"
-        }
+        assertThat(successes).isGreaterThan(0)
     }
 
     @Test
-    fun `token refresh handles concurrent requests without error`() {
+    fun `token refresh handles concurrent requests`() {
         val mockJwt =
             Jwt
                 .withTokenValue("refresh-token")
@@ -177,45 +150,12 @@ class RateLimitingTest {
                 updatedAt = java.time.Instant.now(),
             )
         every { userRepository.findCredentialsByUsername("alice") } returns credentials
-        every { tokenService.createAccessToken("alice", userId.value.toString(), listOf("ROLE_USER")) } returns
-            "new-access-token"
-        every { tokenService.createRefreshToken(userId.value.toString()) } returns "new-refresh-token"
+        every { tokenService.createAccessToken(any(), any(), any()) } returns "new-access"
+        every { tokenService.createRefreshToken(any()) } returns "new-refresh"
 
-        val request = RefreshRequest(refreshToken = "refresh-token")
-        val requestBody = objectMapper.writeValueAsString(request)
-        val concurrentRequests = 10
-        val successCount = AtomicInteger(0)
-        val errorCount = AtomicInteger(0)
-        val latch = CountDownLatch(concurrentRequests)
-        val executor = Executors.newFixedThreadPool(concurrentRequests)
+        val body = objectMapper.writeValueAsString(mapOf("refreshToken" to "refresh-token"))
+        val (successes, _) = runConcurrent(loginMockMvc, "/api/v1/auth/refresh", body)
 
-        repeat(concurrentRequests) {
-            executor.submit {
-                try {
-                    val result =
-                        loginMockMvc
-                            .post("/api/v1/auth/refresh") {
-                                contentType = MediaType.APPLICATION_JSON
-                                content = requestBody
-                            }.andReturn()
-                    if (result.response.status == 200) {
-                        successCount.incrementAndGet()
-                    } else {
-                        errorCount.incrementAndGet()
-                    }
-                } catch (_: Exception) {
-                    errorCount.incrementAndGet()
-                } finally {
-                    latch.countDown()
-                }
-            }
-        }
-
-        latch.await()
-        executor.shutdown()
-
-        assert(successCount.get() == concurrentRequests) {
-            "Expected $concurrentRequests successes but got ${successCount.get()} (errors: ${errorCount.get()})"
-        }
+        assertThat(successes).isEqualTo(10)
     }
 }

@@ -115,7 +115,7 @@ describe('conversation store', () => {
 
     expect(mockedSendMessage).toHaveBeenCalledWith('conv-1', 'Hi')
     expect(store.messages).toHaveLength(1)
-    expect(store.messages[0].id).toBe('server-1')
+    expect(store.messages[0]!.id).toBe('server-1')
     expect(store.isSending).toBe(false)
   })
 
@@ -160,7 +160,7 @@ describe('conversation store', () => {
 
     expect(mockedArchiveConversation).toHaveBeenCalledWith('conv-1')
     expect(store.conversations).toHaveLength(1)
-    expect(store.conversations[0].id).toBe('conv-2')
+    expect(store.conversations[0]!.id).toBe('conv-2')
     expect(store.activeConversationId).toBeNull()
     expect(store.messages).toEqual([])
   })
