@@ -15,6 +15,5 @@ data class AuthenticatedUser(
 
     override fun getPassword(): String = passwordHash
 
-    override fun getAuthorities(): Collection<GrantedAuthority> =
-        roles.map { SimpleGrantedAuthority(it) }
+    override fun getAuthorities(): Collection<GrantedAuthority> = roles.map { SimpleGrantedAuthority(it) }
 }

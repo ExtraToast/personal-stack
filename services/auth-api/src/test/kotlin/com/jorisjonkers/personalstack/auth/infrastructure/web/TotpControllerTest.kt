@@ -8,6 +8,7 @@ import com.jorisjonkers.personalstack.auth.application.command.TotpAlreadyEnroll
 import com.jorisjonkers.personalstack.auth.application.command.VerifyTotpCommand
 import com.jorisjonkers.personalstack.auth.domain.model.UserId
 import com.jorisjonkers.personalstack.auth.domain.service.TotpService
+import com.jorisjonkers.personalstack.auth.infrastructure.security.AuthenticatedUser
 import com.jorisjonkers.personalstack.auth.infrastructure.web.dto.TotpVerifyRequest
 import com.jorisjonkers.personalstack.common.command.CommandBus
 import io.mockk.every
@@ -18,7 +19,6 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
-import com.jorisjonkers.personalstack.auth.infrastructure.security.AuthenticatedUser
 import java.util.UUID
 
 class TotpControllerTest {

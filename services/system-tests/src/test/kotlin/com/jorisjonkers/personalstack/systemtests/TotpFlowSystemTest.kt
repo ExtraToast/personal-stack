@@ -68,7 +68,7 @@ class TotpFlowSystemTest {
     @Test
     fun `full TOTP flow - enroll verify and challenge`() {
         val username = "totp_full_${UUID.randomUUID().toString().take(8)}"
-        registerAndConfirm(username)
+        val user = registerAndConfirm(username)
 
         // Step 1: Login without TOTP — get full tokens
         val initialLogin = login(username)
@@ -76,11 +76,14 @@ class TotpFlowSystemTest {
         val accessToken = initialLogin.getString("accessToken")
         assertThat(accessToken).isNotBlank()
 
+        // Get session cookie for protected endpoint access
+        val sessionCookie = TestHelper.sessionLoginAndGetCookie(user)
+
         // Step 2: Enroll TOTP
         val enrollJson =
             given()
                 .baseUri(authBaseUrl)
-                .header("Authorization", "Bearer $accessToken")
+                .cookie("SESSION", sessionCookie)
                 .`when`()
                 .post("/api/v1/totp/enroll")
                 .then()
@@ -98,7 +101,7 @@ class TotpFlowSystemTest {
         given()
             .baseUri(authBaseUrl)
             .contentType(ContentType.JSON)
-            .header("Authorization", "Bearer $accessToken")
+            .cookie("SESSION", sessionCookie)
             .body("""{"code":"$verifyCode"}""")
             .`when`()
             .post("/api/v1/totp/verify")
@@ -131,10 +134,11 @@ class TotpFlowSystemTest {
         assertThat(challengeJson.getString("accessToken")).isNotBlank()
         assertThat(challengeJson.getString("refreshToken")).isNotBlank()
 
-        // Step 6: Verify the new token works for forward-auth
+        // Step 6: Verify session-based access works for forward-auth
+        val totpSessionCookie = TestHelper.sessionLoginAndGetCookie(user, generateTotpCode(secret))
         given()
             .baseUri(authBaseUrl)
-            .header("Authorization", "Bearer ${challengeJson.getString("accessToken")}")
+            .cookie("SESSION", totpSessionCookie)
             .`when`()
             .get("/api/v1/auth/verify")
             .then()
@@ -145,15 +149,15 @@ class TotpFlowSystemTest {
     @Test
     fun `TOTP challenge with wrong code returns 400`() {
         val username = "totp_bad_${UUID.randomUUID().toString().take(8)}"
-        registerAndConfirm(username)
+        val user = registerAndConfirm(username)
 
-        val token = login(username).getString("accessToken")
+        val sessionCookie = TestHelper.sessionLoginAndGetCookie(user)
 
         // Enroll + verify TOTP
         val secret =
             given()
                 .baseUri(authBaseUrl)
-                .header("Authorization", "Bearer $token")
+                .cookie("SESSION", sessionCookie)
                 .`when`()
                 .post("/api/v1/totp/enroll")
                 .then()
@@ -165,7 +169,7 @@ class TotpFlowSystemTest {
         given()
             .baseUri(authBaseUrl)
             .contentType(ContentType.JSON)
-            .header("Authorization", "Bearer $token")
+            .cookie("SESSION", sessionCookie)
             .body("""{"code":"${generateTotpCode(secret)}"}""")
             .`when`()
             .post("/api/v1/totp/verify")

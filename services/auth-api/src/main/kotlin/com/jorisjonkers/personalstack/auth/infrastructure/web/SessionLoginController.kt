@@ -44,17 +44,21 @@ class SessionLoginController(
         return ResponseEntity.ok(
             SessionLoginResponse(
                 success = true,
-                user = SessionUserResponse(
-                    id = credentials.userId.value.toString(),
-                    username = credentials.username,
-                    role = credentials.role.name,
-                ),
+                user =
+                    SessionUserResponse(
+                        id = credentials.userId.value.toString(),
+                        username = credentials.username,
+                        role = credentials.role.name,
+                    ),
             ),
         )
     }
 
     @Suppress("ThrowsCount")
-    private fun authenticate(username: String, password: String): UserCredentials {
+    private fun authenticate(
+        username: String,
+        password: String,
+    ): UserCredentials {
         val credentials =
             userRepository.findCredentialsByUsername(username)
                 ?: throw InvalidCredentialsException()
@@ -73,7 +77,8 @@ class SessionLoginController(
         if (totpCode == null) return ResponseEntity.ok(SessionLoginResponse(totpRequired = true))
         val secret = credentials.totpSecret ?: throw InvalidCredentialsException()
         if (!totpService.verifyCode(secret, totpCode)) {
-            throw com.jorisjonkers.personalstack.auth.application.command.InvalidTotpCodeException()
+            throw com.jorisjonkers.personalstack.auth.application.command
+                .InvalidTotpCodeException()
         }
         return null
     }

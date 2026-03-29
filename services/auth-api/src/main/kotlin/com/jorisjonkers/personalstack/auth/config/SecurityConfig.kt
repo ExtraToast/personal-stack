@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.annotation.Order
+import org.springframework.http.HttpStatus
 import org.springframework.security.authentication.AuthenticationManager
 import org.springframework.security.authentication.ProviderManager
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider
@@ -16,7 +17,6 @@ import org.springframework.security.core.AuthenticationException
 import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
-import org.springframework.http.HttpStatus
 import org.springframework.security.web.AuthenticationEntryPoint
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.HttpStatusEntryPoint
@@ -98,8 +98,11 @@ class SecurityConfig(
             .AuthorizeHttpRequestsConfigurer<HttpSecurity>
             .AuthorizationManagerRequestMatcherRegistry,
     ) {
-        auth.requestMatchers(*PUBLIC_ENDPOINTS).permitAll()
-            .anyRequest().authenticated()
+        auth
+            .requestMatchers(*PUBLIC_ENDPOINTS)
+            .permitAll()
+            .anyRequest()
+            .authenticated()
     }
 
     private fun forwardAuthEntryPoint() =
