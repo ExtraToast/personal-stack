@@ -69,11 +69,6 @@ class SecurityConfig(
         return http.build()
     }
 
-    /**
-     * Resource server filter chain (order 3, catch-all).
-     * Session-based authentication with CSRF protection.
-     * Public endpoints are exempt from both auth and CSRF.
-     */
     @Bean
     @Order(3)
     fun resourceServerSecurityFilterChain(
@@ -82,38 +77,29 @@ class SecurityConfig(
     ): SecurityFilterChain {
         http
             .cors { it.configurationSource(corsConfigurationSource) }
-            .securityContext { ctx ->
-                ctx.securityContextRepository(HttpSessionSecurityContextRepository())
-            }.csrf { csrf ->
-                csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                csrf.csrfTokenRequestHandler(CsrfTokenRequestAttributeHandler())
-                csrf.ignoringRequestMatchers(
-                    "/api/v1/auth/session-login",
-                    "/api/v1/users/register",
-                    "/api/v1/auth/login",
-                    "/api/v1/auth/totp-challenge",
-                    "/api/v1/auth/refresh",
-                    "/api/v1/auth/resend-confirmation",
-                )
-            }.authorizeHttpRequests { auth ->
-                auth
-                    .requestMatchers(
-                        "/api/v1/api-docs/**",
-                        "/api/v1/swagger-ui/**",
-                        "/api/v1/users/register",
-                        "/api/v1/auth/login",
-                        "/api/v1/auth/totp-challenge",
-                        "/api/v1/auth/refresh",
-                        "/api/v1/auth/confirm-email",
-                        "/api/v1/auth/resend-confirmation",
-                        "/api/v1/auth/session-login",
-                    ).permitAll()
-                    .anyRequest()
-                    .authenticated()
-            }.exceptionHandling { exceptions ->
-                exceptions.authenticationEntryPoint(HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
-            }
+            .securityContext { it.securityContextRepository(HttpSessionSecurityContextRepository()) }
+            .csrf { configureCsrf(it) }
+            .authorizeHttpRequests { configureAuthorization(it) }
+            .exceptionHandling { it.authenticationEntryPoint(HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)) }
         return http.build()
+    }
+
+    private fun configureCsrf(
+        csrf: org.springframework.security.config.annotation.web.configurers
+            .CsrfConfigurer<HttpSecurity>,
+    ) {
+        csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+        csrf.csrfTokenRequestHandler(CsrfTokenRequestAttributeHandler())
+        csrf.ignoringRequestMatchers(*PUBLIC_POST_ENDPOINTS)
+    }
+
+    private fun configureAuthorization(
+        auth: org.springframework.security.config.annotation.web.configurers
+            .AuthorizeHttpRequestsConfigurer<HttpSecurity>
+            .AuthorizationManagerRequestMatcherRegistry,
+    ) {
+        auth.requestMatchers(*PUBLIC_ENDPOINTS).permitAll()
+            .anyRequest().authenticated()
     }
 
     private fun forwardAuthEntryPoint() =
@@ -165,5 +151,30 @@ class SecurityConfig(
         return UrlBasedCorsConfigurationSource().apply {
             registerCorsConfiguration("/**", config)
         }
+    }
+
+    companion object {
+        private val PUBLIC_POST_ENDPOINTS =
+            arrayOf(
+                "/api/v1/auth/session-login",
+                "/api/v1/users/register",
+                "/api/v1/auth/login",
+                "/api/v1/auth/totp-challenge",
+                "/api/v1/auth/refresh",
+                "/api/v1/auth/resend-confirmation",
+            )
+
+        private val PUBLIC_ENDPOINTS =
+            arrayOf(
+                "/api/v1/api-docs/**",
+                "/api/v1/swagger-ui/**",
+                "/api/v1/users/register",
+                "/api/v1/auth/login",
+                "/api/v1/auth/totp-challenge",
+                "/api/v1/auth/refresh",
+                "/api/v1/auth/confirm-email",
+                "/api/v1/auth/resend-confirmation",
+                "/api/v1/auth/session-login",
+            )
     }
 }

@@ -10,19 +10,6 @@ import java.util.UUID
 class AuthVerificationControllerTest {
     private val controller = AuthVerificationController()
 
-    private fun buildUser(
-        id: String = "user-123",
-        roles: List<String> = listOf("ROLE_USER"),
-    ): AuthenticatedUser =
-        AuthenticatedUser(
-            userId = UserId(UUID.fromString(id.padStart(36, '0').let {
-                if (it.contains('-')) it
-                else "${it.take(8)}-${it.substring(8, 12)}-${it.substring(12, 16)}-${it.substring(16, 20)}-${it.substring(20)}"
-            })),
-            username = "testuser",
-            roles = roles,
-        )
-
     private val defaultUserId = UUID.randomUUID()
 
     private fun buildUserWithUuid(

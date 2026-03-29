@@ -29,52 +29,53 @@ class SessionLoginController(
     private val passwordEncoder: PasswordEncoder,
     private val totpService: TotpService,
 ) {
-    @Suppress("ThrowsCount")
     @PostMapping("/session-login")
     fun sessionLogin(
         @Valid @RequestBody request: SessionLoginRequest,
         httpRequest: HttpServletRequest,
     ): ResponseEntity<SessionLoginResponse> {
-        val credentials =
-            userRepository.findCredentialsByUsername(request.username)
-                ?: throw InvalidCredentialsException()
+        val credentials = authenticate(request.username, request.password)
 
-        if (!passwordEncoder.matches(request.password, credentials.passwordHash)) {
-            throw InvalidCredentialsException()
-        }
-
-        if (!credentials.emailConfirmed) {
-            throw EmailNotConfirmedException()
-        }
-
-        if (credentials.totpEnabled) {
-            if (request.totpCode == null) {
-                return ResponseEntity.ok(SessionLoginResponse(totpRequired = true))
-            }
-
-            val totpSecret =
-                credentials.totpSecret
-                    ?: throw InvalidCredentialsException()
-
-            if (!totpService.verifyCode(totpSecret, request.totpCode)) {
-                throw com.jorisjonkers.personalstack.auth.application.command
-                    .InvalidTotpCodeException()
-            }
-        }
+        val totpResult = handleTotp(credentials, request.totpCode)
+        if (totpResult != null) return totpResult
 
         establishSession(credentials, httpRequest)
 
         return ResponseEntity.ok(
             SessionLoginResponse(
                 success = true,
-                user =
-                    SessionUserResponse(
-                        id = credentials.userId.value.toString(),
-                        username = credentials.username,
-                        role = credentials.role.name,
-                    ),
+                user = SessionUserResponse(
+                    id = credentials.userId.value.toString(),
+                    username = credentials.username,
+                    role = credentials.role.name,
+                ),
             ),
         )
+    }
+
+    @Suppress("ThrowsCount")
+    private fun authenticate(username: String, password: String): UserCredentials {
+        val credentials =
+            userRepository.findCredentialsByUsername(username)
+                ?: throw InvalidCredentialsException()
+        if (!passwordEncoder.matches(password, credentials.passwordHash)) {
+            throw InvalidCredentialsException()
+        }
+        if (!credentials.emailConfirmed) throw EmailNotConfirmedException()
+        return credentials
+    }
+
+    private fun handleTotp(
+        credentials: UserCredentials,
+        totpCode: String?,
+    ): ResponseEntity<SessionLoginResponse>? {
+        if (!credentials.totpEnabled) return null
+        if (totpCode == null) return ResponseEntity.ok(SessionLoginResponse(totpRequired = true))
+        val secret = credentials.totpSecret ?: throw InvalidCredentialsException()
+        if (!totpService.verifyCode(secret, totpCode)) {
+            throw com.jorisjonkers.personalstack.auth.application.command.InvalidTotpCodeException()
+        }
+        return null
     }
 
     private fun establishSession(
