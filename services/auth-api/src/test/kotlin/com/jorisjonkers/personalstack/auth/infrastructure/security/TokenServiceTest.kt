@@ -13,7 +13,6 @@ import org.springframework.security.oauth2.server.authorization.settings.Authori
 import java.security.KeyPairGenerator
 import java.security.interfaces.RSAPrivateKey
 import java.security.interfaces.RSAPublicKey
-import java.time.Instant
 import java.time.temporal.ChronoUnit
 
 class TokenServiceTest {
@@ -24,14 +23,16 @@ class TokenServiceTest {
     fun setUp() {
         val keyPair = KeyPairGenerator.getInstance("RSA").apply { initialize(2048) }.generateKeyPair()
         val rsaKey =
-            RSAKey.Builder(keyPair.public as RSAPublicKey)
+            RSAKey
+                .Builder(keyPair.public as RSAPublicKey)
                 .privateKey(keyPair.private as RSAPrivateKey)
                 .build()
         val jwkSource = ImmutableJWKSet<SecurityContext>(JWKSet(rsaKey))
         val jwtEncoder = NimbusJwtEncoder(jwkSource)
 
         val authorizationServerSettings =
-            AuthorizationServerSettings.builder()
+            AuthorizationServerSettings
+                .builder()
                 .issuer("https://auth.jorisjonkers.dev")
                 .build()
 

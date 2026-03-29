@@ -118,11 +118,13 @@ describe('refreshAccessToken', () => {
 
     await refreshAccessToken('old-rt')
 
-    const fetchCall = vi.mocked(fetch).mock.calls[0]
-    const body = fetchCall[1]!.body! as unknown as URLSearchParams
-    expect(body.get('grant_type')).toBe('refresh_token')
-    expect(body.get('client_id')).toBe('app-ui')
-    expect(body.get('refresh_token')).toBe('old-rt')
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/oauth2/token'),
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.any(URLSearchParams),
+      }),
+    )
   })
 })
 

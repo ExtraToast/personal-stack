@@ -100,8 +100,8 @@ async function handleOAuth2SessionLogin(totpCodeValue?: string): Promise<void> {
   } catch (e: unknown) {
     let msg = 'Login failed'
     if (typeof e === 'object' && e !== null && 'detail' in e) {
-      const detail = (e as Record<string, unknown>).detail
-      if (typeof detail === 'string') msg = detail
+      const err: Record<string, unknown> = e
+      if (typeof err.detail === 'string') msg = err.detail
     }
     authStore.error = msg
     if (totpCodeValue) totpCode.value = ''

@@ -16,7 +16,6 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
 import org.springframework.mock.web.MockHttpSession
-import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository
 import org.springframework.test.web.servlet.MockMvc
@@ -65,7 +64,10 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
 
     private fun uniqueUsername() = "oauth2_${UUID.randomUUID().toString().take(8)}"
 
-    private fun registerUser(username: String, password: String) {
+    private fun registerUser(
+        username: String,
+        password: String,
+    ) {
         mockMvc
             .post("/api/v1/users/register") {
                 contentType = MediaType.APPLICATION_JSON
@@ -99,7 +101,10 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
             }.andExpect { status { isOk() } }
     }
 
-    private fun registerAndConfirmUser(username: String, password: String): String {
+    private fun registerAndConfirmUser(
+        username: String,
+        password: String,
+    ): String {
         registerUser(username, password)
         confirmEmail(username)
         return username
@@ -150,7 +155,10 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
         return TimeBasedOneTimePasswordGenerator(secretBytes, config).generate()
     }
 
-    private fun enrollAndEnableTotp(username: String, password: String): String {
+    private fun enrollAndEnableTotp(
+        username: String,
+        password: String,
+    ): String {
         val loginResult =
             mockMvc
                 .post("/api/v1/auth/login") {
@@ -341,10 +349,10 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
                         contentType = MediaType.APPLICATION_FORM_URLENCODED
                         content =
                             "grant_type=authorization_code" +
-                                "&code=${URLEncoder.encode(code, StandardCharsets.UTF_8)}" +
-                                "&redirect_uri=${URLEncoder.encode(REDIRECT_URI, StandardCharsets.UTF_8)}" +
-                                "&client_id=$CLIENT_ID" +
-                                "&code_verifier=$codeVerifier"
+                            "&code=${URLEncoder.encode(code, StandardCharsets.UTF_8)}" +
+                            "&redirect_uri=${URLEncoder.encode(REDIRECT_URI, StandardCharsets.UTF_8)}" +
+                            "&client_id=$CLIENT_ID" +
+                            "&code_verifier=$codeVerifier"
                     }.andExpect {
                         status { isOk() }
                     }.andReturn()
@@ -429,10 +437,10 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
                 contentType = MediaType.APPLICATION_FORM_URLENCODED
                 content =
                     "grant_type=authorization_code" +
-                        "&code=invalid-code" +
-                        "&redirect_uri=${URLEncoder.encode(REDIRECT_URI, StandardCharsets.UTF_8)}" +
-                        "&client_id=$CLIENT_ID" +
-                        "&code_verifier=${generateCodeVerifier()}"
+                    "&code=invalid-code" +
+                    "&redirect_uri=${URLEncoder.encode(REDIRECT_URI, StandardCharsets.UTF_8)}" +
+                    "&client_id=$CLIENT_ID" +
+                    "&code_verifier=${generateCodeVerifier()}"
             }.andExpect {
                 status { isBadRequest() }
             }
@@ -526,10 +534,10 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
                         contentType = MediaType.APPLICATION_FORM_URLENCODED
                         content =
                             "grant_type=authorization_code" +
-                                "&code=${URLEncoder.encode(code, StandardCharsets.UTF_8)}" +
-                                "&redirect_uri=${URLEncoder.encode(REDIRECT_URI, StandardCharsets.UTF_8)}" +
-                                "&client_id=$CLIENT_ID" +
-                                "&code_verifier=$codeVerifier"
+                            "&code=${URLEncoder.encode(code, StandardCharsets.UTF_8)}" +
+                            "&redirect_uri=${URLEncoder.encode(REDIRECT_URI, StandardCharsets.UTF_8)}" +
+                            "&client_id=$CLIENT_ID" +
+                            "&code_verifier=$codeVerifier"
                     }.andExpect { status { isOk() } }
                     .andReturn()
 
@@ -541,8 +549,8 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
                     contentType = MediaType.APPLICATION_FORM_URLENCODED
                     content =
                         "grant_type=refresh_token" +
-                            "&refresh_token=${URLEncoder.encode(refreshToken, StandardCharsets.UTF_8)}" +
-                            "&client_id=$CLIENT_ID"
+                        "&refresh_token=${URLEncoder.encode(refreshToken, StandardCharsets.UTF_8)}" +
+                        "&client_id=$CLIENT_ID"
                 }.andExpect {
                     status { isOk() }
                     jsonPath("$.access_token") { exists() }

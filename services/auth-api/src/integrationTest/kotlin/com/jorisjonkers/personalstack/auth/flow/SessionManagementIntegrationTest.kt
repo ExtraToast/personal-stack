@@ -51,7 +51,10 @@ class SessionManagementIntegrationTest : IntegrationTestBase() {
 
     private fun uniqueUsername() = "sess_${UUID.randomUUID().toString().take(8)}"
 
-    private fun registerUser(username: String, password: String) {
+    private fun registerUser(
+        username: String,
+        password: String,
+    ) {
         mockMvc
             .post("/api/v1/users/register") {
                 contentType = MediaType.APPLICATION_JSON
@@ -85,7 +88,10 @@ class SessionManagementIntegrationTest : IntegrationTestBase() {
             }.andExpect { status { isOk() } }
     }
 
-    private fun registerAndConfirmUser(username: String, password: String): String {
+    private fun registerAndConfirmUser(
+        username: String,
+        password: String,
+    ): String {
         registerUser(username, password)
         confirmEmail(username)
         return username
@@ -125,7 +131,10 @@ class SessionManagementIntegrationTest : IntegrationTestBase() {
         return TimeBasedOneTimePasswordGenerator(secretBytes, config).generate()
     }
 
-    private fun enrollAndEnableTotp(username: String, password: String): String {
+    private fun enrollAndEnableTotp(
+        username: String,
+        password: String,
+    ): String {
         val loginResult =
             mockMvc
                 .post("/api/v1/auth/login") {

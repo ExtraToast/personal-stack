@@ -64,7 +64,8 @@ class SessionLoginController(
                     ?: throw InvalidCredentialsException()
 
             if (!totpService.verifyCode(totpSecret, request.totpCode)) {
-                throw com.jorisjonkers.personalstack.auth.application.command.InvalidTotpCodeException()
+                throw com.jorisjonkers.personalstack.auth.application.command
+                    .InvalidTotpCodeException()
             }
         }
 

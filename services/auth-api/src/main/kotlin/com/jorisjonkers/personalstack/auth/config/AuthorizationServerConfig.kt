@@ -59,8 +59,7 @@ class AuthorizationServerConfig(
             .authorizeHttpRequests { it.anyRequest().authenticated() }
             .securityContext { ctx ->
                 ctx.securityContextRepository(HttpSessionSecurityContextRepository())
-            }
-            .exceptionHandling { exceptions ->
+            }.exceptionHandling { exceptions ->
                 exceptions.defaultAuthenticationEntryPointFor(
                     LoginUrlAuthenticationEntryPoint("/login"),
                     MediaTypeRequestMatcher(MediaType.TEXT_HTML),

@@ -76,10 +76,10 @@ class SecurityConfig(
             .csrf { it.disable() }
             .securityContext { ctx ->
                 ctx.securityContextRepository(
-                    org.springframework.security.web.context.HttpSessionSecurityContextRepository(),
+                    org.springframework.security.web.context
+                        .HttpSessionSecurityContextRepository(),
                 )
-            }
-            .authorizeHttpRequests { it.anyRequest().permitAll() }
+            }.authorizeHttpRequests { it.anyRequest().permitAll() }
         return http.build()
     }
 
