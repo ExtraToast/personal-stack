@@ -131,7 +131,7 @@ describe('totpSetupView', () => {
   })
 
   it('uses pendingRedirect from sessionStorage after setup', async () => {
-    sessionStorage.setItem('pendingRedirect', '/oauth2/authorize?client_id=abc')
+    sessionStorage.setItem('pendingRedirect', '/api/oauth2/authorize?client_id=abc')
 
     // Mock window.location.href
     const hrefSetter = vi.fn()
@@ -160,7 +160,7 @@ describe('totpSetupView', () => {
     await wrapper.find('form').trigger('submit')
 
     await vi.waitFor(() => {
-      expect(hrefSetter).toHaveBeenCalledWith('/oauth2/authorize?client_id=abc')
+      expect(hrefSetter).toHaveBeenCalledWith('/api/oauth2/authorize?client_id=abc')
     })
 
     expect(sessionStorage.getItem('pendingRedirect')).toBeNull()

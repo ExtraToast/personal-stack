@@ -65,7 +65,7 @@ describe('startLoginFlow', () => {
 
   it('redirects to auth server with required PKCE params', async () => {
     await startLoginFlow()
-    expect(window.location.href).toContain('/oauth2/authorize')
+    expect(window.location.href).toContain('/api/oauth2/authorize')
     expect(window.location.href).toContain('code_challenge_method=S256')
     expect(window.location.href).toContain('client_id=app-ui')
     expect(window.location.href).toContain('response_type=code')
@@ -119,7 +119,7 @@ describe('refreshAccessToken', () => {
     await refreshAccessToken('old-rt')
 
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/oauth2/token'),
+      expect.stringContaining('/api/oauth2/token'),
       expect.objectContaining({
         method: 'POST',
         body: expect.any(URLSearchParams),

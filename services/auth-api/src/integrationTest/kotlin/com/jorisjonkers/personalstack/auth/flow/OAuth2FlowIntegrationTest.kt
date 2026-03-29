@@ -289,7 +289,7 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
 
         val authorizeResult =
             mockMvc
-                .get("/oauth2/authorize") {
+                .get("/api/oauth2/authorize") {
                     param("response_type", "code")
                     param("client_id", CLIENT_ID)
                     param("redirect_uri", REDIRECT_URI)
@@ -327,7 +327,7 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
 
         val authorizeResult =
             mockMvc
-                .get("/oauth2/authorize") {
+                .get("/api/oauth2/authorize") {
                     param("response_type", "code")
                     param("client_id", CLIENT_ID)
                     param("redirect_uri", REDIRECT_URI)
@@ -345,7 +345,7 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
 
             val tokenResult =
                 mockMvc
-                    .post("/oauth2/token") {
+                    .post("/api/oauth2/token") {
                         contentType = MediaType.APPLICATION_FORM_URLENCODED
                         content =
                             "grant_type=authorization_code" +
@@ -372,7 +372,7 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
 
         val result =
             mockMvc
-                .get("/oauth2/authorize") {
+                .get("/api/oauth2/authorize") {
                     param("response_type", "code")
                     param("client_id", CLIENT_ID)
                     param("redirect_uri", REDIRECT_URI)
@@ -400,7 +400,7 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
         val codeChallenge = generateCodeChallenge(codeVerifier)
 
         mockMvc
-            .get("/oauth2/authorize") {
+            .get("/api/oauth2/authorize") {
                 param("response_type", "code")
                 param("client_id", CLIENT_ID)
                 param("redirect_uri", "https://evil.example.com/callback")
@@ -417,7 +417,7 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
     @Test
     fun `invalid client_id is rejected`() {
         mockMvc
-            .get("/oauth2/authorize") {
+            .get("/api/oauth2/authorize") {
                 param("response_type", "code")
                 param("client_id", "nonexistent-client")
                 param("redirect_uri", REDIRECT_URI)
@@ -433,7 +433,7 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
     @Test
     fun `token exchange with wrong code fails`() {
         mockMvc
-            .post("/oauth2/token") {
+            .post("/api/oauth2/token") {
                 contentType = MediaType.APPLICATION_FORM_URLENCODED
                 content =
                     "grant_type=authorization_code" +
@@ -512,7 +512,7 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
 
         val authorizeResult =
             mockMvc
-                .get("/oauth2/authorize") {
+                .get("/api/oauth2/authorize") {
                     param("response_type", "code")
                     param("client_id", CLIENT_ID)
                     param("redirect_uri", REDIRECT_URI)
@@ -530,7 +530,7 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
 
             val tokenResult =
                 mockMvc
-                    .post("/oauth2/token") {
+                    .post("/api/oauth2/token") {
                         contentType = MediaType.APPLICATION_FORM_URLENCODED
                         content =
                             "grant_type=authorization_code" +
@@ -545,7 +545,7 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
             val refreshToken = tokenJson["refresh_token"].asText()
 
             mockMvc
-                .post("/oauth2/token") {
+                .post("/api/oauth2/token") {
                     contentType = MediaType.APPLICATION_FORM_URLENCODED
                     content =
                         "grant_type=refresh_token" +
@@ -573,7 +573,7 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
 
         val authorizeResult =
             mockMvc
-                .get("/oauth2/authorize") {
+                .get("/api/oauth2/authorize") {
                     param("response_type", "code")
                     param("client_id", CLIENT_ID)
                     param("redirect_uri", REDIRECT_URI)

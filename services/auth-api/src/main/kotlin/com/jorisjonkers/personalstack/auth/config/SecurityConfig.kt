@@ -32,12 +32,6 @@ class SecurityConfig(
     @param:Value("\${auth.login-url:http://localhost:5174/login}")
     private val loginUrl: String,
 ) {
-    /**
-     * Health endpoint filter chain (order 0).
-     * Runs before all other chains so health/info endpoints are always publicly
-     * accessible, regardless of OAuth2 authorization server or JWT resource
-     * server rules in lower-priority chains.
-     */
     @Bean
     @Order(0)
     fun healthEndpointSecurityFilterChain(http: HttpSecurity): SecurityFilterChain {
@@ -45,13 +39,10 @@ class SecurityConfig(
             .securityMatcher("/api/actuator/health", "/api/actuator/info", "/api/v1/health")
             .authorizeHttpRequests { it.anyRequest().permitAll() }
             .csrf { it.disable() }
+            .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
         return http.build()
     }
 
-    /**
-     * Converts the `roles` JWT claim to Spring [SimpleGrantedAuthority] objects so that
-     * [org.springframework.security.access.prepost.PreAuthorize] role checks work correctly.
-     */
     @Bean
     fun jwtAuthenticationConverter(): JwtAuthenticationConverter =
         JwtAuthenticationConverter().apply {
@@ -61,18 +52,15 @@ class SecurityConfig(
             }
         }
 
-    /**
-     * Session-login filter chain (order 2).
-     * The /api/v1/auth/session-login endpoint creates a server-side HttpSession so the
-     * OAuth2 Authorization Server (order 1) can recognise the user on the next request.
-     * Unlike the resource-server chain, this chain allows session creation.
-     */
     @Bean
     @Order(2)
-    fun sessionLoginSecurityFilterChain(http: HttpSecurity): SecurityFilterChain {
+    fun sessionLoginSecurityFilterChain(
+        http: HttpSecurity,
+        corsConfigurationSource: CorsConfigurationSource,
+    ): SecurityFilterChain {
         http
             .securityMatcher("/api/v1/auth/session-login")
-            .cors { it.configurationSource(corsConfigurationSource()) }
+            .cors { it.configurationSource(corsConfigurationSource) }
             .csrf { it.disable() }
             .securityContext { ctx ->
                 ctx.securityContextRepository(
@@ -83,21 +71,17 @@ class SecurityConfig(
         return http.build()
     }
 
-    /**
-     * Forward-auth filter chain (order 3).
-     * The /api/v1/auth/verify endpoint redirects to the login page when unauthenticated,
-     * so Traefik's forwardAuth middleware delivers a 302 to the browser instead of a raw 401.
-     */
     @Bean
     @Order(3)
     fun forwardAuthSecurityFilterChain(
         http: HttpSecurity,
         jwtDecoder: JwtDecoder,
         jwtAuthenticationConverter: JwtAuthenticationConverter,
+        corsConfigurationSource: CorsConfigurationSource,
     ): SecurityFilterChain {
         http
             .securityMatcher("/api/v1/auth/verify")
-            .cors { it.configurationSource(corsConfigurationSource()) }
+            .cors { it.configurationSource(corsConfigurationSource) }
             .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests { it.anyRequest().authenticated() }
@@ -111,28 +95,21 @@ class SecurityConfig(
         return http.build()
     }
 
-    /**
-     * Resource server filter chain (order 4).
-     * Protects the REST API endpoints with JWT bearer tokens.
-     * Auth server endpoints (order 1) are handled by [AuthorizationServerConfig].
-     */
     @Bean
     @Order(4)
     fun resourceServerSecurityFilterChain(
         http: HttpSecurity,
         jwtDecoder: JwtDecoder,
         jwtAuthenticationConverter: JwtAuthenticationConverter,
+        corsConfigurationSource: CorsConfigurationSource,
     ): SecurityFilterChain {
         http
-            .cors { it.configurationSource(corsConfigurationSource()) }
+            .cors { it.configurationSource(corsConfigurationSource) }
             .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests { auth ->
                 auth
                     .requestMatchers(
-                        "/api/actuator/health",
-                        "/api/actuator/info",
-                        "/api/v1/health",
                         "/api/v1/api-docs/**",
                         "/api/v1/swagger-ui/**",
                         "/api/v1/users/register",
@@ -182,7 +159,8 @@ class SecurityConfig(
         return ProviderManager(provider)
     }
 
-    private fun corsConfigurationSource(): CorsConfigurationSource {
+    @Bean
+    fun corsConfigurationSource(): CorsConfigurationSource {
         val config =
             CorsConfiguration().apply {
                 allowedOrigins =
