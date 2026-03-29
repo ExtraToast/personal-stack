@@ -68,9 +68,7 @@ jobs:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
       - uses: gradle/actions/setup-gradle@v6
-      - run: ./gradlew ${{ matrix.gradle-path }}:test ${{ matrix.gradle-path }}:jacocoTestReport
-      - name: Verify coverage threshold (80%)
-        run: ./gradlew ${{ matrix.gradle-path }}:jacocoTestCoverageVerification
+      - run: ./gradlew ${{ matrix.gradle-path }}:test
 
   test-frontend-unit:
     name: Frontend Unit Tests
@@ -103,6 +101,36 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
       - uses: gradle/actions/setup-gradle@v6
       - run: ./gradlew ${{ matrix.gradle-path }}:integrationTest
+
+  verify-coverage:
+    name: Coverage Threshold (${{ matrix.module }})
+    needs: [test-kotlin-unit, test-kotlin-integration]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - module: auth-api
+            gradle-path: :services:auth-api
+            has-integration: true
+          - module: assistant-api
+            gradle-path: :services:assistant-api
+            has-integration: true
+          - module: kotlin-common
+            gradle-path: :libs:kotlin-common
+            has-integration: false
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Run tests and verify coverage (80%)
+        if: matrix.has-integration
+        run: ./gradlew ${{ matrix.gradle-path }}:test ${{ matrix.gradle-path }}:integrationTest ${{ matrix.gradle-path }}:jacocoTestCoverageVerification
+      - name: Run tests and verify coverage (80%) - unit only
+        if: '!matrix.has-integration'
+        run: ./gradlew ${{ matrix.gradle-path }}:test ${{ matrix.gradle-path }}:jacocoTestCoverageVerification
 
   test-architecture:
     name: Architecture Tests
@@ -273,6 +301,7 @@ jobs:
       - test-kotlin-unit
       - test-frontend-unit
       - test-kotlin-integration
+      - verify-coverage
       - test-architecture
       - build-images
       - test-system
