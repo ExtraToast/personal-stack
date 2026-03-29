@@ -28,9 +28,7 @@ import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher
-import org.springframework.security.web.util.matcher.AndRequestMatcher
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher
-import org.springframework.security.web.util.matcher.NegatedRequestMatcher
 import org.springframework.security.web.util.matcher.OrRequestMatcher
 import org.springframework.web.cors.CorsConfigurationSource
 import java.time.Duration
@@ -52,16 +50,16 @@ class AuthorizationServerConfig(
         val authServerConfigurer = OAuth2AuthorizationServerConfigurer()
         authServerConfigurer.oidc(Customizer.withDefaults())
 
-        val healthMatcher =
+        val oauthEndpoints =
             OrRequestMatcher(
-                PathPatternRequestMatcher.pathPattern("/api/actuator/health"),
-                PathPatternRequestMatcher.pathPattern("/api/actuator/info"),
-                PathPatternRequestMatcher.pathPattern("/api/v1/health"),
+                PathPatternRequestMatcher.pathPattern("/api/oauth2/**"),
+                PathPatternRequestMatcher.pathPattern("/api/userinfo"),
+                PathPatternRequestMatcher.pathPattern("/api/connect/logout"),
+                PathPatternRequestMatcher.pathPattern("/.well-known/**"),
             )
-        val matcher = AndRequestMatcher(authServerConfigurer.endpointsMatcher, NegatedRequestMatcher(healthMatcher))
 
         http
-            .securityMatcher(matcher)
+            .securityMatcher(oauthEndpoints)
             .cors { it.configurationSource(corsConfigurationSource) }
             .with(authServerConfigurer, Customizer.withDefaults())
             .authorizeHttpRequests { it.anyRequest().authenticated() }
