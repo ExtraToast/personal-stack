@@ -81,6 +81,7 @@ open class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException::class)
     fun handleMessageNotReadable(ex: HttpMessageNotReadableException): ResponseEntity<ProblemDetail> {
+        log.debug("Unreadable request body: {}", ex.message)
         val body =
             ProblemDetail(
                 type = URI.create("https://jorisjonkers.dev/errors/bad-request"),
