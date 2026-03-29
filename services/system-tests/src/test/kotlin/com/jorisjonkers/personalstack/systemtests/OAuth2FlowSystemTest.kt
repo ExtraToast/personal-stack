@@ -157,8 +157,7 @@ class OAuth2FlowSystemTest {
                 .body(
                     """{"username":"${user.username}","password":"${user.password}",""" +
                         """"totpCode":"${generateTotpCode(secret)}"}""",
-                )
-                .`when`()
+                ).`when`()
                 .post("/api/v1/auth/session-login")
                 .then()
                 .statusCode(200)
@@ -370,7 +369,9 @@ class OAuth2FlowSystemTest {
 
         // Extract authorization code from redirect URI
         val code =
-            java.net.URI(location).query
+            java.net
+                .URI(location)
+                .query
                 .split("&")
                 .associate { it.split("=", limit = 2).let { kv -> kv[0] to kv[1] } }["code"]
         assertThat(code).isNotNull().isNotBlank()

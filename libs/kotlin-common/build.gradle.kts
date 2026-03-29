@@ -19,5 +19,6 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("io.mockk:mockk:1.13.16")
     testImplementation("org.assertj:assertj-core:3.27.3")
+    testImplementation("org.springframework.boot:spring-boot-starter-amqp:4.0.4")
     implementation("com.tngtech.archunit:archunit-junit5:1.4.0")
 }

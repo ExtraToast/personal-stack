@@ -100,8 +100,12 @@ class RegistrationFlowSystemTest {
     @Test
     fun `registration with duplicate email returns 400`() {
         val email = "dup_email_${UUID.randomUUID().toString().take(8)}@test.com"
-        val body1 = """{"username":"dup_e1_${UUID.randomUUID().toString().take(8)}","email":"$email","password":"Test1234!"}"""
-        val body2 = """{"username":"dup_e2_${UUID.randomUUID().toString().take(8)}","email":"$email","password":"Test1234!"}"""
+        val body1 = """{"username":"dup_e1_${UUID.randomUUID().toString().take(
+            8,
+        )}","email":"$email","password":"Test1234!"}"""
+        val body2 = """{"username":"dup_e2_${UUID.randomUUID().toString().take(
+            8,
+        )}","email":"$email","password":"Test1234!"}"""
 
         given()
             .baseUri(authBaseUrl)

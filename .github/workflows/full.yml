@@ -68,7 +68,16 @@ jobs:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
       - uses: gradle/actions/setup-gradle@v6
-      - run: ./gradlew ${{ matrix.gradle-path }}:test
+      - run: ./gradlew ${{ matrix.gradle-path }}:test ${{ matrix.gradle-path }}:jacocoTestReport
+      - name: Verify coverage threshold (80%)
+        run: ./gradlew ${{ matrix.gradle-path }}:jacocoTestCoverageVerification
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ matrix.module }}
+          path: services/${{ matrix.module }}/build/reports/jacoco/
+          retention-days: 7
 
   test-frontend-unit:
     name: Frontend Unit Tests
@@ -81,7 +90,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm -r test
+      - run: pnpm -r test -- --coverage
 
   test-kotlin-integration:
     name: Kotlin Integration Tests (${{ matrix.module }})

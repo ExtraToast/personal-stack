@@ -372,6 +372,10 @@ class AdminApiSystemTest {
     private fun decodeJwtPayload(token: String): String {
         val parts = token.split(".")
         require(parts.size >= 2) { "Invalid JWT format" }
-        return String(java.util.Base64.getUrlDecoder().decode(parts[1]))
+        return String(
+            java.util.Base64
+                .getUrlDecoder()
+                .decode(parts[1]),
+        )
     }
 }

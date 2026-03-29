@@ -226,7 +226,9 @@ class ForwardAuthChainSystemTest {
         assertThat(location).contains("code=")
 
         val code =
-            java.net.URI(location).query
+            java.net
+                .URI(location)
+                .query
                 .split("&")
                 .associate { it.split("=", limit = 2).let { kv -> kv[0] to kv[1] } }["code"]
 
