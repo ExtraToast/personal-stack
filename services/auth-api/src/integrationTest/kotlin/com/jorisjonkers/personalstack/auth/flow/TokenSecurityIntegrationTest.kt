@@ -1,23 +1,28 @@
 package com.jorisjonkers.personalstack.auth.flow
 
 import com.jorisjonkers.personalstack.auth.IntegrationTestBase
+import com.jorisjonkers.personalstack.auth.domain.model.UserId
+import com.jorisjonkers.personalstack.auth.infrastructure.security.AuthenticatedUser
 import com.jorisjonkers.personalstack.auth.jooq.tables.AppUser.APP_USER
 import com.jorisjonkers.personalstack.auth.jooq.tables.EmailConfirmationToken.EMAIL_CONFIRMATION_TOKEN
+import org.assertj.core.api.Assertions.assertThat
 import org.jooq.DSLContext
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
-import org.springframework.security.core.authority.SimpleGrantedAuthority
-import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt
+import org.springframework.mock.web.MockHttpSession
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.post
 import org.springframework.test.web.servlet.setup.DefaultMockMvcBuilder
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import org.springframework.web.context.WebApplicationContext
-import java.util.Base64
 import java.util.UUID
 
 class TokenSecurityIntegrationTest : IntegrationTestBase() {
@@ -75,124 +80,42 @@ class TokenSecurityIntegrationTest : IntegrationTestBase() {
             }.andExpect { status { isOk() } }
     }
 
-    private fun loginAndGetTokens(
+    private fun sessionLoginAndGetSession(
         username: String,
         password: String,
-    ): Pair<String, String> {
+    ): MockHttpSession {
         val result =
             mockMvc
-                .post("/api/v1/auth/login") {
+                .post("/api/v1/auth/session-login") {
                     contentType = MediaType.APPLICATION_JSON
                     content = """{"username":"$username","password":"$password"}"""
                 }.andExpect { status { isOk() } }
                 .andReturn()
-
-        val body = result.response.contentAsString
-        val accessToken = Regex(""""accessToken"\s*:\s*"([^"]+)"""").find(body)!!.groupValues[1]
-        val refreshToken = Regex(""""refreshToken"\s*:\s*"([^"]+)"""").find(body)!!.groupValues[1]
-        return accessToken to refreshToken
+        return result.request.getSession(false) as MockHttpSession
     }
 
     @Test
-    fun `expired access token is rejected on protected endpoint`() {
-        val username = uniqueUsername()
-        val password = "securepass123"
-        registerAndConfirmUser(username, password)
-        val (accessToken, _) = loginAndGetTokens(username, password)
-
-        // Tamper with the JWT to set an expired date by modifying the payload
-        val parts = accessToken.split(".")
-        val payloadJson = String(Base64.getUrlDecoder().decode(parts[1] + "==".take((4 - parts[1].length % 4) % 4)))
-        // Replace the exp claim with a past timestamp (year 2020)
-        val expiredPayload = payloadJson.replace(Regex(""""exp"\s*:\s*\d+"""), """"exp":1577836800""")
-        val newPayload =
-            Base64.getUrlEncoder().withoutPadding().encodeToString(expiredPayload.toByteArray())
-        val tamperedToken = "${parts[0]}.$newPayload.${parts[2]}"
-
+    fun `Bearer token without session is rejected on protected endpoint`() {
         mockMvc
             .get("/api/v1/admin/users") {
-                header("Authorization", "Bearer $tamperedToken")
+                header("Authorization", "Bearer some-token-value")
             }.andExpect {
                 status { isUnauthorized() }
             }
     }
 
     @Test
-    fun `tampered JWT is rejected`() {
-        val username = uniqueUsername()
-        val password = "securepass123"
-        registerAndConfirmUser(username, password)
-        val (accessToken, _) = loginAndGetTokens(username, password)
-
-        // Modify the payload while keeping the original signature
-        val parts = accessToken.split(".")
-        val payloadJson = String(Base64.getUrlDecoder().decode(parts[1] + "==".take((4 - parts[1].length % 4) % 4)))
-        val tamperedPayload = payloadJson.replace(""""username":"$username"""", """"username":"hacker"""")
-        val newPayload =
-            Base64.getUrlEncoder().withoutPadding().encodeToString(tamperedPayload.toByteArray())
-        val tamperedToken = "${parts[0]}.$newPayload.${parts[2]}"
-
-        mockMvc
-            .get("/api/v1/admin/users") {
-                header("Authorization", "Bearer $tamperedToken")
-            }.andExpect {
-                status { isUnauthorized() }
-            }
-    }
-
-    @Test
-    fun `token with wrong issuer is rejected`() {
-        val username = uniqueUsername()
-        val password = "securepass123"
-        registerAndConfirmUser(username, password)
-        val (accessToken, _) = loginAndGetTokens(username, password)
-
-        // Replace the issuer in the payload
-        val parts = accessToken.split(".")
-        val payloadJson = String(Base64.getUrlDecoder().decode(parts[1] + "==".take((4 - parts[1].length % 4) % 4)))
-        val wrongIssuerPayload =
-            payloadJson.replace(
-                """"iss":"http://localhost"""",
-                """"iss":"http://evil.example.com"""",
-            )
-        val newPayload =
-            Base64.getUrlEncoder().withoutPadding().encodeToString(wrongIssuerPayload.toByteArray())
-        val tamperedToken = "${parts[0]}.$newPayload.${parts[2]}"
-
-        mockMvc
-            .get("/api/v1/admin/users") {
-                header("Authorization", "Bearer $tamperedToken")
-            }.andExpect {
-                status { isUnauthorized() }
-            }
-    }
-
-    @Test
-    fun `refresh token cannot be used as access token`() {
-        val username = uniqueUsername()
-        val password = "securepass123"
-        registerAndConfirmUser(username, password)
-        val (_, refreshToken) = loginAndGetTokens(username, password)
-
-        // Try to use the refresh token as a Bearer token on a protected endpoint
-        mockMvc
-            .get("/api/v1/admin/users") {
-                header("Authorization", "Bearer $refreshToken")
-            }.andExpect {
-                // Refresh tokens lack roles claim, so Spring Security won't grant ADMIN authority -> 403
-                // Or the endpoint may reject it outright with 401 depending on filter chain processing
-                status { is4xxClientError() }
-            }
-    }
-
-    @Test
-    fun `access token without required role returns 403`() {
+    fun `session user without required role returns 403`() {
         mockMvc
             .get("/api/v1/admin/users") {
                 with(
-                    jwt()
-                        .jwt { it.subject("user-id").claim("roles", listOf("ROLE_USER")) }
-                        .authorities(SimpleGrantedAuthority("ROLE_USER")),
+                    user(
+                        AuthenticatedUser(
+                            userId = UserId(UUID.randomUUID()),
+                            username = "user-id",
+                            roles = listOf("ROLE_USER"),
+                        ),
+                    ),
                 )
             }.andExpect {
                 status { isForbidden() }
@@ -200,12 +123,99 @@ class TokenSecurityIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
-    fun `malformed JWT returns 401`() {
+    fun `no authentication returns 401`() {
         mockMvc
-            .get("/api/v1/admin/users") {
-                header("Authorization", "Bearer this.is.not.a.jwt")
+            .get("/api/v1/admin/users")
+            .andExpect {
+                status { isUnauthorized() }
+            }
+    }
+
+    @Test
+    fun `session login creates usable session for protected endpoints`() {
+        val username = uniqueUsername()
+        val password = "securepass123"
+        registerAndConfirmUser(username, password)
+
+        val session = sessionLoginAndGetSession(username, password)
+
+        // Use the session to access a protected endpoint
+        mockMvc
+            .get("/api/v1/auth/me") {
+                this.session = session
+            }.andExpect {
+                status { isOk() }
+                jsonPath("$.username") { value(username) }
+            }
+    }
+
+    @Test
+    fun `invalidated session is rejected`() {
+        val username = uniqueUsername()
+        val password = "securepass123"
+        registerAndConfirmUser(username, password)
+
+        val session = sessionLoginAndGetSession(username, password)
+        session.invalidate()
+
+        mockMvc
+            .get("/api/v1/auth/me") {
+                this.session = session
             }.andExpect {
                 status { isUnauthorized() }
             }
+    }
+
+    @Test
+    fun `session with ADMIN role can access admin endpoints`() {
+        val adminUser =
+            AuthenticatedUser(
+                userId = UserId(UUID.randomUUID()),
+                username = "admin-session",
+                roles = listOf("ROLE_ADMIN"),
+            )
+        val session = MockHttpSession()
+        val auth = UsernamePasswordAuthenticationToken(adminUser, null, adminUser.authorities)
+        val ctx = SecurityContextHolder.createEmptyContext()
+        ctx.authentication = auth
+        session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, ctx)
+
+        mockMvc
+            .get("/api/v1/admin/users") {
+                this.session = session
+            }.andExpect {
+                status { isOk() }
+            }
+    }
+
+    @Test
+    fun `different sessions are isolated`() {
+        val user1 = uniqueUsername()
+        val user2 = uniqueUsername()
+        val password = "securepass123"
+        registerAndConfirmUser(user1, password)
+        registerAndConfirmUser(user2, password)
+
+        val session1 = sessionLoginAndGetSession(user1, password)
+        val session2 = sessionLoginAndGetSession(user2, password)
+
+        assertThat(session1.id).isNotEqualTo(session2.id)
+
+        val result1 =
+            mockMvc
+                .get("/api/v1/auth/me") {
+                    session = session1
+                }.andExpect { status { isOk() } }
+                .andReturn()
+
+        val result2 =
+            mockMvc
+                .get("/api/v1/auth/me") {
+                    session = session2
+                }.andExpect { status { isOk() } }
+                .andReturn()
+
+        assertThat(result1.response.contentAsString).contains(user1)
+        assertThat(result2.response.contentAsString).contains(user2)
     }
 }

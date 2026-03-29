@@ -13,4 +13,11 @@ data class SessionLoginRequest(
 data class SessionLoginResponse(
     val success: Boolean = false,
     val totpRequired: Boolean = false,
+    val user: SessionUserResponse? = null,
+)
+
+data class SessionUserResponse(
+    val id: String,
+    val username: String,
+    val role: String,
 )

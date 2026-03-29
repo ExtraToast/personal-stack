@@ -1,2 +1,6 @@
 auth:
   login-url: https://auth.jorisjonkers.dev/login
+
+session:
+  cookie:
+    domain: .jorisjonkers.dev

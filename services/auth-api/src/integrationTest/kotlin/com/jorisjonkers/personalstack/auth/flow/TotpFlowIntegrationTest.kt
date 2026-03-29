@@ -11,6 +11,8 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
+import org.springframework.mock.web.MockHttpSession
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
@@ -112,6 +114,27 @@ class TotpFlowIntegrationTest : IntegrationTestBase() {
         return objectMapper.readTree(result.response.contentAsString)
     }
 
+    private fun sessionLogin(
+        username: String,
+        password: String,
+        totpCode: String? = null,
+    ): MockHttpSession {
+        val request =
+            if (totpCode != null) {
+                """{"username":"$username","password":"$password","totpCode":"$totpCode"}"""
+            } else {
+                """{"username":"$username","password":"$password"}"""
+            }
+        val result =
+            mockMvc
+                .post("/api/v1/auth/session-login") {
+                    contentType = MediaType.APPLICATION_JSON
+                    content = request
+                }.andExpect { status { isOk() } }
+                .andReturn()
+        return result.request.getSession(false) as MockHttpSession
+    }
+
     @Test
     fun `register and login without TOTP returns tokens directly`() {
         val username = "totp-none-${UUID.randomUUID().toString().take(8)}"
@@ -135,14 +158,14 @@ class TotpFlowIntegrationTest : IntegrationTestBase() {
         registerUser(username, password)
         confirmEmail(username)
 
-        val loginJson = login(username, password)
-        val accessToken = loginJson["accessToken"].asText()
+        val theSession = sessionLogin(username, password)
 
         // Enroll TOTP
         val enrollResult =
             mockMvc
                 .post("/api/v1/totp/enroll") {
-                    header("Authorization", "Bearer $accessToken")
+                    session = theSession
+                    with(csrf())
                 }.andExpect { status { isOk() } }
                 .andReturn()
 
@@ -154,7 +177,8 @@ class TotpFlowIntegrationTest : IntegrationTestBase() {
         mockMvc
             .post("/api/v1/totp/verify") {
                 contentType = MediaType.APPLICATION_JSON
-                header("Authorization", "Bearer $accessToken")
+                session = theSession
+                with(csrf())
                 content = """{"code":"$code"}"""
             }.andExpect { status { isNoContent() } }
 
@@ -178,14 +202,14 @@ class TotpFlowIntegrationTest : IntegrationTestBase() {
         registerUser(username, password)
         confirmEmail(username)
 
-        val loginJson = login(username, password)
-        val accessToken = loginJson["accessToken"].asText()
+        val theSession = sessionLogin(username, password)
 
         // Enroll TOTP
         val enrollResult =
             mockMvc
                 .post("/api/v1/totp/enroll") {
-                    header("Authorization", "Bearer $accessToken")
+                    session = theSession
+                    with(csrf())
                 }.andExpect { status { isOk() } }
                 .andReturn()
 
@@ -197,7 +221,8 @@ class TotpFlowIntegrationTest : IntegrationTestBase() {
         mockMvc
             .post("/api/v1/totp/verify") {
                 contentType = MediaType.APPLICATION_JSON
-                header("Authorization", "Bearer $accessToken")
+                session = theSession
+                with(csrf())
                 content = """{"code":"$verifyCode"}"""
             }.andExpect { status { isNoContent() } }
 
@@ -234,14 +259,14 @@ class TotpFlowIntegrationTest : IntegrationTestBase() {
         registerUser(username, password)
         confirmEmail(username)
 
-        val loginJson = login(username, password)
-        val accessToken = loginJson["accessToken"].asText()
+        val theSession = sessionLogin(username, password)
 
         // Enroll TOTP
         val enrollResult =
             mockMvc
                 .post("/api/v1/totp/enroll") {
-                    header("Authorization", "Bearer $accessToken")
+                    session = theSession
+                    with(csrf())
                 }.andExpect { status { isOk() } }
                 .andReturn()
 
@@ -253,14 +278,16 @@ class TotpFlowIntegrationTest : IntegrationTestBase() {
         mockMvc
             .post("/api/v1/totp/verify") {
                 contentType = MediaType.APPLICATION_JSON
-                header("Authorization", "Bearer $accessToken")
+                session = theSession
+                with(csrf())
                 content = """{"code":"$code"}"""
             }.andExpect { status { isNoContent() } }
 
         // Attempt to re-enroll should fail
         mockMvc
             .post("/api/v1/totp/enroll") {
-                header("Authorization", "Bearer $accessToken")
+                session = theSession
+                with(csrf())
             }.andExpect { status { isBadRequest() } }
     }
 
@@ -272,13 +299,13 @@ class TotpFlowIntegrationTest : IntegrationTestBase() {
         registerUser(username, password)
         confirmEmail(username)
 
-        val loginJson = login(username, password)
-        val accessToken = loginJson["accessToken"].asText()
+        val theSession = sessionLogin(username, password)
 
         // Enroll TOTP
         mockMvc
             .post("/api/v1/totp/enroll") {
-                header("Authorization", "Bearer $accessToken")
+                session = theSession
+                with(csrf())
             }.andExpect { status { isOk() } }
 
         // Generate a code from a completely different secret
@@ -288,7 +315,8 @@ class TotpFlowIntegrationTest : IntegrationTestBase() {
         mockMvc
             .post("/api/v1/totp/verify") {
                 contentType = MediaType.APPLICATION_JSON
-                header("Authorization", "Bearer $accessToken")
+                session = theSession
+                with(csrf())
                 content = """{"code":"$wrongCode"}"""
             }.andExpect { status { isBadRequest() } }
     }
@@ -301,14 +329,14 @@ class TotpFlowIntegrationTest : IntegrationTestBase() {
         registerUser(username, password)
         confirmEmail(username)
 
-        val loginJson = login(username, password)
-        val accessToken = loginJson["accessToken"].asText()
+        val theSession = sessionLogin(username, password)
 
         // Enroll TOTP
         val enrollResult =
             mockMvc
                 .post("/api/v1/totp/enroll") {
-                    header("Authorization", "Bearer $accessToken")
+                    session = theSession
+                    with(csrf())
                 }.andExpect { status { isOk() } }
                 .andReturn()
 
@@ -320,7 +348,8 @@ class TotpFlowIntegrationTest : IntegrationTestBase() {
         mockMvc
             .post("/api/v1/totp/verify") {
                 contentType = MediaType.APPLICATION_JSON
-                header("Authorization", "Bearer $accessToken")
+                session = theSession
+                with(csrf())
                 content = """{"code":"$code"}"""
             }.andExpect { status { isNoContent() } }
 
@@ -354,10 +383,10 @@ class TotpFlowIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
-    fun `TOTP enrollment without auth token fails`() {
+    fun `TOTP enrollment without auth session fails`() {
         mockMvc
             .post("/api/v1/totp/enroll") {
-            }.andExpect { status { isUnauthorized() } }
+            }.andExpect { status { is4xxClientError() } }
     }
 
     @Test
@@ -368,14 +397,14 @@ class TotpFlowIntegrationTest : IntegrationTestBase() {
         registerUser(username, password)
         confirmEmail(username)
 
-        val loginJson = login(username, password)
-        val accessToken = loginJson["accessToken"].asText()
+        val theSession = sessionLogin(username, password)
 
         // Enroll TOTP
         val enrollResult =
             mockMvc
                 .post("/api/v1/totp/enroll") {
-                    header("Authorization", "Bearer $accessToken")
+                    session = theSession
+                    with(csrf())
                 }.andExpect { status { isOk() } }
                 .andReturn()
 
@@ -387,7 +416,8 @@ class TotpFlowIntegrationTest : IntegrationTestBase() {
         mockMvc
             .post("/api/v1/totp/verify") {
                 contentType = MediaType.APPLICATION_JSON
-                header("Authorization", "Bearer $accessToken")
+                session = theSession
+                with(csrf())
                 content = """{"code":"$code"}"""
             }.andExpect { status { isNoContent() } }
 

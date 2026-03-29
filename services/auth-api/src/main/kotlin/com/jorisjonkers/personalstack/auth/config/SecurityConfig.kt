@@ -13,14 +13,16 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.core.AuthenticationException
-import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
-import org.springframework.security.oauth2.jwt.JwtDecoder
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter
+import org.springframework.http.HttpStatus
 import org.springframework.security.web.AuthenticationEntryPoint
 import org.springframework.security.web.SecurityFilterChain
+import org.springframework.security.web.authentication.HttpStatusEntryPoint
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
@@ -43,71 +45,57 @@ class SecurityConfig(
         return http.build()
     }
 
-    @Bean
-    fun jwtAuthenticationConverter(): JwtAuthenticationConverter =
-        JwtAuthenticationConverter().apply {
-            setJwtGrantedAuthoritiesConverter { jwt ->
-                (jwt.getClaimAsStringList("roles") ?: emptyList())
-                    .map { SimpleGrantedAuthority(it) }
-            }
-        }
-
+    /**
+     * Forward-auth filter chain (order 2).
+     * Session-based: Traefik forwards the browser's session cookie.
+     * CSRF disabled since Traefik only sends GET requests.
+     */
     @Bean
     @Order(2)
-    fun sessionLoginSecurityFilterChain(
-        http: HttpSecurity,
-        corsConfigurationSource: CorsConfigurationSource,
-    ): SecurityFilterChain {
-        http
-            .securityMatcher("/api/v1/auth/session-login")
-            .cors { it.configurationSource(corsConfigurationSource) }
-            .csrf { it.disable() }
-            .securityContext { ctx ->
-                ctx.securityContextRepository(
-                    org.springframework.security.web.context
-                        .HttpSessionSecurityContextRepository(),
-                )
-            }.authorizeHttpRequests { it.anyRequest().permitAll() }
-        return http.build()
-    }
-
-    @Bean
-    @Order(3)
     fun forwardAuthSecurityFilterChain(
         http: HttpSecurity,
-        jwtDecoder: JwtDecoder,
-        jwtAuthenticationConverter: JwtAuthenticationConverter,
         corsConfigurationSource: CorsConfigurationSource,
     ): SecurityFilterChain {
         http
             .securityMatcher("/api/v1/auth/verify")
             .cors { it.configurationSource(corsConfigurationSource) }
             .csrf { it.disable() }
-            .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
-            .authorizeHttpRequests { it.anyRequest().authenticated() }
-            .oauth2ResourceServer { rs ->
-                rs.jwt { jwt ->
-                    jwt.decoder(jwtDecoder)
-                    jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)
-                }
-                rs.authenticationEntryPoint(forwardAuthEntryPoint())
+            .securityContext { ctx ->
+                ctx.securityContextRepository(HttpSessionSecurityContextRepository())
+            }.authorizeHttpRequests { it.anyRequest().authenticated() }
+            .exceptionHandling { exceptions ->
+                exceptions.authenticationEntryPoint(forwardAuthEntryPoint())
             }
         return http.build()
     }
 
+    /**
+     * Resource server filter chain (order 3, catch-all).
+     * Session-based authentication with CSRF protection.
+     * Public endpoints are exempt from both auth and CSRF.
+     */
     @Bean
-    @Order(4)
+    @Order(3)
     fun resourceServerSecurityFilterChain(
         http: HttpSecurity,
-        jwtDecoder: JwtDecoder,
-        jwtAuthenticationConverter: JwtAuthenticationConverter,
         corsConfigurationSource: CorsConfigurationSource,
     ): SecurityFilterChain {
         http
             .cors { it.configurationSource(corsConfigurationSource) }
-            .csrf { it.disable() }
-            .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
-            .authorizeHttpRequests { auth ->
+            .securityContext { ctx ->
+                ctx.securityContextRepository(HttpSessionSecurityContextRepository())
+            }.csrf { csrf ->
+                csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                csrf.csrfTokenRequestHandler(CsrfTokenRequestAttributeHandler())
+                csrf.ignoringRequestMatchers(
+                    "/api/v1/auth/session-login",
+                    "/api/v1/users/register",
+                    "/api/v1/auth/login",
+                    "/api/v1/auth/totp-challenge",
+                    "/api/v1/auth/refresh",
+                    "/api/v1/auth/resend-confirmation",
+                )
+            }.authorizeHttpRequests { auth ->
                 auth
                     .requestMatchers(
                         "/api/v1/api-docs/**",
@@ -118,14 +106,12 @@ class SecurityConfig(
                         "/api/v1/auth/refresh",
                         "/api/v1/auth/confirm-email",
                         "/api/v1/auth/resend-confirmation",
+                        "/api/v1/auth/session-login",
                     ).permitAll()
                     .anyRequest()
                     .authenticated()
-            }.oauth2ResourceServer { rs ->
-                rs.jwt { jwt ->
-                    jwt.decoder(jwtDecoder)
-                    jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)
-                }
+            }.exceptionHandling { exceptions ->
+                exceptions.authenticationEntryPoint(HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
             }
         return http.build()
     }

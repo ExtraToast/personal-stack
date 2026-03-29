@@ -14,29 +14,28 @@ export interface AdminUser {
   createdAt: string
 }
 
-async function authedFetch(token: string, url: string, init?: RequestInit): Promise<Response> {
+async function authedFetch(url: string, init?: RequestInit): Promise<Response> {
   const headers = new Headers(init?.headers)
-  headers.set('Authorization', `Bearer ${token}`)
   headers.set('Content-Type', 'application/json')
-  const response = await fetch(url, { ...init, headers })
+  const response = await fetch(url, { ...init, headers, credentials: 'include' })
   if (!response.ok) throw new Error(`Request failed: ${response.status}`)
   return response
 }
 
-export async function fetchUsers(token: string): Promise<AdminUser[]> {
-  const res = await authedFetch(token, `${ADMIN_BASE}/users`)
+export async function fetchUsers(): Promise<AdminUser[]> {
+  const res = await authedFetch(`${ADMIN_BASE}/users`)
   const users: AdminUser[] = await res.json()
   return users
 }
 
-export async function fetchUser(token: string, id: string): Promise<AdminUser> {
-  const res = await authedFetch(token, `${ADMIN_BASE}/users/${id}`)
+export async function fetchUser(id: string): Promise<AdminUser> {
+  const res = await authedFetch(`${ADMIN_BASE}/users/${id}`)
   const user: AdminUser = await res.json()
   return user
 }
 
-export async function updateUserRole(token: string, id: string, role: string): Promise<AdminUser> {
-  const res = await authedFetch(token, `${ADMIN_BASE}/users/${id}/role`, {
+export async function updateUserRole(id: string, role: string): Promise<AdminUser> {
+  const res = await authedFetch(`${ADMIN_BASE}/users/${id}/role`, {
     method: 'PATCH',
     body: JSON.stringify({ role }),
   })
@@ -44,8 +43,8 @@ export async function updateUserRole(token: string, id: string, role: string): P
   return user
 }
 
-export async function updateUserServices(token: string, id: string, services: string[]): Promise<AdminUser> {
-  const res = await authedFetch(token, `${ADMIN_BASE}/users/${id}/services`, {
+export async function updateUserServices(id: string, services: string[]): Promise<AdminUser> {
+  const res = await authedFetch(`${ADMIN_BASE}/users/${id}/services`, {
     method: 'PUT',
     body: JSON.stringify({ services }),
   })
@@ -53,8 +52,8 @@ export async function updateUserServices(token: string, id: string, services: st
   return user
 }
 
-export async function deleteUser(token: string, id: string): Promise<void> {
-  await authedFetch(token, `${ADMIN_BASE}/users/${id}`, { method: 'DELETE' })
+export async function deleteUser(id: string): Promise<void> {
+  await authedFetch(`${ADMIN_BASE}/users/${id}`, { method: 'DELETE' })
 }
 
 export const ALL_ROLES = ['ADMIN', 'USER', 'READONLY'] as const

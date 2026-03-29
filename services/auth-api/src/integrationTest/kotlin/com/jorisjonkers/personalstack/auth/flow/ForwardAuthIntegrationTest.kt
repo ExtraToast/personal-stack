@@ -1,17 +1,20 @@
 package com.jorisjonkers.personalstack.auth.flow
 
 import com.jorisjonkers.personalstack.auth.IntegrationTestBase
+import com.jorisjonkers.personalstack.auth.domain.model.UserId
+import com.jorisjonkers.personalstack.auth.infrastructure.security.AuthenticatedUser
 import org.hamcrest.Matchers.startsWith
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.setup.DefaultMockMvcBuilder
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import org.springframework.web.context.WebApplicationContext
+import java.util.UUID
 
 class ForwardAuthIntegrationTest : IntegrationTestBase() {
     @Autowired
@@ -29,18 +32,22 @@ class ForwardAuthIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
-    fun `verify endpoint returns 200 with user identity headers for valid JWT`() {
+    fun `verify endpoint returns 200 with user identity headers for valid session`() {
+        val userId = UUID.randomUUID()
         mockMvc
             .get("/api/v1/auth/verify") {
                 with(
-                    jwt().jwt { jwt ->
-                        jwt.subject("user-123")
-                        jwt.claim("roles", listOf("ROLE_USER"))
-                    },
+                    user(
+                        AuthenticatedUser(
+                            userId = UserId(userId),
+                            username = "user-123",
+                            roles = listOf("ROLE_USER"),
+                        ),
+                    ),
                 )
             }.andExpect {
                 status { isOk() }
-                header { string("X-User-Id", "user-123") }
+                header { string("X-User-Id", userId.toString()) }
                 header { string("X-User-Roles", "ROLE_USER") }
             }
     }
@@ -78,10 +85,13 @@ class ForwardAuthIntegrationTest : IntegrationTestBase() {
         mockMvc
             .get("/api/v1/auth/verify") {
                 with(
-                    jwt().jwt { jwt ->
-                        jwt.subject("admin-1")
-                        jwt.claim("roles", listOf("ROLE_ADMIN"))
-                    },
+                    user(
+                        AuthenticatedUser(
+                            userId = UserId(UUID.randomUUID()),
+                            username = "admin-1",
+                            roles = listOf("ROLE_ADMIN"),
+                        ),
+                    ),
                 )
                 header("X-Forwarded-Host", "vault.jorisjonkers.dev")
             }.andExpect {
@@ -94,10 +104,13 @@ class ForwardAuthIntegrationTest : IntegrationTestBase() {
         mockMvc
             .get("/api/v1/auth/verify") {
                 with(
-                    jwt().jwt { jwt ->
-                        jwt.subject("user-2")
-                        jwt.claim("roles", listOf("ROLE_USER", "SERVICE_GRAFANA"))
-                    },
+                    user(
+                        AuthenticatedUser(
+                            userId = UserId(UUID.randomUUID()),
+                            username = "user-2",
+                            roles = listOf("ROLE_USER", "SERVICE_GRAFANA"),
+                        ),
+                    ),
                 )
                 header("X-Forwarded-Host", "grafana.jorisjonkers.dev")
             }.andExpect {
@@ -110,10 +123,13 @@ class ForwardAuthIntegrationTest : IntegrationTestBase() {
         mockMvc
             .get("/api/v1/auth/verify") {
                 with(
-                    jwt().jwt { jwt ->
-                        jwt.subject("user-3")
-                        jwt.claim("roles", listOf("ROLE_USER", "SERVICE_GRAFANA"))
-                    },
+                    user(
+                        AuthenticatedUser(
+                            userId = UserId(UUID.randomUUID()),
+                            username = "user-3",
+                            roles = listOf("ROLE_USER", "SERVICE_GRAFANA"),
+                        ),
+                    ),
                 )
                 header("X-Forwarded-Host", "vault.jorisjonkers.dev")
             }.andExpect {
@@ -126,10 +142,13 @@ class ForwardAuthIntegrationTest : IntegrationTestBase() {
         mockMvc
             .get("/api/v1/auth/verify") {
                 with(
-                    jwt().jwt { jwt ->
-                        jwt.subject("user-4")
-                        jwt.claim("roles", listOf("ROLE_USER"))
-                    },
+                    user(
+                        AuthenticatedUser(
+                            userId = UserId(UUID.randomUUID()),
+                            username = "user-4",
+                            roles = listOf("ROLE_USER"),
+                        ),
+                    ),
                 )
             }.andExpect {
                 status { isOk() }
@@ -142,10 +161,13 @@ class ForwardAuthIntegrationTest : IntegrationTestBase() {
             mockMvc
                 .get("/api/v1/auth/verify") {
                     with(
-                        jwt().jwt { jwt ->
-                            jwt.subject("user-5")
-                            jwt.claim("roles", listOf("ROLE_USER"))
-                        },
+                        user(
+                            AuthenticatedUser(
+                                userId = UserId(UUID.randomUUID()),
+                                username = "user-5",
+                                roles = listOf("ROLE_USER"),
+                            ),
+                        ),
                     )
                     header("X-Forwarded-Host", "$subdomain.jorisjonkers.dev")
                 }.andExpect {
@@ -159,10 +181,13 @@ class ForwardAuthIntegrationTest : IntegrationTestBase() {
         mockMvc
             .get("/api/v1/auth/verify") {
                 with(
-                    jwt().jwt { jwt ->
-                        jwt.subject("user-multi")
-                        jwt.claim("roles", listOf("ROLE_USER", "SERVICE_GRAFANA", "SERVICE_VAULT", "SERVICE_N8N"))
-                    },
+                    user(
+                        AuthenticatedUser(
+                            userId = UserId(UUID.randomUUID()),
+                            username = "user-multi",
+                            roles = listOf("ROLE_USER", "SERVICE_GRAFANA", "SERVICE_VAULT", "SERVICE_N8N"),
+                        ),
+                    ),
                 )
                 header("X-Forwarded-Host", "grafana.jorisjonkers.dev")
             }.andExpect {
@@ -172,10 +197,13 @@ class ForwardAuthIntegrationTest : IntegrationTestBase() {
         mockMvc
             .get("/api/v1/auth/verify") {
                 with(
-                    jwt().jwt { jwt ->
-                        jwt.subject("user-multi")
-                        jwt.claim("roles", listOf("ROLE_USER", "SERVICE_GRAFANA", "SERVICE_VAULT", "SERVICE_N8N"))
-                    },
+                    user(
+                        AuthenticatedUser(
+                            userId = UserId(UUID.randomUUID()),
+                            username = "user-multi",
+                            roles = listOf("ROLE_USER", "SERVICE_GRAFANA", "SERVICE_VAULT", "SERVICE_N8N"),
+                        ),
+                    ),
                 )
                 header("X-Forwarded-Host", "vault.jorisjonkers.dev")
             }.andExpect {
@@ -185,10 +213,13 @@ class ForwardAuthIntegrationTest : IntegrationTestBase() {
         mockMvc
             .get("/api/v1/auth/verify") {
                 with(
-                    jwt().jwt { jwt ->
-                        jwt.subject("user-multi")
-                        jwt.claim("roles", listOf("ROLE_USER", "SERVICE_GRAFANA", "SERVICE_VAULT", "SERVICE_N8N"))
-                    },
+                    user(
+                        AuthenticatedUser(
+                            userId = UserId(UUID.randomUUID()),
+                            username = "user-multi",
+                            roles = listOf("ROLE_USER", "SERVICE_GRAFANA", "SERVICE_VAULT", "SERVICE_N8N"),
+                        ),
+                    ),
                 )
                 header("X-Forwarded-Host", "n8n.jorisjonkers.dev")
             }.andExpect {
@@ -201,10 +232,13 @@ class ForwardAuthIntegrationTest : IntegrationTestBase() {
         mockMvc
             .get("/api/v1/auth/verify") {
                 with(
-                    jwt().jwt { jwt ->
-                        jwt.subject("admin-multi")
-                        jwt.claim("roles", listOf("ROLE_ADMIN", "SERVICE_GRAFANA"))
-                    },
+                    user(
+                        AuthenticatedUser(
+                            userId = UserId(UUID.randomUUID()),
+                            username = "admin-multi",
+                            roles = listOf("ROLE_ADMIN", "SERVICE_GRAFANA"),
+                        ),
+                    ),
                 )
                 header("X-Forwarded-Host", "vault.jorisjonkers.dev")
             }.andExpect {
@@ -214,10 +248,13 @@ class ForwardAuthIntegrationTest : IntegrationTestBase() {
         mockMvc
             .get("/api/v1/auth/verify") {
                 with(
-                    jwt().jwt { jwt ->
-                        jwt.subject("admin-multi")
-                        jwt.claim("roles", listOf("ROLE_ADMIN", "SERVICE_GRAFANA"))
-                    },
+                    user(
+                        AuthenticatedUser(
+                            userId = UserId(UUID.randomUUID()),
+                            username = "admin-multi",
+                            roles = listOf("ROLE_ADMIN", "SERVICE_GRAFANA"),
+                        ),
+                    ),
                 )
                 header("X-Forwarded-Host", "grafana.jorisjonkers.dev")
             }.andExpect {
@@ -244,14 +281,17 @@ class ForwardAuthIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
-    fun `X-User-Roles header includes all roles from JWT`() {
+    fun `X-User-Roles header includes all roles from session`() {
         mockMvc
             .get("/api/v1/auth/verify") {
                 with(
-                    jwt().jwt { jwt ->
-                        jwt.subject("user-6")
-                        jwt.claim("roles", listOf("ROLE_USER", "SERVICE_ASSISTANT"))
-                    },
+                    user(
+                        AuthenticatedUser(
+                            userId = UserId(UUID.randomUUID()),
+                            username = "user-6",
+                            roles = listOf("ROLE_USER", "SERVICE_ASSISTANT"),
+                        ),
+                    ),
                 )
                 header("X-Forwarded-Host", "assistant.jorisjonkers.dev")
             }.andExpect {

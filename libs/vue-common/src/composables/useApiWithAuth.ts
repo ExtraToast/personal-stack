@@ -15,20 +15,23 @@ interface ApiClient {
 
 export function useApiWithAuth(options: ApiWithAuthOptions = {}): ApiClient {
   const baseUrl = options.baseUrl ?? '/api/v1'
-  const { getAccessToken, logout } = useAuth()
+  const { logout, getCsrfToken } = useAuth()
 
   async function request<T>(path: string, init?: RequestInit): Promise<T> {
-    const token = getAccessToken()
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...Object.fromEntries(Object.entries(init?.headers ?? {})),
     }
 
-    if (token) {
-      headers.Authorization = `Bearer ${token}`
+    const method = init?.method ?? 'GET'
+    if (method !== 'GET' && method !== 'HEAD') {
+      const csrf = getCsrfToken()
+      if (csrf) {
+        headers['X-XSRF-TOKEN'] = csrf
+      }
     }
 
-    const response = await fetch(`${baseUrl}${path}`, { ...init, headers })
+    const response = await fetch(`${baseUrl}${path}`, { ...init, headers, credentials: 'include' })
 
     if (response.status === 401) {
       logout()

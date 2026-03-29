@@ -1,73 +1,58 @@
-import type { AuthTokens, User } from '../types'
+import type { User } from '../types'
 import { computed, ref } from 'vue'
-import { decodeJwt, isTokenExpired } from '../utils/jwt'
-
-const ACCESS_TOKEN_KEY = 'ps_access_token'
-const REFRESH_TOKEN_KEY = 'ps_refresh_token'
-
-const VALID_ROLES: readonly string[] = ['ADMIN', 'USER', 'READONLY']
-
-function isValidRole(value: string): value is User['role'] {
-  return VALID_ROLES.includes(value)
-}
 
 // Module-level state — shared across all useAuth() calls (singleton pattern)
 const user = ref<User | null>(null)
 
-function userFromToken(token: string): User | null {
-  try {
-    const payload = decodeJwt(token)
-    const roleRaw = payload.roles?.[0]?.replace('ROLE_', '') ?? 'USER'
-    const role: User['role'] = isValidRole(roleRaw) ? roleRaw : 'USER'
-    return {
-      id: payload.sub,
-      username: payload.username ?? payload.sub,
-      email: '',
-      role,
-    }
-  } catch {
-    return null
-  }
-}
-
-// Initialize from storage on module load
-const storedToken = localStorage.getItem(ACCESS_TOKEN_KEY)
-if (storedToken && !isTokenExpired(storedToken)) {
-  user.value = userFromToken(storedToken)
+function getCookie(name: string): string | null {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
+  return match ? decodeURIComponent(match[1]) : null
 }
 
 // eslint-disable-next-line ts/explicit-function-return-type -- composable return type is complex and inferred
 export function useAuth() {
   const isAuthenticated = computed(() => user.value !== null)
 
-  function setTokens(tokens: AuthTokens): void {
-    localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken)
-    localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken)
-    user.value = userFromToken(tokens.accessToken)
+  function setUser(u: User | null): void {
+    user.value = u
   }
 
-  function getAccessToken(): string | null {
-    const token = localStorage.getItem(ACCESS_TOKEN_KEY)
-    if (!token || isTokenExpired(token)) return null
-    return token
-  }
-
-  function getRefreshToken(): string | null {
-    return localStorage.getItem(REFRESH_TOKEN_KEY)
+  async function fetchUser(baseUrl = '/api/v1'): Promise<User | null> {
+    try {
+      const response = await fetch(`${baseUrl}/auth/me`, { credentials: 'include' })
+      if (!response.ok) {
+        user.value = null
+        return null
+      }
+      const data: { id: string; username: string; role: string } = await response.json()
+      const u: User = {
+        id: data.id,
+        username: data.username,
+        email: '',
+        role: (data.role as User['role']) ?? 'USER',
+      }
+      user.value = u
+      return u
+    } catch {
+      user.value = null
+      return null
+    }
   }
 
   function logout(): void {
-    localStorage.removeItem(ACCESS_TOKEN_KEY)
-    localStorage.removeItem(REFRESH_TOKEN_KEY)
     user.value = null
+  }
+
+  function getCsrfToken(): string | null {
+    return getCookie('XSRF-TOKEN')
   }
 
   return {
     user,
     isAuthenticated,
-    setTokens,
-    getAccessToken,
-    getRefreshToken,
+    setUser,
+    fetchUser,
     logout,
+    getCsrfToken,
   }
 }

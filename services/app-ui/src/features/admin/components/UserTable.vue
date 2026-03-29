@@ -21,11 +21,11 @@ const saving = ref<string | null>(null)
 const error = ref<string | null>(null)
 
 async function onRoleChange(user: AdminUser, role: string): Promise<void> {
-  if (!authStore.accessToken) return
+  if (!authStore.isAuthenticated) return
   saving.value = user.id
   error.value = null
   try {
-    await updateUserRole(authStore.accessToken, user.id, role)
+    await updateUserRole(user.id, role)
     emit('refresh')
   } catch {
     error.value = `Failed to update role for ${user.username}`
@@ -35,11 +35,11 @@ async function onRoleChange(user: AdminUser, role: string): Promise<void> {
 }
 
 async function onServicesChange(user: AdminUser, services: string[]): Promise<void> {
-  if (!authStore.accessToken) return
+  if (!authStore.isAuthenticated) return
   saving.value = user.id
   error.value = null
   try {
-    await updateUserServices(authStore.accessToken, user.id, services)
+    await updateUserServices(user.id, services)
     emit('refresh')
   } catch {
     error.value = `Failed to update services for ${user.username}`
@@ -49,11 +49,11 @@ async function onServicesChange(user: AdminUser, services: string[]): Promise<vo
 }
 
 async function confirmDelete(): Promise<void> {
-  if (!pendingDelete.value || !authStore.accessToken) return
+  if (!pendingDelete.value || !authStore.isAuthenticated) return
   const target = pendingDelete.value
   pendingDelete.value = null
   try {
-    await deleteUser(authStore.accessToken, target.id)
+    await deleteUser(target.id)
     emit('refresh')
   } catch {
     error.value = `Failed to delete ${target.username}`

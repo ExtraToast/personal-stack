@@ -7,9 +7,9 @@ vi.mock('@personal-stack/vue-common', () => ({
   useAuth: () => ({
     user: ref(null),
     isAuthenticated: mockIsAuthenticated,
-    setTokens: vi.fn(),
-    getAccessToken: () => null,
-    getRefreshToken: () => null,
+    setUser: vi.fn(),
+    fetchUser: vi.fn().mockResolvedValue(null),
+    getCsrfToken: () => null,
     logout: vi.fn(),
   }),
 }))

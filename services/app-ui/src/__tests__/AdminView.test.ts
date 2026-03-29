@@ -17,12 +17,6 @@ vi.mock('../features/admin/services/adminService', () => ({
   ALL_SERVICES: ['GRAFANA', 'VAULT'],
 }))
 
-function makeJwt(payload: Record<string, unknown>): string {
-  const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
-  const body = btoa(JSON.stringify(payload))
-  return `${header}.${body}.signature`
-}
-
 const mockUsers: AdminUser[] = [
   {
     id: 'u1',
@@ -39,7 +33,6 @@ const mockUsers: AdminUser[] = [
 describe('adminView', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    localStorage.clear()
     vi.clearAllMocks()
   })
 
@@ -51,9 +44,8 @@ describe('adminView', () => {
     const { fetchUsers } = await import('../features/admin/services/adminService')
     vi.mocked(fetchUsers).mockResolvedValue(mockUsers)
 
-    const token = makeJwt({ sub: 'a1', username: 'admin', roles: ['ROLE_ADMIN'] })
     const authStore = useAuthStore()
-    authStore.accessToken = token
+    authStore.user = { sub: 'a1', username: 'admin', email: 'admin@example.com' }
     authStore.roles = ['ROLE_ADMIN']
 
     const wrapper = mount(AdminView, {
@@ -89,9 +81,8 @@ describe('adminView', () => {
     const { fetchUsers } = await import('../features/admin/services/adminService')
     vi.mocked(fetchUsers).mockResolvedValue(mockUsers)
 
-    const token = makeJwt({ sub: 'a1', username: 'admin', roles: ['ROLE_ADMIN'] })
     const authStore = useAuthStore()
-    authStore.accessToken = token
+    authStore.user = { sub: 'a1', username: 'admin', email: 'admin@example.com' }
     authStore.roles = ['ROLE_ADMIN']
 
     mount(AdminView, {
@@ -103,16 +94,15 @@ describe('adminView', () => {
     })
     await flushPromises()
 
-    expect(fetchUsers).toHaveBeenCalledWith(token)
+    expect(fetchUsers).toHaveBeenCalled()
   })
 
   it('shows loading state', async () => {
     const { fetchUsers } = await import('../features/admin/services/adminService')
     vi.mocked(fetchUsers).mockReturnValue(new Promise(() => {}))
 
-    const token = makeJwt({ sub: 'a1', username: 'admin', roles: ['ROLE_ADMIN'] })
     const authStore = useAuthStore()
-    authStore.accessToken = token
+    authStore.user = { sub: 'a1', username: 'admin', email: 'admin@example.com' }
     authStore.roles = ['ROLE_ADMIN']
 
     const wrapper = mount(AdminView, {
@@ -130,9 +120,8 @@ describe('adminView', () => {
     const { fetchUsers } = await import('../features/admin/services/adminService')
     vi.mocked(fetchUsers).mockRejectedValue(new Error('Network error'))
 
-    const token = makeJwt({ sub: 'a1', username: 'admin', roles: ['ROLE_ADMIN'] })
     const authStore = useAuthStore()
-    authStore.accessToken = token
+    authStore.user = { sub: 'a1', username: 'admin', email: 'admin@example.com' }
     authStore.roles = ['ROLE_ADMIN']
 
     const wrapper = mount(AdminView, {

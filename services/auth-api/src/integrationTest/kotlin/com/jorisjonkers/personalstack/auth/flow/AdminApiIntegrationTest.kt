@@ -5,13 +5,14 @@ import com.jorisjonkers.personalstack.auth.domain.model.Role
 import com.jorisjonkers.personalstack.auth.domain.model.User
 import com.jorisjonkers.personalstack.auth.domain.model.UserId
 import com.jorisjonkers.personalstack.auth.domain.port.UserRepository
+import com.jorisjonkers.personalstack.auth.infrastructure.security.AuthenticatedUser
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
-import org.springframework.security.core.authority.SimpleGrantedAuthority
-import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.delete
@@ -63,7 +64,7 @@ class AdminApiIntegrationTest : IntegrationTestBase() {
     fun `GET users returns 200 for ADMIN`() {
         mockMvc
             .get("/api/v1/admin/users") {
-                with(adminJwt())
+                with(adminUser())
             }.andExpect {
                 status { isOk() }
             }
@@ -73,7 +74,7 @@ class AdminApiIntegrationTest : IntegrationTestBase() {
     fun `GET users returns 403 for non-admin`() {
         mockMvc
             .get("/api/v1/admin/users") {
-                with(userJwt())
+                with(regularUser())
             }.andExpect {
                 status { isForbidden() }
             }
@@ -83,7 +84,7 @@ class AdminApiIntegrationTest : IntegrationTestBase() {
     fun `GET user by id returns user details`() {
         mockMvc
             .get("/api/v1/admin/users/${testUser.id.value}") {
-                with(adminJwt())
+                with(adminUser())
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.username") { value(testUser.username) }
@@ -95,7 +96,8 @@ class AdminApiIntegrationTest : IntegrationTestBase() {
     fun `PATCH role promotes user to ADMIN`() {
         mockMvc
             .patch("/api/v1/admin/users/${testUser.id.value}/role") {
-                with(adminJwt())
+                with(adminUser())
+                with(csrf())
                 contentType = MediaType.APPLICATION_JSON
                 content = """{"role":"ADMIN"}"""
             }.andExpect {
@@ -111,7 +113,8 @@ class AdminApiIntegrationTest : IntegrationTestBase() {
     fun `PUT services sets service permissions`() {
         mockMvc
             .put("/api/v1/admin/users/${testUser.id.value}/services") {
-                with(adminJwt())
+                with(adminUser())
+                with(csrf())
                 contentType = MediaType.APPLICATION_JSON
                 content = """{"services":["VAULT","GRAFANA"]}"""
             }.andExpect {
@@ -128,7 +131,8 @@ class AdminApiIntegrationTest : IntegrationTestBase() {
     fun `DELETE user removes the account`() {
         mockMvc
             .delete("/api/v1/admin/users/${testUser.id.value}") {
-                with(adminJwt())
+                with(adminUser())
+                with(csrf())
             }.andExpect {
                 status { isNoContent() }
             }
@@ -140,7 +144,8 @@ class AdminApiIntegrationTest : IntegrationTestBase() {
     fun `DELETE user returns 403 for non-admin`() {
         mockMvc
             .delete("/api/v1/admin/users/${testUser.id.value}") {
-                with(userJwt())
+                with(regularUser())
+                with(csrf())
             }.andExpect {
                 status { isForbidden() }
             }
@@ -150,7 +155,7 @@ class AdminApiIntegrationTest : IntegrationTestBase() {
     fun `admin cannot delete themselves`() {
         val adminId = UUID.randomUUID()
         val suffix = UUID.randomUUID().toString().take(6)
-        val adminUser =
+        val adminUserEntity =
             User(
                 id = UserId(adminId),
                 username = "admin_self_$suffix",
@@ -161,16 +166,20 @@ class AdminApiIntegrationTest : IntegrationTestBase() {
                 createdAt = Instant.now(),
                 updatedAt = Instant.now(),
             )
-        userRepository.create(adminUser, "\$2a\$10\$hash")
+        userRepository.create(adminUserEntity, "\$2a\$10\$hash")
 
         mockMvc
             .delete("/api/v1/admin/users/$adminId") {
                 with(
-                    jwt()
-                        .jwt {
-                            it.subject(adminId.toString()).claim("roles", listOf("ROLE_ADMIN"))
-                        }.authorities(SimpleGrantedAuthority("ROLE_ADMIN")),
+                    user(
+                        AuthenticatedUser(
+                            userId = UserId(adminId),
+                            username = adminId.toString(),
+                            roles = listOf("ROLE_ADMIN"),
+                        ),
+                    ),
                 )
+                with(csrf())
             }.andExpect {
                 // The delete endpoint does not currently prevent self-deletion,
                 // so it should succeed with 204. If self-deletion guard is added, this
@@ -184,7 +193,8 @@ class AdminApiIntegrationTest : IntegrationTestBase() {
         // Assign services via admin API
         mockMvc
             .put("/api/v1/admin/users/${testUser.id.value}/services") {
-                with(adminJwt())
+                with(adminUser())
+                with(csrf())
                 contentType = MediaType.APPLICATION_JSON
                 content = """{"services":["GRAFANA","VAULT"]}"""
             }.andExpect {
@@ -199,7 +209,8 @@ class AdminApiIntegrationTest : IntegrationTestBase() {
         // Update permissions
         mockMvc
             .put("/api/v1/admin/users/${testUser.id.value}/services") {
-                with(adminJwt())
+                with(adminUser())
+                with(csrf())
                 contentType = MediaType.APPLICATION_JSON
                 content = """{"services":["N8N"]}"""
             }.andExpect {
@@ -212,13 +223,21 @@ class AdminApiIntegrationTest : IntegrationTestBase() {
             .containsExactlyInAnyOrder("N8N")
     }
 
-    private fun adminJwt() =
-        jwt()
-            .jwt { it.subject("admin-id").claim("roles", listOf("ROLE_ADMIN")) }
-            .authorities(SimpleGrantedAuthority("ROLE_ADMIN"))
+    private fun adminUser() =
+        user(
+            AuthenticatedUser(
+                userId = UserId(UUID.randomUUID()),
+                username = "admin-id",
+                roles = listOf("ROLE_ADMIN"),
+            ),
+        )
 
-    private fun userJwt() =
-        jwt()
-            .jwt { it.subject("user-id").claim("roles", listOf("ROLE_USER")) }
-            .authorities(SimpleGrantedAuthority("ROLE_USER"))
+    private fun regularUser() =
+        user(
+            AuthenticatedUser(
+                userId = UserId(UUID.randomUUID()),
+                username = "user-id",
+                roles = listOf("ROLE_USER"),
+            ),
+        )
 }

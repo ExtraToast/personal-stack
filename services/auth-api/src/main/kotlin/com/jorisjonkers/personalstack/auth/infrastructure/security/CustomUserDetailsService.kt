@@ -1,8 +1,9 @@
 package com.jorisjonkers.personalstack.auth.infrastructure.security
 
+import com.jorisjonkers.personalstack.auth.domain.model.Role
+import com.jorisjonkers.personalstack.auth.domain.model.ServicePermission
+import com.jorisjonkers.personalstack.auth.domain.model.UserCredentials
 import com.jorisjonkers.personalstack.auth.domain.port.UserRepository
-import org.springframework.security.core.authority.SimpleGrantedAuthority
-import org.springframework.security.core.userdetails.User
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.security.core.userdetails.UsernameNotFoundException
@@ -17,10 +18,21 @@ class CustomUserDetailsService(
             userRepository.findCredentialsByUsername(username)
                 ?: throw UsernameNotFoundException("User not found: $username")
 
-        return User(
-            credentials.username,
-            credentials.passwordHash,
-            listOf(SimpleGrantedAuthority("ROLE_${credentials.role.name}")),
+        return AuthenticatedUser(
+            userId = credentials.userId,
+            username = credentials.username,
+            roles = buildRoles(credentials),
+            passwordHash = credentials.passwordHash,
         )
     }
+
+    private fun buildRoles(credentials: UserCredentials): List<String> =
+        buildList {
+            add("ROLE_${credentials.role.name}")
+            if (credentials.role == Role.ADMIN) {
+                addAll(ServicePermission.entries.map { "SERVICE_${it.name}" })
+            } else {
+                addAll(credentials.servicePermissions.map { "SERVICE_${it.name}" })
+            }
+        }
 }

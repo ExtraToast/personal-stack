@@ -1,14 +1,16 @@
 package com.jorisjonkers.personalstack.auth.flow
 
 import com.jorisjonkers.personalstack.auth.IntegrationTestBase
+import com.jorisjonkers.personalstack.auth.domain.model.UserId
+import com.jorisjonkers.personalstack.auth.infrastructure.security.AuthenticatedUser
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
-import org.springframework.security.core.authority.SimpleGrantedAuthority
-import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
@@ -16,6 +18,7 @@ import org.springframework.test.web.servlet.post
 import org.springframework.test.web.servlet.setup.DefaultMockMvcBuilder
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import org.springframework.web.context.WebApplicationContext
+import java.util.UUID
 
 class SecurityFilterChainRoutingIntegrationTest : IntegrationTestBase() {
     @Autowired
@@ -150,17 +153,17 @@ class SecurityFilterChainRoutingIntegrationTest : IntegrationTestBase() {
     @Nested
     inner class ProtectedEndpoints {
         @Test
-        fun `GET admin users without JWT returns 401`() {
+        fun `GET admin users without auth returns 401`() {
             mockMvc
                 .get("/api/v1/admin/users")
                 .andExpect { status { isUnauthorized() } }
         }
 
         @Test
-        fun `POST totp enroll without JWT returns 401`() {
-            mockMvc
-                .post("/api/v1/totp/enroll")
-                .andExpect { status { isUnauthorized() } }
+        fun `POST totp enroll without auth is rejected`() {
+            val result = mockMvc.post("/api/v1/totp/enroll").andReturn()
+            // 401 (no session) or 403 (CSRF rejection before auth check)
+            assertThat(result.response.status).isIn(401, 403)
         }
 
         @Test
@@ -168,9 +171,13 @@ class SecurityFilterChainRoutingIntegrationTest : IntegrationTestBase() {
             mockMvc
                 .get("/api/v1/admin/users") {
                     with(
-                        jwt()
-                            .jwt { it.subject("user-1").claim("roles", listOf("ROLE_USER")) }
-                            .authorities(SimpleGrantedAuthority("ROLE_USER")),
+                        user(
+                            AuthenticatedUser(
+                                userId = UserId(UUID.randomUUID()),
+                                username = "user-1",
+                                roles = listOf("ROLE_USER"),
+                            ),
+                        ),
                     )
                 }.andExpect {
                     status { isForbidden() }
@@ -182,9 +189,13 @@ class SecurityFilterChainRoutingIntegrationTest : IntegrationTestBase() {
             mockMvc
                 .get("/api/v1/admin/users") {
                     with(
-                        jwt()
-                            .jwt { it.subject("admin-1").claim("roles", listOf("ROLE_ADMIN")) }
-                            .authorities(SimpleGrantedAuthority("ROLE_ADMIN")),
+                        user(
+                            AuthenticatedUser(
+                                userId = UserId(UUID.randomUUID()),
+                                username = "admin-1",
+                                roles = listOf("ROLE_ADMIN"),
+                            ),
+                        ),
                     )
                 }.andExpect {
                     status { isOk() }
@@ -195,7 +206,7 @@ class SecurityFilterChainRoutingIntegrationTest : IntegrationTestBase() {
     @Nested
     inner class ForwardAuthChain {
         @Test
-        fun `GET verify without JWT returns 302 redirect to login`() {
+        fun `GET verify without auth returns 302 redirect to login`() {
             mockMvc
                 .get("/api/v1/auth/verify")
                 .andExpect {
@@ -207,7 +218,7 @@ class SecurityFilterChainRoutingIntegrationTest : IntegrationTestBase() {
         }
 
         @Test
-        fun `GET verify without JWT does not redirect to session-login`() {
+        fun `GET verify without auth does not redirect to session-login`() {
             val result =
                 mockMvc
                     .get("/api/v1/auth/verify")
@@ -217,17 +228,22 @@ class SecurityFilterChainRoutingIntegrationTest : IntegrationTestBase() {
         }
 
         @Test
-        fun `GET verify with valid JWT returns 200 with user headers`() {
+        fun `GET verify with valid session returns 200 with user headers`() {
+            val userId = UUID.randomUUID()
             mockMvc
                 .get("/api/v1/auth/verify") {
                     with(
-                        jwt()
-                            .jwt { it.subject("user-fwd-1").claim("roles", listOf("ROLE_USER")) }
-                            .authorities(SimpleGrantedAuthority("ROLE_USER")),
+                        user(
+                            AuthenticatedUser(
+                                userId = UserId(userId),
+                                username = "user-fwd-1",
+                                roles = listOf("ROLE_USER"),
+                            ),
+                        ),
                     )
                 }.andExpect {
                     status { isOk() }
-                    header { string("X-User-Id", "user-fwd-1") }
+                    header { string("X-User-Id", userId.toString()) }
                     header { string("X-User-Roles", "ROLE_USER") }
                 }
         }
@@ -306,7 +322,7 @@ class SecurityFilterChainRoutingIntegrationTest : IntegrationTestBase() {
     @Nested
     inner class CrossChainIsolation {
         @Test
-        fun `unknown api path without JWT returns 401 not redirect`() {
+        fun `unknown api path without auth returns 401 not redirect`() {
             mockMvc
                 .get("/api/v1/nonexistent")
                 .andExpect { status { isUnauthorized() } }
@@ -321,7 +337,7 @@ class SecurityFilterChainRoutingIntegrationTest : IntegrationTestBase() {
 
             val status = result.response.status
             val location = result.response.getHeader("Location")
-            // 401 (no JWT), 405 (wrong method), or 500 (no body for POST-only endpoint)
+            // 401 (no auth), 405 (wrong method), or 500 (no body for POST-only endpoint)
             // The key assertion: it does NOT redirect to session-login
             assertThat(status)
                 .describedAs("GET /api/v1/auth/login should not return 200 or 302 to session-login")
