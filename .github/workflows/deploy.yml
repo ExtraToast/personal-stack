@@ -75,4 +75,4 @@ jobs:
             cd /opt/personal-stack
             git fetch origin main
             git reset --hard origin/main
-            docker stack deploy -c docker-compose.prod.yml personal-stack --with-registry-auth
+            docker stack deploy -c docker-compose.prod.yml personal-stack --with-registry-auth --no-resolve-image
