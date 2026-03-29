@@ -5,9 +5,9 @@ globalThis.fetch = mockFetch
 
 vi.mock('@personal-stack/vue-common', () => ({
   useAuth: () => ({
-    getAccessToken: () => 'fake-token',
-    getRefreshToken: () => null,
-    setTokens: vi.fn(),
+    getCsrfToken: () => 'fake-csrf-token',
+    setUser: vi.fn(),
+    fetchUser: vi.fn().mockResolvedValue(null),
     logout: vi.fn(),
     user: null,
     isAuthenticated: false,
@@ -15,17 +15,8 @@ vi.mock('@personal-stack/vue-common', () => ({
 }))
 
 // Import after mocks are set up
-const {
-  login,
-  submitTotpChallenge,
-  refresh,
-  register,
-  sessionLogin,
-  confirmEmail,
-  resendConfirmation,
-  enrollTotp,
-  verifyTotp,
-} = await import('../services/authService')
+const authService = await import('../services/authService')
+const { register, sessionLogin, confirmEmail, resendConfirmation, enrollTotp, verifyTotp } = authService
 
 /* eslint-disable ts/consistent-type-assertions -- test utility needs partial Response mock */
 function jsonResponse(data: unknown, status = 200): Response {
@@ -42,53 +33,6 @@ describe('authService', () => {
     mockFetch.mockReset()
   })
 
-  it('login calls POST /api/v1/auth/login with credentials', async () => {
-    const responseData = { totpRequired: false, accessToken: 'at', refreshToken: 'rt', expiresIn: 900 }
-    mockFetch.mockResolvedValue(jsonResponse(responseData))
-
-    const result = await login({ username: 'alice', password: 'secret' })
-
-    expect(mockFetch).toHaveBeenCalledWith(
-      '/api/v1/auth/login',
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ username: 'alice', password: 'secret' }),
-      }),
-    )
-    expect(result.accessToken).toBe('at')
-  })
-
-  it('submitTotpChallenge sends correct payload', async () => {
-    const responseData = { totpRequired: false, accessToken: 'at', refreshToken: 'rt' }
-    mockFetch.mockResolvedValue(jsonResponse(responseData))
-
-    await submitTotpChallenge('challenge-token', '123456')
-
-    expect(mockFetch).toHaveBeenCalledWith(
-      '/api/v1/auth/totp-challenge',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ totpChallengeToken: 'challenge-token', code: '123456' }),
-      }),
-    )
-  })
-
-  it('refresh sends refresh token', async () => {
-    const responseData = { accessToken: 'new-at', refreshToken: 'new-rt', expiresIn: 900 }
-    mockFetch.mockResolvedValue(jsonResponse(responseData))
-
-    await refresh('old-rt')
-
-    expect(mockFetch).toHaveBeenCalledWith(
-      '/api/v1/auth/refresh',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ refreshToken: 'old-rt' }),
-      }),
-    )
-  })
-
   it('register sends registration data', async () => {
     mockFetch.mockResolvedValue(jsonResponse(undefined, 204))
 
@@ -98,6 +42,7 @@ describe('authService', () => {
       '/api/v1/users/register',
       expect.objectContaining({
         method: 'POST',
+        credentials: 'include',
         body: JSON.stringify({ username: 'bob', email: 'bob@example.com', password: 'pass1234' }),
       }),
     )
@@ -134,7 +79,12 @@ describe('authService', () => {
 
     const result = await confirmEmail('abc-123')
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/v1/auth/confirm-email?token=abc-123')
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/v1/auth/confirm-email?token=abc-123',
+      expect.objectContaining({
+        credentials: 'include',
+      }),
+    )
     expect(result.message).toBe('Email confirmed')
   })
 
@@ -148,13 +98,14 @@ describe('authService', () => {
       '/api/v1/auth/resend-confirmation',
       expect.objectContaining({
         method: 'POST',
+        credentials: 'include',
         body: JSON.stringify({ email: 'alice@example.com' }),
       }),
     )
     expect(result.message).toBe('Confirmation sent')
   })
 
-  it('enrollTotp sends authenticated POST', async () => {
+  it('enrollTotp sends authenticated POST with CSRF header', async () => {
     const responseData = { secret: 'ABCDEF', qrUri: 'otpauth://totp/test' }
     mockFetch.mockResolvedValue(jsonResponse(responseData))
 
@@ -164,13 +115,14 @@ describe('authService', () => {
       '/api/v1/totp/enroll',
       expect.objectContaining({
         method: 'POST',
-        headers: expect.objectContaining({ Authorization: 'Bearer fake-token' }),
+        credentials: 'include',
+        headers: expect.objectContaining({ 'X-XSRF-TOKEN': 'fake-csrf-token' }),
       }),
     )
     expect(result.secret).toBe('ABCDEF')
   })
 
-  it('verifyTotp sends authenticated POST with code', async () => {
+  it('verifyTotp sends authenticated POST with CSRF header and code', async () => {
     mockFetch.mockResolvedValue(jsonResponse(undefined, 204))
 
     await verifyTotp('654321')
@@ -179,24 +131,11 @@ describe('authService', () => {
       '/api/v1/totp/verify',
       expect.objectContaining({
         method: 'POST',
-        headers: expect.objectContaining({ Authorization: 'Bearer fake-token' }),
+        credentials: 'include',
+        headers: expect.objectContaining({ 'X-XSRF-TOKEN': 'fake-csrf-token' }),
         body: JSON.stringify({ code: '654321' }),
       }),
     )
-  })
-
-  it('throws parsed JSON error on non-ok response', async () => {
-    const errorData = { title: 'Bad Request', status: 400, detail: 'Invalid input' }
-    mockFetch.mockResolvedValue(jsonResponse(errorData, 400))
-
-    await expect(login({ username: 'x', password: 'y' })).rejects.toEqual(errorData)
-  })
-
-  it('confirmEmail throws on non-ok response', async () => {
-    const errorData = { title: 'Gone', status: 410 }
-    mockFetch.mockResolvedValue(jsonResponse(errorData, 410))
-
-    await expect(confirmEmail('expired-token')).rejects.toEqual(errorData)
   })
 
   it('sessionLogin includes totpCode when provided', async () => {
@@ -218,5 +157,19 @@ describe('authService', () => {
     mockFetch.mockResolvedValue(jsonResponse(errorData, 401))
 
     await expect(sessionLogin('alice', 'wrong')).rejects.toEqual(errorData)
+  })
+
+  it('confirmEmail throws on non-ok response', async () => {
+    const errorData = { title: 'Gone', status: 410 }
+    mockFetch.mockResolvedValue(jsonResponse(errorData, 410))
+
+    await expect(confirmEmail('expired-token')).rejects.toEqual(errorData)
+  })
+
+  it('register throws on non-ok response', async () => {
+    const errorData = { title: 'Bad Request', status: 400, detail: 'Invalid input' }
+    mockFetch.mockResolvedValue(jsonResponse(errorData, 400))
+
+    await expect(register({ username: 'x', email: 'x@x.com', password: 'y' })).rejects.toEqual(errorData)
   })
 })

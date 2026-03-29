@@ -13,11 +13,11 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 
 async function loadUsers(): Promise<void> {
-  if (!authStore.accessToken) return
+  if (!authStore.isAuthenticated) return
   loading.value = true
   error.value = null
   try {
-    users.value = await fetchUsers(authStore.accessToken)
+    users.value = await fetchUsers()
   } catch {
     error.value = 'Failed to load users'
   } finally {

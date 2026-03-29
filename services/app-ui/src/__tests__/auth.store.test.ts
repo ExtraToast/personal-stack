@@ -2,17 +2,9 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../features/auth/stores/auth'
 
-// A minimal JWT with roles claim (header.payload.signature — signature is fake but ignored by parseJwtPayload)
-function makeJwt(payload: Record<string, unknown>): string {
-  const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
-  const body = btoa(JSON.stringify(payload))
-  return `${header}.${body}.signature`
-}
-
 describe('auth store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    localStorage.clear()
     Object.defineProperty(window, 'location', {
       writable: true,
       value: { origin: 'http://localhost:5175', href: '' },
@@ -23,157 +15,89 @@ describe('auth store', () => {
     vi.restoreAllMocks()
   })
 
-  it('is not authenticated when no token is stored', () => {
+  it('is not authenticated when no session is loaded', () => {
     const store = useAuthStore()
     expect(store.isAuthenticated).toBe(false)
     expect(store.user).toBeNull()
   })
 
-  it('reads token from localStorage on init', () => {
-    const token = makeJwt({ sub: 'user-1', username: 'alice', roles: ['ROLE_USER', 'SERVICE_GRAFANA'] })
-    localStorage.setItem('access_token', token)
-    localStorage.setItem('refresh_token', 'rt')
+  it('fetchSession sets user and roles on success', async () => {
+    const mockUser = {
+      sub: 'user-1',
+      username: 'alice',
+      email: 'alice@example.com',
+      roles: ['ROLE_USER', 'SERVICE_GRAFANA'],
+    }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(mockUser) }))
 
     const store = useAuthStore()
+    await store.fetchSession()
+
     expect(store.isAuthenticated).toBe(true)
     expect(store.user?.username).toBe('alice')
     expect(store.servicePermissions).toContain('GRAFANA')
   })
 
-  it('isAdmin is true when ROLE_ADMIN is in roles', () => {
-    const token = makeJwt({ sub: 'admin-1', username: 'admin', roles: ['ROLE_ADMIN'] })
-    localStorage.setItem('access_token', token)
-    localStorage.setItem('refresh_token', 'rt')
+  it('isAdmin is true when ROLE_ADMIN is in roles', async () => {
+    const mockUser = { sub: 'admin-1', username: 'admin', email: 'admin@example.com', roles: ['ROLE_ADMIN'] }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(mockUser) }))
 
     const store = useAuthStore()
+    await store.fetchSession()
+
     expect(store.isAdmin).toBe(true)
   })
 
-  it('logout clears tokens and redirects', () => {
-    const token = makeJwt({ sub: 'user-1', username: 'alice', roles: ['ROLE_USER'] })
-    localStorage.setItem('access_token', token)
-    localStorage.setItem('refresh_token', 'rt')
+  it('isAdmin is false when no ROLE_ADMIN in roles', async () => {
+    const mockUser = {
+      sub: 'u1',
+      username: 'alice',
+      email: 'alice@example.com',
+      roles: ['ROLE_USER', 'SERVICE_GRAFANA'],
+    }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(mockUser) }))
 
     const store = useAuthStore()
+    await store.fetchSession()
+
+    expect(store.isAdmin).toBe(false)
+  })
+
+  it('logout clears user state and redirects', async () => {
+    const mockUser = { sub: 'user-1', username: 'alice', email: 'alice@example.com', roles: ['ROLE_USER'] }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(mockUser) }))
+
+    const store = useAuthStore()
+    await store.fetchSession()
+
     store.logout()
 
     expect(store.isAuthenticated).toBe(false)
     expect(store.user).toBeNull()
-    expect(localStorage.getItem('access_token')).toBeNull()
-    expect(localStorage.getItem('refresh_token')).toBeNull()
+    expect(window.location.href).toContain('/api/v1/auth/logout')
   })
 
-  it('handleCallback stores tokens after successful exchange', async () => {
-    const accessToken = makeJwt({ sub: 'u1', username: 'bob', roles: ['ROLE_USER'] })
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            access_token: accessToken,
-            refresh_token: 'new-rt',
-            expires_in: 900,
-            token_type: 'Bearer',
-          }),
-      }),
-    )
-    sessionStorage.setItem('pkce_verifier', 'verifier')
-    sessionStorage.setItem('pkce_state', 'state-123')
-
-    const store = useAuthStore()
-    await store.handleCallback('auth-code', 'state-123')
-
-    expect(store.isAuthenticated).toBe(true)
-    expect(store.user?.username).toBe('bob')
-    expect(localStorage.getItem('refresh_token')).toBe('new-rt')
-  })
-
-  it('servicePermissions filters only SERVICE_ prefixed roles', () => {
-    const token = makeJwt({
+  it('servicePermissions filters only SERVICE_ prefixed roles', async () => {
+    const mockUser = {
       sub: 'u1',
       username: 'alice',
+      email: 'alice@example.com',
       roles: ['ROLE_USER', 'ROLE_ADMIN', 'SERVICE_GRAFANA', 'SERVICE_VAULT'],
-    })
-    localStorage.setItem('access_token', token)
-    localStorage.setItem('refresh_token', 'rt')
+    }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(mockUser) }))
 
     const store = useAuthStore()
+    await store.fetchSession()
+
     expect(store.servicePermissions).toEqual(['GRAFANA', 'VAULT'])
     expect(store.servicePermissions).not.toContain('USER')
     expect(store.servicePermissions).not.toContain('ADMIN')
   })
 
-  it('isAdmin is false when no ROLE_ADMIN in roles', () => {
-    const token = makeJwt({ sub: 'u1', username: 'alice', roles: ['ROLE_USER', 'SERVICE_GRAFANA'] })
-    localStorage.setItem('access_token', token)
-    localStorage.setItem('refresh_token', 'rt')
-
-    const store = useAuthStore()
-    expect(store.isAdmin).toBe(false)
-  })
-
-  it('refresh updates tokens on success', async () => {
-    const oldToken = makeJwt({ sub: 'u1', username: 'alice', roles: ['ROLE_USER'] })
-    localStorage.setItem('access_token', oldToken)
-    localStorage.setItem('refresh_token', 'old-rt')
-
-    const newToken = makeJwt({ sub: 'u1', username: 'alice', roles: ['ROLE_USER', 'SERVICE_GRAFANA'] })
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            access_token: newToken,
-            refresh_token: 'new-rt',
-            expires_in: 900,
-            token_type: 'Bearer',
-          }),
-      }),
-    )
-
-    const store = useAuthStore()
-    await store.refresh()
-
-    expect(store.isAuthenticated).toBe(true)
-    expect(localStorage.getItem('refresh_token')).toBe('new-rt')
-    expect(store.servicePermissions).toContain('GRAFANA')
-  })
-
-  it('refresh clears tokens on failure', async () => {
-    const token = makeJwt({ sub: 'u1', username: 'alice', roles: ['ROLE_USER'] })
-    localStorage.setItem('access_token', token)
-    localStorage.setItem('refresh_token', 'old-rt')
-
+  it('fetchSession throws on failed session check', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401 }))
 
     const store = useAuthStore()
-    await expect(store.refresh()).rejects.toThrow('Token refresh failed')
-  })
-
-  it('handleCallback clears PKCE params from sessionStorage', async () => {
-    const accessToken = makeJwt({ sub: 'u1', username: 'bob', roles: ['ROLE_USER'] })
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            access_token: accessToken,
-            refresh_token: 'rt',
-            expires_in: 900,
-            token_type: 'Bearer',
-          }),
-      }),
-    )
-    sessionStorage.setItem('pkce_verifier', 'verifier')
-    sessionStorage.setItem('pkce_state', 'state-abc')
-
-    const store = useAuthStore()
-    await store.handleCallback('auth-code', 'state-abc')
-
-    expect(sessionStorage.getItem('pkce_verifier')).toBeNull()
-    expect(sessionStorage.getItem('pkce_state')).toBeNull()
+    await expect(store.fetchSession()).rejects.toThrow('Session check failed')
   })
 })

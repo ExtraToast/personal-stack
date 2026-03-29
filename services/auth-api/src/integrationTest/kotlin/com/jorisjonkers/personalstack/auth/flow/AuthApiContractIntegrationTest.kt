@@ -1,6 +1,8 @@
 package com.jorisjonkers.personalstack.auth.flow
 
 import com.jorisjonkers.personalstack.auth.IntegrationTestBase
+import com.jorisjonkers.personalstack.auth.domain.model.UserId
+import com.jorisjonkers.personalstack.auth.infrastructure.security.AuthenticatedUser
 import com.jorisjonkers.personalstack.auth.jooq.tables.AppUser.APP_USER
 import com.jorisjonkers.personalstack.auth.jooq.tables.EmailConfirmationToken.EMAIL_CONFIRMATION_TOKEN
 import org.jooq.DSLContext
@@ -8,8 +10,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
-import org.springframework.security.core.authority.SimpleGrantedAuthority
-import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
@@ -137,9 +138,13 @@ class AuthApiContractIntegrationTest : IntegrationTestBase() {
         mockMvc
             .get("/api/v1/admin/users") {
                 with(
-                    jwt()
-                        .jwt { it.subject("admin-id").claim("roles", listOf("ROLE_ADMIN")) }
-                        .authorities(SimpleGrantedAuthority("ROLE_ADMIN")),
+                    user(
+                        AuthenticatedUser(
+                            userId = UserId(UUID.randomUUID()),
+                            username = "admin-id",
+                            roles = listOf("ROLE_ADMIN"),
+                        ),
+                    ),
                 )
             }.andExpect {
                 status { isOk() }

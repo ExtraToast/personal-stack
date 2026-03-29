@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
 import org.springframework.mock.web.MockHttpSession
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository
 import org.springframework.test.web.servlet.MockMvc
@@ -159,21 +160,14 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
         username: String,
         password: String,
     ): String {
-        val loginResult =
-            mockMvc
-                .post("/api/v1/auth/login") {
-                    contentType = MediaType.APPLICATION_JSON
-                    content = """{"username":"$username","password":"$password"}"""
-                }.andExpect { status { isOk() } }
-                .andReturn()
-
-        val loginJson = objectMapper.readTree(loginResult.response.contentAsString)
-        val accessToken = loginJson["accessToken"].asText()
+        val loginResult = doSessionLogin(username, password)
+        val theSession = extractSession(loginResult)!!
 
         val enrollResult =
             mockMvc
                 .post("/api/v1/totp/enroll") {
-                    header("Authorization", "Bearer $accessToken")
+                    session = theSession
+                    with(csrf())
                 }.andExpect { status { isOk() } }
                 .andReturn()
 
@@ -184,7 +178,8 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
         mockMvc
             .post("/api/v1/totp/verify") {
                 contentType = MediaType.APPLICATION_JSON
-                header("Authorization", "Bearer $accessToken")
+                session = theSession
+                with(csrf())
                 content = """{"code":"$code"}"""
             }.andExpect { status { isNoContent() } }
 

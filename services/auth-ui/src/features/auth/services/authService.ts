@@ -1,10 +1,4 @@
-import type { AuthTokens } from '@personal-stack/vue-common'
 import { useAuth } from '@personal-stack/vue-common'
-
-interface LoginCredentials {
-  username: string
-  password: string
-}
 
 interface RegisterData {
   username: string
@@ -12,22 +6,24 @@ interface RegisterData {
   password: string
 }
 
-export interface LoginResponse {
-  totpRequired: boolean
-  totpChallengeToken?: string
-  accessToken?: string
-  refreshToken?: string
-  expiresIn?: number
-  tokenType?: string
-}
-
 const API_BASE = '/api/v1'
 
+function getCsrfToken(): string | null {
+  const { getCsrfToken: csrf } = useAuth()
+  return csrf()
+}
+
 /* eslint-disable ts/consistent-type-assertions -- generic response handling requires casts */
-async function post<T>(path: string, body: unknown, headers: Record<string, string> = {}): Promise<T> {
+async function post<T>(path: string, body: unknown, extraHeaders: Record<string, string> = {}): Promise<T> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...extraHeaders }
+  const csrf = getCsrfToken()
+  if (csrf) {
+    headers['X-XSRF-TOKEN'] = csrf
+  }
   const response = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers },
+    headers,
+    credentials: 'include',
     body: JSON.stringify(body),
   })
   if (!response.ok) {
@@ -38,28 +34,7 @@ async function post<T>(path: string, body: unknown, headers: Record<string, stri
   }
   return response.json() as Promise<T>
 }
-
-function authPost<T>(path: string, body: unknown): Promise<T> {
-  const { getAccessToken } = useAuth()
-  const token = getAccessToken()
-  if (!token) {
-    return Promise.reject(new Error('Not authenticated'))
-  }
-  return post<T>(path, body, { Authorization: `Bearer ${token}` })
-}
 /* eslint-enable ts/consistent-type-assertions */
-
-export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
-  return post<LoginResponse>('/auth/login', credentials)
-}
-
-export async function submitTotpChallenge(totpChallengeToken: string, code: string): Promise<LoginResponse> {
-  return post<LoginResponse>('/auth/totp-challenge', { totpChallengeToken, code })
-}
-
-export async function refresh(refreshToken: string): Promise<AuthTokens> {
-  return post<AuthTokens>('/auth/refresh', { refreshToken })
-}
 
 export async function register(data: RegisterData): Promise<void> {
   return post<void>('/users/register', data)
@@ -69,15 +44,17 @@ export async function enrollTotp(): Promise<{
   secret: string
   qrUri: string
 }> {
-  return authPost<{ secret: string; qrUri: string }>('/totp/enroll', {})
+  return post<{ secret: string; qrUri: string }>('/totp/enroll', {})
 }
 
 export async function verifyTotp(code: string): Promise<void> {
-  return authPost<void>('/totp/verify', { code })
+  return post<void>('/totp/verify', { code })
 }
 
 export async function confirmEmail(token: string): Promise<{ message: string }> {
-  const response = await fetch(`${API_BASE}/auth/confirm-email?token=${encodeURIComponent(token)}`)
+  const response = await fetch(`${API_BASE}/auth/confirm-email?token=${encodeURIComponent(token)}`, {
+    credentials: 'include',
+  })
   if (!response.ok) throw await response.json()
   const json: { message: string } = await response.json()
   return json
@@ -90,12 +67,16 @@ export async function resendConfirmation(email: string): Promise<{ message: stri
 export interface SessionLoginResponse {
   success: boolean
   totpRequired: boolean
+  user?: {
+    id: string
+    username: string
+    role: string
+  }
 }
 
 /**
- * Authenticates the user and creates a server-side session (JSESSIONID cookie).
- * Used during the OAuth2 Authorization Code flow so the Authorization Server
- * recognises the user when the browser is redirected to /api/oauth2/authorize.
+ * Authenticates the user and creates a server-side session (SESSION cookie).
+ * The session cookie is used for all subsequent authenticated requests.
  */
 export async function sessionLogin(
   username: string,

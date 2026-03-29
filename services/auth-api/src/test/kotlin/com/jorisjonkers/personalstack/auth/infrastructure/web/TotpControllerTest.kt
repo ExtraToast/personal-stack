@@ -8,6 +8,7 @@ import com.jorisjonkers.personalstack.auth.application.command.TotpAlreadyEnroll
 import com.jorisjonkers.personalstack.auth.application.command.VerifyTotpCommand
 import com.jorisjonkers.personalstack.auth.domain.model.UserId
 import com.jorisjonkers.personalstack.auth.domain.service.TotpService
+import com.jorisjonkers.personalstack.auth.infrastructure.security.AuthenticatedUser
 import com.jorisjonkers.personalstack.auth.infrastructure.web.dto.TotpVerifyRequest
 import com.jorisjonkers.personalstack.common.command.CommandBus
 import io.mockk.every
@@ -18,7 +19,6 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
-import org.springframework.security.oauth2.jwt.Jwt
 import java.util.UUID
 
 class TotpControllerTest {
@@ -30,20 +30,19 @@ class TotpControllerTest {
 
     private val userId = UUID.randomUUID()
 
-    private fun buildJwt(
-        subject: String = userId.toString(),
+    private fun buildUser(
+        id: UUID = userId,
         username: String = "alice",
-    ): Jwt =
-        Jwt
-            .withTokenValue("mock-token")
-            .header("alg", "RS256")
-            .subject(subject)
-            .claim("username", username)
-            .build()
+    ): AuthenticatedUser =
+        AuthenticatedUser(
+            userId = UserId(id),
+            username = username,
+            roles = listOf("ROLE_USER"),
+        )
 
     @Test
     fun `enroll returns secret and qrUri`() {
-        val jwt = buildJwt()
+        val jwt = buildUser()
         val secret = "JBSWY3DPEHPK3PXP"
         val qrUri = "otpauth://totp/jorisjonkers.dev%3Aalice?secret=$secret"
 
@@ -59,7 +58,7 @@ class TotpControllerTest {
 
     @Test
     fun `enroll with already enrolled user throws TotpAlreadyEnrolledException`() {
-        val jwt = buildJwt()
+        val jwt = buildUser()
 
         every {
             enrollTotpCommandHandler.handle(EnrollTotpCommand(UserId(userId)))
@@ -72,7 +71,7 @@ class TotpControllerTest {
 
     @Test
     fun `verify with valid code returns 204`() {
-        val jwt = buildJwt()
+        val jwt = buildUser()
         val request = TotpVerifyRequest(code = "123456")
 
         val response = controller.verify(jwt, request)
@@ -87,7 +86,7 @@ class TotpControllerTest {
 
     @Test
     fun `verify with invalid code throws InvalidTotpCodeException`() {
-        val jwt = buildJwt()
+        val jwt = buildUser()
         val request = TotpVerifyRequest(code = "000000")
 
         every {
@@ -114,7 +113,7 @@ class TotpControllerTest {
 
     @Test
     fun `verify without TOTP enrolled throws InvalidTotpStateException`() {
-        val jwt = buildJwt()
+        val jwt = buildUser()
         val request = TotpVerifyRequest(code = "123456")
 
         every {

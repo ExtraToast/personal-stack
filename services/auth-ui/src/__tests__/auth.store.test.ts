@@ -1,10 +1,9 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mockSetTokens = vi.fn()
+const mockSetUser = vi.fn()
 const mockAuthLogout = vi.fn()
-const mockGetAccessToken = vi.fn().mockReturnValue('access-token')
-const mockGetRefreshToken = vi.fn().mockReturnValue('refresh-token')
+const mockFetchUser = vi.fn().mockResolvedValue(null)
 
 vi.mock('@personal-stack/vue-common', async () => {
   const vue = await import('vue')
@@ -12,24 +11,20 @@ vi.mock('@personal-stack/vue-common', async () => {
     useAuth: () => ({
       user: vue.ref(null),
       isAuthenticated: vue.ref(false),
-      setTokens: mockSetTokens,
-      getAccessToken: mockGetAccessToken,
-      getRefreshToken: mockGetRefreshToken,
+      setUser: mockSetUser,
+      fetchUser: mockFetchUser,
+      getCsrfToken: () => 'fake-csrf-token',
       logout: mockAuthLogout,
     }),
   }
 })
 
-const mockApiLogin = vi.fn()
-const mockApiRefresh = vi.fn()
+const mockApiSessionLogin = vi.fn()
 const mockApiRegister = vi.fn()
-const mockApiTotpChallenge = vi.fn()
 
 vi.mock('@/features/auth/services/authService', () => ({
-  login: (...args: unknown[]) => mockApiLogin(...args),
-  refresh: (...args: unknown[]) => mockApiRefresh(...args),
+  sessionLogin: (...args: unknown[]) => mockApiSessionLogin(...args),
   register: (...args: unknown[]) => mockApiRegister(...args),
-  submitTotpChallenge: (...args: unknown[]) => mockApiTotpChallenge(...args),
 }))
 
 const { useAuthStore } = await import('@/stores/auth')
@@ -37,51 +32,62 @@ const { useAuthStore } = await import('@/stores/auth')
 describe('auth store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    mockApiLogin.mockReset()
-    mockApiRefresh.mockReset()
+    mockApiSessionLogin.mockReset()
     mockApiRegister.mockReset()
-    mockApiTotpChallenge.mockReset()
-    mockSetTokens.mockReset()
+    mockSetUser.mockReset()
     mockAuthLogout.mockReset()
-    mockGetRefreshToken.mockReset().mockReturnValue('refresh-token')
+    mockFetchUser.mockReset().mockResolvedValue(null)
   })
 
   describe('login', () => {
-    it('sets tokens on successful login', async () => {
-      mockApiLogin.mockResolvedValue({
+    it('sets user on successful login', async () => {
+      mockApiSessionLogin.mockResolvedValue({
+        success: true,
         totpRequired: false,
-        accessToken: 'at',
-        refreshToken: 'rt',
-        expiresIn: 900,
+        user: { id: '1', username: 'alice', role: 'USER' },
       })
 
       const store = useAuthStore()
       await store.login('alice', 'password')
 
-      expect(mockApiLogin).toHaveBeenCalledWith({ username: 'alice', password: 'password' })
-      expect(mockSetTokens).toHaveBeenCalledWith({
-        accessToken: 'at',
-        refreshToken: 'rt',
-        expiresIn: 900,
+      expect(mockApiSessionLogin).toHaveBeenCalledWith('alice', 'password', undefined)
+      expect(mockSetUser).toHaveBeenCalledWith({
+        id: '1',
+        username: 'alice',
+        email: '',
+        role: 'USER',
       })
       expect(store.isLoading).toBe(false)
     })
 
     it('sets totpRequired when TOTP challenge returned', async () => {
-      mockApiLogin.mockResolvedValue({
+      mockApiSessionLogin.mockResolvedValue({
+        success: false,
         totpRequired: true,
-        totpChallengeToken: 'challenge-123',
       })
 
       const store = useAuthStore()
       await store.login('alice', 'password')
 
       expect(store.totpRequired).toBe(true)
-      expect(mockSetTokens).not.toHaveBeenCalled()
+      expect(mockSetUser).not.toHaveBeenCalled()
+    })
+
+    it('passes totpCode when provided', async () => {
+      mockApiSessionLogin.mockResolvedValue({
+        success: true,
+        totpRequired: false,
+        user: { id: '1', username: 'alice', role: 'USER' },
+      })
+
+      const store = useAuthStore()
+      await store.login('alice', 'password', '123456')
+
+      expect(mockApiSessionLogin).toHaveBeenCalledWith('alice', 'password', '123456')
     })
 
     it('sets error on login failure with ProblemDetail', async () => {
-      mockApiLogin.mockRejectedValue({ title: 'Unauthorized', status: 401, detail: 'Bad credentials' })
+      mockApiSessionLogin.mockRejectedValue({ title: 'Unauthorized', status: 401, detail: 'Bad credentials' })
 
       const store = useAuthStore()
       await expect(store.login('alice', 'wrong')).rejects.toBeTruthy()
@@ -91,75 +97,12 @@ describe('auth store', () => {
     })
 
     it('sets generic error on non-ProblemDetail failure', async () => {
-      mockApiLogin.mockRejectedValue(new Error('network'))
+      mockApiSessionLogin.mockRejectedValue(new Error('network'))
 
       const store = useAuthStore()
       await expect(store.login('alice', 'pass')).rejects.toBeTruthy()
 
       expect(store.error).toBe('Login failed')
-    })
-
-    it('uses expiresIn default of 900 when not provided', async () => {
-      mockApiLogin.mockResolvedValue({
-        totpRequired: false,
-        accessToken: 'at',
-        refreshToken: 'rt',
-      })
-
-      const store = useAuthStore()
-      await store.login('alice', 'password')
-
-      expect(mockSetTokens).toHaveBeenCalledWith({
-        accessToken: 'at',
-        refreshToken: 'rt',
-        expiresIn: 900,
-      })
-    })
-  })
-
-  describe('verifyTotpChallenge', () => {
-    it('verifies TOTP and sets tokens', async () => {
-      mockApiLogin.mockResolvedValue({
-        totpRequired: true,
-        totpChallengeToken: 'challenge-123',
-      })
-      mockApiTotpChallenge.mockResolvedValue({
-        accessToken: 'at',
-        refreshToken: 'rt',
-        expiresIn: 900,
-      })
-
-      const store = useAuthStore()
-      await store.login('alice', 'password')
-      await store.verifyTotpChallenge('123456')
-
-      expect(mockApiTotpChallenge).toHaveBeenCalledWith('challenge-123', '123456')
-      expect(mockSetTokens).toHaveBeenCalledWith({
-        accessToken: 'at',
-        refreshToken: 'rt',
-        expiresIn: 900,
-      })
-      expect(store.totpRequired).toBe(false)
-    })
-
-    it('throws error when no TOTP challenge in progress', async () => {
-      const store = useAuthStore()
-      await expect(store.verifyTotpChallenge('123456')).rejects.toThrow('No TOTP challenge token')
-      expect(store.error).toBe('No TOTP challenge in progress')
-    })
-
-    it('sets error on TOTP verification failure', async () => {
-      mockApiLogin.mockResolvedValue({
-        totpRequired: true,
-        totpChallengeToken: 'challenge-123',
-      })
-      mockApiTotpChallenge.mockRejectedValue({ title: 'Bad Request', status: 400, detail: 'Invalid TOTP code' })
-
-      const store = useAuthStore()
-      await store.login('alice', 'password')
-      await expect(store.verifyTotpChallenge('000000')).rejects.toBeTruthy()
-
-      expect(store.error).toBe('Invalid TOTP code')
     })
   })
 
@@ -188,37 +131,12 @@ describe('auth store', () => {
     })
   })
 
-  describe('refreshTokens', () => {
-    it('refreshes tokens successfully', async () => {
-      const tokens = { accessToken: 'new-at', refreshToken: 'new-rt', expiresIn: 900 }
-      mockApiRefresh.mockResolvedValue(tokens)
-
+  describe('checkSession', () => {
+    it('calls fetchUser', async () => {
       const store = useAuthStore()
-      const result = await store.refreshTokens()
+      await store.checkSession()
 
-      expect(result).toBe(true)
-      expect(mockApiRefresh).toHaveBeenCalledWith('refresh-token')
-      expect(mockSetTokens).toHaveBeenCalledWith(tokens)
-    })
-
-    it('returns false when no refresh token', async () => {
-      mockGetRefreshToken.mockReturnValue(null)
-
-      const store = useAuthStore()
-      const result = await store.refreshTokens()
-
-      expect(result).toBe(false)
-      expect(mockApiRefresh).not.toHaveBeenCalled()
-    })
-
-    it('logs out on refresh failure', async () => {
-      mockApiRefresh.mockRejectedValue(new Error('expired'))
-
-      const store = useAuthStore()
-      const result = await store.refreshTokens()
-
-      expect(result).toBe(false)
-      expect(mockAuthLogout).toHaveBeenCalled()
+      expect(mockFetchUser).toHaveBeenCalled()
     })
   })
 

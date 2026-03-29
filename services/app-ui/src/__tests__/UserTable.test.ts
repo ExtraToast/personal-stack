@@ -16,16 +16,20 @@ const mockUser: AdminUser = {
   createdAt: '2025-01-01T00:00:00Z',
 }
 
+function authenticateStore(): void {
+  const authStore = useAuthStore()
+  authStore.user = { sub: 'a1', username: 'admin', email: 'admin@example.com' }
+  authStore.roles = ['ROLE_ADMIN']
+}
+
 describe('userTable', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    localStorage.clear()
     vi.restoreAllMocks()
   })
 
   it('renders user rows with username and email', () => {
-    const authStore = useAuthStore()
-    authStore.accessToken = 'token'
+    authenticateStore()
 
     const wrapper = mount(UserTable, { props: { users: [mockUser] } })
     expect(wrapper.text()).toContain('alice')
@@ -33,8 +37,7 @@ describe('userTable', () => {
   })
 
   it('opens confirmation dialog when delete is clicked', async () => {
-    const authStore = useAuthStore()
-    authStore.accessToken = 'token'
+    authenticateStore()
 
     const wrapper = mount(UserTable, { props: { users: [mockUser] } })
     const deleteBtn = wrapper.findAll('button').find((b) => b.text() === 'Delete')
@@ -44,8 +47,7 @@ describe('userTable', () => {
   })
 
   it('closes dialog on cancel', async () => {
-    const authStore = useAuthStore()
-    authStore.accessToken = 'token'
+    authenticateStore()
 
     const wrapper = mount(UserTable, { props: { users: [mockUser] } })
     const deleteBtn = wrapper.findAll('button').find((b) => b.text() === 'Delete')
@@ -59,8 +61,7 @@ describe('userTable', () => {
 
   it('renders multiple users', () => {
     const second: AdminUser = { ...mockUser, id: 'u2', username: 'bob', email: 'bob@example.com' }
-    const authStore = useAuthStore()
-    authStore.accessToken = 'token'
+    authenticateStore()
 
     const wrapper = mount(UserTable, { props: { users: [mockUser, second] } })
     expect(wrapper.text()).toContain('alice')
@@ -68,8 +69,7 @@ describe('userTable', () => {
   })
 
   it('role selector triggers onRoleChange callback', async () => {
-    const authStore = useAuthStore()
-    authStore.accessToken = 'token'
+    authenticateStore()
 
     vi.stubGlobal(
       'fetch',
@@ -94,8 +94,7 @@ describe('userTable', () => {
       email: 'bob@example.com',
       servicePermissions: ['VAULT'],
     }
-    const authStore = useAuthStore()
-    authStore.accessToken = 'token'
+    authenticateStore()
 
     const wrapper = mount(UserTable, { props: { users: [mockUser, second] } })
     const serviceEditors = wrapper.findAllComponents({ name: 'ServicePermissionsEditor' })
@@ -103,8 +102,7 @@ describe('userTable', () => {
   })
 
   it('delete confirmation triggers onDelete callback', async () => {
-    const authStore = useAuthStore()
-    authStore.accessToken = 'token'
+    authenticateStore()
 
     vi.stubGlobal(
       'fetch',
@@ -126,8 +124,7 @@ describe('userTable', () => {
   })
 
   it('cancel button closes delete dialog', async () => {
-    const authStore = useAuthStore()
-    authStore.accessToken = 'token'
+    authenticateStore()
 
     const wrapper = mount(UserTable, { props: { users: [mockUser] } })
 
@@ -143,8 +140,7 @@ describe('userTable', () => {
 
   it('shows email and role for each user', () => {
     const second: AdminUser = { ...mockUser, id: 'u2', username: 'bob', email: 'bob@example.com', role: 'ADMIN' }
-    const authStore = useAuthStore()
-    authStore.accessToken = 'token'
+    authenticateStore()
 
     const wrapper = mount(UserTable, { props: { users: [mockUser, second] } })
     expect(wrapper.text()).toContain('alice@example.com')

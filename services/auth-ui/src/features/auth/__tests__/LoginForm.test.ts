@@ -5,7 +5,6 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 import LoginForm from '../components/LoginForm.vue'
 
 const mockLogin = vi.fn().mockResolvedValue(undefined)
-const mockVerifyTotpChallenge = vi.fn().mockResolvedValue(undefined)
 
 let mockIsLoading = false
 let mockError: string | null = null
@@ -14,7 +13,6 @@ let mockTotpRequired = false
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => ({
     login: mockLogin,
-    verifyTotpChallenge: mockVerifyTotpChallenge,
     get isLoading() {
       return mockIsLoading
     },
@@ -73,7 +71,6 @@ describe('loginForm', () => {
     mockError = null
     mockTotpRequired = false
     mockLogin.mockReset().mockResolvedValue(undefined)
-    mockVerifyTotpChallenge.mockReset().mockResolvedValue(undefined)
     mockResendConfirmation.mockReset().mockResolvedValue({ message: 'sent' })
     mockSessionLogin.mockReset().mockResolvedValue({ success: true, totpRequired: false })
   })
@@ -221,15 +218,16 @@ describe('loginForm', () => {
     expect(mockLogin).toHaveBeenCalledWith('alice', 'password123')
   })
 
-  it('tOTP form submission calls authStore.verifyTotpChallenge', async () => {
+  it('tOTP form submission calls authStore.login with TOTP code', async () => {
     mockTotpRequired = true
     const wrapper = mountComponent()
     await wrapper.vm.$nextTick()
 
+    await wrapper.find('#username').exists() // username hidden in TOTP mode
     await wrapper.find('#totp-code').setValue('123456')
     await wrapper.find('form').trigger('submit')
     await wrapper.vm.$nextTick()
-    expect(mockVerifyTotpChallenge).toHaveBeenCalledWith('123456')
+    expect(mockLogin).toHaveBeenCalledWith('', '', '123456')
   })
 
   it('after non-TOTP login redirects to totp-setup', async () => {

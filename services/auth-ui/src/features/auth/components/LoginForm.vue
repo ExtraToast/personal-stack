@@ -138,8 +138,10 @@ async function onTotpSubmit(): Promise<void> {
   }
 
   try {
-    await authStore.verifyTotpChallenge(totpCode.value)
-    redirectAfterLogin('app')
+    await authStore.login(form.value.username, form.value.password, totpCode.value)
+    if (!authStore.totpRequired) {
+      redirectAfterLogin('app')
+    }
   } catch {
     totpCode.value = ''
   }
