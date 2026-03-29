@@ -3,12 +3,42 @@
 # Idempotent — safe to run multiple times.
 #
 # macOS: uses /etc/resolver/ (built-in wildcard DNS support)
-# Linux: installs and configures dnsmasq
+# Linux: installs and configures dnsmasq, with a CI-safe /etc/hosts fallback
 
 set -euo pipefail
 
 DOMAIN="jorisjonkers.test"
 IP="127.0.0.1"
+HOSTS=(
+  "$DOMAIN"
+  "auth.$DOMAIN"
+  "assistant.$DOMAIN"
+  "vault.$DOMAIN"
+  "n8n.$DOMAIN"
+  "grafana.$DOMAIN"
+  "traefik.$DOMAIN"
+  "stalwart.$DOMAIN"
+)
+
+setup_hosts_entries() {
+  local marker_begin="# personal-stack dev domains begin"
+  local marker_end="# personal-stack dev domains end"
+  local hosts_line="$IP ${HOSTS[*]}"
+
+  if sudo grep -qF "$marker_begin" /etc/hosts 2>/dev/null; then
+    echo "DNS: dev host entries already configured."
+    return
+  fi
+
+  echo "DNS: Configuring explicit host entries..."
+  {
+    echo ""
+    echo "$marker_begin"
+    echo "$hosts_line"
+    echo "$marker_end"
+  } | sudo tee -a /etc/hosts > /dev/null
+  echo "DNS: Done."
+}
 
 setup_dns_macos() {
   local resolver_dir="/etc/resolver"
@@ -30,6 +60,11 @@ setup_dns_macos() {
 setup_dns_linux() {
   local dnsmasq_conf="/etc/dnsmasq.d/$DOMAIN.conf"
   local conf_line="address=/$DOMAIN/$IP"
+
+  if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
+    setup_hosts_entries
+    return
+  fi
 
   if [[ -f "$dnsmasq_conf" ]] && grep -q "$conf_line" "$dnsmasq_conf" 2>/dev/null; then
     echo "DNS: *.$DOMAIN already configured."
@@ -55,7 +90,11 @@ setup_dns_linux() {
   if ! grep -q "^conf-dir=/etc/dnsmasq.d" /etc/dnsmasq.conf 2>/dev/null; then
     echo "conf-dir=/etc/dnsmasq.d/,*.conf" | sudo tee -a /etc/dnsmasq.conf > /dev/null
   fi
-  sudo systemctl restart dnsmasq 2>/dev/null || sudo service dnsmasq restart 2>/dev/null
+  if ! sudo systemctl restart dnsmasq 2>/dev/null && ! sudo service dnsmasq restart 2>/dev/null; then
+    echo "DNS: dnsmasq restart unavailable, falling back to explicit host entries..."
+    setup_hosts_entries
+    return
+  fi
 
   if systemctl is-active --quiet systemd-resolved 2>/dev/null; then
     sudo resolvectl dns lo "$IP" 2>/dev/null || true

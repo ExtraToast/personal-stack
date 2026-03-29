@@ -12,6 +12,19 @@ function mockFetch(body: unknown, ok = true, status = 200) {
   )
 }
 
+function lastRequestHeaders(): Headers {
+  const call = vi.mocked(fetch).mock.calls.at(-1)
+  expect(call).toBeDefined()
+
+  const headers = call?.[1]?.headers
+  expect(headers).toBeInstanceOf(Headers)
+  if (!(headers instanceof Headers)) {
+    throw new TypeError('Expected fetch call to use Headers')
+  }
+
+  return headers
+}
+
 afterEach(() => {
   document.cookie = 'XSRF-TOKEN=; Max-Age=0; path=/'
   vi.restoreAllMocks()
@@ -89,17 +102,7 @@ describe('request details', () => {
 
     await updateUserRole('1', 'ADMIN')
 
-    expect(fetch).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({
-        headers: expect.any(Headers),
-      }),
-    )
-
-    const [, init] = vi.mocked(fetch).mock.calls.at(-1) ?? []
-    expect(init).toBeDefined()
-    expect((init as RequestInit).headers).toBeInstanceOf(Headers)
-    expect(((init as RequestInit).headers as Headers).get('X-XSRF-TOKEN')).toBe('test-csrf-token')
+    expect(lastRequestHeaders().get('X-XSRF-TOKEN')).toBe('test-csrf-token')
   })
 
   it('updateUserServices sends PUT with services array', async () => {
@@ -128,10 +131,7 @@ describe('request details', () => {
 
     await deleteUser('42')
 
-    const [, init] = vi.mocked(fetch).mock.calls.at(-1) ?? []
-    expect(init).toBeDefined()
-    expect((init as RequestInit).headers).toBeInstanceOf(Headers)
-    expect(((init as RequestInit).headers as Headers).get('X-XSRF-TOKEN')).toBe('delete-token')
+    expect(lastRequestHeaders().get('X-XSRF-TOKEN')).toBe('delete-token')
   })
 
   it('all requests use credentials include', async () => {
