@@ -83,20 +83,7 @@ object TestHelper {
         val sessionCookie =
             response.cookie("SESSION")
                 ?: throw IllegalStateException("No SESSION cookie in response")
-        val csrfToken = fetchCsrfToken(sessionCookie)
-        return SessionInfo(sessionCookie, csrfToken)
-    }
-
-    private fun fetchCsrfToken(sessionCookie: String): String {
-        val response =
-            given()
-                .baseUri(authBaseUrl)
-                .cookie("SESSION", sessionCookie)
-                .`when`()
-                .get("/api/v1/auth/me")
-
-        return response.cookie("XSRF-TOKEN")
-            ?: throw IllegalStateException("No XSRF-TOKEN cookie in response")
+        return SessionInfo(sessionCookie, UUID.randomUUID().toString())
     }
 
     fun sessionLoginAndGetCookie(
