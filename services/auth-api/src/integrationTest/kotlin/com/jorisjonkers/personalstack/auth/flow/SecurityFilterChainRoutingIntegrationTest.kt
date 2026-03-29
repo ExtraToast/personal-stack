@@ -56,6 +56,13 @@ class SecurityFilterChainRoutingIntegrationTest : IntegrationTestBase() {
         }
 
         @Test
+        fun `GET actuator health liveness is accessible without auth`() {
+            mockMvc
+                .get("/api/actuator/health/liveness")
+                .andExpect { status { isOk() } }
+        }
+
+        @Test
         fun `GET actuator info is accessible without auth`() {
             mockMvc
                 .get("/api/actuator/info")
