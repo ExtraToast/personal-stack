@@ -48,5 +48,9 @@ dependencies {
     testImplementation("io.mockk:mockk:1.13.16")
     testImplementation("org.assertj:assertj-core:3.27.3")
     testImplementation("org.springframework.boot:spring-boot-starter-amqp:4.0.4")
+    testImplementation("org.springframework.boot:spring-boot-starter-web:4.0.4")
+    testImplementation("org.springframework.boot:spring-boot-starter-mail:4.0.4")
+    testImplementation("org.springframework.vault:spring-vault-core:4.0.1")
+    testImplementation("org.springframework:spring-context:7.0.3")
     implementation("com.tngtech.archunit:archunit-junit5:1.4.0")
 }
