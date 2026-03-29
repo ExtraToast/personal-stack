@@ -3,6 +3,7 @@ package com.jorisjonkers.personalstack.auth.config
 import com.jorisjonkers.personalstack.auth.domain.model.Role
 import com.jorisjonkers.personalstack.auth.domain.model.ServicePermission
 import com.jorisjonkers.personalstack.auth.domain.port.UserRepository
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.annotation.Order
@@ -31,17 +32,23 @@ import org.springframework.security.web.util.matcher.AndRequestMatcher
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher
 import org.springframework.security.web.util.matcher.NegatedRequestMatcher
 import org.springframework.security.web.util.matcher.OrRequestMatcher
+import org.springframework.web.cors.CorsConfigurationSource
 import java.time.Duration
 import java.util.UUID
 
 @Configuration
 class AuthorizationServerConfig(
-    @param:org.springframework.beans.factory.annotation.Value("\${auth.issuer:https://auth.jorisjonkers.dev}")
+    @param:Value("\${auth.issuer:https://auth.jorisjonkers.dev}")
     private val issuer: String,
+    @param:Value("\${auth.login-url:http://localhost:5174/login}")
+    private val loginUrl: String,
 ) {
     @Bean
     @Order(1)
-    fun authorizationServerSecurityFilterChain(http: HttpSecurity): SecurityFilterChain {
+    fun authorizationServerSecurityFilterChain(
+        http: HttpSecurity,
+        corsConfigurationSource: CorsConfigurationSource,
+    ): SecurityFilterChain {
         val authServerConfigurer = OAuth2AuthorizationServerConfigurer()
         authServerConfigurer.oidc(Customizer.withDefaults())
 
@@ -55,13 +62,14 @@ class AuthorizationServerConfig(
 
         http
             .securityMatcher(matcher)
+            .cors { it.configurationSource(corsConfigurationSource) }
             .with(authServerConfigurer, Customizer.withDefaults())
             .authorizeHttpRequests { it.anyRequest().authenticated() }
             .securityContext { ctx ->
                 ctx.securityContextRepository(HttpSessionSecurityContextRepository())
             }.exceptionHandling { exceptions ->
                 exceptions.defaultAuthenticationEntryPointFor(
-                    LoginUrlAuthenticationEntryPoint("/login"),
+                    LoginUrlAuthenticationEntryPoint(loginUrl),
                     MediaTypeRequestMatcher(MediaType.TEXT_HTML),
                 )
             }
@@ -99,6 +107,12 @@ class AuthorizationServerConfig(
         AuthorizationServerSettings
             .builder()
             .issuer(issuer)
+            .authorizationEndpoint("/api/oauth2/authorize")
+            .tokenEndpoint("/api/oauth2/token")
+            .jwkSetEndpoint("/api/oauth2/jwks")
+            .tokenRevocationEndpoint("/api/oauth2/revoke")
+            .tokenIntrospectionEndpoint("/api/oauth2/introspect")
+            .oidcUserInfoEndpoint("/api/userinfo")
             .build()
 
     private fun buildAuthUiClient(): RegisteredClient =

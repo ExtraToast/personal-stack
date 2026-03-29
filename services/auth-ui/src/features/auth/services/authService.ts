@@ -95,7 +95,7 @@ export interface SessionLoginResponse {
 /**
  * Authenticates the user and creates a server-side session (JSESSIONID cookie).
  * Used during the OAuth2 Authorization Code flow so the Authorization Server
- * recognises the user when the browser is redirected to /oauth2/authorize.
+ * recognises the user when the browser is redirected to /api/oauth2/authorize.
  */
 export async function sessionLogin(
   username: string,

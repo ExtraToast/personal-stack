@@ -11,6 +11,18 @@ http:
       tls:
         certResolver: cloudflare
 
+    # ── Auth API (.well-known for OIDC discovery) ────────────────
+    auth-api-well-known:
+      rule: 'Host(`auth.jorisjonkers.dev`) && PathPrefix(`/.well-known/`)'
+      entryPoints:
+        - websecure
+      service: auth-api
+      middlewares:
+        - security-headers
+      tls:
+        certResolver: cloudflare
+      priority: 100
+
     # ── Auth API ────────────────────────────────────────────────
     auth-api:
       rule: 'Host(`auth.jorisjonkers.dev`) && PathPrefix(`/api/`)'

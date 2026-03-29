@@ -117,7 +117,7 @@ describe('loginForm', () => {
     const router = createTestRouter()
     const pinia = createPinia()
     setActivePinia(pinia)
-    await router.push({ path: '/login', query: { redirect: '/oauth2/authorize?client_id=abc' } })
+    await router.push({ path: '/login', query: { redirect: '/api/oauth2/authorize?client_id=abc' } })
     await router.isReady()
 
     const wrapper = mount(LoginForm, {
@@ -137,7 +137,7 @@ describe('loginForm', () => {
     const router = createTestRouter()
     const pinia = createPinia()
     setActivePinia(pinia)
-    await router.push({ path: '/login', query: { redirect: '/oauth2/authorize?client_id=x' } })
+    await router.push({ path: '/login', query: { redirect: '/api/oauth2/authorize?client_id=x' } })
     await router.isReady()
 
     const wrapper = mount(LoginForm, {

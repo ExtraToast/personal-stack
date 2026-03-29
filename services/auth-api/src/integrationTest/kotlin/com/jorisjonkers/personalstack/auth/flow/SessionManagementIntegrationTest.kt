@@ -192,7 +192,7 @@ class SessionManagementIntegrationTest : IntegrationTestBase() {
         // Second request with the session should also succeed
         val secondResult =
             mockMvc
-                .get("/oauth2/authorize") {
+                .get("/api/oauth2/authorize") {
                     param("response_type", "code")
                     param("client_id", "auth-ui")
                     param("redirect_uri", "http://localhost:5174/callback")
@@ -301,7 +301,7 @@ class SessionManagementIntegrationTest : IntegrationTestBase() {
     fun `without session authorize endpoint does not issue code`() {
         val result =
             mockMvc
-                .get("/oauth2/authorize") {
+                .get("/api/oauth2/authorize") {
                     param("response_type", "code")
                     param("client_id", "auth-ui")
                     param("redirect_uri", "http://localhost:5174/callback")

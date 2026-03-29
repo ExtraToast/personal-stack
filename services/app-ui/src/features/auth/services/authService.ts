@@ -44,7 +44,7 @@ export async function startLoginFlow(): Promise<void> {
     state,
   })
 
-  window.location.href = `${AUTH_BASE_URL}/oauth2/authorize?${params}`
+  window.location.href = `${AUTH_BASE_URL}/api/oauth2/authorize?${params}`
 }
 
 export async function exchangeCodeForToken(code: string, state: string): Promise<TokenResponse> {
@@ -65,7 +65,7 @@ export async function exchangeCodeForToken(code: string, state: string): Promise
     code_verifier: verifier,
   })
 
-  const response = await fetch(`${AUTH_BASE_URL}/oauth2/token`, {
+  const response = await fetch(`${AUTH_BASE_URL}/api/oauth2/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
@@ -83,7 +83,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<TokenRes
     client_id: CLIENT_ID,
   })
 
-  const response = await fetch(`${AUTH_BASE_URL}/oauth2/token`, {
+  const response = await fetch(`${AUTH_BASE_URL}/api/oauth2/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
@@ -99,5 +99,5 @@ export function buildLogoutUrl(): string {
     post_logout_redirect_uri: window.location.origin,
     client_id: CLIENT_ID,
   })
-  return `${AUTH_BASE_URL}/connect/logout?${params}`
+  return `${AUTH_BASE_URL}/api/connect/logout?${params}`
 }
