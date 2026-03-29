@@ -77,13 +77,14 @@ class TotpFlowSystemTest {
         assertThat(accessToken).isNotBlank()
 
         // Get session cookie for protected endpoint access
-        val sessionCookie = TestHelper.sessionLoginAndGetCookie(user)
+        val session = TestHelper.sessionLogin(user)
 
         // Step 2: Enroll TOTP
         val enrollJson =
             given()
                 .baseUri(authBaseUrl)
-                .cookie("SESSION", sessionCookie)
+                .cookie("SESSION", session.sessionCookie)
+                .header("X-XSRF-TOKEN", session.csrfToken)
                 .`when`()
                 .post("/api/v1/totp/enroll")
                 .then()
@@ -101,7 +102,8 @@ class TotpFlowSystemTest {
         given()
             .baseUri(authBaseUrl)
             .contentType(ContentType.JSON)
-            .cookie("SESSION", sessionCookie)
+            .cookie("SESSION", session.sessionCookie)
+            .header("X-XSRF-TOKEN", session.csrfToken)
             .body("""{"code":"$verifyCode"}""")
             .`when`()
             .post("/api/v1/totp/verify")
@@ -151,13 +153,14 @@ class TotpFlowSystemTest {
         val username = "totp_bad_${UUID.randomUUID().toString().take(8)}"
         val user = registerAndConfirm(username)
 
-        val sessionCookie = TestHelper.sessionLoginAndGetCookie(user)
+        val session = TestHelper.sessionLogin(user)
 
         // Enroll + verify TOTP
         val secret =
             given()
                 .baseUri(authBaseUrl)
-                .cookie("SESSION", sessionCookie)
+                .cookie("SESSION", session.sessionCookie)
+                .header("X-XSRF-TOKEN", session.csrfToken)
                 .`when`()
                 .post("/api/v1/totp/enroll")
                 .then()
@@ -169,7 +172,8 @@ class TotpFlowSystemTest {
         given()
             .baseUri(authBaseUrl)
             .contentType(ContentType.JSON)
-            .cookie("SESSION", sessionCookie)
+            .cookie("SESSION", session.sessionCookie)
+            .header("X-XSRF-TOKEN", session.csrfToken)
             .body("""{"code":"${generateTotpCode(secret)}"}""")
             .`when`()
             .post("/api/v1/totp/verify")

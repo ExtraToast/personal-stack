@@ -68,11 +68,12 @@ class TotpReLoginSystemTest {
             .jsonPath()
     }
 
-    private fun enrollAndVerifyTotp(sessionCookie: String): String {
+    private fun enrollAndVerifyTotp(session: TestHelper.SessionInfo): String {
         val secret =
             given()
                 .baseUri(authBaseUrl)
-                .cookie("SESSION", sessionCookie)
+                .cookie("SESSION", session.sessionCookie)
+                .header("X-XSRF-TOKEN", session.csrfToken)
                 .`when`()
                 .post("/api/v1/totp/enroll")
                 .then()
@@ -84,7 +85,8 @@ class TotpReLoginSystemTest {
         given()
             .baseUri(authBaseUrl)
             .contentType(ContentType.JSON)
-            .cookie("SESSION", sessionCookie)
+            .cookie("SESSION", session.sessionCookie)
+            .header("X-XSRF-TOKEN", session.csrfToken)
             .body("""{"code":"${generateTotpCode(secret)}"}""")
             .`when`()
             .post("/api/v1/totp/verify")
@@ -101,10 +103,10 @@ class TotpReLoginSystemTest {
         val user = registerAndConfirm(username)
 
         // First session login — no TOTP yet
-        val sessionCookie = TestHelper.sessionLoginAndGetCookie(user)
+        val session = TestHelper.sessionLogin(user)
 
         // Enroll and verify TOTP
-        val secret = enrollAndVerifyTotp(sessionCookie)
+        val secret = enrollAndVerifyTotp(session)
 
         // Second login — TOTP required, complete challenge
         val secondLogin = login(username)
@@ -135,13 +137,14 @@ class TotpReLoginSystemTest {
         val user = registerAndConfirm(username)
 
         // Session login, enroll, and verify TOTP
-        val sessionCookie = TestHelper.sessionLoginAndGetCookie(user)
-        enrollAndVerifyTotp(sessionCookie)
+        val session = TestHelper.sessionLogin(user)
+        enrollAndVerifyTotp(session)
 
         // Attempt to enroll again with same session — should be rejected
         given()
             .baseUri(authBaseUrl)
-            .cookie("SESSION", sessionCookie)
+            .cookie("SESSION", session.sessionCookie)
+            .header("X-XSRF-TOKEN", session.csrfToken)
             .`when`()
             .post("/api/v1/totp/enroll")
             .then()

@@ -60,10 +60,10 @@ object TestHelper {
             .jsonPath()
             .getString("accessToken")
 
-    fun sessionLoginAndGetCookie(
+    fun sessionLogin(
         user: RegisteredUser,
         totpCode: String? = null,
-    ): String {
+    ): SessionInfo {
         val body =
             if (totpCode != null) {
                 """{"username":"${user.username}","password":"${user.password}","totpCode":"$totpCode"}"""
@@ -80,17 +80,27 @@ object TestHelper {
                 .post("/api/v1/auth/session-login")
 
         assertThat(response.statusCode).isEqualTo(200)
-        return response.cookie("SESSION")
-            ?: throw IllegalStateException("No SESSION cookie in response")
+        val sessionCookie =
+            response.cookie("SESSION")
+                ?: throw IllegalStateException("No SESSION cookie in response")
+        val csrfToken =
+            response.cookie("XSRF-TOKEN")
+                ?: throw IllegalStateException("No XSRF-TOKEN cookie in response")
+        return SessionInfo(sessionCookie, csrfToken)
     }
+
+    fun sessionLoginAndGetCookie(
+        user: RegisteredUser,
+        totpCode: String? = null,
+    ): String = sessionLogin(user, totpCode).sessionCookie
 
     fun registerConfirmAndGetSession(
         username: String = "sys_${UUID.randomUUID().toString().take(8)}",
         password: String = "Test1234!",
     ): SessionUser {
         val user = registerAndConfirm(username, password)
-        val cookie = sessionLoginAndGetCookie(user)
-        return SessionUser(user, cookie)
+        val session = sessionLogin(user)
+        return SessionUser(user, session.sessionCookie, session.csrfToken)
     }
 
     fun registerConfirmAndGetAdminSession(
@@ -99,8 +109,8 @@ object TestHelper {
     ): SessionUser {
         val user = registerAndConfirm(username, password)
         makeUserAdmin(user.username)
-        val cookie = sessionLoginAndGetCookie(user)
-        return SessionUser(user, cookie)
+        val session = sessionLogin(user)
+        return SessionUser(user, session.sessionCookie, session.csrfToken)
     }
 
     fun registerConfirmAndLogin(
@@ -175,8 +185,14 @@ object TestHelper {
         val password: String,
     )
 
+    data class SessionInfo(
+        val sessionCookie: String,
+        val csrfToken: String,
+    )
+
     data class SessionUser(
         val user: RegisteredUser,
         val sessionCookie: String,
+        val csrfToken: String,
     )
 }
