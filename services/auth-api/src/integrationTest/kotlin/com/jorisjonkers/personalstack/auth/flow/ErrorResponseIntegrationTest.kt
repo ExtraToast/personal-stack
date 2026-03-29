@@ -126,13 +126,14 @@ class ErrorResponseIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
-    fun `invalid JSON body returns ProblemDetail`() {
+    fun `invalid JSON body returns 400 ProblemDetail`() {
         mockMvc
             .post("/api/v1/auth/login") {
                 contentType = MediaType.APPLICATION_JSON
                 content = """{ this is not valid json }"""
             }.andExpect {
-                status { isInternalServerError() }
+                status { isBadRequest() }
+                jsonPath("$.title") { value("Bad Request") }
             }
     }
 }

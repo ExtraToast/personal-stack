@@ -39,18 +39,18 @@ class ErrorHandlingEdgeCaseTest : IntegrationTestBase() {
                 contentType = MediaType.APPLICATION_JSON
                 content = ""
             }.andExpect {
-                status { isInternalServerError() }
+                status { isBadRequest() }
             }
     }
 
     @Test
-    fun `wrong content-type returns 415`() {
+    fun `wrong content-type returns error`() {
         mockMvc
             .post("/api/v1/auth/login") {
                 contentType = MediaType.TEXT_PLAIN
                 content = """{"username":"test","password":"test"}"""
             }.andExpect {
-                status { isInternalServerError() }
+                status { is4xxClientError() }
             }
     }
 

@@ -131,6 +131,23 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    fun `handleMessageNotReadable returns 400`() {
+        val ex =
+            org.springframework.http.converter.HttpMessageNotReadableException(
+                "bad JSON",
+                mockk<org.springframework.http.HttpInputMessage>(),
+            )
+
+        val response = handler.handleMessageNotReadable(ex)
+
+        assertThat(response.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
+        val body = response.body!!
+        assertThat(body.status).isEqualTo(400)
+        assertThat(body.title).isEqualTo("Bad Request")
+        assertThat(body.detail).isEqualTo("Malformed or unreadable request body")
+    }
+
+    @Test
     fun `FieldError data class`() {
         val fe = FieldError(field = "email", message = "required")
         assertThat(fe.field).isEqualTo("email")
