@@ -24,12 +24,9 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       if (response.success && response.user) {
-        setUser({
-          id: response.user.id,
-          username: response.user.username,
-          email: '',
-          role: (['ADMIN', 'USER', 'READONLY'] as const).find((r) => r === response.user.role) ?? 'USER',
-        })
+        const { id, username, role: rawRole } = response.user
+        const role = (['ADMIN', 'USER', 'READONLY'] as const).find((r) => r === rawRole) ?? 'USER'
+        setUser({ id, username, email: '', role })
       }
     } catch (e: unknown) {
       const msg = isProblemDetail(e) ? (e.detail ?? e.title) : 'Login failed'

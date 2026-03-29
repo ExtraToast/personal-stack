@@ -15,8 +15,8 @@ vi.mock('@personal-stack/vue-common', () => ({
 }))
 
 // Import after mocks are set up
-const { register, sessionLogin, confirmEmail, resendConfirmation, enrollTotp, verifyTotp } =
-  await import('../services/authService')
+const authService = await import('../services/authService')
+const { register, sessionLogin, confirmEmail, resendConfirmation, enrollTotp, verifyTotp } = authService
 
 /* eslint-disable ts/consistent-type-assertions -- test utility needs partial Response mock */
 function jsonResponse(data: unknown, status = 200): Response {

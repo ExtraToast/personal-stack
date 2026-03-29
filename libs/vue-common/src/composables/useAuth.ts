@@ -6,7 +6,7 @@ const user = ref<User | null>(null)
 
 function getCookie(name: string): string | null {
   const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
-  return match ? decodeURIComponent(match[1]) : null
+  return match?.[1] ? decodeURIComponent(match[1]) : null
 }
 
 // eslint-disable-next-line ts/explicit-function-return-type -- composable return type is complex and inferred
