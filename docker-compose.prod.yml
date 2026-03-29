@@ -146,7 +146,7 @@ services:
 
   # ── Application services ────────────────────────────────────────
   auth-api:
-    image: ghcr.io/extratoast/personal-stack/auth-api:latest
+    image: ghcr.io/extratoast/personal-stack/auth-api:${IMAGE_TAG:-latest}
     networks:
       - personal-stack-overlay
     environment:
@@ -193,7 +193,7 @@ services:
         condition: any
 
   assistant-api:
-    image: ghcr.io/extratoast/personal-stack/assistant-api:latest
+    image: ghcr.io/extratoast/personal-stack/assistant-api:${IMAGE_TAG:-latest}
     networks:
       - personal-stack-overlay
     environment:
@@ -238,7 +238,7 @@ services:
         condition: any
 
   auth-ui:
-    image: ghcr.io/extratoast/personal-stack/auth-ui:latest
+    image: ghcr.io/extratoast/personal-stack/auth-ui:${IMAGE_TAG:-latest}
     networks:
       - personal-stack-overlay
     healthcheck:
@@ -256,7 +256,7 @@ services:
         condition: any
 
   assistant-ui:
-    image: ghcr.io/extratoast/personal-stack/assistant-ui:latest
+    image: ghcr.io/extratoast/personal-stack/assistant-ui:${IMAGE_TAG:-latest}
     networks:
       - personal-stack-overlay
     healthcheck:
@@ -274,7 +274,7 @@ services:
         condition: any
 
   app-ui:
-    image: ghcr.io/extratoast/personal-stack/app-ui:latest
+    image: ghcr.io/extratoast/personal-stack/app-ui:${IMAGE_TAG:-latest}
     networks:
       - personal-stack-overlay
     healthcheck:
