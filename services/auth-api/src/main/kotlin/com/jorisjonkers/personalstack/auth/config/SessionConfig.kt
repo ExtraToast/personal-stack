@@ -4,25 +4,37 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisHttpSession
+import org.springframework.session.web.http.CookieHttpSessionIdResolver
 import org.springframework.session.web.http.CookieSerializer
 import org.springframework.session.web.http.DefaultCookieSerializer
+import org.springframework.session.web.http.HttpSessionIdResolver
 
 @Configuration
-@EnableRedisHttpSession
+@EnableRedisHttpSession(redisNamespace = "auth-api")
 class SessionConfig(
     @param:Value("\${session.cookie.domain:}")
     private val cookieDomain: String,
+    @param:Value("\${session.cookie.secure:true}")
+    private val secureCookie: Boolean,
+    @param:Value("\${session.cookie.same-site:None}")
+    private val sameSite: String,
 ) {
     @Bean
     fun cookieSerializer(): CookieSerializer =
         DefaultCookieSerializer().apply {
             setCookieName("SESSION")
             setCookiePath("/")
-            setSameSite("Lax")
+            setSameSite(sameSite)
             setUseHttpOnlyCookie(true)
             if (cookieDomain.isNotBlank()) {
                 setDomainName(cookieDomain)
-                setUseSecureCookie(true)
             }
+            setUseSecureCookie(secureCookie)
+        }
+
+    @Bean
+    fun httpSessionIdResolver(): HttpSessionIdResolver =
+        CookieHttpSessionIdResolver().apply {
+            setCookieSerializer(cookieSerializer())
         }
 }

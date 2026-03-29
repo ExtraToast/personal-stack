@@ -162,6 +162,9 @@ services:
       VAULT_ADDR: http://vault:8200
       MAIL_HOST: stalwart
       MAIL_PORT: 587
+      SESSION_COOKIE_DOMAIN: jorisjonkers.dev
+      SESSION_COOKIE_SECURE: 'true'
+      AUTH_CORS_ALLOWED_ORIGINS: https://jorisjonkers.dev,https://auth.jorisjonkers.dev,https://assistant.jorisjonkers.dev
       OTEL_SERVICE_NAME: auth-api
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
       OTEL_LOGS_EXPORTER: none

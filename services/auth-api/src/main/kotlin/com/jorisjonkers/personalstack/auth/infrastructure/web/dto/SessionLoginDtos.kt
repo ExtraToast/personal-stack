@@ -20,4 +20,5 @@ data class SessionUserResponse(
     val id: String,
     val username: String,
     val role: String,
+    val roles: List<String> = emptyList(),
 )

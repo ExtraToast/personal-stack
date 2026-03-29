@@ -23,6 +23,7 @@ class MeController {
                     user.roles
                         .firstOrNull { it.startsWith("ROLE_") }
                         ?.removePrefix("ROLE_") ?: "USER",
+                roles = user.roles,
             ),
         )
 }

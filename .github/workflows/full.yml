@@ -159,14 +159,21 @@ jobs:
         service:
           - name: auth-api
             dockerfile: services/auth-api/Dockerfile
+            build_args: ''
           - name: assistant-api
             dockerfile: services/assistant-api/Dockerfile
+            build_args: ''
           - name: auth-ui
             dockerfile: services/auth-ui/Dockerfile
+            build_args: ''
           - name: assistant-ui
             dockerfile: services/assistant-ui/Dockerfile
+            build_args: |
+              VITE_AUTH_URL=https://auth.jorisjonkers.test
           - name: app-ui
             dockerfile: services/app-ui/Dockerfile
+            build_args: |
+              VITE_AUTH_URL=https://auth.jorisjonkers.test
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v4
@@ -175,6 +182,7 @@ jobs:
         with:
           context: .
           file: ${{ matrix.service.dockerfile }}
+          build-args: ${{ matrix.service.build_args }}
           push: false
           load: true
           tags: personal-stack/${{ matrix.service.name }}:latest
@@ -206,6 +214,8 @@ jobs:
       - name: Load images
         run: |
           for tar in /tmp/images/image-*/*.tar; do docker load -i "$tar"; done
+      - name: Set up dev DNS
+        run: sudo bash infra/scripts/setup-dev-dns.sh
       - name: Build and start full stack
         run: docker compose up -d --no-build postgres valkey rabbitmq vault auth-api assistant-api traefik auth-ui assistant-ui app-ui n8n grafana stalwart --wait --wait-timeout 300
       - name: Wait for Traefik routes to stabilize
@@ -215,7 +225,7 @@ jobs:
             local route="$1" url="$2"
             echo -n "  $route ($url): "
             for i in $(seq 1 30); do
-              if curl -sf --max-time 2 -o /dev/null "$url" 2>/dev/null; then
+              if curl -sfk --max-time 2 -o /dev/null "$url" 2>/dev/null; then
                 echo "reachable"
                 break
               fi
@@ -226,11 +236,11 @@ jobs:
               sleep 1
             done
           }
-          check_route app-ui         "http://localhost:80/"
-          check_route auth-ui        "http://auth.localhost:80/"
-          check_route assistant-ui   "http://assistant.localhost:80/"
-          check_route auth-api       "http://auth.localhost:80/api/actuator/health"
-          check_route assistant-api  "http://assistant.localhost:80/api/actuator/health"
+          check_route app-ui         "https://jorisjonkers.test/"
+          check_route auth-ui        "https://auth.jorisjonkers.test/"
+          check_route assistant-ui   "https://assistant.jorisjonkers.test/"
+          check_route auth-api       "https://auth.jorisjonkers.test/api/actuator/health"
+          check_route assistant-api  "https://assistant.jorisjonkers.test/api/actuator/health"
       - name: Verify all services are healthy
         run: |
           echo "==> Service status:"
@@ -252,6 +262,8 @@ jobs:
           docker exec personal-stack-postgres psql -U auth_user -d auth_db -c '\dt' | grep -q app_user || { echo "auth_db migrations missing"; exit 1; }
           docker exec personal-stack-postgres psql -U assistant_user -d assistant_db -c '\dt' | grep -q conversation || { echo "assistant_db migrations missing"; exit 1; }
           echo "==> Database migrations verified"
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
       - name: Run system tests
         run: >-
           ./gradlew :services:system-tests:test

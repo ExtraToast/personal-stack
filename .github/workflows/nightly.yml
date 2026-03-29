@@ -53,6 +53,7 @@ jobs:
       - run: docker compose up -d
       - name: Wait for services
         run: sleep 30
+      - run: npx playwright install --with-deps chromium
       - run: ./gradlew :services:system-tests:test || true
       - run: docker compose down
 

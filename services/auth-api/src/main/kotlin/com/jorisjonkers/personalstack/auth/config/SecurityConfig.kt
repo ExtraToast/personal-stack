@@ -12,7 +12,6 @@ import org.springframework.security.authentication.ProviderManager
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
-import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.core.AuthenticationException
 import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
@@ -22,10 +21,13 @@ import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.HttpStatusEntryPoint
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository
+import org.springframework.security.web.csrf.CsrfFilter
+import org.springframework.security.web.csrf.CsrfToken
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
+import org.springframework.web.filter.OncePerRequestFilter
 import java.net.URLEncoder
 
 @Configuration
@@ -33,23 +35,11 @@ import java.net.URLEncoder
 class SecurityConfig(
     @param:Value("\${auth.login-url:http://localhost:5174/login}")
     private val loginUrl: String,
+    @param:Value("\${auth.cors.allowed-origins:http://localhost:5173,http://localhost:5174,http://localhost:5175}")
+    private val corsAllowedOrigins: String,
+    @param:Value("\${session.cookie.domain:}")
+    private val cookieDomain: String,
 ) {
-    @Bean
-    @Order(0)
-    fun healthEndpointSecurityFilterChain(http: HttpSecurity): SecurityFilterChain {
-        http
-            .securityMatcher("/api/actuator/health", "/api/actuator/info", "/api/v1/health")
-            .authorizeHttpRequests { it.anyRequest().permitAll() }
-            .csrf { it.disable() }
-            .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
-        return http.build()
-    }
-
-    /**
-     * Forward-auth filter chain (order 2).
-     * Session-based: Traefik forwards the browser's session cookie.
-     * CSRF disabled since Traefik only sends GET requests.
-     */
     @Bean
     @Order(2)
     fun forwardAuthSecurityFilterChain(
@@ -60,18 +50,15 @@ class SecurityConfig(
             .securityMatcher("/api/v1/auth/verify")
             .cors { it.configurationSource(corsConfigurationSource) }
             .csrf { it.disable() }
-            .securityContext { ctx ->
-                ctx.securityContextRepository(HttpSessionSecurityContextRepository())
-            }.authorizeHttpRequests { it.anyRequest().authenticated() }
-            .exceptionHandling { exceptions ->
-                exceptions.authenticationEntryPoint(forwardAuthEntryPoint())
-            }
+            .securityContext { it.securityContextRepository(HttpSessionSecurityContextRepository()) }
+            .authorizeHttpRequests { it.anyRequest().authenticated() }
+            .exceptionHandling { it.authenticationEntryPoint(forwardAuthEntryPoint()) }
         return http.build()
     }
 
     @Bean
     @Order(3)
-    fun resourceServerSecurityFilterChain(
+    fun applicationSecurityFilterChain(
         http: HttpSecurity,
         corsConfigurationSource: CorsConfigurationSource,
     ): SecurityFilterChain {
@@ -79,6 +66,7 @@ class SecurityConfig(
             .cors { it.configurationSource(corsConfigurationSource) }
             .securityContext { it.securityContextRepository(HttpSessionSecurityContextRepository()) }
             .csrf { configureCsrf(it) }
+            .addFilterAfter(CsrfCookieFilter(), CsrfFilter::class.java)
             .authorizeHttpRequests { configureAuthorization(it) }
             .exceptionHandling { it.authenticationEntryPoint(HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)) }
         return http.build()
@@ -88,9 +76,17 @@ class SecurityConfig(
         csrf: org.springframework.security.config.annotation.web.configurers
             .CsrfConfigurer<HttpSecurity>,
     ) {
-        csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+        csrf.csrfTokenRepository(
+            CookieCsrfTokenRepository.withHttpOnlyFalse().apply {
+                setCookieCustomizer { builder ->
+                    if (cookieDomain.isNotBlank()) {
+                        builder.domain(cookieDomain)
+                    }
+                }
+            },
+        )
         csrf.csrfTokenRequestHandler(CsrfTokenRequestAttributeHandler())
-        csrf.ignoringRequestMatchers(*PUBLIC_POST_ENDPOINTS)
+        csrf.ignoringRequestMatchers(*(PUBLIC_POST_ENDPOINTS + CSRF_FREE_ENDPOINTS))
     }
 
     private fun configureAuthorization(
@@ -138,15 +134,7 @@ class SecurityConfig(
     fun corsConfigurationSource(): CorsConfigurationSource {
         val config =
             CorsConfiguration().apply {
-                allowedOrigins =
-                    listOf(
-                        "https://jorisjonkers.dev",
-                        "https://auth.jorisjonkers.dev",
-                        "https://assistant.jorisjonkers.dev",
-                        "http://localhost:5173",
-                        "http://localhost:5174",
-                        "http://localhost:5175",
-                    )
+                allowedOrigins = corsAllowedOrigins.split(",").map { it.trim() }
                 allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 allowedHeaders = listOf("*")
                 allowCredentials = true
@@ -167,8 +155,21 @@ class SecurityConfig(
                 "/api/v1/auth/resend-confirmation",
             )
 
+        private val CSRF_FREE_ENDPOINTS =
+            arrayOf(
+                "/api/actuator/health",
+                "/api/actuator/health/**",
+                "/api/actuator/info",
+                "/api/v1/health",
+                "/api/v1/auth/verify",
+            )
+
         private val PUBLIC_ENDPOINTS =
             arrayOf(
+                "/api/actuator/health",
+                "/api/actuator/health/**",
+                "/api/actuator/info",
+                "/api/v1/health",
                 "/api/v1/api-docs/**",
                 "/api/v1/swagger-ui/**",
                 "/api/v1/users/register",
@@ -179,5 +180,25 @@ class SecurityConfig(
                 "/api/v1/auth/resend-confirmation",
                 "/api/v1/auth/session-login",
             )
+    }
+
+    private class CsrfCookieFilter : OncePerRequestFilter() {
+        override fun shouldNotFilter(request: HttpServletRequest): Boolean {
+            val path = request.requestURI
+            return path == "/api/v1/auth/verify" ||
+                path == "/api/v1/health" ||
+                path == "/api/actuator/info" ||
+                path == "/api/actuator/health" ||
+                path.startsWith("/api/actuator/health/")
+        }
+
+        override fun doFilterInternal(
+            request: HttpServletRequest,
+            response: HttpServletResponse,
+            filterChain: jakarta.servlet.FilterChain,
+        ) {
+            (request.getAttribute(CsrfToken::class.java.name) as CsrfToken?)?.token
+            filterChain.doFilter(request, response)
+        }
     }
 }

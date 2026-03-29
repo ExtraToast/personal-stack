@@ -6,5 +6,6 @@ description = "False positives in test fixtures and CI route checks"
 regexTarget = "match"
 regexes = [
   '''localhost:\d+/api/actuator/health''',
+  '''(?:auth|assistant)\.jorisjonkers\.test:80/api/actuator/health''',
   '''eyJhbGciOiJSUzI1NiJ9\.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxfQ\.invalid''',
 ]

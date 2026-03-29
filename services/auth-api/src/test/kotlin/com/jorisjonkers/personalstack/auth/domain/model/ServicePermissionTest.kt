@@ -9,9 +9,9 @@ class ServicePermissionTest {
     @ParameterizedTest(name = "fromHost({0}) = {1}")
     @CsvSource(
         "vault.jorisjonkers.dev, VAULT",
-        "vault.localhost, VAULT",
+        "vault.jorisjonkers.test, VAULT",
         "mail.jorisjonkers.dev, MAIL",
-        "stalwart.localhost, MAIL",
+        "stalwart.jorisjonkers.test, MAIL",
         "n8n.jorisjonkers.dev, N8N",
         "grafana.jorisjonkers.dev, GRAFANA",
         "assistant.jorisjonkers.dev, ASSISTANT",
