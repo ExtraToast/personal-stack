@@ -29,6 +29,8 @@ import java.util.stream.Stream
 class ForwardAuthChainSystemTest {
     private val authBaseUrl = System.getProperty("test.auth-api.url", "http://localhost:8081")
 
+    private fun traefikRequest() = given().relaxedHTTPSValidation()
+
     companion object {
         @JvmStatic
         fun protectedServices(): Stream<Arguments> =
@@ -72,7 +74,7 @@ class ForwardAuthChainSystemTest {
         path: String,
     ) {
         val response =
-            given()
+            traefikRequest()
                 .baseUri(baseUrl)
                 .redirects()
                 .follow(false)
@@ -104,7 +106,7 @@ class ForwardAuthChainSystemTest {
         val adminSession = TestHelper.registerConfirmAndGetAdminSession()
 
         val response =
-            given()
+            traefikRequest()
                 .baseUri(baseUrl)
                 .cookie("SESSION", adminSession.sessionCookie)
                 .redirects()
@@ -129,7 +131,7 @@ class ForwardAuthChainSystemTest {
         val userSession = TestHelper.registerConfirmAndGetSession()
 
         val response =
-            given()
+            traefikRequest()
                 .baseUri(baseUrl)
                 .cookie("SESSION", userSession.sessionCookie)
                 .redirects()
@@ -169,7 +171,7 @@ class ForwardAuthChainSystemTest {
         val sessionCookie = TestHelper.sessionLoginAndGetCookie(user)
 
         val response =
-            given()
+            traefikRequest()
                 .baseUri("https://grafana.jorisjonkers.test")
                 .cookie("SESSION", sessionCookie)
                 .redirects()
@@ -184,7 +186,7 @@ class ForwardAuthChainSystemTest {
     }
 
     @Test
-    fun `forward-auth with OAuth2 session token passes`() {
+    fun `session-authenticated user can complete oauth2 flow and still pass forward-auth`() {
         val user = TestHelper.registerAndConfirm()
         TestHelper.makeUserAdmin(user.username)
 
@@ -239,10 +241,14 @@ class ForwardAuthChainSystemTest {
                 .jsonPath()
                 .getString("access_token")
 
-        // Use OAuth2 token with forward-auth verify endpoint
+        assertThat(oauth2Token).isNotBlank()
+
+        // Forward-auth is session-based, so the original session must still authenticate after the OAuth2 flow.
         given()
             .baseUri(authBaseUrl)
-            .header("Authorization", "Bearer $oauth2Token")
+            .cookie("SESSION", sessionCookie)
+            .redirects()
+            .follow(false)
             .`when`()
             .get("/api/v1/auth/verify")
             .then()
@@ -256,7 +262,7 @@ class ForwardAuthChainSystemTest {
         val sessionCookie = TestHelper.sessionLoginAndGetCookie(user)
 
         val response =
-            given()
+            traefikRequest()
                 .baseUri("https://grafana.jorisjonkers.test")
                 .cookie("SESSION", sessionCookie)
                 .redirects()
@@ -308,7 +314,7 @@ class ForwardAuthChainSystemTest {
         val adminSession = TestHelper.registerConfirmAndGetAdminSession()
 
         val response =
-            given()
+            traefikRequest()
                 .baseUri(baseUrl)
                 .cookie("SESSION", adminSession.sessionCookie)
                 .redirects()

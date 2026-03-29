@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test
  */
 @Tag("system")
 class TraefikSystemTest {
-    private val authBaseUrl = System.getProperty("test.auth-api.url", "http://localhost:8081")
+    private fun traefikRequest() = given().relaxedHTTPSValidation()
 
     // UI services
     private val appUiUrl = "https://jorisjonkers.test"
@@ -34,7 +34,7 @@ class TraefikSystemTest {
 
     @Test
     fun `app-ui responds at localhost`() {
-        given()
+        traefikRequest()
             .baseUri(appUiUrl)
             .`when`()
             .get("/")
@@ -44,7 +44,7 @@ class TraefikSystemTest {
 
     @Test
     fun `auth-ui responds at auth dot localhost`() {
-        given()
+        traefikRequest()
             .baseUri(authUiUrl)
             .`when`()
             .get("/")
@@ -54,7 +54,7 @@ class TraefikSystemTest {
 
     @Test
     fun `assistant-ui responds at app dot localhost`() {
-        given()
+        traefikRequest()
             .baseUri(assistantUiUrl)
             .`when`()
             .get("/")
@@ -66,7 +66,7 @@ class TraefikSystemTest {
 
     @Test
     fun `vault unauthenticated redirects to auth login`() {
-        given()
+        traefikRequest()
             .baseUri(vaultUrl)
             .redirects()
             .follow(false)
@@ -79,7 +79,7 @@ class TraefikSystemTest {
 
     @Test
     fun `n8n unauthenticated redirects to auth login`() {
-        given()
+        traefikRequest()
             .baseUri(n8nUrl)
             .redirects()
             .follow(false)
@@ -92,7 +92,7 @@ class TraefikSystemTest {
 
     @Test
     fun `grafana unauthenticated redirects to auth login`() {
-        given()
+        traefikRequest()
             .baseUri(grafanaUrl)
             .redirects()
             .follow(false)
@@ -105,7 +105,7 @@ class TraefikSystemTest {
 
     @Test
     fun `stalwart unauthenticated redirects to auth login`() {
-        given()
+        traefikRequest()
             .baseUri(stalwartUrl)
             .redirects()
             .follow(false)
@@ -121,7 +121,7 @@ class TraefikSystemTest {
     @Test
     fun `vault authenticated passes forward-auth`() {
         val session = obtainSession()
-        given()
+        traefikRequest()
             .baseUri(vaultUrl)
             .cookie("SESSION", session.sessionCookie)
             .redirects()
@@ -135,7 +135,7 @@ class TraefikSystemTest {
     @Test
     fun `n8n authenticated passes forward-auth`() {
         val session = obtainSession()
-        given()
+        traefikRequest()
             .baseUri(n8nUrl)
             .cookie("SESSION", session.sessionCookie)
             .redirects()
@@ -149,7 +149,7 @@ class TraefikSystemTest {
     @Test
     fun `grafana authenticated passes forward-auth`() {
         val session = obtainSession()
-        given()
+        traefikRequest()
             .baseUri(grafanaUrl)
             .cookie("SESSION", session.sessionCookie)
             .redirects()
@@ -163,7 +163,7 @@ class TraefikSystemTest {
     @Test
     fun `stalwart authenticated passes forward-auth`() {
         val session = obtainSession()
-        given()
+        traefikRequest()
             .baseUri(stalwartUrl)
             .cookie("SESSION", session.sessionCookie)
             .redirects()
