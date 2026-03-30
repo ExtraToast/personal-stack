@@ -48,7 +48,7 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@v6
-      - run: ./gradlew ${{ matrix.gradle-path }}:detekt ${{ matrix.gradle-path }}:ktlintCheck
+      - run: bash infra/scripts/run-strict-command.sh ./gradlew ${{ matrix.gradle-path }}:detekt ${{ matrix.gradle-path }}:ktlintCheck
 
   lint-frontend:
     name: Lint Frontend
@@ -102,7 +102,7 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@v6
-      - run: ./gradlew ${{ matrix.gradle-path }}:test
+      - run: bash infra/scripts/run-strict-command.sh ./gradlew ${{ matrix.gradle-path }}:test
 
   test-frontend-unit:
     name: Frontend Unit Tests
@@ -137,5 +137,5 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: ./gradlew assemble
+      - run: bash infra/scripts/run-strict-command.sh ./gradlew assemble
       - run: pnpm -r build

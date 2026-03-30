@@ -40,6 +40,22 @@ teardown_stack() {
   STACK_STARTED=0
 }
 
+select_java_21() {
+  local java21_home=""
+
+  if [[ "$(uname -s)" == "Darwin" ]] && command -v /usr/libexec/java_home >/dev/null 2>&1; then
+    java21_home=$(/usr/libexec/java_home -v 21 2>/dev/null || true)
+  elif [[ -n "${JAVA_HOME_21_X64:-}" ]]; then
+    java21_home="${JAVA_HOME_21_X64}"
+  fi
+
+  if [[ -n "$java21_home" ]]; then
+    export JAVA_HOME="$java21_home"
+    export PATH="$JAVA_HOME/bin:$PATH"
+    log "Using Java 21 at $JAVA_HOME"
+  fi
+}
+
 run_pnpm_audit() {
   if ! pnpm audit --audit-level=high; then
     warn "pnpm audit reported high severity findings (non-blocking, mirroring CI)."
@@ -115,7 +131,13 @@ run_job() {
   local rc_file="$TMPDIR_JOBS/${name}.rc"
   (
     local rc=0
-    if "$@" >"$outfile" 2>&1; then
+    if declare -F "$1" >/dev/null 2>&1; then
+      if "$@" >"$outfile" 2>&1; then
+        rc=0
+      else
+        rc=$?
+      fi
+    elif bash infra/scripts/run-strict-command.sh "$@" >"$outfile" 2>&1; then
       rc=0
     else
       rc=$?
@@ -156,6 +178,7 @@ wait_jobs() {
 # ─────────────────────────────────────────────────────────────────
 # Bootstrap shared dependencies once before parallel jobs.
 # ─────────────────────────────────────────────────────────────────
+select_java_21
 log "Bootstrapping shared tooling"
 pnpm install --frozen-lockfile
 
@@ -185,7 +208,6 @@ run_job "unit-auth-api"      ./gradlew :services:auth-api:test
 run_job "unit-assistant-api" ./gradlew :services:assistant-api:test
 run_job "unit-kotlin-common" ./gradlew :libs:kotlin-common:test
 run_job "unit-frontend"      pnpm -r test -- --coverage
-run_job "arch-kotlin"        ./gradlew :services:auth-api:test :services:assistant-api:test --tests "*ArchitectureTest*"
 run_job "arch-frontend"      pnpm -r depcruise
 
 # Build Docker images in parallel while tests run (needed for stage 4)
@@ -198,8 +220,12 @@ run_job "build-app-ui"        docker build --build-arg VITE_AUTH_URL=https://aut
 
 wait_jobs "unit+arch+build" \
   unit-auth-api unit-assistant-api unit-kotlin-common unit-frontend \
-  arch-kotlin arch-frontend \
+  arch-frontend \
   build-auth-api build-assistant-api build-auth-ui build-assistant-ui build-app-ui
+
+log "Stage 2b: Kotlin architecture tests"
+bash infra/scripts/run-strict-command.sh ./gradlew :services:auth-api:test :services:assistant-api:test --tests "*ArchitectureTest*"
+log "Stage 'arch-kotlin' passed."
 
 # ─────────────────────────────────────────────────────────────────
 # STAGE 3 — Integration tests + coverage verification
@@ -265,7 +291,7 @@ if ! verify_database_migrations; then
 fi
 
 log "  Running system tests..."
-if ! ./gradlew :services:system-tests:test \
+if ! bash infra/scripts/run-strict-command.sh ./gradlew :services:system-tests:test \
   -Dtest.auth-api.url=http://localhost:8081 \
   -Dtest.assistant-api.url=http://localhost:8082; then
   dump_stack_logs
