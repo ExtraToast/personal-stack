@@ -35,7 +35,6 @@ class ForwardAuthChainSystemTest {
         @JvmStatic
         fun forwardAuthServices(): Stream<Arguments> =
             Stream.of(
-                Arguments.of("mail", "https://stalwart.jorisjonkers.test", "/"),
                 Arguments.of("traefik", "https://traefik.jorisjonkers.test", "/dashboard/"),
                 Arguments.of("stalwart", "https://stalwart.jorisjonkers.test", "/"),
             )
@@ -43,7 +42,6 @@ class ForwardAuthChainSystemTest {
         @JvmStatic
         fun forwardAuthHosts(): Stream<Arguments> =
             Stream.of(
-                Arguments.of("mail", "https://stalwart.jorisjonkers.test"),
                 Arguments.of("traefik", "https://traefik.jorisjonkers.test"),
                 Arguments.of("stalwart", "https://stalwart.jorisjonkers.test"),
             )
