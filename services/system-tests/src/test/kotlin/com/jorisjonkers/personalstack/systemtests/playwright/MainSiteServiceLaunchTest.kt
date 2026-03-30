@@ -131,9 +131,16 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
         try {
             waitForServicePageToSettle(servicePage)
 
+            val ssoButton = servicePage.locator("#oidc-sso-button")
+            assertThat(ssoButton).isVisible()
+            ssoButton.click()
+            servicePage.waitForTimeout(10000.0)
+            waitForServicePageToSettle(servicePage)
+
             val currentUrl = servicePage.url()
             assertThatValue(currentUrl)
                 .contains("n8n.jorisjonkers.test")
+                .doesNotContain("/signin")
                 .doesNotContain("auth.jorisjonkers.test/login")
                 .doesNotContain("error=")
 
@@ -152,7 +159,7 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
             assertThatValue(callbackRequests).isEqualTo(1)
             assertThatValue(pageText).doesNotContain("owner account")
             assertThatValue(pageText).doesNotContain("sign in with email")
-            assertThatValue(pageText).doesNotContain("doesn't work properly without javascript enabled")
+            assertThatValue(pageText).contains("create your first workflow")
         } finally {
             servicePage.close()
         }

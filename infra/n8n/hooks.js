@@ -11,7 +11,8 @@ const https = require('https')
 const { URL, URLSearchParams } = require('url')
 
 const N8N_DI_PATH = '/usr/local/lib/node_modules/n8n/node_modules/@n8n/di'
-const N8N_JWT_SERVICE_PATH = '/usr/local/lib/node_modules/n8n/dist/services/jwt.service.js'
+const N8N_AUTH_SERVICE_PATH = '/usr/local/lib/node_modules/n8n/dist/auth/auth.service.js'
+const N8N_OWNERSHIP_SERVICE_PATH = '/usr/local/lib/node_modules/n8n/dist/services/ownership.service.js'
 
 const config = {
   issuerUrl: process.env.OIDC_ISSUER_URL,
@@ -180,25 +181,6 @@ function getCookieSecret() {
   return crypto.createHash('sha256').update(`${seed}:oidc-state`).digest('hex')
 }
 
-function createUserHash(user) {
-  const payload = [user.email, user.password || '']
-  if (user.mfaEnabled && user.mfaSecret) {
-    payload.push(user.mfaSecret.substring(0, 3))
-  }
-  return crypto.createHash('sha256').update(payload.join(':')).digest('base64').substring(0, 10)
-}
-
-function createAuthToken(user, jwtService) {
-  return jwtService.sign(
-    {
-      id: user.id,
-      hash: createUserHash(user),
-      usedMfa: false,
-    },
-    { expiresIn: '7d' },
-  )
-}
-
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
@@ -223,7 +205,7 @@ function getFrontendScript() {
         var title = document.querySelector('h1, [data-test-id="owner-setup-heading"]');
         if (!title) return false;
 
-        return /owner account|set up/i.test(title.textContent || '');
+        return /owner account|set up owner/i.test(title.textContent || '');
       }
 
       function redirectOwnerSetupToSso() {
@@ -345,8 +327,10 @@ module.exports = {
         }
 
         const { Container } = require(N8N_DI_PATH)
-        const { JwtService } = require(N8N_JWT_SERVICE_PATH)
-        const jwtService = Container.get(JwtService)
+        const { AuthService } = require(N8N_AUTH_SERVICE_PATH)
+        const { OwnershipService } = require(N8N_OWNERSHIP_SERVICE_PATH)
+        const authService = Container.get(AuthService)
+        const ownershipService = Container.get(OwnershipService)
         const cookieSecret = getCookieSecret()
         const { app } = server
 
@@ -355,13 +339,6 @@ module.exports = {
           secure: process.env.N8N_PROTOCOL === 'https',
           sameSite: 'lax',
           maxAge: 15 * 60 * 1000,
-        }
-
-        const authCookieOptions = {
-          httpOnly: true,
-          secure: process.env.N8N_PROTOCOL === 'https',
-          sameSite: 'lax',
-          maxAge: 7 * 24 * 60 * 60 * 1000,
         }
 
         app.get('/auth/oidc/login', async (req, res) => {
@@ -446,19 +423,25 @@ module.exports = {
             })
 
             if (!user) {
-              const userCount = await User.count()
-              const result = await User.createUserWithProject({
+              const userPayload = {
                 email: userInfo.email,
                 firstName: userInfo.given_name || userInfo.name?.split(' ')[0] || 'User',
                 lastName: userInfo.family_name || userInfo.name?.split(' ').slice(1).join(' ') || '',
                 password: crypto.randomBytes(32).toString('hex'),
-                role: { slug: userCount === 0 ? 'global:owner' : 'global:member' },
-              })
-              user = result.user
+              }
+
+              if (!(await ownershipService.hasInstanceOwner())) {
+                user = await ownershipService.setupOwner(userPayload)
+              } else {
+                const result = await User.createUserWithProject({
+                  ...userPayload,
+                  role: { slug: 'global:member' },
+                })
+                user = result.user
+              }
             }
 
-            const authToken = createAuthToken(user, jwtService)
-            res.cookie('n8n-auth', authToken, authCookieOptions)
+            authService.issueCookie(res, user, true, req.browserId)
             res.redirect('/')
           } catch (error) {
             console.error('[OIDC Hook] Callback error', error)
