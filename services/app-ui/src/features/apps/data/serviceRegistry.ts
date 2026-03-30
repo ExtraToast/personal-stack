@@ -38,8 +38,8 @@ export const SERVICE_REGISTRY: ServiceEntry[] = [
   {
     permission: 'MAIL',
     label: 'Stalwart',
-    url: buildServiceUrl('mail'),
-    iconUrl: buildServiceUrl('mail', '/favicon.ico'),
+    url: buildServiceUrl('stalwart'),
+    iconUrl: buildServiceUrl('stalwart', '/favicon.ico'),
     description: 'Mail server',
   },
   {
