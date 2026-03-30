@@ -3,6 +3,7 @@ package com.jorisjonkers.personalstack.systemtests.playwright
 import com.jorisjonkers.personalstack.systemtests.TestHelper
 import com.microsoft.playwright.BrowserContext
 import com.microsoft.playwright.Page
+import com.microsoft.playwright.PlaywrightException
 import com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import org.assertj.core.api.Assertions.assertThat as assertThatValue
 import org.junit.jupiter.api.Tag
@@ -69,16 +70,16 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
     @Test
     fun `main site login can launch each service card into a real service ui`() {
         val user = registerAndConfirm()
+        val totpSecret = loginFromMainSiteAndEnrollTotp(user)
 
-        loginFromMainSite(user)
-        assertThat(page.locator("button")).containsText(user.username)
+        assertThat(page.locator("body")).containsText(user.username)
 
         TestHelper.makeUserAdmin(user.username)
 
         // The authenticated principal is stored in the session, so re-login is required
         // after changing the user's role directly in the database.
         context.clearCookies()
-        loginFromMainSite(user)
+        loginFromMainSiteWithTotp(user, totpSecret)
 
         page.navigate(APP_UI_URL)
         page.waitForLoadState()
@@ -94,7 +95,7 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
         }
     }
 
-    private fun loginFromMainSite(user: TestHelper.RegisteredUser) {
+    private fun loginFromMainSiteAndEnrollTotp(user: TestHelper.RegisteredUser): String {
         page.navigate(APP_UI_URL)
         page.waitForLoadState()
 
@@ -108,6 +109,45 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
         page.locator("#password").fill(user.password)
         page.locator("button[type='submit']").click()
 
+        page.waitForURL(
+            { it.contains("/totp-setup") },
+            Page.WaitForURLOptions().setTimeout(20000.0),
+        )
+        page.waitForSelector("canvas", Page.WaitForSelectorOptions().setTimeout(15000.0))
+        page.locator("details summary").click()
+        val secret = page.locator("code").textContent().trim()
+        page.locator("#totp-code").fill(generateTotpCode(secret))
+        page.locator("button[type='submit']").click()
+
+        waitForMainSite()
+        return secret
+    }
+
+    private fun loginFromMainSiteWithTotp(
+        user: TestHelper.RegisteredUser,
+        totpSecret: String,
+    ) {
+        page.navigate(APP_UI_URL)
+        page.waitForLoadState()
+
+        page.locator("button:has-text('Login')").click()
+        page.waitForURL(
+            { it.contains("auth.jorisjonkers.test/login") },
+            Page.WaitForURLOptions().setTimeout(15000.0),
+        )
+
+        page.locator("#username").fill(user.username)
+        page.locator("#password").fill(user.password)
+        page.locator("button[type='submit']").click()
+
+        page.waitForSelector("#totp-code", Page.WaitForSelectorOptions().setTimeout(10000.0))
+        page.locator("#totp-code").fill(generateTotpCode(totpSecret))
+        page.locator("button[type='submit']").click()
+
+        waitForMainSite()
+    }
+
+    private fun waitForMainSite() {
         page.waitForURL(
             { it.startsWith(APP_UI_URL) && !it.contains("/login") },
             Page.WaitForURLOptions().setTimeout(20000.0),
@@ -137,6 +177,8 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
         servicePage: Page,
         service: ServiceExpectation,
     ) {
+        waitForServicePageToSettle(servicePage)
+
         val currentUrl = servicePage.url()
         assertThatValue(currentUrl)
             .describedAs("${service.label} should open on its own host")
@@ -144,12 +186,7 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
             .doesNotContain("auth.jorisjonkers.test/login")
             .doesNotContain("error=")
 
-        val pageText =
-            buildString {
-                append(servicePage.title())
-                append('\n')
-                append(servicePage.locator("body").textContent().orEmpty())
-            }.lowercase()
+        val pageText = readPageText(servicePage)
 
         service.forbiddenMarkers.forEach { marker ->
             assertThatValue(pageText)
@@ -161,4 +198,33 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
             service.expectedMarkers.any { marker -> pageText.contains(marker.lowercase()) },
         ).describedAs("${service.label} should expose a recognizable service UI marker").isTrue()
     }
+
+    private fun waitForServicePageToSettle(servicePage: Page) {
+        repeat(5) {
+            servicePage.waitForLoadState()
+            servicePage.waitForTimeout(1500.0)
+
+            try {
+                servicePage.title()
+                servicePage.locator("body").textContent()
+                return
+            } catch (error: PlaywrightException) {
+                if (!isNavigationInFlight(error)) {
+                    throw error
+                }
+            }
+        }
+    }
+
+    private fun readPageText(servicePage: Page): String {
+        waitForServicePageToSettle(servicePage)
+        return buildString {
+            append(servicePage.title())
+            append('\n')
+            append(servicePage.locator("body").textContent().orEmpty())
+        }.lowercase()
+    }
+
+    private fun isNavigationInFlight(error: PlaywrightException): Boolean =
+        error.message.orEmpty().contains("Execution context was destroyed")
 }

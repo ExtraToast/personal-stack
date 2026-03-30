@@ -65,15 +65,25 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
         val requiresPkce: Boolean,
     )
 
+    private data class ConfidentialClientRequest(
+        val clientId: String,
+        val redirectUri: String,
+        val scope: String,
+        val clientSecret: String,
+    )
+
     companion object {
         private const val CLIENT_ID = "auth-ui"
         private const val REDIRECT_URI = "http://localhost:5174/callback"
         private const val SCOPE = "openid profile email"
         private const val GRAFANA_REDIRECT_URI = "https://grafana.jorisjonkers.test/login/generic_oauth"
+        private const val GRAFANA_CLIENT_SECRET = "grafana-secret"
         private const val N8N_REDIRECT_URI = "https://n8n.jorisjonkers.test/auth/oidc/callback"
+        private const val N8N_CLIENT_SECRET = "n8n-secret"
         private const val RABBITMQ_REDIRECT_URI = "https://rabbitmq.jorisjonkers.test/js/oidc-oauth/login-callback.html"
         private const val VAULT_CLIENT_ID = "vault"
         private const val VAULT_REDIRECT_URI = "https://vault.jorisjonkers.test/ui/vault/auth/oidc/oidc/callback"
+        private const val VAULT_CLIENT_SECRET = "vault-secret"
     }
 
     @BeforeEach
@@ -577,6 +587,47 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
                     .startsWith(redirectUri)
                     .contains("code=")
             }
+        }
+    }
+
+    @Test
+    fun `confidential downstream clients authenticate at token endpoint`() {
+        val requests =
+            listOf(
+                ConfidentialClientRequest(
+                    "grafana",
+                    GRAFANA_REDIRECT_URI,
+                    "openid profile email",
+                    GRAFANA_CLIENT_SECRET,
+                ),
+                ConfidentialClientRequest(
+                    VAULT_CLIENT_ID,
+                    VAULT_REDIRECT_URI,
+                    "openid profile email",
+                    VAULT_CLIENT_SECRET,
+                ),
+                ConfidentialClientRequest(
+                    "n8n",
+                    N8N_REDIRECT_URI,
+                    "openid profile email",
+                    N8N_CLIENT_SECRET,
+                ),
+            )
+
+        requests.forEach { (clientId, redirectUri, _, clientSecret) ->
+            mockMvc
+                .post("/api/oauth2/token") {
+                    contentType = MediaType.APPLICATION_FORM_URLENCODED
+                    content =
+                        "grant_type=authorization_code" +
+                        "&code=bogus-code" +
+                        "&redirect_uri=${URLEncoder.encode(redirectUri, StandardCharsets.UTF_8)}" +
+                        "&client_id=$clientId" +
+                        "&client_secret=${URLEncoder.encode(clientSecret, StandardCharsets.UTF_8)}"
+                }.andExpect {
+                    status { isBadRequest() }
+                    jsonPath("$.error") { value("invalid_grant") }
+                }
         }
     }
 

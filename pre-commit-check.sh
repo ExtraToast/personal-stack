@@ -4,7 +4,7 @@
 set -euo pipefail
 
 SERVICES_INFRA="postgres valkey rabbitmq"
-SERVICES_FULL="postgres valkey rabbitmq vault auth-api assistant-api traefik auth-ui assistant-ui app-ui n8n grafana stalwart"
+SERVICES_FULL="postgres valkey rabbitmq vault auth-api assistant-api traefik auth-ui assistant-ui app-ui n8n grafana uptime-kuma stalwart"
 STACK_STARTED=0
 
 RED='\033[0;31m'
@@ -22,7 +22,7 @@ trap 'rm -rf "$TMPDIR_JOBS"; teardown_stack' EXIT
 dump_stack_logs() {
   local services=(
     postgres valkey rabbitmq vault auth-api assistant-api traefik
-    auth-ui assistant-ui app-ui n8n grafana stalwart
+    auth-ui assistant-ui app-ui n8n grafana uptime-kuma stalwart
   )
 
   warn "Dumping stack logs for diagnosis..."

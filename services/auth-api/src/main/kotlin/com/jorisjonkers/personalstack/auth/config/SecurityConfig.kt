@@ -15,6 +15,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.core.AuthenticationException
 import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
+import org.springframework.security.crypto.factory.PasswordEncoderFactories
+import org.springframework.security.crypto.password.DelegatingPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.AuthenticationEntryPoint
 import org.springframework.security.web.SecurityFilterChain
@@ -116,7 +118,12 @@ class SecurityConfig(
         }
 
     @Bean
-    fun passwordEncoder(): PasswordEncoder = BCryptPasswordEncoder()
+    fun passwordEncoder(): PasswordEncoder =
+        (PasswordEncoderFactories.createDelegatingPasswordEncoder() as DelegatingPasswordEncoder).apply {
+            // User passwords are stored as raw BCrypt hashes without an "{id}" prefix,
+            // while OAuth clients use prefixed secrets such as "{noop}n8n-secret".
+            setDefaultPasswordEncoderForMatches(BCryptPasswordEncoder())
+        }
 
     @Bean
     fun authenticationManager(
