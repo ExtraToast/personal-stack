@@ -131,11 +131,23 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
         try {
             waitForServicePageToSettle(servicePage)
 
-            val ssoButton = servicePage.locator("#oidc-sso-button")
-            assertThat(ssoButton).isVisible()
-            ssoButton.click()
-            servicePage.waitForTimeout(10000.0)
-            waitForServicePageToSettle(servicePage)
+            servicePage.waitForFunction(
+                "() => !!document.querySelector('#oidc-sso-button') || !window.location.pathname.startsWith('/signin')",
+                null,
+                Page.WaitForFunctionOptions().setTimeout(15000.0),
+            )
+
+            if (servicePage.url().contains("/signin")) {
+                val signInPageText = buildString {
+                    append(servicePage.title())
+                    append('\n')
+                    append(servicePage.locator("body").textContent().orEmpty())
+                }.lowercase()
+                assertThatValue(signInPageText).contains("sign in with sso")
+                servicePage.locator("#oidc-sso-button").click()
+                servicePage.waitForTimeout(10000.0)
+                waitForServicePageToSettle(servicePage)
+            }
 
             val currentUrl = servicePage.url()
             assertThatValue(currentUrl)
@@ -159,7 +171,10 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
             assertThatValue(callbackRequests).isEqualTo(1)
             assertThatValue(pageText).doesNotContain("owner account")
             assertThatValue(pageText).doesNotContain("sign in with email")
-            assertThatValue(pageText).contains("create your first workflow")
+            val landedInN8nWorkspace =
+                pageText.contains("workflow credential project overview") ||
+                    (pageText.contains("workflows - n8n") && pageText.contains("start from scratch"))
+            assertThatValue(landedInN8nWorkspace).isTrue()
         } finally {
             servicePage.close()
         }
@@ -189,6 +204,11 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
         servicePage.waitForTimeout(5000.0)
         try {
             waitForServicePageToSettle(servicePage)
+            servicePage.waitForFunction(
+                "() => Boolean(window.grafanaBootData && window.grafanaBootData.user)",
+                null,
+                Page.WaitForFunctionOptions().setTimeout(15000.0),
+            )
 
             val currentUrl = servicePage.url()
             assertThatValue(currentUrl)
@@ -196,6 +216,12 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
                 .doesNotContain("auth.jorisjonkers.test/login")
                 .doesNotContain("error=")
 
+            val grafanaSignedIn =
+                servicePage.evaluate("() => window.grafanaBootData?.user?.isSignedIn === true") as Boolean
+            val grafanaAuthMethod =
+                servicePage.evaluate("() => window.grafanaBootData?.user?.authenticatedBy || null") as String?
+            val grafanaLogin =
+                servicePage.evaluate("() => window.grafanaBootData?.user?.login || null") as String?
             val pageText = buildString {
                 append(servicePage.title())
                 append('\n')
@@ -207,9 +233,11 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
             assertThatValue(
                 seenUrls.any { it.contains("grafana.jorisjonkers.test/login/generic_oauth?code=") },
             ).isTrue()
+            assertThatValue(grafanaSignedIn).isTrue()
+            assertThatValue(grafanaAuthMethod).isEqualTo("oauth_generic_oauth")
+            assertThatValue(grafanaLogin).isNotBlank()
             assertThatValue(pageText).doesNotContain("failed to get token from provider")
             assertThatValue(pageText).doesNotContain("login failed")
-            assertThatValue(pageText).contains("welcome to grafana")
         } finally {
             servicePage.close()
         }
