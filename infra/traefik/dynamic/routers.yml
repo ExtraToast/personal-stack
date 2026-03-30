@@ -77,7 +77,6 @@ http:
         - websecure
       service: vault
       middlewares:
-        - forward-auth
         - rate-limit
         - security-headers
       tls:
@@ -90,7 +89,6 @@ http:
         - websecure
       service: rabbitmq
       middlewares:
-        - forward-auth
         - security-headers
       tls:
         certResolver: cloudflare
@@ -102,7 +100,6 @@ http:
         - websecure
       service: n8n
       middlewares:
-        - forward-auth
         - rate-limit
         - security-headers
       tls:
@@ -115,7 +112,6 @@ http:
         - websecure
       service: grafana
       middlewares:
-        - forward-auth
         - security-headers
       tls:
         certResolver: cloudflare
