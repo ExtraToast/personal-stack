@@ -3,7 +3,7 @@ package com.jorisjonkers.personalstack.auth.domain.model
 /**
  * Represents a named service in the personal stack that requires explicit access grants.
  * Each entry declares the subdomain prefixes that map to it. Multiple subdomains are
- * supported to handle production hostnames (e.g. "mail") and local dev names (e.g. "stalwart").
+ * supported to handle alternative hostnames for the same service.
  *
  * ADMIN users bypass all service permission checks.
  * USER/READONLY users require explicit grants stored in user_service_permissions.
@@ -12,7 +12,7 @@ enum class ServicePermission(
     vararg subdomains: String,
 ) {
     VAULT("vault"),
-    MAIL("mail", "stalwart"),
+    MAIL("stalwart"),
     N8N("n8n"),
     GRAFANA("grafana"),
     RABBITMQ("rabbitmq"),

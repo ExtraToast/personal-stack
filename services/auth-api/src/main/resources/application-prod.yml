@@ -4,3 +4,4 @@ auth:
 session:
   cookie:
     domain: .jorisjonkers.dev
+    same-site: Lax

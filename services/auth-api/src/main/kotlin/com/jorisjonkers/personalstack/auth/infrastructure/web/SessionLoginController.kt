@@ -88,7 +88,7 @@ class SessionLoginController(
         httpRequest: HttpServletRequest,
     ) {
         val authenticatedUser =
-            AuthenticatedUser(
+            AuthenticatedUser.of(
                 userId = credentials.userId,
                 username = credentials.username,
                 roles = buildRoles(credentials),

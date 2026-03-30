@@ -178,7 +178,7 @@ class SecurityFilterChainRoutingIntegrationTest : IntegrationTestBase() {
                 .get("/api/v1/admin/users") {
                     with(
                         user(
-                            AuthenticatedUser(
+                            AuthenticatedUser.of(
                                 userId = UserId(UUID.randomUUID()),
                                 username = "user-1",
                                 roles = listOf("ROLE_USER"),
@@ -196,7 +196,7 @@ class SecurityFilterChainRoutingIntegrationTest : IntegrationTestBase() {
                 .get("/api/v1/admin/users") {
                     with(
                         user(
-                            AuthenticatedUser(
+                            AuthenticatedUser.of(
                                 userId = UserId(UUID.randomUUID()),
                                 username = "admin-1",
                                 roles = listOf("ROLE_ADMIN"),
@@ -240,7 +240,7 @@ class SecurityFilterChainRoutingIntegrationTest : IntegrationTestBase() {
                 .get("/api/v1/auth/verify") {
                     with(
                         user(
-                            AuthenticatedUser(
+                            AuthenticatedUser.of(
                                 userId = UserId(userId),
                                 username = "user-fwd-1",
                                 roles = listOf("ROLE_USER"),

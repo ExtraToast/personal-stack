@@ -149,7 +149,7 @@ services:
       - 'traefik.http.routers.n8n.rule=Host(`n8n.jorisjonkers.test`)'
       - 'traefik.http.routers.n8n.entrypoints=websecure'
       - 'traefik.http.routers.n8n.tls=true'
-      - 'traefik.http.routers.n8n.middlewares=security-headers@file'
+      - 'traefik.http.routers.n8n.middlewares=n8n-security-headers@file'
       - 'traefik.http.services.n8n.loadbalancer.server.port=5678'
 
   grafana:
@@ -186,7 +186,7 @@ services:
       - 'traefik.http.routers.grafana.rule=Host(`grafana.jorisjonkers.test`)'
       - 'traefik.http.routers.grafana.entrypoints=websecure'
       - 'traefik.http.routers.grafana.tls=true'
-      - 'traefik.http.routers.grafana.middlewares=security-headers@file'
+      - 'traefik.http.routers.grafana.middlewares=grafana-security-headers@file'
       - 'traefik.http.services.grafana.loadbalancer.server.port=3000'
 
   uptime-kuma:
@@ -378,11 +378,11 @@ services:
       start_period: 30s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.stalwart.rule=Host(`mail.jorisjonkers.test`) || Host(`stalwart.jorisjonkers.test`)'
+      - 'traefik.http.routers.stalwart.rule=Host(`stalwart.jorisjonkers.test`)'
       - 'traefik.http.routers.stalwart.entrypoints=websecure'
       - 'traefik.http.routers.stalwart.tls=true'
       - 'traefik.http.services.stalwart.loadbalancer.server.port=8080'
-      - 'traefik.http.routers.stalwart.middlewares=forward-auth@docker,security-headers@file'
+      - 'traefik.http.routers.stalwart.middlewares=forward-auth@docker,stalwart-security-headers@file'
 
   # ── Backend Services ────────────────────────────────────────────
 
@@ -414,7 +414,7 @@ services:
       SESSION_COOKIE_DOMAIN: jorisjonkers.test
       SESSION_COOKIE_SECURE: 'true'
       SESSION_COOKIE_SAME_SITE: Lax
-      AUTH_CORS_ALLOWED_ORIGINS: https://jorisjonkers.test,https://auth.jorisjonkers.test,https://assistant.jorisjonkers.test,https://vault.jorisjonkers.test,https://n8n.jorisjonkers.test,https://grafana.jorisjonkers.test,https://rabbitmq.jorisjonkers.test,https://mail.jorisjonkers.test,https://stalwart.jorisjonkers.test,https://traefik.jorisjonkers.test,https://status.jorisjonkers.test
+      AUTH_CORS_ALLOWED_ORIGINS: https://jorisjonkers.test,https://auth.jorisjonkers.test,https://assistant.jorisjonkers.test,https://vault.jorisjonkers.test,https://n8n.jorisjonkers.test,https://grafana.jorisjonkers.test,https://rabbitmq.jorisjonkers.test,https://stalwart.jorisjonkers.test,https://traefik.jorisjonkers.test,https://status.jorisjonkers.test
       OTEL_SERVICE_NAME: auth-api
       OTEL_LOGS_EXPORTER: none
       OTEL_TRACES_EXPORTER: none

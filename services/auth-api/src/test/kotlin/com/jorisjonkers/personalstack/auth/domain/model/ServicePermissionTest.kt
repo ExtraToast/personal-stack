@@ -10,7 +10,7 @@ class ServicePermissionTest {
     @CsvSource(
         "vault.jorisjonkers.dev, VAULT",
         "vault.jorisjonkers.test, VAULT",
-        "mail.jorisjonkers.dev, MAIL",
+        "stalwart.jorisjonkers.dev, MAIL",
         "stalwart.jorisjonkers.test, MAIL",
         "n8n.jorisjonkers.dev, N8N",
         "grafana.jorisjonkers.dev, GRAFANA",

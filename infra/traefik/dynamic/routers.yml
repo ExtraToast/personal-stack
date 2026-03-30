@@ -101,7 +101,7 @@ http:
       service: n8n
       middlewares:
         - rate-limit
-        - security-headers
+        - n8n-security-headers
       tls:
         certResolver: cloudflare
 
@@ -112,7 +112,7 @@ http:
         - websecure
       service: grafana
       middlewares:
-        - security-headers
+        - grafana-security-headers
       tls:
         certResolver: cloudflare
 
@@ -129,13 +129,13 @@ http:
 
     # ── Stalwart Mail (WebAdmin + JMAP) ─────────────────────
     stalwart:
-      rule: 'Host(`mail.jorisjonkers.dev`) || Host(`stalwart.jorisjonkers.dev`)'
+      rule: 'Host(`stalwart.jorisjonkers.dev`)'
       entryPoints:
         - websecure
       service: stalwart
       middlewares:
         - forward-auth
-        - security-headers
+        - stalwart-security-headers
       tls:
         certResolver: cloudflare
 

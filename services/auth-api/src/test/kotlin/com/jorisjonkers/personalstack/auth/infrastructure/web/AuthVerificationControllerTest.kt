@@ -16,7 +16,7 @@ class AuthVerificationControllerTest {
         id: UUID = defaultUserId,
         roles: List<String> = listOf("ROLE_USER"),
     ): AuthenticatedUser =
-        AuthenticatedUser(
+        AuthenticatedUser.of(
             userId = UserId(id),
             username = "testuser",
             roles = roles,

@@ -139,7 +139,7 @@ class AuthApiContractIntegrationTest : IntegrationTestBase() {
             .get("/api/v1/admin/users") {
                 with(
                     user(
-                        AuthenticatedUser(
+                        AuthenticatedUser.of(
                             userId = UserId(UUID.randomUUID()),
                             username = "admin-id",
                             roles = listOf("ROLE_ADMIN"),

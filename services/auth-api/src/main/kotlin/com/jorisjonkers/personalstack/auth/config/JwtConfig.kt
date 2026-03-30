@@ -8,32 +8,50 @@ import com.nimbusds.jose.jwk.source.JWKSource
 import com.nimbusds.jose.proc.JWSVerificationKeySelector
 import com.nimbusds.jose.proc.SecurityContext
 import com.nimbusds.jwt.proc.DefaultJWTProcessor
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.security.oauth2.jwt.JwtEncoder
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder
+import java.security.KeyFactory
 import java.security.KeyPairGenerator
 import java.security.interfaces.RSAPrivateKey
 import java.security.interfaces.RSAPublicKey
+import java.security.spec.PKCS8EncodedKeySpec
+import java.security.spec.RSAPublicKeySpec
+import java.util.Base64
 import java.util.UUID
 
 @Configuration
-class JwtConfig {
+class JwtConfig(
+    @param:Value("\${auth.signing-key:}")
+    private val signingKeyPem: String,
+) {
     /**
-     * Generates an RSA key pair at startup for JWT signing.
-     * In production this key pair should be loaded from Vault to survive restarts.
+     * Loads a shared RSA key from PEM (Vault KV in production) if available,
+     * otherwise generates an ephemeral key pair (suitable for single-replica dev).
      */
     @Bean
     fun jwkSource(): JWKSource<SecurityContext> {
-        val keyPair = KeyPairGenerator.getInstance("RSA").apply { initialize(RSA_KEY_SIZE) }.generateKeyPair()
         val rsaKey =
-            RSAKey
-                .Builder(keyPair.public as RSAPublicKey)
-                .privateKey(keyPair.private as RSAPrivateKey)
-                .keyID(UUID.randomUUID().toString())
-                .build()
+            if (signingKeyPem.isNotBlank()) {
+                val privateKey = parseRsaPrivateKey(signingKeyPem)
+                val publicKey = derivePublicKey(privateKey)
+                RSAKey
+                    .Builder(publicKey)
+                    .privateKey(privateKey)
+                    .keyID("prod-signing-key-1")
+                    .build()
+            } else {
+                val keyPair = KeyPairGenerator.getInstance("RSA").apply { initialize(RSA_KEY_SIZE) }.generateKeyPair()
+                RSAKey
+                    .Builder(keyPair.public as RSAPublicKey)
+                    .privateKey(keyPair.private as RSAPrivateKey)
+                    .keyID(UUID.randomUUID().toString())
+                    .build()
+            }
         return ImmutableJWKSet(JWKSet(rsaKey))
     }
 
@@ -51,5 +69,24 @@ class JwtConfig {
 
     companion object {
         private const val RSA_KEY_SIZE = 2048
+        private val RSA_PUBLIC_EXPONENT = java.math.BigInteger.valueOf(65537)
+
+        private fun parseRsaPrivateKey(pem: String): RSAPrivateKey {
+            val base64 =
+                pem
+                    .replace("-----BEGIN RSA PRIVATE KEY-----", "")
+                    .replace("-----END RSA PRIVATE KEY-----", "")
+                    .replace("-----BEGIN PRIVATE KEY-----", "")
+                    .replace("-----END PRIVATE KEY-----", "")
+                    .replace("\\s".toRegex(), "")
+            val keyBytes = Base64.getDecoder().decode(base64)
+            val keySpec = PKCS8EncodedKeySpec(keyBytes)
+            return KeyFactory.getInstance("RSA").generatePrivate(keySpec) as RSAPrivateKey
+        }
+
+        private fun derivePublicKey(privateKey: RSAPrivateKey): RSAPublicKey {
+            val publicKeySpec = RSAPublicKeySpec(privateKey.modulus, RSA_PUBLIC_EXPONENT)
+            return KeyFactory.getInstance("RSA").generatePublic(publicKeySpec) as RSAPublicKey
+        }
     }
 }

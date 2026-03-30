@@ -34,7 +34,7 @@ class TotpControllerTest {
         id: UUID = userId,
         username: String = "alice",
     ): AuthenticatedUser =
-        AuthenticatedUser(
+        AuthenticatedUser.of(
             userId = UserId(id),
             username = username,
             roles = listOf("ROLE_USER"),
