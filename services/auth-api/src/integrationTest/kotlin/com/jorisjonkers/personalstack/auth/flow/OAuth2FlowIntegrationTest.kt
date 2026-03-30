@@ -527,7 +527,11 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
         val username = uniqueUsername()
         val password = "securepass123"
         registerAndConfirmUser(username, password)
-        dsl.update(APP_USER).set(APP_USER.ROLE, "ADMIN").where(APP_USER.USERNAME.eq(username)).execute()
+        dsl
+            .update(APP_USER)
+            .set(APP_USER.ROLE, "ADMIN")
+            .where(APP_USER.USERNAME.eq(username))
+            .execute()
 
         val loginResult = doSessionLogin(username, password)
         val session = extractSession(loginResult)!!
@@ -537,7 +541,12 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
                 OidcClientRequest("grafana", GRAFANA_REDIRECT_URI, "openid profile email", false),
                 OidcClientRequest(VAULT_CLIENT_ID, VAULT_REDIRECT_URI, "openid profile email", false),
                 OidcClientRequest("n8n", N8N_REDIRECT_URI, "openid profile email", false),
-                OidcClientRequest("rabbitmq", RABBITMQ_REDIRECT_URI, "openid profile email rabbitmq.tag:administrator", true),
+                OidcClientRequest(
+                    "rabbitmq",
+                    RABBITMQ_REDIRECT_URI,
+                    "openid profile email rabbitmq.tag:administrator",
+                    true,
+                ),
             )
 
         requests.forEach { (clientId, redirectUri, scope, requiresPkce) ->

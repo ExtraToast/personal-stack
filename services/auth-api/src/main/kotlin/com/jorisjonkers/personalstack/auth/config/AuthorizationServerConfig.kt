@@ -4,16 +4,20 @@ import com.jorisjonkers.personalstack.auth.domain.model.Role
 import com.jorisjonkers.personalstack.auth.domain.model.ServicePermission
 import com.jorisjonkers.personalstack.auth.domain.model.UserCredentials
 import com.jorisjonkers.personalstack.auth.domain.port.UserRepository
+import jakarta.servlet.FilterChain
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.annotation.Order
 import org.springframework.http.MediaType
+import org.springframework.security.authentication.AnonymousAuthenticationToken
 import org.springframework.security.config.Customizer
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configurers.oauth2.server.authorization.OAuth2AuthorizationServerConfigurer
-import org.springframework.security.authentication.AnonymousAuthenticationToken
 import org.springframework.security.core.Authentication
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.core.AuthorizationGrantType
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod
 import org.springframework.security.oauth2.core.oidc.OidcScopes
@@ -29,18 +33,34 @@ import org.springframework.security.oauth2.server.authorization.token.JwtEncodin
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint
-import org.springframework.security.web.context.SecurityContextHolderFilter
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository
+import org.springframework.security.web.context.SecurityContextHolderFilter
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher
 import org.springframework.security.web.util.matcher.OrRequestMatcher
-import org.springframework.web.filter.OncePerRequestFilter
 import org.springframework.web.cors.CorsConfigurationSource
+import org.springframework.web.filter.OncePerRequestFilter
 import java.time.Duration
 import java.util.UUID
-import jakarta.servlet.FilterChain
-import jakarta.servlet.http.HttpServletRequest
-import jakarta.servlet.http.HttpServletResponse
+
+private fun currentAuthentication(): Authentication? =
+    SecurityContextHolder
+        .getContext()
+        .authentication
+
+private fun isAnonymousOrUnauthenticated(authentication: Authentication?): Boolean =
+    authentication == null ||
+        authentication is AnonymousAuthenticationToken ||
+        !authentication.isAuthenticated
+
+private fun hasClientAccess(
+    authentication: Authentication?,
+    requiredPermission: ServicePermission,
+): Boolean {
+    if (authentication == null) return false
+    val authorities = authentication.authorities.map { it.authority }.toSet()
+    return "ROLE_ADMIN" in authorities || "SERVICE_${requiredPermission.name}" in authorities
+}
 
 @Configuration
 class AuthorizationServerConfig(
@@ -356,7 +376,8 @@ class AuthorizationServerConfig(
 
     private fun downstreamClientAuthorizationFilter(): OncePerRequestFilter =
         object : OncePerRequestFilter() {
-            override fun shouldNotFilter(request: HttpServletRequest): Boolean = request.requestURI != "/api/oauth2/authorize"
+            override fun shouldNotFilter(request: HttpServletRequest): Boolean =
+                request.requestURI != "/api/oauth2/authorize"
 
             override fun doFilterInternal(
                 request: HttpServletRequest,
@@ -368,20 +389,18 @@ class AuthorizationServerConfig(
                         filterChain.doFilter(request, response)
                         return
                     }
-                val authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().authentication
+                val authentication = currentAuthentication()
 
-                if (authentication == null || authentication is AnonymousAuthenticationToken || !authentication.isAuthenticated) {
+                if (isAnonymousOrUnauthenticated(authentication)) {
                     filterChain.doFilter(request, response)
                     return
                 }
 
-                val authorities = authentication.authorities.map { it.authority }.toSet()
-                val allowed =
-                    "ROLE_ADMIN" in authorities ||
-                        "SERVICE_${requiredPermission.name}" in authorities
-
-                if (!allowed) {
-                    response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access denied for OAuth client")
+                if (!hasClientAccess(authentication, requiredPermission)) {
+                    response.sendError(
+                        HttpServletResponse.SC_FORBIDDEN,
+                        "Access denied for OAuth client",
+                    )
                     return
                 }
 
