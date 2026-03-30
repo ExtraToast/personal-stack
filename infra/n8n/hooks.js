@@ -207,6 +207,7 @@ function getFrontendScript() {
   return `
     (function () {
       'use strict';
+      var redirectingToOidc = false;
 
       function shouldShowNormalLogin() {
         return new URLSearchParams(window.location.search).get('showLogin') === 'true';
@@ -214,6 +215,21 @@ function getFrontendScript() {
 
       function isSigninPage() {
         return window.location.pathname === '/signin' || window.location.pathname === '/login';
+      }
+
+      function isOwnerSetupPage() {
+        if (window.location.pathname === '/setup' || window.location.pathname === '/owner/setup') return true;
+
+        var title = document.querySelector('h1, [data-test-id="owner-setup-heading"]');
+        if (!title) return false;
+
+        return /owner account|set up/i.test(title.textContent || '');
+      }
+
+      function redirectOwnerSetupToSso() {
+        if (redirectingToOidc || shouldShowNormalLogin() || !isOwnerSetupPage()) return;
+        redirectingToOidc = true;
+        window.location.replace('/auth/oidc/login');
       }
 
       function showError(form) {
@@ -274,8 +290,10 @@ function getFrontendScript() {
       }
 
       function observe() {
+        redirectOwnerSetupToSso();
         injectSsoButton();
         var observer = new MutationObserver(function () {
+          redirectOwnerSetupToSso();
           injectSsoButton();
         });
         observer.observe(document.body, { childList: true, subtree: true });
