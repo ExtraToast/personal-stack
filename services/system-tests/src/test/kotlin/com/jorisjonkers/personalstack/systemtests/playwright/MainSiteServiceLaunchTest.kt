@@ -1,7 +1,6 @@
 package com.jorisjonkers.personalstack.systemtests.playwright
 
 import com.jorisjonkers.personalstack.systemtests.TestHelper
-import com.microsoft.playwright.BrowserContext
 import com.microsoft.playwright.Page
 import com.microsoft.playwright.PlaywrightException
 import com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
@@ -11,64 +10,340 @@ import org.junit.jupiter.api.Test
 
 @Tag("system")
 class MainSiteServiceLaunchTest : PlaywrightTestBase() {
-    private data class ServiceExpectation(
-        val label: String,
-        val href: String,
-        val expectedHost: String,
-        val expectedMarkers: List<String>,
-        val forbiddenMarkers: List<String> = emptyList(),
-    )
+    @Test
+    fun `main site launches Vault and completes downstream oidc login`() {
+        prepareAdminSessionOnMainSite()
 
-    private val servicesInLaunchOrder =
-        listOf(
-            ServiceExpectation(
-                label = "Vault",
-                href = "https://vault.jorisjonkers.test/",
-                expectedHost = "vault.jorisjonkers.test",
-                expectedMarkers = listOf("vault"),
-            ),
-            ServiceExpectation(
-                label = "Stalwart",
-                href = "https://mail.jorisjonkers.test/",
-                expectedHost = "mail.jorisjonkers.test",
-                expectedMarkers = listOf("stalwart", "mail"),
-            ),
-            ServiceExpectation(
-                label = "n8n",
-                href = "https://n8n.jorisjonkers.test/",
-                expectedHost = "n8n.jorisjonkers.test",
-                expectedMarkers = listOf("n8n", "workflow"),
-                forbiddenMarkers = listOf("owner account", "sign in with email"),
-            ),
-            ServiceExpectation(
-                label = "Grafana",
-                href = "https://grafana.jorisjonkers.test/",
-                expectedHost = "grafana.jorisjonkers.test",
-                expectedMarkers = listOf("grafana"),
-                forbiddenMarkers = listOf("failed to get token from provider", "login failed"),
-            ),
-            ServiceExpectation(
-                label = "Assistant",
-                href = "https://assistant.jorisjonkers.test/",
-                expectedHost = "assistant.jorisjonkers.test",
-                expectedMarkers = listOf("conversation", "assistant"),
-            ),
-            ServiceExpectation(
-                label = "Traefik",
-                href = "https://traefik.jorisjonkers.test/",
-                expectedHost = "traefik.jorisjonkers.test",
-                expectedMarkers = listOf("traefik", "dashboard"),
-            ),
-            ServiceExpectation(
-                label = "Status",
-                href = "https://status.jorisjonkers.test/",
-                expectedHost = "status.jorisjonkers.test",
-                expectedMarkers = listOf("uptime", "status"),
-            ),
-        )
+        page.navigate(APP_UI_URL)
+        page.waitForLoadState()
+        page.waitForTimeout(2000.0)
+
+        val card = page.locator("a[href='https://vault.jorisjonkers.test/']").first()
+        assertThat(card).isVisible()
+
+        val seenUrls = mutableListOf<String>()
+        context.onRequest { request ->
+            val url = request.url()
+            if (url.contains("vault.jorisjonkers.test") || url.contains("auth.jorisjonkers.test")) {
+                seenUrls += url
+            }
+        }
+
+        val servicePage = context.waitForPage(card::click)
+        servicePage.waitForLoadState()
+        servicePage.waitForTimeout(5000.0)
+        try {
+            waitForServicePageToSettle(servicePage)
+            servicePage.locator("select").selectOption("oidc")
+            servicePage.locator("button:has-text('Sign in with OIDC Provider')").click()
+            servicePage.waitForTimeout(8000.0)
+            waitForServicePageToSettle(servicePage)
+
+            val currentUrl = servicePage.url()
+            assertThatValue(currentUrl)
+                .contains("vault.jorisjonkers.test")
+                .doesNotContain("/ui/vault/auth")
+                .doesNotContain("error=")
+
+            val pageText = buildString {
+                append(servicePage.title())
+                append('\n')
+                append(servicePage.locator("body").textContent().orEmpty())
+            }.lowercase()
+            assertThatValue(seenUrls.any { it.contains("/v1/auth/oidc/oidc/auth_url") }).isTrue()
+            assertThatValue(
+                seenUrls.any { it.contains("auth.jorisjonkers.test/api/oauth2/authorize") && it.contains("client_id=vault") },
+            ).isTrue()
+            assertThatValue(pageText).doesNotContain("sign in to vault")
+            assertThatValue(pageText).doesNotContain("error fetching role")
+        } finally {
+            servicePage.close()
+        }
+    }
 
     @Test
-    fun `main site login can launch each service card into a real service ui`() {
+    fun `main site launches Stalwart through forward auth to web admin`() {
+        prepareAdminSessionOnMainSite()
+
+        page.navigate(APP_UI_URL)
+        page.waitForLoadState()
+        page.waitForTimeout(2000.0)
+
+        val card = page.locator("a[href='https://mail.jorisjonkers.test/']").first()
+        assertThat(card).isVisible()
+
+        val seenUrls = mutableListOf<String>()
+        context.onRequest { request ->
+            val url = request.url()
+            if (url.contains("mail.jorisjonkers.test") || url.contains("auth.jorisjonkers.test")) {
+                seenUrls += url
+            }
+        }
+
+        val servicePage = context.waitForPage(card::click)
+        servicePage.waitForLoadState()
+        servicePage.waitForTimeout(5000.0)
+        try {
+            waitForServicePageToSettle(servicePage)
+
+            val currentUrl = servicePage.url()
+            assertThatValue(currentUrl)
+                .contains("mail.jorisjonkers.test")
+                .doesNotContain("auth.jorisjonkers.test/login")
+                .doesNotContain("error=")
+
+            val pageText = buildString {
+                append(servicePage.title())
+                append('\n')
+                append(servicePage.locator("body").textContent().orEmpty())
+            }.lowercase()
+            assertThatValue(
+                seenUrls.none { it.contains("auth.jorisjonkers.test/api/oauth2/authorize") },
+            ).isTrue()
+            assertThatValue(pageText).contains("stalwart management")
+        } finally {
+            servicePage.close()
+        }
+    }
+
+    @Test
+    fun `main site launches n8n and completes downstream oidc login once`() {
+        prepareAdminSessionOnMainSite()
+
+        page.navigate(APP_UI_URL)
+        page.waitForLoadState()
+        page.waitForTimeout(2000.0)
+
+        val card = page.locator("a[href='https://n8n.jorisjonkers.test/']").first()
+        assertThat(card).isVisible()
+
+        val seenUrls = mutableListOf<String>()
+        context.onRequest { request ->
+            val url = request.url()
+            if (url.contains("n8n.jorisjonkers.test") || url.contains("auth.jorisjonkers.test")) {
+                seenUrls += url
+            }
+        }
+
+        val servicePage = context.waitForPage(card::click)
+        servicePage.waitForLoadState()
+        servicePage.waitForTimeout(10000.0)
+        try {
+            waitForServicePageToSettle(servicePage)
+
+            val currentUrl = servicePage.url()
+            assertThatValue(currentUrl)
+                .contains("n8n.jorisjonkers.test")
+                .doesNotContain("auth.jorisjonkers.test/login")
+                .doesNotContain("error=")
+
+            val pageText = buildString {
+                append(servicePage.title())
+                append('\n')
+                append(servicePage.locator("body").textContent().orEmpty())
+            }.lowercase()
+            val authorizeRequests =
+                seenUrls.count {
+                    it.contains("auth.jorisjonkers.test/api/oauth2/authorize") &&
+                        it.contains("client_id=n8n")
+                }
+            val callbackRequests = seenUrls.count { it.contains("n8n.jorisjonkers.test/auth/oidc/callback?code=") }
+            assertThatValue(authorizeRequests).isEqualTo(1)
+            assertThatValue(callbackRequests).isEqualTo(1)
+            assertThatValue(pageText).doesNotContain("owner account")
+            assertThatValue(pageText).doesNotContain("sign in with email")
+            assertThatValue(pageText).doesNotContain("doesn't work properly without javascript enabled")
+        } finally {
+            servicePage.close()
+        }
+    }
+
+    @Test
+    fun `main site launches Grafana and completes downstream oidc login`() {
+        prepareAdminSessionOnMainSite()
+
+        page.navigate(APP_UI_URL)
+        page.waitForLoadState()
+        page.waitForTimeout(2000.0)
+
+        val card = page.locator("a[href='https://grafana.jorisjonkers.test/']").first()
+        assertThat(card).isVisible()
+
+        val seenUrls = mutableListOf<String>()
+        context.onRequest { request ->
+            val url = request.url()
+            if (url.contains("grafana.jorisjonkers.test") || url.contains("auth.jorisjonkers.test")) {
+                seenUrls += url
+            }
+        }
+
+        val servicePage = context.waitForPage(card::click)
+        servicePage.waitForLoadState()
+        servicePage.waitForTimeout(5000.0)
+        try {
+            waitForServicePageToSettle(servicePage)
+
+            val currentUrl = servicePage.url()
+            assertThatValue(currentUrl)
+                .contains("grafana.jorisjonkers.test")
+                .doesNotContain("auth.jorisjonkers.test/login")
+                .doesNotContain("error=")
+
+            val pageText = buildString {
+                append(servicePage.title())
+                append('\n')
+                append(servicePage.locator("body").textContent().orEmpty())
+            }.lowercase()
+            assertThatValue(
+                seenUrls.any { it.contains("auth.jorisjonkers.test/api/oauth2/authorize") && it.contains("client_id=grafana") },
+            ).isTrue()
+            assertThatValue(
+                seenUrls.any { it.contains("grafana.jorisjonkers.test/login/generic_oauth?code=") },
+            ).isTrue()
+            assertThatValue(pageText).doesNotContain("failed to get token from provider")
+            assertThatValue(pageText).doesNotContain("login failed")
+            assertThatValue(pageText).contains("welcome to grafana")
+        } finally {
+            servicePage.close()
+        }
+    }
+
+    @Test
+    fun `main site launches Assistant directly into chat ui`() {
+        prepareAdminSessionOnMainSite()
+
+        page.navigate(APP_UI_URL)
+        page.waitForLoadState()
+        page.waitForTimeout(2000.0)
+
+        val card = page.locator("a[href='https://assistant.jorisjonkers.test/']").first()
+        assertThat(card).isVisible()
+
+        val seenUrls = mutableListOf<String>()
+        context.onRequest { request ->
+            val url = request.url()
+            if (url.contains("assistant.jorisjonkers.test") || url.contains("auth.jorisjonkers.test")) {
+                seenUrls += url
+            }
+        }
+
+        val servicePage = context.waitForPage(card::click)
+        servicePage.waitForLoadState()
+        servicePage.waitForTimeout(5000.0)
+        try {
+            waitForServicePageToSettle(servicePage)
+
+            val currentUrl = servicePage.url()
+            assertThatValue(currentUrl)
+                .contains("assistant.jorisjonkers.test")
+                .doesNotContain("auth.jorisjonkers.test/login")
+                .doesNotContain("error=")
+
+            val pageText = buildString {
+                append(servicePage.title())
+                append('\n')
+                append(servicePage.locator("body").textContent().orEmpty())
+            }.lowercase()
+            assertThatValue(
+                seenUrls.none { it.contains("auth.jorisjonkers.test/api/oauth2/authorize") },
+            ).isTrue()
+            assertThatValue(pageText).contains("select a conversation")
+        } finally {
+            servicePage.close()
+        }
+    }
+
+    @Test
+    fun `main site launches Traefik through forward auth to dashboard`() {
+        prepareAdminSessionOnMainSite()
+
+        page.navigate(APP_UI_URL)
+        page.waitForLoadState()
+        page.waitForTimeout(2000.0)
+
+        val card = page.locator("a[href='https://traefik.jorisjonkers.test/']").first()
+        assertThat(card).isVisible()
+
+        val seenUrls = mutableListOf<String>()
+        context.onRequest { request ->
+            val url = request.url()
+            if (url.contains("traefik.jorisjonkers.test") || url.contains("auth.jorisjonkers.test")) {
+                seenUrls += url
+            }
+        }
+
+        val servicePage = context.waitForPage(card::click)
+        servicePage.waitForLoadState()
+        servicePage.waitForTimeout(5000.0)
+        try {
+            waitForServicePageToSettle(servicePage)
+
+            val currentUrl = servicePage.url()
+            assertThatValue(currentUrl)
+                .contains("traefik.jorisjonkers.test")
+                .doesNotContain("auth.jorisjonkers.test/login")
+                .doesNotContain("error=")
+
+            val pageText = buildString {
+                append(servicePage.title())
+                append('\n')
+                append(servicePage.locator("body").textContent().orEmpty())
+            }.lowercase()
+            assertThatValue(
+                seenUrls.none { it.contains("auth.jorisjonkers.test/api/oauth2/authorize") },
+            ).isTrue()
+            assertThatValue(pageText).contains("dashboard - traefik proxy")
+        } finally {
+            servicePage.close()
+        }
+    }
+
+    @Test
+    fun `main site launches Status into a configured uptime page`() {
+        prepareAdminSessionOnMainSite()
+
+        page.navigate(APP_UI_URL)
+        page.waitForLoadState()
+        page.waitForTimeout(2000.0)
+
+        val card = page.locator("a[href='https://status.jorisjonkers.test/']").first()
+        assertThat(card).isVisible()
+
+        val seenUrls = mutableListOf<String>()
+        context.onRequest { request ->
+            val url = request.url()
+            if (url.contains("status.jorisjonkers.test") || url.contains("auth.jorisjonkers.test")) {
+                seenUrls += url
+            }
+        }
+
+        val servicePage = context.waitForPage(card::click)
+        servicePage.waitForLoadState()
+        servicePage.waitForTimeout(5000.0)
+        try {
+            waitForServicePageToSettle(servicePage)
+
+            val currentUrl = servicePage.url()
+            assertThatValue(currentUrl)
+                .contains("status.jorisjonkers.test")
+                .doesNotContain("/setup-database")
+                .doesNotContain("error=")
+
+            val pageText = buildString {
+                append(servicePage.title())
+                append('\n')
+                append(servicePage.locator("body").textContent().orEmpty())
+            }.lowercase()
+            assertThatValue(
+                seenUrls.none { it.contains("auth.jorisjonkers.test/api/oauth2/authorize") },
+            ).isTrue()
+            assertThatValue(pageText).doesNotContain("which database would you like to use")
+        } finally {
+            servicePage.close()
+        }
+    }
+
+    private fun prepareAdminSessionOnMainSite() {
         val user = registerAndConfirm()
         val totpSecret = loginFromMainSiteAndEnrollTotp(user)
 
@@ -87,12 +362,6 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
 
         assertThat(page.locator("text=My Apps")).isVisible()
         assertThat(page.locator("a[href='/admin']")).isVisible()
-
-        servicesInLaunchOrder.forEach { service ->
-            val servicePage = openServiceCard(service, context)
-            assertServicePageLoaded(servicePage, service)
-            servicePage.close()
-        }
     }
 
     private fun loginFromMainSiteAndEnrollTotp(user: TestHelper.RegisteredUser): String {
@@ -156,49 +425,6 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
         page.waitForTimeout(2000.0)
     }
 
-    private fun openServiceCard(
-        service: ServiceExpectation,
-        browserContext: BrowserContext,
-    ): Page {
-        page.navigate(APP_UI_URL)
-        page.waitForLoadState()
-        page.waitForTimeout(2000.0)
-
-        val card = page.locator("a[href='${service.href}']").first()
-        assertThat(card).isVisible()
-
-        val popup = browserContext.waitForPage(card::click)
-        popup.waitForLoadState()
-        popup.waitForTimeout(5000.0)
-        return popup
-    }
-
-    private fun assertServicePageLoaded(
-        servicePage: Page,
-        service: ServiceExpectation,
-    ) {
-        waitForServicePageToSettle(servicePage)
-
-        val currentUrl = servicePage.url()
-        assertThatValue(currentUrl)
-            .describedAs("${service.label} should open on its own host")
-            .contains(service.expectedHost)
-            .doesNotContain("auth.jorisjonkers.test/login")
-            .doesNotContain("error=")
-
-        val pageText = readPageText(servicePage)
-
-        service.forbiddenMarkers.forEach { marker ->
-            assertThatValue(pageText)
-                .describedAs("${service.label} should not land on an intermediate error/setup screen")
-                .doesNotContain(marker.lowercase())
-        }
-
-        assertThatValue(
-            service.expectedMarkers.any { marker -> pageText.contains(marker.lowercase()) },
-        ).describedAs("${service.label} should expose a recognizable service UI marker").isTrue()
-    }
-
     private fun waitForServicePageToSettle(servicePage: Page) {
         repeat(5) {
             servicePage.waitForLoadState()
@@ -214,15 +440,6 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
                 }
             }
         }
-    }
-
-    private fun readPageText(servicePage: Page): String {
-        waitForServicePageToSettle(servicePage)
-        return buildString {
-            append(servicePage.title())
-            append('\n')
-            append(servicePage.locator("body").textContent().orEmpty())
-        }.lowercase()
     }
 
     private fun isNavigationInFlight(error: PlaywrightException): Boolean =
