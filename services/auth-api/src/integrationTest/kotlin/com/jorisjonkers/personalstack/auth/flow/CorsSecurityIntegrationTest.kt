@@ -1,6 +1,7 @@
 package com.jorisjonkers.personalstack.auth.flow
 
 import com.jorisjonkers.personalstack.auth.IntegrationTestBase
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -32,11 +33,11 @@ class CorsSecurityIntegrationTest : IntegrationTestBase() {
     fun `allowed origin receives CORS headers`() {
         mockMvc
             .post("/api/v1/auth/login") {
-                header(HttpHeaders.ORIGIN, "http://localhost:5174")
+                header(HttpHeaders.ORIGIN, "https://vault.jorisjonkers.test")
                 header(HttpHeaders.CONTENT_TYPE, "application/json")
                 content = """{"username":"nouser","password":"nopass"}"""
             }.andExpect {
-                header { string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5174") }
+                header { string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://vault.jorisjonkers.test") }
             }
     }
 
@@ -56,12 +57,12 @@ class CorsSecurityIntegrationTest : IntegrationTestBase() {
     fun `preflight request for allowed origin returns 200`() {
         mockMvc
             .options("/api/v1/auth/login") {
-                header(HttpHeaders.ORIGIN, "http://localhost:5174")
+                header(HttpHeaders.ORIGIN, "https://grafana.jorisjonkers.test")
                 header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
                 header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "Content-Type")
             }.andExpect {
                 status { isOk() }
-                header { string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5174") }
+                header { string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://grafana.jorisjonkers.test") }
                 header { exists(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS) }
             }
     }
@@ -70,11 +71,28 @@ class CorsSecurityIntegrationTest : IntegrationTestBase() {
     fun `credentials are allowed in CORS response`() {
         mockMvc
             .post("/api/v1/auth/login") {
-                header(HttpHeaders.ORIGIN, "http://localhost:5174")
+                header(HttpHeaders.ORIGIN, "https://n8n.jorisjonkers.test")
                 header(HttpHeaders.CONTENT_TYPE, "application/json")
                 content = """{"username":"nouser","password":"nopass"}"""
             }.andExpect {
                 header { string(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true") }
             }
+    }
+
+    @Test
+    fun `forward auth preflight allows downstream service origins`() {
+        val response =
+            mockMvc
+                .options("/api/v1/auth/verify") {
+                    header(HttpHeaders.ORIGIN, "https://mail.jorisjonkers.test")
+                    header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "GET")
+                    header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "Content-Type")
+                }.andExpect {
+                    status { isOk() }
+                    header { string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://mail.jorisjonkers.test") }
+                    header { string(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true") }
+                }.andReturn()
+
+        assertThat(response.response.getHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS).orEmpty()).contains("GET")
     }
 }

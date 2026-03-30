@@ -55,7 +55,7 @@ services:
       - 'traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.jorisjonkers.test`)'
       - 'traefik.http.routers.rabbitmq.entrypoints=websecure'
       - 'traefik.http.routers.rabbitmq.tls=true'
-      - 'traefik.http.routers.rabbitmq.middlewares=forward-auth@docker,security-headers@file'
+      - 'traefik.http.routers.rabbitmq.middlewares=security-headers@file'
       - 'traefik.http.services.rabbitmq.loadbalancer.server.port=15672'
 
   vault:
@@ -81,7 +81,7 @@ services:
       - 'traefik.http.routers.vault.rule=Host(`vault.jorisjonkers.test`)'
       - 'traefik.http.routers.vault.entrypoints=websecure'
       - 'traefik.http.routers.vault.tls=true'
-      - 'traefik.http.routers.vault.middlewares=forward-auth@docker,security-headers@file'
+      - 'traefik.http.routers.vault.middlewares=security-headers@file'
       - 'traefik.http.services.vault.loadbalancer.server.port=8200'
 
   traefik:
@@ -149,7 +149,7 @@ services:
       - 'traefik.http.routers.n8n.rule=Host(`n8n.jorisjonkers.test`)'
       - 'traefik.http.routers.n8n.entrypoints=websecure'
       - 'traefik.http.routers.n8n.tls=true'
-      - 'traefik.http.routers.n8n.middlewares=forward-auth@docker,security-headers@file'
+      - 'traefik.http.routers.n8n.middlewares=security-headers@file'
       - 'traefik.http.services.n8n.loadbalancer.server.port=5678'
 
   grafana:
@@ -186,12 +186,14 @@ services:
       - 'traefik.http.routers.grafana.rule=Host(`grafana.jorisjonkers.test`)'
       - 'traefik.http.routers.grafana.entrypoints=websecure'
       - 'traefik.http.routers.grafana.tls=true'
-      - 'traefik.http.routers.grafana.middlewares=forward-auth@docker,security-headers@file'
+      - 'traefik.http.routers.grafana.middlewares=security-headers@file'
       - 'traefik.http.services.grafana.loadbalancer.server.port=3000'
 
   uptime-kuma:
     image: louislam/uptime-kuma:2
     container_name: personal-stack-uptime-kuma
+    environment:
+      UPTIME_KUMA_DB_TYPE: sqlite
     volumes:
       - uptime-kuma-data:/app/data
     healthcheck:
@@ -207,6 +209,163 @@ services:
       - 'traefik.http.routers.uptime-kuma.tls=true'
       - 'traefik.http.routers.uptime-kuma.middlewares=security-headers@file'
       - 'traefik.http.services.uptime-kuma.loadbalancer.server.port=3001'
+
+  uptime-kuma-init:
+    image: louislam/uptime-kuma:2
+    container_name: personal-stack-uptime-kuma-init
+    restart: 'no'
+    depends_on:
+      uptime-kuma:
+        condition: service_healthy
+    entrypoint:
+      - sh
+      - -ec
+      - |
+        node <<'EOF'
+        const { io } = require('/app/node_modules/socket.io-client')
+
+        const baseUrl = 'http://uptime-kuma:3001'
+        const adminUsername = 'admin'
+        const adminPassword = 'Test1234!'
+        const socketOptions = {
+          transports: ['polling', 'websocket'],
+          timeout: 5000,
+          reconnection: false,
+        }
+
+        function wait(ms) {
+          return new Promise((resolve) => setTimeout(resolve, ms))
+        }
+
+        function log(message) {
+          console.log('[uptime-kuma-init] ' + message)
+        }
+
+        function withTimeout(promise, timeoutMs, label) {
+          return Promise.race([
+            promise,
+            new Promise((_, reject) => {
+              setTimeout(() => reject(new Error(label + ' timed out after ' + timeoutMs + 'ms')), timeoutMs)
+            }),
+          ])
+        }
+
+        async function waitForSocketServer() {
+          log('Waiting for socket server')
+
+          for (let attempt = 0; attempt < 60; attempt += 1) {
+            let socket
+            try {
+              socket = io(baseUrl, socketOptions)
+              await withTimeout(
+                new Promise((resolve, reject) => {
+                  socket.once('connect', resolve)
+                  socket.once('connect_error', reject)
+                }),
+                7000,
+                'socket connect',
+              )
+              socket.close()
+              log('Socket server is reachable')
+              return
+            } catch (error) {
+              if (socket) {
+                socket.close()
+              }
+              await wait(1000)
+            }
+          }
+
+          throw new Error('Timed out waiting for Uptime Kuma socket server')
+        }
+
+        function connectSocket() {
+          const socket = io(baseUrl, socketOptions)
+          return withTimeout(
+            new Promise((resolve, reject) => {
+              socket.once('connect', () => resolve(socket))
+              socket.once('connect_error', reject)
+            }),
+            7000,
+            'socket connect',
+          )
+        }
+
+        function emitWithAck(socket, event, ...args) {
+          return withTimeout(
+            new Promise((resolve, reject) => {
+              socket.emit(event, ...args, (response) => {
+                if (response && response.ok === false) {
+                  reject(new Error(response.msg || (event + ' failed')))
+                  return
+                }
+                resolve(response)
+              })
+            }),
+            10000,
+            event + ' ack',
+          )
+        }
+
+        function emitValue(socket, event) {
+          return withTimeout(
+            new Promise((resolve) => {
+              socket.emit(event, resolve)
+            }),
+            10000,
+            event + ' response',
+          )
+        }
+
+        async function ensureInitialized() {
+          await waitForSocketServer()
+          const socket = await connectSocket()
+
+          try {
+            log('Checking setup state')
+            const needSetup = await emitValue(socket, 'needSetup')
+
+            if (needSetup) {
+              log('Running initial setup')
+              await emitWithAck(socket, 'setup', adminUsername, adminPassword)
+            }
+
+            log('Logging in')
+            await emitWithAck(socket, 'login', { username: adminUsername, password: adminPassword, token: '' })
+
+            try {
+              log('Ensuring status page exists')
+              await emitWithAck(socket, 'addStatusPage', 'jorisjonkers.test Status', 'default')
+            } catch (error) {
+              const message = error.message.toLowerCase()
+              if (!message.includes('slug') && !message.includes('exist') && !message.includes('added')) {
+                throw error
+              }
+            }
+
+            log('Setting entry page')
+            await emitWithAck(
+              socket,
+              'setSettings',
+              {
+                entryPage: 'statusPage-default',
+              },
+              '',
+            )
+          } finally {
+            socket.close()
+          }
+        }
+
+        ensureInitialized()
+          .then(() => {
+            console.log('Uptime Kuma initialized for system tests')
+          })
+          .catch((error) => {
+            console.error('Failed to initialize Uptime Kuma', error)
+            process.exit(1)
+          })
+        EOF
 
   stalwart:
     image: stalwartlabs/stalwart:latest
@@ -255,7 +414,7 @@ services:
       SESSION_COOKIE_DOMAIN: jorisjonkers.test
       SESSION_COOKIE_SECURE: 'true'
       SESSION_COOKIE_SAME_SITE: Lax
-      AUTH_CORS_ALLOWED_ORIGINS: https://jorisjonkers.test,https://auth.jorisjonkers.test,https://assistant.jorisjonkers.test
+      AUTH_CORS_ALLOWED_ORIGINS: https://jorisjonkers.test,https://auth.jorisjonkers.test,https://assistant.jorisjonkers.test,https://vault.jorisjonkers.test,https://n8n.jorisjonkers.test,https://grafana.jorisjonkers.test,https://rabbitmq.jorisjonkers.test,https://mail.jorisjonkers.test,https://stalwart.jorisjonkers.test,https://traefik.jorisjonkers.test,https://status.jorisjonkers.test
       OTEL_SERVICE_NAME: auth-api
       OTEL_LOGS_EXPORTER: none
       OTEL_TRACES_EXPORTER: none
