@@ -31,7 +31,7 @@ CYAN='\033[0;36m'
 RESET='\033[0m'
 
 STEP=0
-TOTAL_STEPS=9
+TOTAL_STEPS=10
 
 step() {
   STEP=$((STEP + 1))
@@ -220,7 +220,42 @@ ASSISTANT_API_SECRET_ID=$(vault_exec write -f -field=secret_id auth/approle/role
 ok "auth-api      role_id: $(mask "$AUTH_API_ROLE_ID")"
 ok "assistant-api role_id: $(mask "$ASSISTANT_API_ROLE_ID")"
 
-# ── 8. Populate Vault KV ──────────────────────────────────────────────────
+# ── 8. Configure OIDC auth for Vault UI/CLI ───────────────────────────────
+step "Configuring Vault OIDC authentication"
+
+: "${AUTH_ISSUER:=https://auth.jorisjonkers.dev}"
+: "${VAULT_PUBLIC_ADDR:=https://vault.jorisjonkers.dev}"
+: "${VAULT_OIDC_CLIENT_SECRET:=vault-secret}"
+ROLE_PAYLOAD_FILE="$(mktemp)"
+cat > "$ROLE_PAYLOAD_FILE" <<EOF
+{
+  "bound_audiences": "vault",
+  "allowed_redirect_uris": [
+    "${VAULT_PUBLIC_ADDR}/ui/vault/auth/oidc/oidc/callback",
+    "http://localhost:8250/oidc/callback"
+  ],
+  "user_claim": "sub",
+  "groups_claim": "roles",
+  "oidc_scopes": ["openid", "profile", "email"],
+  "bound_claims": {
+    "roles": ["ROLE_ADMIN", "SERVICE_VAULT"]
+  },
+  "token_policies": ["admin"]
+}
+EOF
+
+vault_exec auth enable oidc > /dev/null 2>&1 || true
+vault_exec write auth/oidc/config \
+  oidc_discovery_url="${AUTH_ISSUER}" \
+  oidc_client_id="vault" \
+  oidc_client_secret="${VAULT_OIDC_CLIENT_SECRET}" \
+  default_role="default" > /dev/null
+vault_exec write auth/oidc/role/default @"${ROLE_PAYLOAD_FILE}" > /dev/null
+
+rm -f "$ROLE_PAYLOAD_FILE"
+ok "Vault OIDC auth configured against ${AUTH_ISSUER}"
+
+# ── 9. Populate Vault KV ──────────────────────────────────────────────────
 step "Populating Vault KV with application secrets"
 
 if [[ -f "$VAULT_APP_SECRETS_FILE" ]]; then
@@ -252,7 +287,7 @@ else
   warn "RabbitMQ and DB credentials must be written to Vault manually"
 fi
 
-# ── 9. Swap placeholder secrets + redeploy ─────────────────────────────────
+# ── 10. Swap placeholder secrets + redeploy ────────────────────────────────
 step "Updating Docker Swarm secrets and redeploying"
 
 info "Removing stack to release placeholder secrets..."

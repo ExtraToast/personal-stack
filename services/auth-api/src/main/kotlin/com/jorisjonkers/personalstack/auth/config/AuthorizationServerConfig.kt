@@ -2,6 +2,7 @@ package com.jorisjonkers.personalstack.auth.config
 
 import com.jorisjonkers.personalstack.auth.domain.model.Role
 import com.jorisjonkers.personalstack.auth.domain.model.ServicePermission
+import com.jorisjonkers.personalstack.auth.domain.model.UserCredentials
 import com.jorisjonkers.personalstack.auth.domain.port.UserRepository
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
@@ -11,10 +12,12 @@ import org.springframework.http.MediaType
 import org.springframework.security.config.Customizer
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configurers.oauth2.server.authorization.OAuth2AuthorizationServerConfigurer
+import org.springframework.security.authentication.AnonymousAuthenticationToken
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.core.AuthorizationGrantType
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod
 import org.springframework.security.oauth2.core.oidc.OidcScopes
+import org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType
 import org.springframework.security.oauth2.server.authorization.client.InMemoryRegisteredClientRepository
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient
@@ -26,13 +29,18 @@ import org.springframework.security.oauth2.server.authorization.token.JwtEncodin
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint
+import org.springframework.security.web.context.SecurityContextHolderFilter
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher
 import org.springframework.security.web.util.matcher.OrRequestMatcher
+import org.springframework.web.filter.OncePerRequestFilter
 import org.springframework.web.cors.CorsConfigurationSource
 import java.time.Duration
 import java.util.UUID
+import jakarta.servlet.FilterChain
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
 
 @Configuration
 class AuthorizationServerConfig(
@@ -40,6 +48,12 @@ class AuthorizationServerConfig(
     private val issuer: String,
     @param:Value("\${auth.login-url:http://localhost:5174/login}")
     private val loginUrl: String,
+    @param:Value("\${auth.clients.grafana.secret:grafana-secret}")
+    private val grafanaClientSecret: String,
+    @param:Value("\${auth.clients.n8n.secret:n8n-secret}")
+    private val n8nClientSecret: String,
+    @param:Value("\${auth.clients.vault.secret:vault-secret}")
+    private val vaultClientSecret: String,
 ) {
     @Bean
     @Order(1)
@@ -63,6 +77,7 @@ class AuthorizationServerConfig(
             .cors { it.configurationSource(corsConfigurationSource) }
             .with(authServerConfigurer, Customizer.withDefaults())
             .authorizeHttpRequests { it.anyRequest().authenticated() }
+            .addFilterAfter(downstreamClientAuthorizationFilter(), SecurityContextHolderFilter::class.java)
             .securityContext { ctx ->
                 ctx.securityContextRepository(HttpSessionSecurityContextRepository())
             }.exceptionHandling { exceptions ->
@@ -77,27 +92,49 @@ class AuthorizationServerConfig(
 
     @Bean
     fun registeredClientRepository(): RegisteredClientRepository =
-        InMemoryRegisteredClientRepository(buildAuthUiClient(), buildAppUiClient(), buildAssistantApiClient())
+        InMemoryRegisteredClientRepository(
+            buildAuthUiClient(),
+            buildAppUiClient(),
+            buildAssistantApiClient(),
+            buildGrafanaClient(),
+            buildN8nClient(),
+            buildRabbitMqClient(),
+            buildVaultClient(),
+        )
 
     @Bean
     fun jwtTokenCustomizer(userRepository: UserRepository): OAuth2TokenCustomizer<JwtEncodingContext> =
         OAuth2TokenCustomizer { context ->
-            if (context.tokenType != OAuth2TokenType.ACCESS_TOKEN) return@OAuth2TokenCustomizer
             val principal = context.getPrincipal<Authentication>()
             val credentials =
                 userRepository.findCredentialsByUsername(principal.name) ?: return@OAuth2TokenCustomizer
-            val roles =
-                buildList {
-                    add("ROLE_${credentials.role.name}")
-                    if (credentials.role == Role.ADMIN) {
-                        addAll(ServicePermission.entries.map { "SERVICE_${it.name}" })
-                    } else {
-                        addAll(credentials.servicePermissions.map { "SERVICE_${it.name}" })
+            val roles = buildRoles(credentials)
+
+            when {
+                context.tokenType == OAuth2TokenType.ACCESS_TOKEN -> {
+                    context.claims.claim("roles", roles)
+                    context.claims.claim("username", credentials.username)
+                    context.claims.claim("preferred_username", credentials.username)
+                    context.claims.claim("email", credentials.email)
+                    context.claims.claim("aud", listOf(context.registeredClient.clientId))
+                    context.claims.subject(credentials.userId.value.toString())
+                }
+
+                context.tokenType.value == OidcParameterNames.ID_TOKEN -> {
+                    context.claims.claim("roles", roles)
+                    context.claims.subject(credentials.userId.value.toString())
+
+                    if (OidcScopes.PROFILE in context.authorizedScopes) {
+                        context.claims.claim("preferred_username", credentials.username)
+                        context.claims.claim("name", credentials.username)
+                    }
+
+                    if (OidcScopes.EMAIL in context.authorizedScopes) {
+                        context.claims.claim("email", credentials.email)
+                        context.claims.claim("email_verified", credentials.emailConfirmed)
                     }
                 }
-            context.claims.claim("roles", roles)
-            context.claims.claim("username", credentials.username)
-            context.claims.subject(credentials.userId.value.toString())
+            }
         }
 
     @Bean
@@ -121,8 +158,10 @@ class AuthorizationServerConfig(
             .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
             .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
             .redirectUri("https://auth.jorisjonkers.dev/callback")
+            .redirectUri("https://auth.jorisjonkers.test/callback")
             .redirectUri("http://localhost:5174/callback")
             .postLogoutRedirectUri("https://auth.jorisjonkers.dev/logged-out")
+            .postLogoutRedirectUri("https://auth.jorisjonkers.test/logged-out")
             .scope(OidcScopes.OPENID)
             .scope(OidcScopes.PROFILE)
             .scope(OidcScopes.EMAIL)
@@ -149,8 +188,10 @@ class AuthorizationServerConfig(
             .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
             .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
             .redirectUri("https://jorisjonkers.dev/callback")
+            .redirectUri("https://jorisjonkers.test/callback")
             .redirectUri("http://localhost:5175/callback")
             .postLogoutRedirectUri("https://jorisjonkers.dev")
+            .postLogoutRedirectUri("https://jorisjonkers.test")
             .postLogoutRedirectUri("http://localhost:5175")
             .scope(OidcScopes.OPENID)
             .scope(OidcScopes.PROFILE)
@@ -186,8 +227,177 @@ class AuthorizationServerConfig(
                     .build(),
             ).build()
 
+    private fun buildGrafanaClient(): RegisteredClient =
+        RegisteredClient
+            .withId(UUID.randomUUID().toString())
+            .clientId("grafana")
+            .clientSecret("{noop}$grafanaClientSecret")
+            .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+            .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
+            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+            .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+            .redirectUri("https://grafana.jorisjonkers.dev/login/generic_oauth")
+            .redirectUri("https://grafana.jorisjonkers.test/login/generic_oauth")
+            .scope(OidcScopes.OPENID)
+            .scope(OidcScopes.PROFILE)
+            .scope(OidcScopes.EMAIL)
+            .clientSettings(
+                ClientSettings
+                    .builder()
+                    .requireProofKey(false)
+                    .requireAuthorizationConsent(false)
+                    .build(),
+            ).tokenSettings(
+                TokenSettings
+                    .builder()
+                    .accessTokenTimeToLive(ACCESS_TOKEN_TTL)
+                    .refreshTokenTimeToLive(REFRESH_TOKEN_TTL)
+                    .reuseRefreshTokens(false)
+                    .build(),
+            ).build()
+
+    private fun buildN8nClient(): RegisteredClient =
+        RegisteredClient
+            .withId(UUID.randomUUID().toString())
+            .clientId("n8n")
+            .clientSecret("{noop}$n8nClientSecret")
+            .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+            .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
+            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+            .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+            .redirectUri("https://n8n.jorisjonkers.dev/auth/oidc/callback")
+            .redirectUri("https://n8n.jorisjonkers.test/auth/oidc/callback")
+            .scope(OidcScopes.OPENID)
+            .scope(OidcScopes.PROFILE)
+            .scope(OidcScopes.EMAIL)
+            .clientSettings(
+                ClientSettings
+                    .builder()
+                    .requireProofKey(false)
+                    .requireAuthorizationConsent(false)
+                    .build(),
+            ).tokenSettings(
+                TokenSettings
+                    .builder()
+                    .accessTokenTimeToLive(ACCESS_TOKEN_TTL)
+                    .refreshTokenTimeToLive(REFRESH_TOKEN_TTL)
+                    .reuseRefreshTokens(false)
+                    .build(),
+            ).build()
+
+    private fun buildRabbitMqClient(): RegisteredClient =
+        RegisteredClient
+            .withId(UUID.randomUUID().toString())
+            .clientId("rabbitmq")
+            .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
+            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+            .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+            .redirectUri("https://rabbitmq.jorisjonkers.dev/js/oidc-oauth/login-callback.html")
+            .redirectUri("https://rabbitmq.jorisjonkers.test/js/oidc-oauth/login-callback.html")
+            .scope(OidcScopes.OPENID)
+            .scope(OidcScopes.PROFILE)
+            .scope(OidcScopes.EMAIL)
+            .scope("rabbitmq.tag:administrator")
+            .clientSettings(
+                ClientSettings
+                    .builder()
+                    .requireProofKey(true)
+                    .requireAuthorizationConsent(false)
+                    .build(),
+            ).tokenSettings(
+                TokenSettings
+                    .builder()
+                    .accessTokenTimeToLive(ACCESS_TOKEN_TTL)
+                    .refreshTokenTimeToLive(REFRESH_TOKEN_TTL)
+                    .reuseRefreshTokens(false)
+                    .build(),
+            ).build()
+
+    private fun buildVaultClient(): RegisteredClient =
+        RegisteredClient
+            .withId(UUID.randomUUID().toString())
+            .clientId("vault")
+            .clientSecret("{noop}$vaultClientSecret")
+            .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+            .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
+            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+            .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+            .redirectUri("https://vault.jorisjonkers.dev/ui/vault/auth/oidc/oidc/callback")
+            .redirectUri("https://vault.jorisjonkers.test/ui/vault/auth/oidc/oidc/callback")
+            .redirectUri("http://localhost:8250/oidc/callback")
+            .redirectUri("http://127.0.0.1:8250/oidc/callback")
+            .scope(OidcScopes.OPENID)
+            .scope(OidcScopes.PROFILE)
+            .scope(OidcScopes.EMAIL)
+            .clientSettings(
+                ClientSettings
+                    .builder()
+                    .requireProofKey(false)
+                    .requireAuthorizationConsent(false)
+                    .build(),
+            ).tokenSettings(
+                TokenSettings
+                    .builder()
+                    .accessTokenTimeToLive(ACCESS_TOKEN_TTL)
+                    .refreshTokenTimeToLive(REFRESH_TOKEN_TTL)
+                    .reuseRefreshTokens(false)
+                    .build(),
+            ).build()
+
+    private fun buildRoles(credentials: UserCredentials): List<String> =
+        buildList {
+            add("ROLE_${credentials.role.name}")
+            if (credentials.role == Role.ADMIN) {
+                addAll(ServicePermission.entries.map { "SERVICE_${it.name}" })
+            } else {
+                addAll(credentials.servicePermissions.map { "SERVICE_${it.name}" })
+            }
+        }
+
+    private fun downstreamClientAuthorizationFilter(): OncePerRequestFilter =
+        object : OncePerRequestFilter() {
+            override fun shouldNotFilter(request: HttpServletRequest): Boolean = request.requestURI != "/api/oauth2/authorize"
+
+            override fun doFilterInternal(
+                request: HttpServletRequest,
+                response: HttpServletResponse,
+                filterChain: FilterChain,
+            ) {
+                val requiredPermission =
+                    downstreamClientPermissions[request.getParameter("client_id")] ?: run {
+                        filterChain.doFilter(request, response)
+                        return
+                    }
+                val authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().authentication
+
+                if (authentication == null || authentication is AnonymousAuthenticationToken || !authentication.isAuthenticated) {
+                    filterChain.doFilter(request, response)
+                    return
+                }
+
+                val authorities = authentication.authorities.map { it.authority }.toSet()
+                val allowed =
+                    "ROLE_ADMIN" in authorities ||
+                        "SERVICE_${requiredPermission.name}" in authorities
+
+                if (!allowed) {
+                    response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access denied for OAuth client")
+                    return
+                }
+
+                filterChain.doFilter(request, response)
+            }
+        }
+
     companion object {
         private val ACCESS_TOKEN_TTL: Duration = Duration.ofMinutes(15)
         private val REFRESH_TOKEN_TTL: Duration = Duration.ofDays(7)
+        private val downstreamClientPermissions: Map<String, ServicePermission> =
+            mapOf(
+                "grafana" to ServicePermission.GRAFANA,
+                "vault" to ServicePermission.VAULT,
+                "n8n" to ServicePermission.N8N,
+                "rabbitmq" to ServicePermission.RABBITMQ,
+            )
     }
 }

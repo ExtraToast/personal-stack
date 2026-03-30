@@ -6,11 +6,12 @@
 #   1. Unseals Vault if sealed
 #   2. Rotates RabbitMQ credentials if user is "guest" (clears data volume)
 #   3. Re-applies Vault policies
-#   4. Syncs RabbitMQ + DB credentials to Vault KV
-#   5. Regenerates AppRole credentials + updates Docker Swarm secrets
-#   6. Redeploys the stack
-#   7. Unseals Vault after redeploy
-#   8. Waits for services to become healthy
+#   4. Re-applies Vault OIDC configuration
+#   5. Syncs RabbitMQ + DB credentials to Vault KV
+#   6. Regenerates AppRole credentials + updates Docker Swarm secrets
+#   7. Redeploys the stack
+#   8. Unseals Vault after redeploy
+#   9. Waits for services to become healthy
 set -euo pipefail
 
 STACK_DIR="/opt/personal-stack"
@@ -29,7 +30,7 @@ CYAN='\033[0;36m'
 RESET='\033[0m'
 
 STEP=0
-TOTAL_STEPS=8
+TOTAL_STEPS=9
 
 step() {
   STEP=$((STEP + 1))
@@ -130,6 +131,9 @@ fi
 : "${AUTH_DB_PASSWORD:=auth_password}"
 : "${ASSISTANT_DB_USER:=assistant_user}"
 : "${ASSISTANT_DB_PASSWORD:=assistant_password}"
+: "${AUTH_ISSUER:=https://auth.jorisjonkers.dev}"
+: "${VAULT_PUBLIC_ADDR:=https://vault.jorisjonkers.dev}"
+: "${VAULT_OIDC_CLIENT_SECRET:=vault-secret}"
 
 # ── Locate containers ──────────────────────────────────────────────────────
 step "Locating containers"
@@ -143,6 +147,125 @@ vault_exec() {
     -e VAULT_ADDR=http://127.0.0.1:8200 \
     -e VAULT_TOKEN="$VAULT_ROOT_TOKEN" \
     "$VAULT_CONTAINER" vault "$@"
+}
+
+json_array_from_csv() {
+  local csv="$1"
+  local raw=()
+  local escaped=()
+  local item
+  IFS=',' read -r -a raw <<< "$csv"
+  for item in "${raw[@]}"; do
+    item="${item#"${item%%[![:space:]]*}"}"
+    item="${item%"${item##*[![:space:]]}"}"
+    [[ -n "$item" ]] || continue
+    escaped+=("\"$item\"")
+  done
+  local joined=""
+  local i
+  for i in "${!escaped[@]}"; do
+    [[ "$i" -gt 0 ]] && joined+=", "
+    joined+="${escaped[$i]}"
+  done
+  printf '[%s]' "$joined"
+}
+
+extract_host_and_port() {
+  local url="$1"
+  local authority="${url#*://}"
+  authority="${authority%%/*}"
+  if [[ "$authority" == *:* ]]; then
+    printf '%s %s\n' "${authority%%:*}" "${authority##*:}"
+  else
+    printf '%s 443\n' "$authority"
+  fi
+}
+
+copy_into_vault_container() {
+  local source_file="$1"
+  local destination_file="$2"
+  docker exec -i "$VAULT_CONTAINER" sh -c "cat > '$destination_file'" < "$source_file"
+}
+
+prepare_auth_issuer_ca_file() {
+  if [[ "$AUTH_ISSUER" != https://*.test* ]]; then
+    return
+  fi
+
+  command -v openssl >/dev/null 2>&1 || die "openssl is required to fetch the auth issuer CA for .test hosts."
+
+  local issuer_host
+  local issuer_port
+  local ca_file
+  read -r issuer_host issuer_port <<< "$(extract_host_and_port "$AUTH_ISSUER")"
+  ca_file="$(mktemp)"
+  openssl s_client -showcerts -servername "$issuer_host" -connect "$issuer_host:$issuer_port" </dev/null 2>/dev/null \
+    | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ { print }' > "$ca_file"
+
+  [[ -s "$ca_file" ]] || die "Failed to fetch the auth issuer certificate chain from $AUTH_ISSUER."
+  printf '%s\n' "$ca_file"
+}
+
+reapply_vault_oidc_config() {
+  local role_payload_file
+  local ca_file=""
+  local container_role_payload_file="/tmp/vault-oidc-role.json"
+  local container_ca_file="/tmp/auth-issuer-ca.pem"
+  local oidc_role_name="${VAULT_OIDC_ROLE_NAME:-default}"
+  local oidc_client_id="${VAULT_OIDC_CLIENT_ID:-vault}"
+  local oidc_scopes="${VAULT_OIDC_SCOPES:-openid,profile,email}"
+  local bound_role_values="${VAULT_BOUND_ROLE_VALUES:-ROLE_ADMIN,SERVICE_VAULT}"
+  local token_policies="${VAULT_TOKEN_POLICIES:-admin}"
+  local allowed_redirect_uris="${VAULT_ALLOWED_REDIRECT_URIS:-${VAULT_PUBLIC_ADDR%/}/ui/vault/auth/oidc/oidc/callback,http://localhost:8250/oidc/callback}"
+  local allowed_redirect_uris_json
+  local oidc_scopes_json
+  local bound_roles_json
+  local token_policies_json
+
+  role_payload_file="$(mktemp)"
+  allowed_redirect_uris_json="$(json_array_from_csv "$allowed_redirect_uris")"
+  oidc_scopes_json="$(json_array_from_csv "$oidc_scopes")"
+  bound_roles_json="$(json_array_from_csv "$bound_role_values")"
+  token_policies_json="$(json_array_from_csv "$token_policies")"
+
+  cat > "$role_payload_file" <<EOF
+{
+  "bound_audiences": "${oidc_client_id}",
+  "allowed_redirect_uris": ${allowed_redirect_uris_json},
+  "user_claim": "sub",
+  "groups_claim": "roles",
+  "oidc_scopes": ${oidc_scopes_json},
+  "bound_claims": {
+    "roles": ${bound_roles_json}
+  },
+  "token_policies": ${token_policies_json}
+}
+EOF
+
+  vault_exec auth enable oidc >/dev/null 2>&1 || true
+
+  if [[ "$AUTH_ISSUER" == https://*.test* ]]; then
+    ca_file="$(prepare_auth_issuer_ca_file)"
+    copy_into_vault_container "$ca_file" "$container_ca_file"
+    vault_exec write auth/oidc/config \
+      "oidc_discovery_url=${AUTH_ISSUER}" \
+      "oidc_discovery_ca_pem=@${container_ca_file}" \
+      "oidc_client_id=${oidc_client_id}" \
+      "oidc_client_secret=${VAULT_OIDC_CLIENT_SECRET}" \
+      "default_role=${oidc_role_name}" > /dev/null
+  else
+    vault_exec write auth/oidc/config \
+      "oidc_discovery_url=${AUTH_ISSUER}" \
+      "oidc_client_id=${oidc_client_id}" \
+      "oidc_client_secret=${VAULT_OIDC_CLIENT_SECRET}" \
+      "default_role=${oidc_role_name}" > /dev/null
+  fi
+
+  copy_into_vault_container "$role_payload_file" "$container_role_payload_file"
+  vault_exec write "auth/oidc/role/${oidc_role_name}" "@${container_role_payload_file}" > /dev/null
+
+  rm -f "$role_payload_file"
+  [[ -n "$ca_file" ]] && rm -f "$ca_file"
 }
 
 # ── 1. Unseal Vault ────────────────────────────────────────────────────────
@@ -232,7 +355,12 @@ for policy in auth-api assistant-api; do
   ok "${policy}"
 done
 
-# ── 4. Sync credentials to Vault KV ────────────────────────────────────────
+# ── 4. Re-apply Vault OIDC configuration ───────────────────────────────────
+step "Re-applying Vault OIDC configuration"
+reapply_vault_oidc_config
+ok "Vault OIDC configuration repaired"
+
+# ── 5. Sync credentials to Vault KV ────────────────────────────────────────
 step "Syncing secrets to Vault KV"
 
 vault_exec kv put secret/auth-api \
@@ -251,7 +379,7 @@ ok "secret/assistant-api"
 
 info "Keys: spring.rabbitmq.username, spring.rabbitmq.password, spring.datasource.username, spring.datasource.password"
 
-# ── 5. Regenerate AppRole credentials ──────────────────────────────────────
+# ── 6. Regenerate AppRole credentials ──────────────────────────────────────
 step "Regenerating AppRole credentials"
 
 vault_exec auth enable approle 2>/dev/null || true
@@ -311,7 +439,7 @@ update_secret vault_assistant_api_role_id "$ASSISTANT_API_ROLE_ID"
 update_secret vault_assistant_api_secret_id "$ASSISTANT_API_SECRET_ID"
 ok "Docker Swarm secrets updated"
 
-# ── 6. Redeploy stack ──────────────────────────────────────────────────────
+# ── 7. Redeploy stack ──────────────────────────────────────────────────────
 step "Redeploying stack"
 
 docker stack deploy \
@@ -320,7 +448,7 @@ docker stack deploy \
   --with-registry-auth > /dev/null 2>&1
 ok "Stack deployed"
 
-# ── 7. Unseal Vault after redeploy ─────────────────────────────────────────
+# ── 8. Unseal Vault after redeploy ─────────────────────────────────────────
 step "Unsealing Vault after redeploy"
 
 elapsed=0
@@ -341,7 +469,7 @@ clear_line
 vault_exec operator unseal "$VAULT_UNSEAL_KEY" > /dev/null 2>&1 || true
 ok "Vault unsealed"
 
-# ── 8. Wait for services ───────────────────────────────────────────────────
+# ── 9. Wait for services ───────────────────────────────────────────────────
 step "Waiting for services to become healthy"
 
 wait_for_services 180

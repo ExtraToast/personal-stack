@@ -1,10 +1,18 @@
 <script setup lang="ts">
 import type { ServiceEntry } from '../data/serviceRegistry'
-import { Icon } from '@iconify/vue'
+import { computed, ref } from 'vue'
 
-defineProps<{
+const props = defineProps<{
   service: ServiceEntry
 }>()
+
+const iconLoadFailed = ref(false)
+
+const fallbackLabel = computed(() => props.service.label.slice(0, 1).toUpperCase())
+
+function handleIconError(): void {
+  iconLoadFailed.value = true
+}
 </script>
 
 <template>
@@ -14,7 +22,20 @@ defineProps<{
     target="_blank"
     rel="noopener noreferrer"
   >
-    <Icon class="h-8 w-8 shrink-0 text-terminal-green" :icon="service.icon" />
+    <div
+      class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-surface-border bg-gray-950/80 text-terminal-green"
+    >
+      <img
+        v-if="!iconLoadFailed"
+        class="h-6 w-6 object-contain"
+        :src="service.iconUrl"
+        :alt="`${service.label} icon`"
+        loading="eager"
+        decoding="async"
+        @error="handleIconError"
+      />
+      <span v-else class="font-mono text-xs font-bold">{{ fallbackLabel }}</span>
+    </div>
     <div class="min-w-0">
       <p class="font-mono text-sm font-bold text-gray-200 group-hover:text-terminal-green">
         {{ service.label }}
