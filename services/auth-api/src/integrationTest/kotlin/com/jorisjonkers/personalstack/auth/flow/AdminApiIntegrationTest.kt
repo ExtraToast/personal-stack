@@ -172,7 +172,7 @@ class AdminApiIntegrationTest : IntegrationTestBase() {
             .delete("/api/v1/admin/users/$adminId") {
                 with(
                     user(
-                        AuthenticatedUser(
+                        AuthenticatedUser.of(
                             userId = UserId(adminId),
                             username = adminId.toString(),
                             roles = listOf("ROLE_ADMIN"),
@@ -225,7 +225,7 @@ class AdminApiIntegrationTest : IntegrationTestBase() {
 
     private fun adminUser() =
         user(
-            AuthenticatedUser(
+            AuthenticatedUser.of(
                 userId = UserId(UUID.randomUUID()),
                 username = "admin-id",
                 roles = listOf("ROLE_ADMIN"),
@@ -234,7 +234,7 @@ class AdminApiIntegrationTest : IntegrationTestBase() {
 
     private fun regularUser() =
         user(
-            AuthenticatedUser(
+            AuthenticatedUser.of(
                 userId = UserId(UUID.randomUUID()),
                 username = "user-id",
                 roles = listOf("ROLE_USER"),

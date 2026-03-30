@@ -38,7 +38,7 @@ class TotpValidationIntegrationTest : IntegrationTestBase() {
             .post("/api/v1/totp/verify") {
                 with(
                     user(
-                        AuthenticatedUser(
+                        AuthenticatedUser.of(
                             userId = UserId(UUID.randomUUID()),
                             username = "user-id",
                             roles = listOf("ROLE_USER"),
@@ -61,7 +61,7 @@ class TotpValidationIntegrationTest : IntegrationTestBase() {
             .post("/api/v1/totp/verify") {
                 with(
                     user(
-                        AuthenticatedUser(
+                        AuthenticatedUser.of(
                             userId = UserId(UUID.randomUUID()),
                             username = "user-id",
                             roles = listOf("ROLE_USER"),

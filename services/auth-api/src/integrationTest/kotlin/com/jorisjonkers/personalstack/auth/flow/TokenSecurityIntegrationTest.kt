@@ -110,7 +110,7 @@ class TokenSecurityIntegrationTest : IntegrationTestBase() {
             .get("/api/v1/admin/users") {
                 with(
                     user(
-                        AuthenticatedUser(
+                        AuthenticatedUser.of(
                             userId = UserId(UUID.randomUUID()),
                             username = "user-id",
                             roles = listOf("ROLE_USER"),
@@ -169,7 +169,7 @@ class TokenSecurityIntegrationTest : IntegrationTestBase() {
     @Test
     fun `session with ADMIN role can access admin endpoints`() {
         val adminUser =
-            AuthenticatedUser(
+            AuthenticatedUser.of(
                 userId = UserId(UUID.randomUUID()),
                 username = "admin-session",
                 roles = listOf("ROLE_ADMIN"),

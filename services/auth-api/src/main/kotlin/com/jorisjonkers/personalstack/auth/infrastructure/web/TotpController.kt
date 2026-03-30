@@ -27,7 +27,7 @@ class TotpController(
     fun enroll(
         @AuthenticationPrincipal user: AuthenticatedUser,
     ): ResponseEntity<TotpEnrollResponse> {
-        val secret = enrollTotpCommandHandler.handle(EnrollTotpCommand(user.userId))
+        val secret = enrollTotpCommandHandler.handle(EnrollTotpCommand(user.userIdValue()))
         val qrUri = totpService.generateQrUri(secret, user.username)
         return ResponseEntity.ok(TotpEnrollResponse(secret = secret, qrUri = qrUri))
     }
@@ -37,7 +37,7 @@ class TotpController(
         @AuthenticationPrincipal user: AuthenticatedUser,
         @Valid @RequestBody request: TotpVerifyRequest,
     ): ResponseEntity<Void> {
-        commandBus.dispatch(VerifyTotpCommand(userId = user.userId, code = request.code))
+        commandBus.dispatch(VerifyTotpCommand(userId = user.userIdValue(), code = request.code))
         return ResponseEntity.noContent().build()
     }
 }

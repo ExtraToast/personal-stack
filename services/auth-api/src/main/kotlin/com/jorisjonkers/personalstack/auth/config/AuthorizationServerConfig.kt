@@ -3,7 +3,9 @@ package com.jorisjonkers.personalstack.auth.config
 import com.jorisjonkers.personalstack.auth.domain.model.Role
 import com.jorisjonkers.personalstack.auth.domain.model.ServicePermission
 import com.jorisjonkers.personalstack.auth.domain.model.UserCredentials
+import com.jorisjonkers.personalstack.auth.domain.model.UserId
 import com.jorisjonkers.personalstack.auth.domain.port.UserRepository
+import com.jorisjonkers.personalstack.auth.infrastructure.security.AuthenticatedUser
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -19,6 +21,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configurers.oauth2.server.authorization.OAuth2AuthorizationServerConfigurer
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.jackson.SecurityJacksonModules
 import org.springframework.security.oauth2.core.oidc.OidcScopes
 import org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames
 import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationConsentService
@@ -28,6 +31,7 @@ import org.springframework.security.oauth2.server.authorization.OAuth2Authorizat
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType
 import org.springframework.security.oauth2.server.authorization.client.InMemoryRegisteredClientRepository
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository
+import org.springframework.security.oauth2.server.authorization.jackson.OAuth2AuthorizationServerJacksonModule
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer
@@ -124,7 +128,37 @@ class AuthorizationServerConfig(
     fun authorizationService(
         jdbcOperations: JdbcOperations,
         registeredClientRepository: RegisteredClientRepository,
-    ): OAuth2AuthorizationService = JdbcOAuth2AuthorizationService(jdbcOperations, registeredClientRepository)
+    ): OAuth2AuthorizationService {
+        val jsonMapper = buildAuthorizationJsonMapper()
+        val rowMapper =
+            JdbcOAuth2AuthorizationService.JsonMapperOAuth2AuthorizationRowMapper(
+                registeredClientRepository,
+                jsonMapper,
+            )
+        return JdbcOAuth2AuthorizationService(jdbcOperations, registeredClientRepository).apply {
+            setAuthorizationRowMapper(rowMapper)
+        }
+    }
+
+    private fun buildAuthorizationJsonMapper(): tools.jackson.databind.json.JsonMapper {
+        val classLoader = AuthorizationServerConfig::class.java.classLoader
+        val typeValidator =
+            tools.jackson.databind.jsontype.BasicPolymorphicTypeValidator
+                .builder()
+                .allowIfSubType("com.jorisjonkers.personalstack.")
+                .allowIfSubType("kotlin.")
+        return tools.jackson.databind.json.JsonMapper
+            .builder()
+            .addModules(SecurityJacksonModules.getModules(classLoader, typeValidator))
+            .addModule(OAuth2AuthorizationServerJacksonModule())
+            .addModule(
+                tools.jackson.module.kotlin.KotlinModule
+                    .Builder()
+                    .build(),
+            ).addMixIn(AuthenticatedUser::class.java, AuthenticatedUserMixin::class.java)
+            .addMixIn(UserId::class.java, UserIdMixin::class.java)
+            .build()
+    }
 
     @Bean
     fun authorizationConsentService(

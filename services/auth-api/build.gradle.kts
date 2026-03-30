@@ -24,6 +24,7 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.springframework.boot:spring-boot-starter-jooq")
     implementation("org.jooq:jooq")
+    implementation("tools.jackson.module:jackson-module-kotlin:3.1.0")
     runtimeOnly("org.postgresql:postgresql")
     implementation("dev.turingcomplete:kotlin-onetimepassword:2.4.0")
     implementation("commons-codec:commons-codec")

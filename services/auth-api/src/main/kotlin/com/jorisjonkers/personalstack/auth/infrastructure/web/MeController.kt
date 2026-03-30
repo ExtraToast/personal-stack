@@ -17,7 +17,7 @@ class MeController {
     ): ResponseEntity<SessionUserResponse> =
         ResponseEntity.ok(
             SessionUserResponse(
-                id = user.userId.value.toString(),
+                id = user.userId.toString(),
                 username = user.username,
                 role =
                     user.roles

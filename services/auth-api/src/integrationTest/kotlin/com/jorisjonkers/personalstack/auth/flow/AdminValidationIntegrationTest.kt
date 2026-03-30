@@ -112,7 +112,7 @@ class AdminValidationIntegrationTest : IntegrationTestBase() {
 
     private fun adminUser() =
         user(
-            AuthenticatedUser(
+            AuthenticatedUser.of(
                 userId = UserId(UUID.randomUUID()),
                 username = "admin-id",
                 roles = listOf("ROLE_ADMIN"),
@@ -121,7 +121,7 @@ class AdminValidationIntegrationTest : IntegrationTestBase() {
 
     private fun regularUser() =
         user(
-            AuthenticatedUser(
+            AuthenticatedUser.of(
                 userId = UserId(UUID.randomUUID()),
                 username = "user-id",
                 roles = listOf("ROLE_USER"),

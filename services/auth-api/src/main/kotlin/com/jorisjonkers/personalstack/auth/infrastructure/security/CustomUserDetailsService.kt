@@ -18,7 +18,7 @@ class CustomUserDetailsService(
             userRepository.findCredentialsByUsername(username)
                 ?: throw UsernameNotFoundException("User not found: $username")
 
-        return AuthenticatedUser(
+        return AuthenticatedUser.of(
             userId = credentials.userId,
             username = credentials.username,
             roles = buildRoles(credentials),

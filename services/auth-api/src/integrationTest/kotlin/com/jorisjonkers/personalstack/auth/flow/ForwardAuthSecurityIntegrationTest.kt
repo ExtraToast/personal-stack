@@ -48,7 +48,7 @@ class ForwardAuthSecurityIntegrationTest : IntegrationTestBase() {
             .get("/api/v1/auth/verify") {
                 with(
                     user(
-                        AuthenticatedUser(
+                        AuthenticatedUser.of(
                             userId = UserId(userId),
                             username = "admin-sec-1",
                             roles = listOf("ROLE_ADMIN"),
@@ -68,7 +68,7 @@ class ForwardAuthSecurityIntegrationTest : IntegrationTestBase() {
             .get("/api/v1/auth/verify") {
                 with(
                     user(
-                        AuthenticatedUser(
+                        AuthenticatedUser.of(
                             userId = UserId(UUID.randomUUID()),
                             username = "user-sec-1",
                             roles = listOf("ROLE_USER"),
@@ -88,7 +88,7 @@ class ForwardAuthSecurityIntegrationTest : IntegrationTestBase() {
                 .get("/api/v1/auth/verify") {
                     with(
                         user(
-                            AuthenticatedUser(
+                            AuthenticatedUser.of(
                                 userId = UserId(UUID.randomUUID()),
                                 username = "user-sec-2",
                                 roles = listOf("ROLE_USER"),
@@ -117,7 +117,7 @@ class ForwardAuthSecurityIntegrationTest : IntegrationTestBase() {
             .get("/api/v1/auth/verify") {
                 with(
                     user(
-                        AuthenticatedUser(
+                        AuthenticatedUser.of(
                             userId = UserId(userId),
                             username = "user-sec-3",
                             roles = listOf("ROLE_USER", "SERVICE_GRAFANA"),

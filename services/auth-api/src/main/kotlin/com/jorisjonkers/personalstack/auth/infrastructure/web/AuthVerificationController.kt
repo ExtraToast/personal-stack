@@ -36,7 +36,7 @@ class AuthVerificationController {
 
         return ResponseEntity
             .ok()
-            .header("X-User-Id", user.userId.value.toString())
+            .header("X-User-Id", user.userId.toString())
             .header("X-User-Roles", rolesHeader)
             .build()
     }

@@ -84,7 +84,7 @@ class CustomUserDetailsServiceTest {
 
         val userDetails = service.loadUserByUsername("bob") as AuthenticatedUser
 
-        assertThat(userDetails.userId).isEqualTo(id)
+        assertThat(userDetails.userId).isEqualTo(id.value)
         assertThat(userDetails.username).isEqualTo("bob")
     }
 }
