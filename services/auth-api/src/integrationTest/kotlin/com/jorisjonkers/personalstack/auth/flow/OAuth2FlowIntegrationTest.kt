@@ -16,6 +16,10 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
 import org.springframework.mock.web.MockHttpSession
+import org.springframework.security.oauth2.core.AuthorizationGrantType
+import org.springframework.security.oauth2.core.ClientAuthenticationMethod
+import org.springframework.security.oauth2.jwt.JwtDecoder
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository
@@ -44,14 +48,32 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
     @Autowired
     private lateinit var totpService: TotpService
 
+    @Autowired
+    private lateinit var jwtDecoder: JwtDecoder
+
+    @Autowired
+    private lateinit var registeredClientRepository: RegisteredClientRepository
+
     private lateinit var mockMvc: MockMvc
 
     private val objectMapper = jacksonObjectMapper()
+
+    private data class OidcClientRequest(
+        val clientId: String,
+        val redirectUri: String,
+        val scope: String,
+        val requiresPkce: Boolean,
+    )
 
     companion object {
         private const val CLIENT_ID = "auth-ui"
         private const val REDIRECT_URI = "http://localhost:5174/callback"
         private const val SCOPE = "openid profile email"
+        private const val GRAFANA_REDIRECT_URI = "https://grafana.jorisjonkers.test/login/generic_oauth"
+        private const val N8N_REDIRECT_URI = "https://n8n.jorisjonkers.test/auth/oidc/callback"
+        private const val RABBITMQ_REDIRECT_URI = "https://rabbitmq.jorisjonkers.test/js/oidc-oauth/login-callback.html"
+        private const val VAULT_CLIENT_ID = "vault"
+        private const val VAULT_REDIRECT_URI = "https://vault.jorisjonkers.test/ui/vault/auth/oidc/oidc/callback"
     }
 
     @BeforeEach
@@ -358,6 +380,195 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
         }
         // If session isn't recognized by the auth server in MockMvc, just verify session was created
         assertThat(session).isNotNull()
+    }
+
+    @Test
+    fun `OIDC token exchange exposes downstream user claims through id token and userinfo`() {
+        val username = uniqueUsername()
+        val password = "securepass123"
+        registerAndConfirmUser(username, password)
+
+        val loginResult = doSessionLogin(username, password)
+        val session = extractSession(loginResult)!!
+
+        val codeVerifier = generateCodeVerifier()
+        val codeChallenge = generateCodeChallenge(codeVerifier)
+
+        val authorizeResult =
+            mockMvc
+                .get("/api/oauth2/authorize") {
+                    param("response_type", "code")
+                    param("client_id", CLIENT_ID)
+                    param("redirect_uri", REDIRECT_URI)
+                    param("scope", SCOPE)
+                    param("code_challenge", codeChallenge)
+                    param("code_challenge_method", "S256")
+                    param("state", "oidc-claims-state")
+                    accept = MediaType.TEXT_HTML
+                    this.session = session
+                }.andReturn()
+
+        val location = authorizeResult.response.getHeader("Location")
+        if (location == null || !location.contains("code=")) {
+            assertThat(session).isNotNull()
+            return
+        }
+        val code = location.substringAfter("code=").substringBefore("&")
+
+        val tokenResult =
+            mockMvc
+                .post("/api/oauth2/token") {
+                    contentType = MediaType.APPLICATION_FORM_URLENCODED
+                    content =
+                        "grant_type=authorization_code" +
+                        "&code=${URLEncoder.encode(code, StandardCharsets.UTF_8)}" +
+                        "&redirect_uri=${URLEncoder.encode(REDIRECT_URI, StandardCharsets.UTF_8)}" +
+                        "&client_id=$CLIENT_ID" +
+                        "&code_verifier=$codeVerifier"
+                }.andExpect { status { isOk() } }
+                .andReturn()
+
+        val tokenJson = objectMapper.readTree(tokenResult.response.contentAsString)
+        val accessToken = tokenJson["access_token"].asText()
+        val idToken = tokenJson["id_token"].asText()
+        assertThat(accessToken).isNotBlank()
+        assertThat(idToken).isNotBlank()
+
+        val decodedIdToken = jwtDecoder.decode(idToken)
+        assertThat(decodedIdToken.subject).isNotBlank()
+        assertThat(decodedIdToken.getClaimAsString("preferred_username")).isEqualTo(username)
+        assertThat(decodedIdToken.getClaimAsString("name")).isEqualTo(username)
+        assertThat(decodedIdToken.getClaimAsString("email")).isEqualTo("$username@example.com")
+        assertThat(decodedIdToken.getClaimAsBoolean("email_verified")).isTrue()
+        assertThat(decodedIdToken.getClaimAsStringList("roles")).contains("ROLE_USER")
+        assertThat(jwtDecoder.decode(accessToken).audience).contains(CLIENT_ID)
+
+        mockMvc
+            .get("/api/userinfo") {
+                header("Authorization", "Bearer $accessToken")
+            }.andExpect {
+                status { isOk() }
+                jsonPath("$.sub") { value(decodedIdToken.subject) }
+                jsonPath("$.preferred_username") { value(username) }
+                jsonPath("$.name") { value(username) }
+                jsonPath("$.email") { value("$username@example.com") }
+                jsonPath("$.email_verified") { value(true) }
+            }
+    }
+
+    @Test
+    fun `downstream OIDC clients are registered with expected redirect URIs and auth modes`() {
+        val grafanaClient = registeredClientRepository.findByClientId("grafana")
+        val n8nClient = registeredClientRepository.findByClientId("n8n")
+        val rabbitMqClient = registeredClientRepository.findByClientId("rabbitmq")
+        val vaultClient = registeredClientRepository.findByClientId(VAULT_CLIENT_ID)
+
+        assertThat(grafanaClient).isNotNull()
+        assertThat(grafanaClient!!.redirectUris).contains(GRAFANA_REDIRECT_URI)
+        assertThat(grafanaClient.authorizationGrantTypes).contains(AuthorizationGrantType.AUTHORIZATION_CODE)
+        assertThat(grafanaClient.clientAuthenticationMethods).contains(ClientAuthenticationMethod.CLIENT_SECRET_POST)
+
+        assertThat(n8nClient).isNotNull()
+        assertThat(n8nClient!!.redirectUris).contains(N8N_REDIRECT_URI)
+        assertThat(n8nClient.clientAuthenticationMethods).contains(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+
+        assertThat(rabbitMqClient).isNotNull()
+        assertThat(rabbitMqClient!!.redirectUris).contains(RABBITMQ_REDIRECT_URI)
+        assertThat(rabbitMqClient.clientAuthenticationMethods).contains(ClientAuthenticationMethod.NONE)
+        assertThat(rabbitMqClient.clientSettings.isRequireProofKey).isTrue()
+        assertThat(rabbitMqClient.scopes).contains("rabbitmq.tag:administrator")
+
+        assertThat(vaultClient).isNotNull()
+        assertThat(vaultClient!!.redirectUris).contains(VAULT_REDIRECT_URI)
+        assertThat(vaultClient.redirectUris).contains("http://localhost:8250/oidc/callback")
+        assertThat(vaultClient.authorizationGrantTypes).contains(AuthorizationGrantType.AUTHORIZATION_CODE)
+    }
+
+    @Test
+    fun `users without service permission cannot authorize downstream oidc clients`() {
+        val username = uniqueUsername()
+        val password = "securepass123"
+        registerAndConfirmUser(username, password)
+
+        val loginResult = doSessionLogin(username, password)
+        val session = extractSession(loginResult)!!
+
+        val requests =
+            listOf(
+                Triple("grafana", GRAFANA_REDIRECT_URI, "openid profile email"),
+                Triple(VAULT_CLIENT_ID, VAULT_REDIRECT_URI, "openid profile email"),
+                Triple("n8n", N8N_REDIRECT_URI, "openid profile email"),
+                Triple("rabbitmq", RABBITMQ_REDIRECT_URI, "openid profile email rabbitmq.tag:administrator"),
+            )
+
+        requests.forEach { (clientId, redirectUri, scope) ->
+            val codeVerifier = generateCodeVerifier()
+            val codeChallenge = generateCodeChallenge(codeVerifier)
+
+            mockMvc
+                .get("/api/oauth2/authorize") {
+                    param("response_type", "code")
+                    param("client_id", clientId)
+                    param("redirect_uri", redirectUri)
+                    param("scope", scope)
+                    param("code_challenge", codeChallenge)
+                    param("code_challenge_method", "S256")
+                    param("state", "deny-$clientId")
+                    accept = MediaType.TEXT_HTML
+                    this.session = session
+                }.andExpect {
+                    status { isForbidden() }
+                }
+        }
+    }
+
+    @Test
+    fun `admin users can authorize downstream oidc clients`() {
+        val username = uniqueUsername()
+        val password = "securepass123"
+        registerAndConfirmUser(username, password)
+        dsl.update(APP_USER).set(APP_USER.ROLE, "ADMIN").where(APP_USER.USERNAME.eq(username)).execute()
+
+        val loginResult = doSessionLogin(username, password)
+        val session = extractSession(loginResult)!!
+
+        val requests =
+            listOf(
+                OidcClientRequest("grafana", GRAFANA_REDIRECT_URI, "openid profile email", false),
+                OidcClientRequest(VAULT_CLIENT_ID, VAULT_REDIRECT_URI, "openid profile email", false),
+                OidcClientRequest("n8n", N8N_REDIRECT_URI, "openid profile email", false),
+                OidcClientRequest("rabbitmq", RABBITMQ_REDIRECT_URI, "openid profile email rabbitmq.tag:administrator", true),
+            )
+
+        requests.forEach { (clientId, redirectUri, scope, requiresPkce) ->
+            val codeVerifier = generateCodeVerifier()
+            val codeChallenge = generateCodeChallenge(codeVerifier)
+
+            val result =
+                mockMvc
+                    .get("/api/oauth2/authorize") {
+                        param("response_type", "code")
+                        param("client_id", clientId)
+                        param("redirect_uri", redirectUri)
+                        param("scope", scope)
+                        if (requiresPkce) {
+                            param("code_challenge", codeChallenge)
+                            param("code_challenge_method", "S256")
+                        }
+                        param("state", "allow-$clientId")
+                        accept = MediaType.TEXT_HTML
+                        this.session = session
+                    }.andReturn()
+
+            assertThat(result.response.status)
+                .describedAs("client %s should not be denied for an ADMIN session", clientId)
+                .isIn(302, 400)
+            if (result.response.status == 302) {
+                assertThat(result.response.getHeader("Location"))
+                    .startsWith(redirectUri)
+                    .contains("code=")
+            }
+        }
     }
 
     @Test

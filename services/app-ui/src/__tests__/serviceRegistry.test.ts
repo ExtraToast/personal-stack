@@ -18,7 +18,7 @@ describe('service registry', () => {
       expect(entry.permission).toBeTruthy()
       expect(entry.label).toBeTruthy()
       expect(entry.url).toMatch(/^https?:\/\//u)
-      expect(entry.icon).toBeTruthy()
+      expect(entry.iconUrl).toMatch(/^https?:\/\//u)
       expect(entry.description).toBeTruthy()
     }
   })
