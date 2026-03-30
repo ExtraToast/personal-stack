@@ -222,7 +222,7 @@ jobs:
       - name: Set up dev DNS
         run: sudo bash infra/scripts/setup-dev-dns.sh
       - name: Build and start full stack
-        run: docker compose up -d --no-build postgres valkey rabbitmq vault auth-api assistant-api traefik auth-ui assistant-ui app-ui n8n grafana stalwart --wait --wait-timeout 300
+        run: docker compose up -d --no-build postgres valkey rabbitmq vault auth-api assistant-api traefik auth-ui assistant-ui app-ui n8n grafana uptime-kuma stalwart --wait --wait-timeout 300
       - name: Wait for Traefik routes to stabilize
         run: |
           echo "Waiting for Traefik routes to become reachable..."
@@ -267,6 +267,10 @@ jobs:
           docker exec personal-stack-postgres psql -U auth_user -d auth_db -c '\dt' | grep -q app_user || { echo "auth_db migrations missing"; exit 1; }
           docker exec personal-stack-postgres psql -U assistant_user -d assistant_db -c '\dt' | grep -q conversation || { echo "assistant_db migrations missing"; exit 1; }
           echo "==> Database migrations verified"
+      - name: Initialize Vault OIDC
+        run: docker compose up --no-build vault-oidc-init
+      - name: Initialize Uptime Kuma
+        run: docker compose up --no-build uptime-kuma-init
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
       - name: Run system tests
@@ -277,7 +281,7 @@ jobs:
       - name: Dump service logs on failure
         if: failure()
         run: |
-          for svc in postgres valkey rabbitmq vault auth-api assistant-api traefik auth-ui assistant-ui app-ui n8n grafana stalwart; do
+          for svc in postgres valkey rabbitmq vault auth-api assistant-api traefik auth-ui assistant-ui app-ui n8n grafana uptime-kuma stalwart vault-oidc-init uptime-kuma-init; do
             echo "========== $svc =========="
             docker compose logs "$svc" --tail 80
           done

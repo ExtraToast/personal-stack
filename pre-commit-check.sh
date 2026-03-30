@@ -23,6 +23,7 @@ dump_stack_logs() {
   local services=(
     postgres valkey rabbitmq vault auth-api assistant-api traefik
     auth-ui assistant-ui app-ui n8n grafana uptime-kuma stalwart
+    vault-oidc-init uptime-kuma-init
   )
 
   warn "Dumping stack logs for diagnosis..."
@@ -286,6 +287,18 @@ if ! check_route auth-api       "https://auth.jorisjonkers.test/api/actuator/hea
 if ! check_route assistant-api  "https://assistant.jorisjonkers.test/api/actuator/health"; then dump_stack_logs; exit 1; fi
 
 if ! verify_database_migrations; then
+  dump_stack_logs
+  exit 1
+fi
+
+log "  Initializing Vault OIDC..."
+if ! docker compose up --no-build vault-oidc-init; then
+  dump_stack_logs
+  exit 1
+fi
+
+log "  Initializing Uptime Kuma..."
+if ! docker compose up --no-build uptime-kuma-init; then
   dump_stack_logs
   exit 1
 fi
