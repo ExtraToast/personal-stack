@@ -133,7 +133,7 @@ http:
 
     # ── Stalwart Mail (WebAdmin + JMAP) ─────────────────────
     stalwart:
-      rule: 'Host(`mail.jorisjonkers.dev`)'
+      rule: 'Host(`mail.jorisjonkers.dev`) || Host(`stalwart.jorisjonkers.dev`)'
       entryPoints:
         - websecure
       service: stalwart
