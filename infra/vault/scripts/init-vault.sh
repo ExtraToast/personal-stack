@@ -267,12 +267,17 @@ if [[ -f "$VAULT_APP_SECRETS_FILE" ]]; then
   : "${ASSISTANT_DB_USER:=assistant_user}"
   : "${ASSISTANT_DB_PASSWORD:=assistant_password}"
 
+  # Generate a stable RSA key for JWT signing (shared across auth-api replicas)
+  # Uses genpkey (PKCS#8 format) so Java's PKCS8EncodedKeySpec can parse it directly
+  SIGNING_KEY_PEM=$(openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 2>/dev/null)
+
   vault_exec kv put secret/auth-api \
     "spring.rabbitmq.username=${RABBITMQ_USER}" \
     "spring.rabbitmq.password=${RABBITMQ_PASSWORD}" \
     "spring.datasource.username=${AUTH_DB_USER}" \
-    "spring.datasource.password=${AUTH_DB_PASSWORD}" > /dev/null
-  ok "secret/auth-api"
+    "spring.datasource.password=${AUTH_DB_PASSWORD}" \
+    "auth.signing-key=${SIGNING_KEY_PEM}" > /dev/null
+  ok "secret/auth-api (including JWT signing key)"
 
   vault_exec kv put secret/assistant-api \
     "spring.rabbitmq.username=${RABBITMQ_USER}" \

@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.annotation.Order
 import org.springframework.http.MediaType
+import org.springframework.jdbc.core.JdbcOperations
 import org.springframework.security.authentication.AnonymousAuthenticationToken
 import org.springframework.security.config.Customizer
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
@@ -22,6 +23,10 @@ import org.springframework.security.oauth2.core.AuthorizationGrantType
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod
 import org.springframework.security.oauth2.core.oidc.OidcScopes
 import org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames
+import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationConsentService
+import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationService
+import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationConsentService
+import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType
 import org.springframework.security.oauth2.server.authorization.client.InMemoryRegisteredClientRepository
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient
@@ -123,6 +128,19 @@ class AuthorizationServerConfig(
         )
 
     @Bean
+    fun authorizationService(
+        jdbcOperations: JdbcOperations,
+        registeredClientRepository: RegisteredClientRepository,
+    ): OAuth2AuthorizationService = JdbcOAuth2AuthorizationService(jdbcOperations, registeredClientRepository)
+
+    @Bean
+    fun authorizationConsentService(
+        jdbcOperations: JdbcOperations,
+        registeredClientRepository: RegisteredClientRepository,
+    ): OAuth2AuthorizationConsentService =
+        JdbcOAuth2AuthorizationConsentService(jdbcOperations, registeredClientRepository)
+
+    @Bean
     fun jwtTokenCustomizer(userRepository: UserRepository): OAuth2TokenCustomizer<JwtEncodingContext> =
         OAuth2TokenCustomizer { context ->
             val principal = context.getPrincipal<Authentication>()
@@ -172,7 +190,7 @@ class AuthorizationServerConfig(
 
     private fun buildAuthUiClient(): RegisteredClient =
         RegisteredClient
-            .withId(UUID.randomUUID().toString())
+            .withId(deterministicId("auth-ui"))
             .clientId("auth-ui")
             .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
             .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
@@ -202,7 +220,7 @@ class AuthorizationServerConfig(
 
     private fun buildAppUiClient(): RegisteredClient =
         RegisteredClient
-            .withId(UUID.randomUUID().toString())
+            .withId(deterministicId("app-ui"))
             .clientId("app-ui")
             .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
             .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
@@ -233,7 +251,7 @@ class AuthorizationServerConfig(
 
     private fun buildAssistantApiClient(): RegisteredClient =
         RegisteredClient
-            .withId(UUID.randomUUID().toString())
+            .withId(deterministicId("assistant-api"))
             .clientId("assistant-api")
             .clientSecret("{noop}assistant-secret") // Production: load from Vault
             .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
@@ -249,7 +267,7 @@ class AuthorizationServerConfig(
 
     private fun buildGrafanaClient(): RegisteredClient =
         RegisteredClient
-            .withId(UUID.randomUUID().toString())
+            .withId(deterministicId("grafana"))
             .clientId("grafana")
             .clientSecret("{noop}$grafanaClientSecret")
             .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
@@ -278,7 +296,7 @@ class AuthorizationServerConfig(
 
     private fun buildN8nClient(): RegisteredClient =
         RegisteredClient
-            .withId(UUID.randomUUID().toString())
+            .withId(deterministicId("n8n"))
             .clientId("n8n")
             .clientSecret("{noop}$n8nClientSecret")
             .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
@@ -307,7 +325,7 @@ class AuthorizationServerConfig(
 
     private fun buildRabbitMqClient(): RegisteredClient =
         RegisteredClient
-            .withId(UUID.randomUUID().toString())
+            .withId(deterministicId("rabbitmq"))
             .clientId("rabbitmq")
             .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
             .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
@@ -335,7 +353,7 @@ class AuthorizationServerConfig(
 
     private fun buildVaultClient(): RegisteredClient =
         RegisteredClient
-            .withId(UUID.randomUUID().toString())
+            .withId(deterministicId("vault"))
             .clientId("vault")
             .clientSecret("{noop}$vaultClientSecret")
             .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
@@ -411,6 +429,10 @@ class AuthorizationServerConfig(
     companion object {
         private val ACCESS_TOKEN_TTL: Duration = Duration.ofMinutes(15)
         private val REFRESH_TOKEN_TTL: Duration = Duration.ofDays(7)
+
+        private fun deterministicId(clientId: String): String =
+            UUID.nameUUIDFromBytes(clientId.toByteArray()).toString()
+
         private val downstreamClientPermissions: Map<String, ServicePermission> =
             mapOf(
                 "grafana" to ServicePermission.GRAFANA,

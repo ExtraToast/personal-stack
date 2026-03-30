@@ -25,3 +25,39 @@ http:
         contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.jorisjonkers.dev https://*.jorisjonkers.test; font-src 'self'; connect-src 'self' https://*.jorisjonkers.dev https://*.jorisjonkers.test; frame-ancestors 'none'"
         customResponseHeaders:
           X-Frame-Options: 'DENY'
+
+    stalwart-security-headers:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        frameDeny: true
+        contentTypeNosniff: true
+        referrerPolicy: 'strict-origin-when-cross-origin'
+        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.jorisjonkers.dev https://*.jorisjonkers.test; font-src 'self'; connect-src 'self' https://*.jorisjonkers.dev https://*.jorisjonkers.test; frame-ancestors 'none'"
+        customResponseHeaders:
+          X-Frame-Options: 'DENY'
+
+    n8n-security-headers:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        frameDeny: true
+        contentTypeNosniff: true
+        referrerPolicy: 'strict-origin-when-cross-origin'
+        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn-rs.n8n.io; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.jorisjonkers.dev https://*.jorisjonkers.test; font-src 'self'; connect-src 'self' https://*.jorisjonkers.dev https://*.jorisjonkers.test https://api.n8n.io https://ph.n8n.io; frame-ancestors 'none'"
+        customResponseHeaders:
+          X-Frame-Options: 'DENY'
+
+    grafana-security-headers:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        frameDeny: true
+        contentTypeNosniff: true
+        referrerPolicy: 'strict-origin-when-cross-origin'
+        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.jorisjonkers.dev https://*.jorisjonkers.test; font-src 'self'; connect-src 'self' https://*.jorisjonkers.dev https://*.jorisjonkers.test; frame-ancestors 'none'"
+        customResponseHeaders:
+          X-Frame-Options: 'DENY'

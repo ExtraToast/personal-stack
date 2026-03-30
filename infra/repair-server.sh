@@ -368,12 +368,23 @@ ok "Vault OIDC configuration repaired"
 # ── 5. Sync credentials to Vault KV ────────────────────────────────────────
 step "Syncing secrets to Vault KV"
 
+# Preserve existing JWT signing key or generate a new one
+EXISTING_SIGNING_KEY=$(vault_exec kv get -field="auth.signing-key" secret/auth-api 2>/dev/null || true)
+if [[ -z "$EXISTING_SIGNING_KEY" ]]; then
+  info "No JWT signing key found in Vault -- generating new RSA key"
+  EXISTING_SIGNING_KEY=$(openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 2>/dev/null)
+  ok "New JWT signing key generated"
+else
+  ok "Existing JWT signing key preserved"
+fi
+
 vault_exec kv put secret/auth-api \
   "spring.rabbitmq.username=${RMQ_USER}" \
   "spring.rabbitmq.password=${RMQ_PASS}" \
   "spring.datasource.username=${AUTH_DB_USER}" \
-  "spring.datasource.password=${AUTH_DB_PASSWORD}" > /dev/null
-ok "secret/auth-api"
+  "spring.datasource.password=${AUTH_DB_PASSWORD}" \
+  "auth.signing-key=${EXISTING_SIGNING_KEY}" > /dev/null
+ok "secret/auth-api (including JWT signing key)"
 
 vault_exec kv put secret/assistant-api \
   "spring.rabbitmq.username=${RMQ_USER}" \
