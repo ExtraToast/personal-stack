@@ -1,0 +1,80 @@
+/* ── JJ.dev Status Page Theme ─────────────────────────── */
+
+:root {
+  --bg-color: #0a0a0f;
+  --second-bg-color: #12121a;
+  --main-bg-color: #0a0a0f;
+  --header-bg: #12121a;
+  --main-font-color: #e2e8f0;
+  --main-font-color2: #94a3b8;
+  --highlight: #6366f1;
+  --highlight-white: #818cf8;
+}
+
+body {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace !important;
+  background-color: #0a0a0f !important;
+}
+
+.overall-status .ok {
+  background-color: #4ade80 !important;
+}
+
+.overall-status .warn {
+  background-color: #fbbf24 !important;
+}
+
+.overall-status .danger {
+  background-color: #ef4444 !important;
+}
+
+/* Card surfaces */
+.shadow-box {
+  background-color: #12121a !important;
+  border: 1px solid #2a2a3a !important;
+  border-radius: 12px !important;
+}
+
+/* Header / navbar */
+header,
+.navbar {
+  background-color: #12121a !important;
+  border-bottom: 1px solid #2a2a3a !important;
+}
+
+/* Accent links */
+a {
+  color: #818cf8 !important;
+}
+
+/* Buttons – white text on accent background */
+.btn-primary {
+  background-color: #6366f1 !important;
+  border-color: #6366f1 !important;
+  color: #ffffff !important;
+}
+
+/* Beat bars */
+.beat.up {
+  background-color: #4ade80 !important;
+}
+
+.beat.down {
+  background-color: #ef4444 !important;
+}
+
+.beat.pending {
+  background-color: #fbbf24 !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0a0f;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2a3a;
+  border-radius: 3px;
+}
