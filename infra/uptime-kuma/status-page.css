@@ -42,6 +42,31 @@ header,
   border-bottom: 1px solid #2a2a3a !important;
 }
 
+/* Status page title – terminal-style ~/joris.dev */
+h1.mb-4 > span:nth-child(3) {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace !important;
+  font-size: 0 !important;
+}
+h1.mb-4 > span:nth-child(3)::before {
+  content: '~/';
+  font-size: 1.25rem;
+  color: #94a3b8;
+}
+h1.mb-4 > span:nth-child(3)::after {
+  content: 'joris.dev';
+  font-size: 1.25rem;
+  background: linear-gradient(to right, #4ade80 55%, #818cf8 55%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Scale down the icon next to the title */
+h1.mb-4 > img {
+  width: 28px !important;
+  height: 28px !important;
+}
+
 /* Accent links */
 a {
   color: #818cf8 !important;
