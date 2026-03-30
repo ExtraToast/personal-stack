@@ -18,7 +18,8 @@
 ;;   grafana.jorisjonkers.dev
 ;;   status.jorisjonkers.dev
 ;;   traefik.jorisjonkers.dev
-;;   mail.jorisjonkers.dev (explicit A/AAAA, not proxied)
+;;   stalwart.jorisjonkers.dev
+;;   mail.jorisjonkers.dev (explicit A, not proxied)
 
 ;; A Records
 jorisjonkers.dev.    1    IN    A    167.86.79.203 ; cf_tags=cf-proxied:true
@@ -31,8 +32,8 @@ jorisjonkers.dev.    1    IN    AAAA    2a02:c207:2318:569::1 ; cf_tags=cf-proxi
 
 ;; ── Mail Server ─────────────────────────────────────────────────────────────
 ;; mail.jorisjonkers.dev must NOT be Cloudflare-proxied (SMTP/IMAP need direct IP)
+;; Only publish AAAA once IPv6 has been validated end-to-end for HTTPS and mail protocols.
 mail.jorisjonkers.dev.    1    IN    A       167.86.79.203 ; cf_tags=cf-proxied:false
-mail.jorisjonkers.dev.    1    IN    AAAA    2a02:c207:2318:569::1 ; cf_tags=cf-proxied:false
 
 ;; MX Record
 jorisjonkers.dev.    1    IN    MX    10 mail.jorisjonkers.dev.

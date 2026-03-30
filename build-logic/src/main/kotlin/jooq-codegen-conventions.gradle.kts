@@ -17,6 +17,7 @@ val generateJooq by tasks.registering {
     description = "Generate jOOQ classes from Flyway SQL migrations using DDLDatabase"
 
     val outputDir = layout.buildDirectory.dir("generated/jooq")
+    val projectDirectory = layout.projectDirectory
     outputs.dir(outputDir)
 
     inputs.files(fileTree("src/main/resources/db/migration").include("**/*.sql"))
@@ -28,7 +29,7 @@ val generateJooq by tasks.registering {
 
         val scripts = jooqCodegen.migrationLocations.get().joinToString(";") { location ->
             val path = location.removePrefix("filesystem:")
-            project.file(path).absolutePath + "/*.sql"
+            projectDirectory.dir(path).asFile.absolutePath + "/*.sql"
         }
 
         GenerationTool.generate(

@@ -30,7 +30,7 @@ CYAN='\033[0;36m'
 RESET='\033[0m'
 
 STEP=0
-TOTAL_STEPS=9
+TOTAL_STEPS=11
 
 step() {
   STEP=$((STEP + 1))
@@ -188,11 +188,9 @@ copy_into_vault_container() {
 }
 
 prepare_auth_issuer_ca_file() {
-  if [[ "$AUTH_ISSUER" != https://*.test* ]]; then
-    return
-  fi
+  [[ "$AUTH_ISSUER" == https://* ]] || return
 
-  command -v openssl >/dev/null 2>&1 || die "openssl is required to fetch the auth issuer CA for .test hosts."
+  command -v openssl >/dev/null 2>&1 || die "openssl is required to fetch the auth issuer CA certificate chain."
 
   local issuer_host
   local issuer_port
@@ -242,30 +240,37 @@ reapply_vault_oidc_config() {
 }
 EOF
 
-  vault_exec auth enable oidc >/dev/null 2>&1 || true
+  vault_exec auth enable oidc >> "$LOG_FILE" 2>&1 || true
 
-  if [[ "$AUTH_ISSUER" == https://*.test* ]]; then
-    ca_file="$(prepare_auth_issuer_ca_file)"
-    copy_into_vault_container "$ca_file" "$container_ca_file"
+  ca_file="$(prepare_auth_issuer_ca_file)" || true
+  if [[ -n "$ca_file" && -s "$ca_file" ]]; then
+    copy_into_vault_container "$ca_file" "$container_ca_file" \
+      || die "Failed to copy issuer CA certificate into Vault container"
     vault_exec write auth/oidc/config \
       "oidc_discovery_url=${AUTH_ISSUER}" \
       "oidc_discovery_ca_pem=@${container_ca_file}" \
       "oidc_client_id=${oidc_client_id}" \
       "oidc_client_secret=${VAULT_OIDC_CLIENT_SECRET}" \
-      "default_role=${oidc_role_name}" > /dev/null
+      "default_role=${oidc_role_name}" >> "$LOG_FILE" 2>&1 \
+      || die "Failed to write OIDC config (check ${LOG_FILE} for details)"
+    ok "OIDC auth config written (with CA certificate)"
   else
     vault_exec write auth/oidc/config \
       "oidc_discovery_url=${AUTH_ISSUER}" \
       "oidc_client_id=${oidc_client_id}" \
       "oidc_client_secret=${VAULT_OIDC_CLIENT_SECRET}" \
-      "default_role=${oidc_role_name}" > /dev/null
+      "default_role=${oidc_role_name}" >> "$LOG_FILE" 2>&1 \
+      || die "Failed to write OIDC config (check ${LOG_FILE} for details)"
+    ok "OIDC auth config written"
   fi
 
-  copy_into_vault_container "$role_payload_file" "$container_role_payload_file"
-  vault_exec write "auth/oidc/role/${oidc_role_name}" "@${container_role_payload_file}" > /dev/null
+  copy_into_vault_container "$role_payload_file" "$container_role_payload_file" \
+    || die "Failed to copy OIDC role payload into Vault container"
+  vault_exec write "auth/oidc/role/${oidc_role_name}" "@${container_role_payload_file}" >> "$LOG_FILE" 2>&1 \
+    || die "Failed to write OIDC role '${oidc_role_name}' (check ${LOG_FILE} for details)"
 
   rm -f "$role_payload_file"
-  [[ -n "$ca_file" ]] && rm -f "$ca_file"
+  [[ -n "$ca_file" ]] && rm -f "$ca_file" || true
 }
 
 # ── 1. Unseal Vault ────────────────────────────────────────────────────────
