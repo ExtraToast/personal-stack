@@ -19,8 +19,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configurers.oauth2.server.authorization.OAuth2AuthorizationServerConfigurer
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.context.SecurityContextHolder
-import org.springframework.security.oauth2.core.AuthorizationGrantType
-import org.springframework.security.oauth2.core.ClientAuthenticationMethod
 import org.springframework.security.oauth2.core.oidc.OidcScopes
 import org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames
 import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationConsentService
@@ -29,11 +27,8 @@ import org.springframework.security.oauth2.server.authorization.OAuth2Authorizat
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType
 import org.springframework.security.oauth2.server.authorization.client.InMemoryRegisteredClientRepository
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClient
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings
-import org.springframework.security.oauth2.server.authorization.settings.ClientSettings
-import org.springframework.security.oauth2.server.authorization.settings.TokenSettings
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer
 import org.springframework.security.web.SecurityFilterChain
@@ -45,8 +40,6 @@ import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher
 import org.springframework.security.web.util.matcher.OrRequestMatcher
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.filter.OncePerRequestFilter
-import java.time.Duration
-import java.util.UUID
 
 private fun currentAuthentication(): Authentication? =
     SecurityContextHolder
@@ -121,10 +114,10 @@ class AuthorizationServerConfig(
             buildAuthUiClient(),
             buildAppUiClient(),
             buildAssistantApiClient(),
-            buildGrafanaClient(),
-            buildN8nClient(),
+            buildGrafanaClient(grafanaClientSecret),
+            buildN8nClient(n8nClientSecret),
             buildRabbitMqClient(),
-            buildVaultClient(),
+            buildVaultClient(vaultClientSecret),
         )
 
     @Bean
@@ -188,200 +181,6 @@ class AuthorizationServerConfig(
             .oidcUserInfoEndpoint("/api/userinfo")
             .build()
 
-    private fun buildAuthUiClient(): RegisteredClient =
-        RegisteredClient
-            .withId(deterministicId("auth-ui"))
-            .clientId("auth-ui")
-            .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
-            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-            .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-            .redirectUri("https://auth.jorisjonkers.dev/callback")
-            .redirectUri("https://auth.jorisjonkers.test/callback")
-            .redirectUri("http://localhost:5174/callback")
-            .postLogoutRedirectUri("https://auth.jorisjonkers.dev/logged-out")
-            .postLogoutRedirectUri("https://auth.jorisjonkers.test/logged-out")
-            .scope(OidcScopes.OPENID)
-            .scope(OidcScopes.PROFILE)
-            .scope(OidcScopes.EMAIL)
-            .clientSettings(
-                ClientSettings
-                    .builder()
-                    .requireProofKey(true)
-                    .requireAuthorizationConsent(false)
-                    .build(),
-            ).tokenSettings(
-                TokenSettings
-                    .builder()
-                    .accessTokenTimeToLive(ACCESS_TOKEN_TTL)
-                    .refreshTokenTimeToLive(REFRESH_TOKEN_TTL)
-                    .reuseRefreshTokens(false)
-                    .build(),
-            ).build()
-
-    private fun buildAppUiClient(): RegisteredClient =
-        RegisteredClient
-            .withId(deterministicId("app-ui"))
-            .clientId("app-ui")
-            .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
-            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-            .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-            .redirectUri("https://jorisjonkers.dev/callback")
-            .redirectUri("https://jorisjonkers.test/callback")
-            .redirectUri("http://localhost:5175/callback")
-            .postLogoutRedirectUri("https://jorisjonkers.dev")
-            .postLogoutRedirectUri("https://jorisjonkers.test")
-            .postLogoutRedirectUri("http://localhost:5175")
-            .scope(OidcScopes.OPENID)
-            .scope(OidcScopes.PROFILE)
-            .scope(OidcScopes.EMAIL)
-            .clientSettings(
-                ClientSettings
-                    .builder()
-                    .requireProofKey(true)
-                    .requireAuthorizationConsent(false)
-                    .build(),
-            ).tokenSettings(
-                TokenSettings
-                    .builder()
-                    .accessTokenTimeToLive(ACCESS_TOKEN_TTL)
-                    .refreshTokenTimeToLive(REFRESH_TOKEN_TTL)
-                    .reuseRefreshTokens(false)
-                    .build(),
-            ).build()
-
-    private fun buildAssistantApiClient(): RegisteredClient =
-        RegisteredClient
-            .withId(deterministicId("assistant-api"))
-            .clientId("assistant-api")
-            .clientSecret("{noop}assistant-secret") // Production: load from Vault
-            .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
-            .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
-            .scope("api.read")
-            .scope("api.write")
-            .tokenSettings(
-                TokenSettings
-                    .builder()
-                    .accessTokenTimeToLive(ACCESS_TOKEN_TTL)
-                    .build(),
-            ).build()
-
-    private fun buildGrafanaClient(): RegisteredClient =
-        RegisteredClient
-            .withId(deterministicId("grafana"))
-            .clientId("grafana")
-            .clientSecret("{noop}$grafanaClientSecret")
-            .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
-            .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
-            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-            .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-            .redirectUri("https://grafana.jorisjonkers.dev/login/generic_oauth")
-            .redirectUri("https://grafana.jorisjonkers.test/login/generic_oauth")
-            .scope(OidcScopes.OPENID)
-            .scope(OidcScopes.PROFILE)
-            .scope(OidcScopes.EMAIL)
-            .clientSettings(
-                ClientSettings
-                    .builder()
-                    .requireProofKey(false)
-                    .requireAuthorizationConsent(false)
-                    .build(),
-            ).tokenSettings(
-                TokenSettings
-                    .builder()
-                    .accessTokenTimeToLive(ACCESS_TOKEN_TTL)
-                    .refreshTokenTimeToLive(REFRESH_TOKEN_TTL)
-                    .reuseRefreshTokens(false)
-                    .build(),
-            ).build()
-
-    private fun buildN8nClient(): RegisteredClient =
-        RegisteredClient
-            .withId(deterministicId("n8n"))
-            .clientId("n8n")
-            .clientSecret("{noop}$n8nClientSecret")
-            .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
-            .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
-            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-            .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-            .redirectUri("https://n8n.jorisjonkers.dev/auth/oidc/callback")
-            .redirectUri("https://n8n.jorisjonkers.test/auth/oidc/callback")
-            .scope(OidcScopes.OPENID)
-            .scope(OidcScopes.PROFILE)
-            .scope(OidcScopes.EMAIL)
-            .clientSettings(
-                ClientSettings
-                    .builder()
-                    .requireProofKey(false)
-                    .requireAuthorizationConsent(false)
-                    .build(),
-            ).tokenSettings(
-                TokenSettings
-                    .builder()
-                    .accessTokenTimeToLive(ACCESS_TOKEN_TTL)
-                    .refreshTokenTimeToLive(REFRESH_TOKEN_TTL)
-                    .reuseRefreshTokens(false)
-                    .build(),
-            ).build()
-
-    private fun buildRabbitMqClient(): RegisteredClient =
-        RegisteredClient
-            .withId(deterministicId("rabbitmq"))
-            .clientId("rabbitmq")
-            .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
-            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-            .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-            .redirectUri("https://rabbitmq.jorisjonkers.dev/js/oidc-oauth/login-callback.html")
-            .redirectUri("https://rabbitmq.jorisjonkers.test/js/oidc-oauth/login-callback.html")
-            .scope(OidcScopes.OPENID)
-            .scope(OidcScopes.PROFILE)
-            .scope(OidcScopes.EMAIL)
-            .scope("rabbitmq.tag:administrator")
-            .clientSettings(
-                ClientSettings
-                    .builder()
-                    .requireProofKey(true)
-                    .requireAuthorizationConsent(false)
-                    .build(),
-            ).tokenSettings(
-                TokenSettings
-                    .builder()
-                    .accessTokenTimeToLive(ACCESS_TOKEN_TTL)
-                    .refreshTokenTimeToLive(REFRESH_TOKEN_TTL)
-                    .reuseRefreshTokens(false)
-                    .build(),
-            ).build()
-
-    private fun buildVaultClient(): RegisteredClient =
-        RegisteredClient
-            .withId(deterministicId("vault"))
-            .clientId("vault")
-            .clientSecret("{noop}$vaultClientSecret")
-            .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
-            .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
-            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-            .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-            .redirectUri("https://vault.jorisjonkers.dev/ui/vault/auth/oidc/oidc/callback")
-            .redirectUri("https://vault.jorisjonkers.test/ui/vault/auth/oidc/oidc/callback")
-            .redirectUri("http://localhost:8250/oidc/callback")
-            .redirectUri("http://127.0.0.1:8250/oidc/callback")
-            .scope(OidcScopes.OPENID)
-            .scope(OidcScopes.PROFILE)
-            .scope(OidcScopes.EMAIL)
-            .clientSettings(
-                ClientSettings
-                    .builder()
-                    .requireProofKey(false)
-                    .requireAuthorizationConsent(false)
-                    .build(),
-            ).tokenSettings(
-                TokenSettings
-                    .builder()
-                    .accessTokenTimeToLive(ACCESS_TOKEN_TTL)
-                    .refreshTokenTimeToLive(REFRESH_TOKEN_TTL)
-                    .reuseRefreshTokens(false)
-                    .build(),
-            ).build()
-
     private fun buildRoles(credentials: UserCredentials): List<String> =
         buildList {
             add("ROLE_${credentials.role.name}")
@@ -403,7 +202,7 @@ class AuthorizationServerConfig(
                 filterChain: FilterChain,
             ) {
                 val requiredPermission =
-                    downstreamClientPermissions[request.getParameter("client_id")] ?: run {
+                    DOWNSTREAM_CLIENT_PERMISSIONS[request.getParameter("client_id")] ?: run {
                         filterChain.doFilter(request, response)
                         return
                     }
@@ -427,13 +226,7 @@ class AuthorizationServerConfig(
         }
 
     companion object {
-        private val ACCESS_TOKEN_TTL: Duration = Duration.ofMinutes(15)
-        private val REFRESH_TOKEN_TTL: Duration = Duration.ofDays(7)
-
-        private fun deterministicId(clientId: String): String =
-            UUID.nameUUIDFromBytes(clientId.toByteArray()).toString()
-
-        private val downstreamClientPermissions: Map<String, ServicePermission> =
+        private val DOWNSTREAM_CLIENT_PERMISSIONS: Map<String, ServicePermission> =
             mapOf(
                 "grafana" to ServicePermission.GRAFANA,
                 "vault" to ServicePermission.VAULT,
