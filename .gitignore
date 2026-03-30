@@ -10,6 +10,7 @@ build/
 *.ear
 *.log
 hs_err_pid*
+.kotlin
 
 # jOOQ generated
 **/generated-jooq/
@@ -51,8 +52,14 @@ Thumbs.db
 .env.*
 !.env.example
 acme.json
+*.crt
+*.cer
 *.pem
 *.key
+*.p12
+*.pfx
+.vault-keys
+.vault-app-secrets
 
 # Cloud-init rendered output
 infra/cloud-init/cloud-init.rendered.yml
