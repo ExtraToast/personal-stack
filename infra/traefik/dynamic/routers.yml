@@ -37,7 +37,7 @@ http:
 
     # ── Auth UI ─────────────────────────────────────────────────
     auth-ui:
-      rule: 'Host(`auth.jorisjonkers.dev`) && !PathPrefix(`/api/`)'
+      rule: 'Host(`auth.jorisjonkers.dev`) && !PathPrefix(`/api/`) && !PathPrefix(`/.well-known/`)'
       entryPoints:
         - websecure
       service: auth-ui
@@ -79,6 +79,18 @@ http:
       middlewares:
         - forward-auth
         - rate-limit
+        - security-headers
+      tls:
+        certResolver: cloudflare
+
+    # ── RabbitMQ Management ────────────────────────────────────
+    rabbitmq:
+      rule: 'Host(`rabbitmq.jorisjonkers.dev`)'
+      entryPoints:
+        - websecure
+      service: rabbitmq
+      middlewares:
+        - forward-auth
         - security-headers
       tls:
         certResolver: cloudflare
@@ -174,6 +186,11 @@ http:
       loadBalancer:
         servers:
           - url: 'http://vault:8200'
+
+    rabbitmq:
+      loadBalancer:
+        servers:
+          - url: 'http://rabbitmq:15672'
 
     n8n:
       loadBalancer:

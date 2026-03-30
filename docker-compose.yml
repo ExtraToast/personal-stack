@@ -42,11 +42,21 @@ services:
       RABBITMQ_DEFAULT_PASS: guest
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
+      - ./infra/rabbitmq/rabbitmq.dev.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./infra/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+      - ./infra/traefik/dynamic-dev/certs/jorisjonkers.test.crt:/etc/rabbitmq/issuer-ca.pem:ro
     healthcheck:
       test: ['CMD', 'rabbitmq-diagnostics', 'check_running']
       interval: 10s
       timeout: 5s
       retries: 5
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.jorisjonkers.test`)'
+      - 'traefik.http.routers.rabbitmq.entrypoints=websecure'
+      - 'traefik.http.routers.rabbitmq.tls=true'
+      - 'traefik.http.routers.rabbitmq.middlewares=forward-auth@docker,security-headers@file'
+      - 'traefik.http.services.rabbitmq.loadbalancer.server.port=15672'
 
   vault:
     image: hashicorp/vault:1.19
@@ -73,9 +83,6 @@ services:
       - 'traefik.http.routers.vault.tls=true'
       - 'traefik.http.routers.vault.middlewares=forward-auth@docker,security-headers@file'
       - 'traefik.http.services.vault.loadbalancer.server.port=8200'
-      - 'traefik.http.middlewares.forward-auth.forwardauth.address=http://auth-api:8081/api/v1/auth/verify'
-      - 'traefik.http.middlewares.forward-auth.forwardauth.trustForwardHeader=true'
-      - 'traefik.http.middlewares.forward-auth.forwardauth.authResponseHeaders=X-User-Id,X-User-Email,X-User-Roles'
 
   traefik:
     image: traefik:v3.6
@@ -84,6 +91,10 @@ services:
       - '80:80'
       - '443:443'
       - '8080:8080'
+    networks:
+      default:
+        aliases:
+          - auth.jorisjonkers.test
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./infra/traefik/traefik-dev.yml:/etc/traefik/traefik.yml:ro
@@ -96,6 +107,9 @@ services:
       start_period: 10s
     labels:
       - 'traefik.enable=true'
+      - 'traefik.http.middlewares.forward-auth.forwardauth.address=http://auth-api:8081/api/v1/auth/verify'
+      - 'traefik.http.middlewares.forward-auth.forwardauth.trustForwardHeader=true'
+      - 'traefik.http.middlewares.forward-auth.forwardauth.authResponseHeaders=X-User-Id,X-User-Email,X-User-Roles'
       - 'traefik.http.routers.traefik-dashboard.rule=Host(`traefik.jorisjonkers.test`)'
       - 'traefik.http.routers.traefik-dashboard.entrypoints=websecure'
       - 'traefik.http.routers.traefik-dashboard.tls=true'
@@ -107,10 +121,23 @@ services:
     container_name: personal-stack-n8n
     environment:
       N8N_HOST: n8n.jorisjonkers.test
-      N8N_PROTOCOL: http
+      N8N_PROTOCOL: https
       N8N_PORT: '5678'
+      N8N_EDITOR_BASE_URL: https://n8n.jorisjonkers.test
+      N8N_TRUST_PROXY: 'true'
+      NODE_EXTRA_CA_CERTS: /etc/ssl/certs/personal-stack-issuer.pem
+      EXTERNAL_HOOK_FILES: /data/n8n/hooks.js
+      EXTERNAL_FRONTEND_HOOKS_URLS: /assets/oidc-frontend-hook.js
+      N8N_ADDITIONAL_NON_UI_ROUTES: auth
+      OIDC_ISSUER_URL: https://auth.jorisjonkers.test
+      OIDC_CLIENT_ID: n8n
+      OIDC_CLIENT_SECRET: n8n-secret
+      OIDC_REDIRECT_URI: https://n8n.jorisjonkers.test/auth/oidc/callback
+      OIDC_SCOPES: openid email profile
     volumes:
       - n8n-data:/home/node/.n8n
+      - ./infra/n8n/hooks.js:/data/n8n/hooks.js:ro
+      - ./infra/traefik/dynamic-dev/certs/jorisjonkers.test.crt:/etc/ssl/certs/personal-stack-issuer.pem:ro
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://localhost:5678/healthz || exit 1']
       interval: 10s
@@ -128,6 +155,24 @@ services:
   grafana:
     image: grafana/grafana:11.6.0
     container_name: personal-stack-grafana
+    environment:
+      GF_SERVER_ROOT_URL: https://grafana.jorisjonkers.test
+      GF_AUTH_GENERIC_OAUTH_ENABLED: 'true'
+      GF_AUTH_GENERIC_OAUTH_NAME: personal-stack
+      GF_AUTH_GENERIC_OAUTH_CLIENT_ID: grafana
+      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: grafana-secret
+      GF_AUTH_GENERIC_OAUTH_SCOPES: openid profile email
+      GF_AUTH_GENERIC_OAUTH_AUTH_URL: https://auth.jorisjonkers.test/api/oauth2/authorize
+      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: https://auth.jorisjonkers.test/api/oauth2/token
+      GF_AUTH_GENERIC_OAUTH_API_URL: https://auth.jorisjonkers.test/api/userinfo
+      GF_AUTH_GENERIC_OAUTH_LOGIN_ATTRIBUTE_PATH: preferred_username
+      GF_AUTH_GENERIC_OAUTH_NAME_ATTRIBUTE_PATH: name
+      GF_AUTH_GENERIC_OAUTH_EMAIL_ATTRIBUTE_PATH: email
+      GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH: "contains(roles[*], 'ROLE_ADMIN') && 'GrafanaAdmin' || 'Viewer'"
+      GF_AUTH_GENERIC_OAUTH_ALLOW_ASSIGN_GRAFANA_ADMIN: 'true'
+      GF_AUTH_GENERIC_OAUTH_AUTO_LOGIN: 'true'
+      GF_AUTH_GENERIC_OAUTH_USE_PKCE: 'true'
+      GF_AUTH_GENERIC_OAUTH_TLS_SKIP_VERIFY_INSECURE: 'true'
     volumes:
       - grafana-data:/var/lib/grafana
     healthcheck:
@@ -144,6 +189,25 @@ services:
       - 'traefik.http.routers.grafana.middlewares=forward-auth@docker,security-headers@file'
       - 'traefik.http.services.grafana.loadbalancer.server.port=3000'
 
+  uptime-kuma:
+    image: louislam/uptime-kuma:2
+    container_name: personal-stack-uptime-kuma
+    volumes:
+      - uptime-kuma-data:/app/data
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -f http://localhost:3001 || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.uptime-kuma.rule=Host(`status.jorisjonkers.test`)'
+      - 'traefik.http.routers.uptime-kuma.entrypoints=websecure'
+      - 'traefik.http.routers.uptime-kuma.tls=true'
+      - 'traefik.http.routers.uptime-kuma.middlewares=security-headers@file'
+      - 'traefik.http.services.uptime-kuma.loadbalancer.server.port=3001'
+
   stalwart:
     image: stalwartlabs/stalwart:latest
     container_name: personal-stack-stalwart
@@ -155,7 +219,7 @@ services:
       start_period: 30s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.stalwart.rule=Host(`stalwart.jorisjonkers.test`)'
+      - 'traefik.http.routers.stalwart.rule=Host(`mail.jorisjonkers.test`) || Host(`stalwart.jorisjonkers.test`)'
       - 'traefik.http.routers.stalwart.entrypoints=websecure'
       - 'traefik.http.routers.stalwart.tls=true'
       - 'traefik.http.services.stalwart.loadbalancer.server.port=8080'
@@ -184,6 +248,10 @@ services:
       MAIL_PORT: 587
       MANAGEMENT_HEALTH_MAIL_ENABLED: 'false'
       AUTH_LOGIN_URL: https://auth.jorisjonkers.test/login
+      AUTH_ISSUER: https://auth.jorisjonkers.test
+      AUTH_CLIENTS_GRAFANA_SECRET: grafana-secret
+      AUTH_CLIENTS_N8N_SECRET: n8n-secret
+      AUTH_CLIENTS_VAULT_SECRET: vault-secret
       SESSION_COOKIE_DOMAIN: jorisjonkers.test
       SESSION_COOKIE_SECURE: 'true'
       SESSION_COOKIE_SAME_SITE: Lax
@@ -207,11 +275,64 @@ services:
       start_period: 30s
     labels:
       - 'traefik.enable=true'
+      - 'traefik.http.routers.auth-api-well-known.rule=Host(`auth.jorisjonkers.test`) && PathPrefix(`/.well-known/`)'
+      - 'traefik.http.routers.auth-api-well-known.entrypoints=websecure'
+      - 'traefik.http.routers.auth-api-well-known.tls=true'
+      - 'traefik.http.routers.auth-api-well-known.middlewares=security-headers@file'
+      - 'traefik.http.routers.auth-api-well-known.service=auth-api'
+      - 'traefik.http.routers.auth-api-well-known.priority=100'
       - 'traefik.http.routers.auth-api.rule=Host(`auth.jorisjonkers.test`) && PathPrefix(`/api/`)'
       - 'traefik.http.routers.auth-api.entrypoints=websecure'
       - 'traefik.http.routers.auth-api.tls=true'
       - 'traefik.http.routers.auth-api.middlewares=security-headers@file'
       - 'traefik.http.services.auth-api.loadbalancer.server.port=8081'
+
+  vault-oidc-init:
+    image: hashicorp/vault:1.19
+    container_name: personal-stack-vault-oidc-init
+    restart: 'no'
+    depends_on:
+      vault:
+        condition: service_healthy
+      auth-api:
+        condition: service_healthy
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: dev-root-token
+      AUTH_ISSUER: https://auth.jorisjonkers.test
+      VAULT_OIDC_CLIENT_SECRET: vault-secret
+    entrypoint:
+      - sh
+      - -ec
+      - |
+        apk add --no-cache openssl >/dev/null
+        until vault status >/dev/null 2>&1; do sleep 2; done
+        openssl s_client -showcerts -servername auth.jorisjonkers.test -connect auth.jorisjonkers.test:443 </dev/null 2>/dev/null \
+          | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ { print }' > /tmp/auth.jorisjonkers.test.pem
+        cat >/tmp/vault-oidc-role.json <<'EOF'
+        {
+          "bound_audiences": "vault",
+          "allowed_redirect_uris": [
+            "https://vault.jorisjonkers.test/ui/vault/auth/oidc/oidc/callback",
+            "http://localhost:8250/oidc/callback"
+          ],
+          "user_claim": "sub",
+          "groups_claim": "roles",
+          "oidc_scopes": ["openid", "profile", "email"],
+          "bound_claims": {
+            "roles": ["ROLE_ADMIN", "SERVICE_VAULT"]
+          },
+          "token_policies": ["admin"]
+        }
+        EOF
+        vault auth enable oidc >/dev/null 2>&1 || true
+        vault write auth/oidc/config \
+          oidc_discovery_url="$$AUTH_ISSUER" \
+          oidc_discovery_ca_pem=@/tmp/auth.jorisjonkers.test.pem \
+          oidc_client_id="vault" \
+          oidc_client_secret="$$VAULT_OIDC_CLIENT_SECRET" \
+          default_role="default" >/dev/null
+        vault write auth/oidc/role/default @/tmp/vault-oidc-role.json >/dev/null
 
   assistant-api:
     image: personal-stack/assistant-api:latest
@@ -271,7 +392,7 @@ services:
       start_period: 5s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.auth-ui.rule=Host(`auth.jorisjonkers.test`)'
+      - 'traefik.http.routers.auth-ui.rule=Host(`auth.jorisjonkers.test`) && !PathPrefix(`/api/`) && !PathPrefix(`/.well-known/`)'
       - 'traefik.http.routers.auth-ui.entrypoints=websecure'
       - 'traefik.http.routers.auth-ui.tls=true'
       - 'traefik.http.routers.auth-ui.priority=1'
@@ -330,3 +451,4 @@ volumes:
   vault-data:
   n8n-data:
   grafana-data:
+  uptime-kuma-data:

@@ -15,6 +15,7 @@ enum class ServicePermission(
     MAIL("mail", "stalwart"),
     N8N("n8n"),
     GRAFANA("grafana"),
+    RABBITMQ("rabbitmq"),
     ASSISTANT("assistant"),
     TRAEFIK_DASHBOARD("traefik"),
     STATUS("status"),

@@ -113,6 +113,9 @@ Coverage minimum: **80% line coverage**, enforced in CI.
 ## Getting Started
 
 ```bash
+# Configure local wildcard DNS and generate the dev TLS certificate for *.jorisjonkers.test
+sudo bash infra/scripts/setup-dev-dns.sh
+
 # Start infrastructure services (PostgreSQL, Valkey, RabbitMQ, Vault, Traefik)
 docker compose up -d
 

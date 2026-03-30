@@ -158,6 +158,7 @@ class JooqUserRepository(
         return UserCredentials(
             userId = userId,
             username = this[APP_USER.USERNAME] as String,
+            email = this[APP_USER.EMAIL] as String,
             passwordHash = this[APP_USER.PASSWORD_HASH] as String,
             totpSecret = this[APP_USER.TOTP_SECRET],
             totpEnabled = this[APP_USER.TOTP_ENABLED] as Boolean,

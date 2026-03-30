@@ -80,8 +80,8 @@ describe('appsGrid', () => {
     const wrapper = mountGrid()
     const links = wrapper.findAll('a')
     const hrefs = links.map((l) => l.attributes('href'))
-    expect(hrefs).toContain('https://grafana.jorisjonkers.dev')
-    expect(hrefs).toContain('https://vault.jorisjonkers.dev')
+    expect(hrefs).toContain('https://grafana.jorisjonkers.dev/')
+    expect(hrefs).toContain('https://vault.jorisjonkers.dev/')
   })
 
   it('service cards have target=_blank', () => {

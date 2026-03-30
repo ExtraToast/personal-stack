@@ -9,13 +9,17 @@ set -euo pipefail
 
 DOMAIN="jorisjonkers.test"
 IP="127.0.0.1"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOSTS=(
   "$DOMAIN"
   "auth.$DOMAIN"
   "assistant.$DOMAIN"
   "vault.$DOMAIN"
+  "rabbitmq.$DOMAIN"
+  "mail.$DOMAIN"
   "n8n.$DOMAIN"
   "grafana.$DOMAIN"
+  "status.$DOMAIN"
   "traefik.$DOMAIN"
   "stalwart.$DOMAIN"
 )
@@ -109,6 +113,8 @@ case "$(uname -s)" in
   Linux)  setup_dns_linux ;;
   *)      echo "Unsupported OS: $(uname -s)"; exit 1 ;;
 esac
+
+"$SCRIPT_DIR/generate-dev-tls-cert.sh"
 
 echo ""
 echo "Verify: ping -c1 auth.$DOMAIN"

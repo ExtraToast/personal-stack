@@ -22,6 +22,6 @@ http:
         frameDeny: true
         contentTypeNosniff: true
         referrerPolicy: 'strict-origin-when-cross-origin'
-        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.jorisjonkers.dev; frame-ancestors 'none'"
+        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.jorisjonkers.dev https://*.jorisjonkers.test; font-src 'self'; connect-src 'self' https://*.jorisjonkers.dev https://*.jorisjonkers.test; frame-ancestors 'none'"
         customResponseHeaders:
           X-Frame-Options: 'DENY'
