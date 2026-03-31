@@ -156,3 +156,21 @@ fun buildVaultClient(secret: String): RegisteredClient =
         .clientSettings(noConsentSettings(requirePkce = false))
         .tokenSettings(defaultTokenSettings())
         .build()
+
+fun buildStalwartClient(secret: String): RegisteredClient =
+    RegisteredClient
+        .withId(deterministicId("stalwart"))
+        .clientId("stalwart")
+        .clientSecret("{noop}$secret")
+        .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+        .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
+        .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+        .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+        .redirectUri("https://stalwart.jorisjonkers.dev")
+        .redirectUri("https://stalwart.jorisjonkers.test")
+        .scope(OidcScopes.OPENID)
+        .scope(OidcScopes.PROFILE)
+        .scope(OidcScopes.EMAIL)
+        .clientSettings(noConsentSettings(requirePkce = false))
+        .tokenSettings(defaultTokenSettings())
+        .build()

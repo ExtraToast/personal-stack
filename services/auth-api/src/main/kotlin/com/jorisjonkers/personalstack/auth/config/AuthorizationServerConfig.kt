@@ -76,6 +76,8 @@ class AuthorizationServerConfig(
     private val n8nClientSecret: String,
     @param:Value("\${auth.clients.vault.secret:vault-secret}")
     private val vaultClientSecret: String,
+    @param:Value("\${auth.clients.stalwart.secret:stalwart-secret}")
+    private val stalwartClientSecret: String,
 ) {
     @Bean
     @Order(1)
@@ -122,6 +124,7 @@ class AuthorizationServerConfig(
             buildN8nClient(n8nClientSecret),
             buildRabbitMqClient(),
             buildVaultClient(vaultClientSecret),
+            buildStalwartClient(stalwartClientSecret),
         )
 
     @Bean
@@ -266,6 +269,7 @@ class AuthorizationServerConfig(
                 "vault" to ServicePermission.VAULT,
                 "n8n" to ServicePermission.N8N,
                 "rabbitmq" to ServicePermission.RABBITMQ,
+                "stalwart" to ServicePermission.MAIL,
             )
     }
 }
