@@ -427,6 +427,16 @@ services:
   stalwart:
     image: stalwartlabs/stalwart:latest
     container_name: personal-stack-stalwart
+    volumes:
+      - stalwart-data:/opt/stalwart
+      - ./infra/stalwart/config.toml:/opt/stalwart/etc/config.toml
+    environment:
+      OIDC_USERINFO_URL: http://auth-api:8081/api/userinfo
+      STALWART_ADMIN_USER: admin
+      STALWART_ADMIN_SECRET: stalwart-dev-admin
+      STALWART_HOSTNAME: stalwart.jorisjonkers.test
+      STALWART_DOMAIN: jorisjonkers.test
+      CF_DNS_API_TOKEN: ''
     healthcheck:
       test: ['CMD', 'bash', '-c', 'echo >/dev/tcp/localhost/8080']
       interval: 10s
@@ -675,4 +685,5 @@ volumes:
   prometheus-data:
   loki-data:
   tempo-data:
+  stalwart-data:
   uptime-kuma-data:
