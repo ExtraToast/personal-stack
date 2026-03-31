@@ -31,6 +31,7 @@ verify_rotation() {
     "postgres:1"
     "grafana:1"
     "traefik:1"
+    "stalwart:1"
   )
 
   for svc_spec in "${services[@]}"; do

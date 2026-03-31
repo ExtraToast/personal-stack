@@ -93,6 +93,7 @@ load_app_secrets() {
   : "${AUTH_DB_PASSWORD:=auth_password}"
   : "${ASSISTANT_DB_USER:=assistant_user}"
   : "${ASSISTANT_DB_PASSWORD:=assistant_password}"
+  : "${CF_DNS_API_TOKEN:=}"
   : "${AUTH_ISSUER:=https://auth.jorisjonkers.dev}"
   : "${VAULT_PUBLIC_ADDR:=https://vault.jorisjonkers.dev}"
   : "${VAULT_OIDC_CLIENT_SECRET:=vault-secret}"
@@ -148,18 +149,20 @@ wait_for_rabbitmq() {
 wait_for_services() {
   local timeout="$1" elapsed=0
   while [ "$elapsed" -lt "$timeout" ]; do
-    local auth_r assistant_r
+    local auth_r assistant_r stalwart_r
     auth_r=$(docker service ps personal-stack_auth-api --filter "desired-state=running" \
       --format "{{.CurrentState}}" 2>/dev/null | grep -c "^Running" || true)
     assistant_r=$(docker service ps personal-stack_assistant-api --filter "desired-state=running" \
       --format "{{.CurrentState}}" 2>/dev/null | grep -c "^Running" || true)
-    if [ "$auth_r" -ge 1 ] && [ "$assistant_r" -ge 1 ]; then
+    stalwart_r=$(docker service ps personal-stack_stalwart --filter "desired-state=running" \
+      --format "{{.CurrentState}}" 2>/dev/null | grep -c "^Running" || true)
+    if [ "$auth_r" -ge 1 ] && [ "$assistant_r" -ge 1 ] && [ "$stalwart_r" -ge 1 ]; then
       printf "\r\033[K"
-      ok "auth-api: ${auth_r} running, assistant-api: ${assistant_r} running (${elapsed}s)"
+      ok "auth-api: ${auth_r}, assistant-api: ${assistant_r}, stalwart: ${stalwart_r} running (${elapsed}s)"
       return 0
     fi
-    printf "\r  ${DIM}Waiting for services [%ds/%ds] auth-api:%d assistant-api:%d${RESET}" \
-      "$elapsed" "$timeout" "$auth_r" "$assistant_r"
+    printf "\r  ${DIM}Waiting for services [%ds/%ds] auth-api:%d assistant-api:%d stalwart:%d${RESET}" \
+      "$elapsed" "$timeout" "$auth_r" "$assistant_r" "$stalwart_r"
     sleep 10
     elapsed=$((elapsed + 10))
   done

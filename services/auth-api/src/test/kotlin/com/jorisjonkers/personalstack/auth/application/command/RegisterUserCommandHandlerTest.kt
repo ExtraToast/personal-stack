@@ -42,6 +42,8 @@ class RegisterUserCommandHandlerTest {
             RegisterUserCommand(
                 username = "alice",
                 email = "alice@example.com",
+                firstName = "Alice",
+                lastName = "Smith",
                 password = "secret123",
             )
         val userSlot = slot<User>()
@@ -69,7 +71,7 @@ class RegisterUserCommandHandlerTest {
         every { userRepository.existsByUsername("alice") } returns true
 
         assertThatThrownBy {
-            handler.handle(RegisterUserCommand("alice", "alice@example.com", "pass"))
+            handler.handle(RegisterUserCommand("alice", "alice@example.com", "Alice", "Smith", "pass"))
         }.isInstanceOf(DuplicateUsernameException::class.java)
     }
 
@@ -79,7 +81,7 @@ class RegisterUserCommandHandlerTest {
         every { userRepository.existsByEmail("alice@example.com") } returns true
 
         assertThatThrownBy {
-            handler.handle(RegisterUserCommand("alice", "alice@example.com", "pass"))
+            handler.handle(RegisterUserCommand("alice", "alice@example.com", "Alice", "Smith", "pass"))
         }.isInstanceOf(DuplicateEmailException::class.java)
     }
 
@@ -92,6 +94,8 @@ class RegisterUserCommandHandlerTest {
             id = UserId(UUID.randomUUID()),
             username = username,
             email = email,
+            firstName = "",
+            lastName = "",
             role = Role.USER,
             emailConfirmed = false,
             totpEnabled = false,

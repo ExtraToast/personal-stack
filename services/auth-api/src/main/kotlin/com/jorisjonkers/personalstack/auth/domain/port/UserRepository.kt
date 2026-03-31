@@ -38,4 +38,9 @@ interface UserRepository {
     fun existsByUsername(username: String): Boolean
 
     fun existsByEmail(email: String): Boolean
+
+    fun updatePassword(
+        userId: UserId,
+        passwordHash: String,
+    )
 }

@@ -169,6 +169,8 @@ class JooqUserRepositoryIntegrationTest : IntegrationTestBase() {
             id = UserId(UUID.randomUUID()),
             username = username,
             email = email,
+            firstName = "",
+            lastName = "",
             role = Role.USER,
             emailConfirmed = true,
             totpEnabled = false,

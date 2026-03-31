@@ -1,21 +1,24 @@
-# Stalwart Mail Server Configuration
+# Stalwart Mail Server Configuration (Template)
 #
-# This config uses environment variable substitution (%{env:VAR}%) for
-# environment-specific values. See docker-compose.yml / docker-compose.prod.yml
-# for the actual values.
+# This file is a TEMPLATE. Placeholders (__VAR__) are substituted by the
+# container entrypoint (sed) before Stalwart starts. Do NOT use Stalwart's
+# native %{env:VAR}% syntax — it does not reliably perform substitution.
 #
-# Admin credentials for the webadmin UI:
-#   Dev:  admin / stalwart-dev-admin  (hardcoded in docker-compose.yml)
-#   Prod: admin / <generated>         (Docker Swarm secrets: stalwart_admin_user,
-#                                      stalwart_admin_password — created by
-#                                      provision.sh, ensured by repair-server.sh)
+# Placeholders:
+#   __STALWART_HOSTNAME__   — mail server hostname (e.g. mail.jorisjonkers.dev)
+#   __STALWART_DOMAIN__     — mail domain (e.g. jorisjonkers.dev)
+#   __CF_DNS_API_TOKEN__    — Cloudflare DNS API token for ACME
+#   __STALWART_ADMIN_USER__ — fallback admin username
+#   __STALWART_ADMIN_SECRET__ — fallback admin password
+#
+# See docker-compose.yml / docker-compose.prod.yml for actual values.
 #
 # The webadmin does NOT support SSO redirect. Access is gated by Traefik
 # forward-auth, so only authenticated users reach the login page.
 
 # ── Server ───────────────────────────────────────────────────────
 
-server.hostname = "%{env:STALWART_HOSTNAME}%"
+server.hostname = "__STALWART_HOSTNAME__"
 
 # ── Listeners ────────────────────────────────────────────────────
 
@@ -58,13 +61,13 @@ server.listener.http.protocol = "http"
 
 acme."letsencrypt".directory = "https://acme-v02.api.letsencrypt.org/directory"
 acme."letsencrypt".challenge = "dns-01"
-acme."letsencrypt".contact = ["postmaster@%{env:STALWART_DOMAIN}%"]
-acme."letsencrypt".domains = ["%{env:STALWART_HOSTNAME}%"]
+acme."letsencrypt".contact = ["postmaster@__STALWART_DOMAIN__"]
+acme."letsencrypt".domains = ["__STALWART_HOSTNAME__"]
 acme."letsencrypt".cache = "/opt/stalwart/etc/acme"
 acme."letsencrypt".renew-before = "30d"
 acme."letsencrypt".default = true
 acme."letsencrypt".dns.provider = "cloudflare"
-acme."letsencrypt".dns.secret = "%{env:CF_DNS_API_TOKEN}%"
+acme."letsencrypt".dns.secret = "__CF_DNS_API_TOKEN__"
 
 # ── Storage ──────────────────────────────────────────────────────
 
@@ -83,7 +86,7 @@ store.rocksdb.compression = "lz4"
 # OIDC directory: validates bearer tokens from mail clients via the
 # auth-api UserInfo endpoint. Enables OAUTHBEARER SASL authentication.
 directory.auth-api.type = "oidc"
-directory.auth-api.endpoint.url = "%{env:OIDC_USERINFO_URL}%"
+directory.auth-api.endpoint.url = "http://auth-api:8081/api/userinfo"
 directory.auth-api.endpoint.method = "userinfo"
 directory.auth-api.timeout = "15s"
 directory.auth-api.fields.email = "email"
@@ -99,8 +102,8 @@ directory.internal.store = "rocksdb"
 
 # ── Authentication ───────────────────────────────────────────────
 
-authentication.fallback-admin.user = "%{env:STALWART_ADMIN_USER}%"
-authentication.fallback-admin.secret = "%{env:STALWART_ADMIN_SECRET}%"
+authentication.fallback-admin.user = "__STALWART_ADMIN_USER__"
+authentication.fallback-admin.secret = "__STALWART_ADMIN_SECRET__"
 
 # ── Metrics ──────────────────────────────────────────────────────
 

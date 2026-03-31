@@ -74,6 +74,8 @@ class ErrorResponseIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "",
                       "email": "not-an-email",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": ""
                     }
                     """.trimIndent()
@@ -100,6 +102,8 @@ class ErrorResponseIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "$username",
                       "email": "$username@example.com",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": "securepass123"
                     }
                     """.trimIndent()
@@ -113,6 +117,8 @@ class ErrorResponseIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "$username",
                       "email": "${username}_2@example.com",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": "securepass123"
                     }
                     """.trimIndent()

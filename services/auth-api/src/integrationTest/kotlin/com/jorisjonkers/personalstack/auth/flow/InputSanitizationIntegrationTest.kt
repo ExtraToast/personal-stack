@@ -40,6 +40,8 @@ class InputSanitizationIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "<script>alert('xss')</script>",
                       "email": "xss_$suffix@example.com",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": "securepass123"
                     }
                     """.trimIndent()
@@ -61,6 +63,8 @@ class InputSanitizationIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "'; DROP TABLE app_user; --",
                       "email": "sqli_$suffix@example.com",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": "securepass123"
                     }
                     """.trimIndent()

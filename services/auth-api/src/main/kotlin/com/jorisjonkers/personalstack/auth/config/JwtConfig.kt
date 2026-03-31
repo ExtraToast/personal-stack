@@ -40,6 +40,7 @@ class JwtConfig(
      * the previous key remains available for verifying tokens issued before rotation.
      */
     @Bean
+    @Suppress("LongMethod")
     fun jwkSource(): JWKSource<SecurityContext> {
         val keys = mutableListOf<RSAKey>()
 

@@ -431,14 +431,26 @@ services:
     container_name: personal-stack-stalwart
     volumes:
       - stalwart-data:/opt/stalwart
-      - ./infra/stalwart/config.toml:/opt/stalwart/etc/config.toml
+      - ./infra/stalwart/config.toml:/etc/stalwart/config.toml.template:ro
     environment:
-      OIDC_USERINFO_URL: http://auth-api:8081/api/userinfo
       STALWART_ADMIN_USER: admin
       STALWART_ADMIN_SECRET: stalwart-dev-admin
       STALWART_HOSTNAME: stalwart.jorisjonkers.test
       STALWART_DOMAIN: jorisjonkers.test
       CF_DNS_API_TOKEN: ''
+    entrypoint:
+      - bash
+      - -c
+      - |
+        mkdir -p /opt/stalwart/etc
+        sed \
+          -e "s|__STALWART_HOSTNAME__|$${STALWART_HOSTNAME}|g" \
+          -e "s|__STALWART_DOMAIN__|$${STALWART_DOMAIN}|g" \
+          -e "s|__CF_DNS_API_TOKEN__|$${CF_DNS_API_TOKEN}|g" \
+          -e "s|__STALWART_ADMIN_USER__|$${STALWART_ADMIN_USER}|g" \
+          -e "s|__STALWART_ADMIN_SECRET__|$${STALWART_ADMIN_SECRET}|g" \
+          /etc/stalwart/config.toml.template > /opt/stalwart/etc/config.toml
+        exec /usr/local/bin/entrypoint.sh /usr/local/bin/stalwart
     healthcheck:
       test: ['CMD', 'bash', '-c', 'echo >/dev/tcp/localhost/8080']
       interval: 10s

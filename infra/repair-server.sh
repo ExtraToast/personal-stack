@@ -242,6 +242,7 @@ if [[ -z "${STALWART_ADMIN_PASSWORD:-}" ]]; then
 fi
 ensure_secret stalwart_admin_user "$STALWART_ADMIN_USER"
 ensure_secret stalwart_admin_password "$STALWART_ADMIN_PASSWORD"
+ensure_secret cf_dns_api_token "${CF_DNS_API_TOKEN:-}"
 
 # Persist Stalwart credentials to app-secrets file
 if [[ -f "$APP_SECRETS_FILE" ]]; then
@@ -294,7 +295,7 @@ printf "\n${BOLD}  Service Status${RESET}\n"
 printf "  %-30s  %s  %s\n" "${DIM}SERVICE${RESET}" "${DIM}RUNNING${RESET}" "${DIM}FAILED${RESET}"
 printf "  %-30s  %s  %s\n" "------------------------------" "-------" "------"
 
-for svc in personal-stack_auth-api personal-stack_assistant-api personal-stack_rabbitmq personal-stack_vault personal-stack_postgres; do
+for svc in personal-stack_auth-api personal-stack_assistant-api personal-stack_rabbitmq personal-stack_vault personal-stack_postgres personal-stack_stalwart; do
   running=$(docker service ps "$svc" --filter "desired-state=running" \
     --format "{{.CurrentState}}" 2>/dev/null | grep -c "^Running" || true)
   failed=$(docker service ps "$svc" --filter "desired-state=shutdown" \

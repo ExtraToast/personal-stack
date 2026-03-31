@@ -6,6 +6,8 @@ data class User(
     val id: UserId,
     val username: String,
     val email: String,
+    val firstName: String,
+    val lastName: String,
     val role: Role,
     val emailConfirmed: Boolean,
     val totpEnabled: Boolean,

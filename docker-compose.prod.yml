@@ -504,9 +504,8 @@ services:
       - stalwart-data:/opt/stalwart
     configs:
       - source: stalwart-config
-        target: /opt/stalwart/etc/config.toml
+        target: /etc/stalwart/config.toml.template
     environment:
-      OIDC_USERINFO_URL: http://auth-api:8081/api/userinfo
       STALWART_HOSTNAME: mail.jorisjonkers.dev
       STALWART_DOMAIN: jorisjonkers.dev
     entrypoint:
@@ -516,6 +515,14 @@ services:
         export STALWART_ADMIN_USER=$$(cat /run/secrets/stalwart_admin_user)
         export STALWART_ADMIN_SECRET=$$(cat /run/secrets/stalwart_admin_password)
         export CF_DNS_API_TOKEN=$$(cat /run/secrets/cf_dns_api_token)
+        mkdir -p /opt/stalwart/etc
+        sed \
+          -e "s|__STALWART_HOSTNAME__|$${STALWART_HOSTNAME}|g" \
+          -e "s|__STALWART_DOMAIN__|$${STALWART_DOMAIN}|g" \
+          -e "s|__CF_DNS_API_TOKEN__|$${CF_DNS_API_TOKEN}|g" \
+          -e "s|__STALWART_ADMIN_USER__|$${STALWART_ADMIN_USER}|g" \
+          -e "s|__STALWART_ADMIN_SECRET__|$${STALWART_ADMIN_SECRET}|g" \
+          /etc/stalwart/config.toml.template > /opt/stalwart/etc/config.toml
         exec /usr/local/bin/entrypoint.sh /usr/local/bin/stalwart
     secrets:
       - stalwart_admin_user

@@ -71,6 +71,8 @@ class TotpFlowIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "$username",
                       "email": "$username@example.com",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": "$password"
                     }
                     """.trimIndent()
