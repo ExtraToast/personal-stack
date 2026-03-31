@@ -28,31 +28,56 @@ import java.util.UUID
 class JwtConfig(
     @param:Value("\${auth.signing-key:}")
     private val signingKeyPem: String,
+    @param:Value("\${auth.signing-key-previous:}")
+    private val previousSigningKeyPem: String,
 ) {
     /**
      * Loads a shared RSA key from PEM (Vault KV in production) if available,
      * otherwise generates an ephemeral key pair (suitable for single-replica dev).
+     *
+     * When a previous signing key is present (during key rotation), both keys are
+     * included in the JWKSet. The current key is used for signing new tokens, while
+     * the previous key remains available for verifying tokens issued before rotation.
      */
     @Bean
     fun jwkSource(): JWKSource<SecurityContext> {
-        val rsaKey =
-            if (signingKeyPem.isNotBlank()) {
-                val privateKey = parseRsaPrivateKey(signingKeyPem)
-                val publicKey = derivePublicKey(privateKey)
+        val keys = mutableListOf<RSAKey>()
+
+        if (signingKeyPem.isNotBlank()) {
+            val privateKey = parseRsaPrivateKey(signingKeyPem)
+            val publicKey = derivePublicKey(privateKey)
+            keys.add(
                 RSAKey
                     .Builder(publicKey)
                     .privateKey(privateKey)
-                    .keyID("prod-signing-key-1")
-                    .build()
-            } else {
-                val keyPair = KeyPairGenerator.getInstance("RSA").apply { initialize(RSA_KEY_SIZE) }.generateKeyPair()
+                    .keyID(CURRENT_KEY_ID)
+                    .build(),
+            )
+        } else {
+            val keyPair = KeyPairGenerator.getInstance("RSA").apply { initialize(RSA_KEY_SIZE) }.generateKeyPair()
+            keys.add(
                 RSAKey
                     .Builder(keyPair.public as RSAPublicKey)
                     .privateKey(keyPair.private as RSAPrivateKey)
                     .keyID(UUID.randomUUID().toString())
-                    .build()
-            }
-        return ImmutableJWKSet(JWKSet(rsaKey))
+                    .build(),
+            )
+        }
+
+        // Include the previous key for verification during rotation window
+        if (previousSigningKeyPem.isNotBlank()) {
+            val prevPrivateKey = parseRsaPrivateKey(previousSigningKeyPem)
+            val prevPublicKey = derivePublicKey(prevPrivateKey)
+            keys.add(
+                RSAKey
+                    .Builder(prevPublicKey)
+                    .privateKey(prevPrivateKey)
+                    .keyID(PREVIOUS_KEY_ID)
+                    .build(),
+            )
+        }
+
+        return ImmutableJWKSet(JWKSet(keys.toList()))
     }
 
     @Bean
@@ -69,6 +94,8 @@ class JwtConfig(
 
     companion object {
         private const val RSA_KEY_SIZE = 2048
+        private const val CURRENT_KEY_ID = "signing-key-current"
+        private const val PREVIOUS_KEY_ID = "signing-key-previous"
         private val RSA_PUBLIC_EXPONENT = java.math.BigInteger.valueOf(65537)
 
         private fun parseRsaPrivateKey(pem: String): RSAPrivateKey {

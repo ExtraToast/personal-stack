@@ -31,7 +31,7 @@ CYAN='\033[0;36m'
 RESET='\033[0m'
 
 STEP=0
-TOTAL_STEPS=10
+TOTAL_STEPS=11
 
 step() {
   STEP=$((STEP + 1))
@@ -183,6 +183,35 @@ for key in auth-api assistant-api; do
   ok "$key"
 done
 
+# ── 5b. Configure database secrets engine ─────────────────────────────────
+step "Configuring database secrets engine for dynamic credentials"
+
+if [[ -f "$VAULT_APP_SECRETS_FILE" ]]; then
+  # shellcheck source=/dev/null
+  source "$VAULT_APP_SECRETS_FILE"
+
+  # Read the postgres superuser password from Docker secret or env
+  PG_SUPERPASS=""
+  PG_CONTAINER=$(docker ps --filter "name=personal-stack_postgres" --format "{{.ID}}" | head -1)
+  if [ -n "$PG_CONTAINER" ]; then
+    PG_SUPERPASS=$(docker exec "$PG_CONTAINER" cat /run/secrets/postgres_password 2>/dev/null) || true
+  fi
+
+  if [[ -n "$PG_SUPERPASS" ]]; then
+    POSTGRES_PASSWORD="$PG_SUPERPASS" \
+    POSTGRES_USER="${POSTGRES_USER:-postgres}" \
+    PG_HOST="postgres" \
+    PG_PORT="5432" \
+    source "${SCRIPT_DIR}/setup-db-engine.sh"
+    setup_database_engine
+  else
+    warn "Could not read postgres superuser password -- skipping database engine setup"
+    warn "Run setup-db-engine.sh manually after stack is deployed"
+  fi
+else
+  warn "App secrets file not found -- skipping database engine setup"
+fi
+
 # ── 6. Apply policies ──────────────────────────────────────────────────────
 step "Applying ACL policies"
 
@@ -225,6 +254,7 @@ step "Configuring Vault OIDC authentication"
 
 : "${AUTH_ISSUER:=https://auth.jorisjonkers.dev}"
 : "${VAULT_PUBLIC_ADDR:=https://vault.jorisjonkers.dev}"
+# VAULT_OIDC_CLIENT_SECRET will be set after KV population; use placeholder for now
 : "${VAULT_OIDC_CLIENT_SECRET:=vault-secret}"
 ROLE_PAYLOAD_FILE="$(mktemp)"
 cat > "$ROLE_PAYLOAD_FILE" <<EOF
@@ -271,22 +301,43 @@ if [[ -f "$VAULT_APP_SECRETS_FILE" ]]; then
   # Uses genpkey (PKCS#8 format) so Java's PKCS8EncodedKeySpec can parse it directly
   SIGNING_KEY_PEM=$(openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 2>/dev/null)
 
+  # Generate OAuth2 client secrets (random, stored only in Vault)
+  GRAFANA_CLIENT_SECRET=$(openssl rand -base64 32 | tr -d '/+=' | head -c 40)
+  N8N_CLIENT_SECRET=$(openssl rand -base64 32 | tr -d '/+=' | head -c 40)
+  VAULT_CLIENT_SECRET=$(openssl rand -base64 32 | tr -d '/+=' | head -c 40)
+  STALWART_CLIENT_SECRET=$(openssl rand -base64 32 | tr -d '/+=' | head -c 40)
+
   vault_exec kv put secret/auth-api \
     "spring.rabbitmq.username=${RABBITMQ_USER}" \
     "spring.rabbitmq.password=${RABBITMQ_PASSWORD}" \
-    "spring.datasource.username=${AUTH_DB_USER}" \
-    "spring.datasource.password=${AUTH_DB_PASSWORD}" \
-    "auth.signing-key=${SIGNING_KEY_PEM}" > /dev/null
-  ok "secret/auth-api (including JWT signing key)"
+    "auth.signing-key=${SIGNING_KEY_PEM}" \
+    "auth.clients.grafana.secret=${GRAFANA_CLIENT_SECRET}" \
+    "auth.clients.n8n.secret=${N8N_CLIENT_SECRET}" \
+    "auth.clients.vault.secret=${VAULT_CLIENT_SECRET}" \
+    "auth.clients.stalwart.secret=${STALWART_CLIENT_SECRET}" > /dev/null
+  ok "secret/auth-api (JWT key + RabbitMQ + OAuth2 client secrets)"
 
   vault_exec kv put secret/assistant-api \
     "spring.rabbitmq.username=${RABBITMQ_USER}" \
-    "spring.rabbitmq.password=${RABBITMQ_PASSWORD}" \
-    "spring.datasource.username=${ASSISTANT_DB_USER}" \
-    "spring.datasource.password=${ASSISTANT_DB_PASSWORD}" > /dev/null
-  ok "secret/assistant-api"
+    "spring.rabbitmq.password=${RABBITMQ_PASSWORD}" > /dev/null
+  ok "secret/assistant-api (RabbitMQ credentials)"
 
-  info "Keys: spring.rabbitmq.*, spring.datasource.*"
+  # Update Vault OIDC config with the generated client secret
+  vault_exec write auth/oidc/config \
+    oidc_discovery_url="${AUTH_ISSUER}" \
+    oidc_client_id="vault" \
+    oidc_client_secret="${VAULT_CLIENT_SECRET}" \
+    default_role="default" > /dev/null
+  ok "Vault OIDC config updated with generated client secret"
+
+  # Store OAuth2 client secrets for consumer services (Grafana, n8n, Stalwart)
+  # These will be created as Docker Swarm secrets for services that can't read from Vault
+  OAUTH2_GRAFANA_SECRET="$GRAFANA_CLIENT_SECRET"
+  OAUTH2_N8N_SECRET="$N8N_CLIENT_SECRET"
+  OAUTH2_STALWART_SECRET="$STALWART_CLIENT_SECRET"
+
+  info "DB credentials now managed by Vault database secrets engine (dynamic)"
+  info "OAuth2 client secrets stored in Vault KV (rotatable)"
 else
   warn "${VAULT_APP_SECRETS_FILE} not found -- skipping KV population"
   warn "RabbitMQ and DB credentials must be written to Vault manually"
@@ -330,6 +381,14 @@ update_secret vault_auth_api_role_id      "$AUTH_API_ROLE_ID"
 update_secret vault_auth_api_secret_id    "$AUTH_API_SECRET_ID"
 update_secret vault_assistant_api_role_id "$ASSISTANT_API_ROLE_ID"
 update_secret vault_assistant_api_secret_id "$ASSISTANT_API_SECRET_ID"
+
+# Create OAuth2 client secrets for consumer services (Grafana, n8n, Stalwart)
+if [[ -n "${OAUTH2_GRAFANA_SECRET:-}" ]]; then
+  update_secret oauth2_grafana_secret   "$OAUTH2_GRAFANA_SECRET"
+  update_secret oauth2_n8n_secret       "$OAUTH2_N8N_SECRET"
+  update_secret oauth2_stalwart_secret  "$OAUTH2_STALWART_SECRET"
+  ok "OAuth2 client secrets created as Swarm secrets"
+fi
 ok "Docker Swarm secrets updated"
 
 info "Redeploying stack..."
@@ -358,6 +417,10 @@ clear_line
 if [ -n "$VAULT_CONTAINER" ]; then
   vault_exec operator unseal "$VAULT_UNSEAL_KEY" > /dev/null 2>&1 || true
   ok "Vault unsealed after redeploy"
+
+  # Enable audit logging
+  vault_exec audit enable file file_path=/vault/data/audit.log > /dev/null 2>&1 || true
+  ok "Vault audit log enabled"
 else
   warn "Vault container not found -- unseal manually"
 fi

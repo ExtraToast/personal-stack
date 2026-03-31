@@ -148,3 +148,9 @@ runcmd:
   # Initialize Vault and update Docker secrets with real AppRole credentials
   # Initialize Vault, swap placeholder secrets with real AppRole credentials, and redeploy
   - bash /opt/personal-stack/infra/vault/scripts/init-vault.sh
+
+  # Install and enable the credential rotation systemd timer
+  - cp /opt/personal-stack/infra/systemd/credential-rotation.service /etc/systemd/system/
+  - cp /opt/personal-stack/infra/systemd/credential-rotation.timer /etc/systemd/system/
+  - systemctl daemon-reload
+  - systemctl enable --now credential-rotation.timer

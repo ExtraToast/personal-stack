@@ -162,15 +162,12 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_CONFIG_IMPORT: vault://
       VAULT_ENABLED: 'true'
+      VAULT_DB_ENABLED: 'true'
       VAULT_ADDR: http://vault:8200
       MAIL_HOST: stalwart
       MAIL_PORT: 587
       AUTH_LOGIN_URL: https://auth.jorisjonkers.dev/login
       AUTH_ISSUER: https://auth.jorisjonkers.dev
-      AUTH_CLIENTS_GRAFANA_SECRET: grafana-secret
-      AUTH_CLIENTS_N8N_SECRET: n8n-secret
-      AUTH_CLIENTS_VAULT_SECRET: vault-secret
-      AUTH_CLIENTS_STALWART_SECRET: stalwart-secret
       SESSION_COOKIE_DOMAIN: jorisjonkers.dev
       SESSION_COOKIE_SECURE: 'true'
       AUTH_CORS_ALLOWED_ORIGINS: https://jorisjonkers.dev,https://auth.jorisjonkers.dev,https://assistant.jorisjonkers.dev,https://vault.jorisjonkers.dev,https://n8n.jorisjonkers.dev,https://grafana.jorisjonkers.dev,https://rabbitmq.jorisjonkers.dev,https://stalwart.jorisjonkers.dev,https://traefik.jorisjonkers.dev,https://status.jorisjonkers.dev
@@ -219,6 +216,7 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_CONFIG_IMPORT: vault://
       VAULT_ENABLED: 'true'
+      VAULT_DB_ENABLED: 'true'
       VAULT_ADDR: http://vault:8200
       OTEL_SERVICE_NAME: assistant-api
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
@@ -327,15 +325,21 @@ services:
       N8N_ADDITIONAL_NON_UI_ROUTES: auth
       OIDC_ISSUER_URL: https://auth.jorisjonkers.dev
       OIDC_CLIENT_ID: n8n
-      OIDC_CLIENT_SECRET: n8n-secret
       OIDC_REDIRECT_URI: https://n8n.jorisjonkers.dev/auth/oidc/callback
       OIDC_SCOPES: openid email profile
+    entrypoint:
+      - sh
+      - -c
+      - |
+        export OIDC_CLIENT_SECRET=$$(cat /run/secrets/oauth2_n8n_secret)
+        exec n8n
     volumes:
       - n8n-data:/home/node/.n8n
       - ./infra/n8n/hooks.js:/data/n8n/hooks.js:ro
     secrets:
       - n8n_db_user
       - n8n_db_password
+      - oauth2_n8n_secret
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://localhost:5678/healthz || exit 1']
       interval: 15s
@@ -386,7 +390,7 @@ services:
       GF_AUTH_GENERIC_OAUTH_ENABLED: 'true'
       GF_AUTH_GENERIC_OAUTH_NAME: personal-stack
       GF_AUTH_GENERIC_OAUTH_CLIENT_ID: grafana
-      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: grafana-secret
+      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET__FILE: /run/secrets/oauth2_grafana_secret
       GF_AUTH_GENERIC_OAUTH_SCOPES: openid profile email
       GF_AUTH_GENERIC_OAUTH_AUTH_URL: https://auth.jorisjonkers.dev/api/oauth2/authorize
       GF_AUTH_GENERIC_OAUTH_TOKEN_URL: https://auth.jorisjonkers.dev/api/oauth2/token
@@ -408,6 +412,7 @@ services:
     secrets:
       - grafana_admin_user
       - grafana_admin_password
+      - oauth2_grafana_secret
     healthcheck:
       test: ['CMD-SHELL', 'curl -f http://localhost:3000/api/health || exit 1']
       interval: 15s
@@ -612,4 +617,10 @@ secrets:
   stalwart_admin_user:
     external: true
   stalwart_admin_password:
+    external: true
+  oauth2_grafana_secret:
+    external: true
+  oauth2_n8n_secret:
+    external: true
+  oauth2_stalwart_secret:
     external: true
