@@ -42,6 +42,7 @@ dependencies {
     compileOnly("org.springframework.vault:spring-vault-core:4.0.1")
     compileOnly("org.springframework.boot:spring-boot-starter-mail:4.0.4")
     compileOnly("org.springframework:spring-context:7.0.3")
+    compileOnly("org.springframework.security:spring-security-oauth2-jose:7.0.0")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -52,5 +53,6 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-mail:4.0.4")
     testImplementation("org.springframework.vault:spring-vault-core:4.0.1")
     testImplementation("org.springframework:spring-context:7.0.3")
+    testImplementation("org.springframework.security:spring-security-oauth2-jose:7.0.0")
     implementation("com.tngtech.archunit:archunit-junit5:1.4.0")
 }

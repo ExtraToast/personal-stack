@@ -11,10 +11,14 @@ spring:
     vault:
       enabled: ${VAULT_ENABLED:false}
       uri: ${VAULT_ADDR:http://localhost:8200}
-      authentication: APPROLE
+      authentication: ${VAULT_AUTHENTICATION:APPROLE}
       app-role:
         role-id: ${VAULT_ROLE_ID:}
         secret-id: ${VAULT_SECRET_ID:}
+      database:
+        enabled: ${VAULT_DB_ENABLED:false}
+        role: assistant-api
+        backend: database
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/assistant_db
     username: ${DB_USER:assistant_user}
