@@ -12,10 +12,11 @@
   "templating": {
     "list": [
       {
-        "name": "container",
+        "name": "service",
         "type": "query",
         "datasource": { "type": "loki", "uid": "loki" },
-        "query": "label_values({container=~\".+\"}, container)",
+        "query": "label_values({service_name=~\".+\"}, service_name)",
+        "allValue": ".+",
         "includeAll": true,
         "multi": true,
         "current": { "text": "All", "value": "$__all" },
@@ -25,6 +26,7 @@
         "name": "level",
         "type": "custom",
         "query": "DEBUG,INFO,WARN,ERROR",
+        "allValue": ".+",
         "includeAll": true,
         "multi": true,
         "current": { "text": "All", "value": "$__all" }
@@ -40,14 +42,14 @@
   "panels": [
     {
       "id": 1,
-      "title": "Log Volume by Container",
+      "title": "Log Volume by Service",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "sum by(container)(count_over_time({container=~\"$container\"}[5m]))",
-          "legendFormat": "{{container}}"
+          "expr": "sum by(service_name)(count_over_time({service_name=~\"${service:regex}\"}[5m]))",
+          "legendFormat": "{{service_name}}"
         }
       ],
       "fieldConfig": {
@@ -59,14 +61,14 @@
     },
     {
       "id": 2,
-      "title": "Error Log Rate by Container",
+      "title": "Error Log Rate by Service",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "sum by(container)(count_over_time({container=~\"$container\"} | json | level=\"ERROR\" [5m]))",
-          "legendFormat": "{{container}}"
+          "expr": "sum by(service_name)(count_over_time({service_name=~\"${service:regex}\"} | json | __error__=\"\" | level=~\"ERROR|error\" [5m]))",
+          "legendFormat": "{{service_name}}"
         }
       ],
       "fieldConfig": {
@@ -85,7 +87,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "sum by(level)(count_over_time({container=~\"$container\"} | json | level=~\".+\" [1h]))",
+          "expr": "sum by(level)(count_over_time({service_name=~\"${service:regex}\"} | json | __error__=\"\" | level=~\".+\" [1h]))",
           "legendFormat": "{{level}}"
         }
       ],
@@ -118,7 +120,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "sum(count_over_time({container=~\"$container\"} | json | level=~\"WARN|ERROR\" [1h])) / sum(count_over_time({container=~\"$container\"} [1h])) * 100",
+          "expr": "sum(count_over_time({service_name=~\"${service:regex}\"} | json | __error__=\"\" | level=~\"WARN|ERROR|warn|error\" [1h])) / sum(count_over_time({service_name=~\"${service:regex}\"} [1h])) * 100",
           "legendFormat": ""
         }
       ],
@@ -148,7 +150,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "topk(10, sum by(message)(count_over_time({container=~\"$container\"} | json | level=\"ERROR\" [1h])))",
+          "expr": "topk(10, sum by(message)(count_over_time({service_name=~\"${service:regex}\"} | json | __error__=\"\" | level=~\"ERROR|error\" [1h])))",
           "legendFormat": "{{message}}",
           "instant": true
         }
@@ -162,7 +164,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "{container=~\"$container\"} | json | level=~\"$level\" |~ \"$search\"",
+          "expr": "{service_name=~\"${service:regex}\"} | json | __error__=\"\" | level=~\"${level:regex}\" |~ \"$search\"",
           "maxLines": 200
         }
       ],
@@ -185,7 +187,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "{container=~\"$container\"} | json | traceId != \"\"",
+          "expr": "{service_name=~\"${service:regex}\"} | json | __error__=\"\" | traceId != \"\"",
           "maxLines": 100
         }
       ],

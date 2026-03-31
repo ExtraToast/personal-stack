@@ -10,18 +10,7 @@
     "to": "now"
   },
   "templating": {
-    "list": [
-      {
-        "name": "instance",
-        "type": "query",
-        "datasource": { "type": "prometheus", "uid": "prometheus" },
-        "query": "label_values(http_server_requests_seconds_count{job=\"auth-api\"}, instance)",
-        "includeAll": true,
-        "multi": true,
-        "current": { "text": "All", "value": "$__all" },
-        "refresh": 2
-      }
-    ]
+    "list": []
   },
   "panels": [
     {
@@ -31,7 +20,7 @@
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", instance=~\"$instance\", uri=~\"/api/auth/login\"}[5m]))",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", uri=~\"/api/auth/login\"}[5m]))",
           "legendFormat": "Login requests/s"
         }
       ],
@@ -50,15 +39,15 @@
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", instance=~\"$instance\", uri=~\"/api/auth/login\", status=~\"2..\"}[5m]))",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", uri=~\"/api/auth/login\", status=~\"2..\"}[5m]))",
           "legendFormat": "Success (2xx)"
         },
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", instance=~\"$instance\", uri=~\"/api/auth/login\", status=~\"4..\"}[5m]))",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", uri=~\"/api/auth/login\", status=~\"4..\"}[5m]))",
           "legendFormat": "Client Error (4xx)"
         },
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", instance=~\"$instance\", uri=~\"/api/auth/login\", status=~\"5..\"}[5m]))",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", uri=~\"/api/auth/login\", status=~\"5..\"}[5m]))",
           "legendFormat": "Server Error (5xx)"
         }
       ],
@@ -91,11 +80,11 @@
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by(le)(rate(http_server_requests_seconds_bucket{job=\"auth-api\", instance=~\"$instance\", uri=~\"/api/auth/login\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by(le)(rate(http_server_requests_seconds_bucket{job=\"auth-api\", uri=~\"/api/auth/login\"}[5m])))",
           "legendFormat": "p95"
         },
         {
-          "expr": "histogram_quantile(0.50, sum by(le)(rate(http_server_requests_seconds_bucket{job=\"auth-api\", instance=~\"$instance\", uri=~\"/api/auth/login\"}[5m])))",
+          "expr": "histogram_quantile(0.50, sum by(le)(rate(http_server_requests_seconds_bucket{job=\"auth-api\", uri=~\"/api/auth/login\"}[5m])))",
           "legendFormat": "p50"
         }
       ],
@@ -114,7 +103,7 @@
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", instance=~\"$instance\", uri=\"/api/oauth2/token\"}[5m]))",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", uri=\"/api/oauth2/token\"}[5m]))",
           "legendFormat": "Token requests/s"
         }
       ],
@@ -133,7 +122,7 @@
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", instance=~\"$instance\", uri=~\"/api/oauth2/authorize.*\"}[5m]))",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", uri=~\"/api/oauth2/authorize.*\"}[5m]))",
           "legendFormat": "Authorize requests/s"
         }
       ],
@@ -152,7 +141,7 @@
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by(le)(rate(http_server_requests_seconds_bucket{job=\"auth-api\", instance=~\"$instance\", uri=\"/api/oauth2/token\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by(le)(rate(http_server_requests_seconds_bucket{job=\"auth-api\", uri=\"/api/oauth2/token\"}[5m])))",
           "legendFormat": "p95"
         }
       ],
@@ -171,7 +160,7 @@
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", instance=~\"$instance\", uri=\"/api/userinfo\"}[5m]))",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", uri=\"/api/userinfo\"}[5m]))",
           "legendFormat": "Userinfo requests/s"
         }
       ],
@@ -190,7 +179,7 @@
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", instance=~\"$instance\", uri=~\"/api/v1/auth/verify\"}[5m]))",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", uri=~\"/api/v1/auth/verify\"}[5m]))",
           "legendFormat": "Verify requests/s"
         }
       ],
@@ -209,7 +198,7 @@
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", instance=~\"$instance\", uri=~\"/api/auth/register\"}[5m]))",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", uri=~\"/api/auth/register\"}[5m]))",
           "legendFormat": "Register requests/s"
         }
       ],
@@ -228,7 +217,7 @@
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
       "targets": [
         {
-          "expr": "topk(10, sum by(uri, status)(rate(http_server_requests_seconds_count{job=\"auth-api\", instance=~\"$instance\", status=~\"[45]..\"}[5m])))",
+          "expr": "topk(10, sum by(uri, status)(rate(http_server_requests_seconds_count{job=\"auth-api\", status=~\"[45]..\"}[5m])))",
           "legendFormat": "{{uri}} - {{status}}",
           "format": "table",
           "instant": true
@@ -248,7 +237,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "{service_name=\"auth-api\"} | json | level=\"ERROR\"",
+          "expr": "{service_name=\"auth-api\"} | json | __error__=\"\" | level=~\"ERROR|error\"",
           "maxLines": 50
         }
       ],

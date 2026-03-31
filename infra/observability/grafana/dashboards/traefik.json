@@ -204,35 +204,10 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
-      "id": 9,
-      "title": "TLS Certificate Expiry",
-      "type": "stat",
-      "gridPos": { "h": 4, "w": 12, "x": 0, "y": 20 },
-      "targets": [
-        {
-          "expr": "(traefik_tls_certs_not_after - time()) / 86400",
-          "legendFormat": "{{cn}} ({{sans}}) days remaining"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "d",
-          "thresholds": {
-            "steps": [
-              { "color": "red", "value": null },
-              { "color": "yellow", "value": 14 },
-              { "color": "green", "value": 30 }
-            ]
-          }
-        }
-      },
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
-    },
-    {
       "id": 10,
       "title": "Requests by Entrypoint",
       "type": "piechart",
-      "gridPos": { "h": 4, "w": 12, "x": 12, "y": 20 },
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 20 },
       "targets": [
         {
           "expr": "sum by(entrypoint)(rate(traefik_entrypoint_requests_total[5m]))",

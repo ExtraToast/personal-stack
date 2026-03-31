@@ -15,6 +15,7 @@
         "name": "service",
         "type": "custom",
         "query": "auth-api,assistant-api,traefik",
+        "allValue": ".*",
         "includeAll": true,
         "multi": true,
         "current": { "text": "All", "value": "$__all" }
@@ -38,7 +39,7 @@
         {
           "datasource": { "type": "tempo", "uid": "tempo" },
           "queryType": "traceqlSearch",
-          "query": "{resource.service.name=~\"$service\" && duration > $min_duration}",
+          "query": "{resource.service.name=~\"${service:regex}\" && duration > $min_duration}",
           "limit": 20
         }
       ],
@@ -64,7 +65,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
       "targets": [
         {
-          "expr": "sum by(service_name)(rate(traces_spanmetrics_calls_total[5m]))",
+          "expr": "sum by(service_name)(rate(traces_spanmetrics_calls_total{service_name=~\"${service:regex}\"}[5m]))",
           "legendFormat": "{{service_name}}"
         }
       ],
@@ -83,7 +84,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by(le, service_name)(rate(traces_spanmetrics_latency_bucket[5m])))",
+          "expr": "histogram_quantile(0.95, sum by(le, service_name)(rate(traces_spanmetrics_latency_bucket{service_name=~\"${service:regex}\"}[5m])))",
           "legendFormat": "{{service_name}} p95"
         }
       ],
@@ -104,7 +105,7 @@
         {
           "datasource": { "type": "tempo", "uid": "tempo" },
           "queryType": "traceqlSearch",
-          "query": "{resource.service.name=~\"$service\" && status = error}",
+          "query": "{resource.service.name=~\"${service:regex}\" && status = error}",
           "limit": 20
         }
       ],
@@ -117,7 +118,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
       "targets": [
         {
-          "expr": "sum by(service_name)(rate(traces_spanmetrics_calls_total{status_code=\"STATUS_CODE_ERROR\"}[5m]))",
+          "expr": "sum by(service_name)(rate(traces_spanmetrics_calls_total{service_name=~\"${service:regex}\", status_code=\"STATUS_CODE_ERROR\"}[5m]))",
           "legendFormat": "{{service_name}} errors"
         }
       ],
@@ -137,15 +138,15 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, sum by(le)(rate(traces_spanmetrics_latency_bucket[5m])))",
+          "expr": "histogram_quantile(0.50, sum by(le)(rate(traces_spanmetrics_latency_bucket{service_name=~\"${service:regex}\"}[5m])))",
           "legendFormat": "p50"
         },
         {
-          "expr": "histogram_quantile(0.95, sum by(le)(rate(traces_spanmetrics_latency_bucket[5m])))",
+          "expr": "histogram_quantile(0.95, sum by(le)(rate(traces_spanmetrics_latency_bucket{service_name=~\"${service:regex}\"}[5m])))",
           "legendFormat": "p95"
         },
         {
-          "expr": "histogram_quantile(0.99, sum by(le)(rate(traces_spanmetrics_latency_bucket[5m])))",
+          "expr": "histogram_quantile(0.99, sum by(le)(rate(traces_spanmetrics_latency_bucket{service_name=~\"${service:regex}\"}[5m])))",
           "legendFormat": "p99"
         }
       ],
