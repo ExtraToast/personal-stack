@@ -76,4 +76,7 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             export IMAGE_TAG=$(git rev-parse HEAD)
-            docker stack deploy -c docker-compose.prod.yml personal-stack --with-registry-auth --resolve-image changed
+            for img in auth-api assistant-api auth-ui assistant-ui app-ui; do
+              docker pull ghcr.io/extratoast/personal-stack/${img}:${IMAGE_TAG}
+            done
+            docker stack deploy --resolve-image always --with-registry-auth -c docker-compose.prod.yml personal-stack
