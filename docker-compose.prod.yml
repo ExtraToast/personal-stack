@@ -494,6 +494,25 @@ services:
       - '993:993'
     volumes:
       - stalwart-data:/opt/stalwart
+    configs:
+      - source: stalwart-config
+        target: /opt/stalwart/etc/config.toml
+    environment:
+      OIDC_USERINFO_URL: http://auth-api:8081/api/userinfo
+      STALWART_HOSTNAME: mail.jorisjonkers.dev
+      STALWART_DOMAIN: jorisjonkers.dev
+    entrypoint:
+      - bash
+      - -c
+      - |
+        export STALWART_ADMIN_USER=$$(cat /run/secrets/stalwart_admin_user)
+        export STALWART_ADMIN_SECRET=$$(cat /run/secrets/stalwart_admin_password)
+        export CF_DNS_API_TOKEN=$$(cat /run/secrets/cf_dns_api_token)
+        exec /usr/local/bin/entrypoint.sh /usr/local/bin/stalwart
+    secrets:
+      - stalwart_admin_user
+      - stalwart_admin_password
+      - cf_dns_api_token
     healthcheck:
       test: ['CMD', 'bash', '-c', 'echo >/dev/tcp/localhost/8080']
       interval: 30s
@@ -552,6 +571,10 @@ networks:
     driver: overlay
     attachable: true
 
+configs:
+  stalwart-config:
+    file: ./infra/stalwart/config.toml
+
 secrets:
   postgres_user:
     external: true
@@ -582,4 +605,8 @@ secrets:
   auth_db_password:
     external: true
   assistant_db_password:
+    external: true
+  stalwart_admin_user:
+    external: true
+  stalwart_admin_password:
     external: true

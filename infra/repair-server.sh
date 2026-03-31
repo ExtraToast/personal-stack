@@ -339,6 +339,8 @@ AUTH_DB_USER=${AUTH_DB_USER}
 AUTH_DB_PASSWORD=${AUTH_DB_PASSWORD}
 ASSISTANT_DB_USER=${ASSISTANT_DB_USER}
 ASSISTANT_DB_PASSWORD=${ASSISTANT_DB_PASSWORD}
+STALWART_ADMIN_USER=${STALWART_ADMIN_USER:-admin}
+STALWART_ADMIN_PASSWORD=${STALWART_ADMIN_PASSWORD:-}
 EOF
   chmod 600 "$APP_SECRETS_FILE"
   ok "Credentials rotated to user '${NEW_RMQ_USER}'"
@@ -457,6 +459,33 @@ update_secret vault_auth_api_role_id      "$AUTH_API_ROLE_ID"
 update_secret vault_auth_api_secret_id    "$AUTH_API_SECRET_ID"
 update_secret vault_assistant_api_role_id "$ASSISTANT_API_ROLE_ID"
 update_secret vault_assistant_api_secret_id "$ASSISTANT_API_SECRET_ID"
+
+# Ensure Stalwart admin secrets exist (created during provisioning, but may be
+# missing on deployments that predate Stalwart OIDC integration)
+ensure_secret() {
+  local name="$1" default="$2"
+  if ! docker secret inspect "$name" > /dev/null 2>&1; then
+    printf '%s' "$default" | docker secret create "$name" - > /dev/null
+    info "Created missing secret: $name"
+  fi
+}
+: "${STALWART_ADMIN_USER:=admin}"
+if [[ -z "${STALWART_ADMIN_PASSWORD:-}" ]]; then
+  STALWART_ADMIN_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=' | head -c 32)
+  info "Generated new Stalwart admin password"
+fi
+ensure_secret stalwart_admin_user "$STALWART_ADMIN_USER"
+ensure_secret stalwart_admin_password "$STALWART_ADMIN_PASSWORD"
+
+# Persist Stalwart credentials to app-secrets file
+if [[ -f "$APP_SECRETS_FILE" ]]; then
+  if ! grep -q '^STALWART_ADMIN_USER=' "$APP_SECRETS_FILE" 2>/dev/null; then
+    printf '\nSTALWART_ADMIN_USER=%s\nSTALWART_ADMIN_PASSWORD=%s\n' \
+      "$STALWART_ADMIN_USER" "$STALWART_ADMIN_PASSWORD" >> "$APP_SECRETS_FILE"
+    info "Stalwart credentials appended to ${APP_SECRETS_FILE}"
+  fi
+fi
+
 ok "Docker Swarm secrets updated"
 
 # ── 7. Redeploy stack ──────────────────────────────────────────────────────
