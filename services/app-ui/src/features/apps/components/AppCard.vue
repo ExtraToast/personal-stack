@@ -22,20 +22,21 @@ function handleIconError(): void {
     target="_blank"
     rel="noopener noreferrer"
   >
-    <div
-      class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-surface-border bg-gray-950/80 text-terminal-green"
+    <img
+      v-if="!iconLoadFailed"
+      class="h-8 w-8 shrink-0 object-contain"
+      :src="service.iconUrl"
+      :alt="`${service.label} icon`"
+      loading="eager"
+      decoding="async"
+      @error="handleIconError"
+    />
+    <span
+      v-else
+      class="flex h-8 w-8 shrink-0 items-center justify-center font-mono text-xs font-bold text-terminal-green"
     >
-      <img
-        v-if="!iconLoadFailed"
-        class="h-6 w-6 object-contain"
-        :src="service.iconUrl"
-        :alt="`${service.label} icon`"
-        loading="eager"
-        decoding="async"
-        @error="handleIconError"
-      />
-      <span v-else class="font-mono text-xs font-bold">{{ fallbackLabel }}</span>
-    </div>
+      {{ fallbackLabel }}
+    </span>
     <div class="min-w-0">
       <p class="font-mono text-sm font-bold text-gray-200 group-hover:text-terminal-green">
         {{ service.label }}
