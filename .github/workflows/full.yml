@@ -14,18 +14,146 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      any-kotlin: ${{ steps.compute.outputs.any-kotlin }}
+      any-frontend: ${{ steps.compute.outputs.any-frontend }}
+      run-system-tests: ${{ steps.compute.outputs.run-system-tests }}
+      lint-kotlin-matrix: ${{ steps.matrix.outputs.lint-kotlin }}
+      test-kotlin-unit-matrix: ${{ steps.matrix.outputs.test-kotlin-unit }}
+      test-kotlin-integration-matrix: ${{ steps.matrix.outputs.test-kotlin-integration }}
+      verify-coverage-matrix: ${{ steps.matrix.outputs.verify-coverage }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            workflow:
+              - '.github/workflows/full.yml'
+            auth-api:
+              - 'services/auth-api/**'
+            assistant-api:
+              - 'services/assistant-api/**'
+            kotlin-common:
+              - 'libs/kotlin-common/**'
+            build-logic:
+              - 'build-logic/**'
+            gradle-config:
+              - 'gradle/**'
+              - 'gradle.properties'
+              - 'build.gradle.kts'
+              - 'settings.gradle.kts'
+              - 'gradlew'
+              - 'gradlew.bat'
+            auth-ui:
+              - 'services/auth-ui/**'
+            assistant-ui:
+              - 'services/assistant-ui/**'
+            app-ui:
+              - 'services/app-ui/**'
+            vue-common:
+              - 'libs/vue-common/**'
+            frontend-config:
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'eslint.config.ts'
+            system-tests:
+              - 'services/system-tests/**'
+            infra:
+              - 'infra/**'
+              - 'docker-compose.yml'
+              - 'docker-compose.prod.yml'
+      - name: Compute change flags
+        id: compute
+        env:
+          FILTER_WORKFLOW: ${{ steps.filter.outputs.workflow }}
+          FILTER_KOTLIN_COMMON: ${{ steps.filter.outputs.kotlin-common }}
+          FILTER_BUILD_LOGIC: ${{ steps.filter.outputs.build-logic }}
+          FILTER_GRADLE_CONFIG: ${{ steps.filter.outputs.gradle-config }}
+          FILTER_AUTH_API: ${{ steps.filter.outputs.auth-api }}
+          FILTER_ASSISTANT_API: ${{ steps.filter.outputs.assistant-api }}
+          FILTER_VUE_COMMON: ${{ steps.filter.outputs.vue-common }}
+          FILTER_FRONTEND_CONFIG: ${{ steps.filter.outputs.frontend-config }}
+          FILTER_AUTH_UI: ${{ steps.filter.outputs.auth-ui }}
+          FILTER_ASSISTANT_UI: ${{ steps.filter.outputs.assistant-ui }}
+          FILTER_APP_UI: ${{ steps.filter.outputs.app-ui }}
+          FILTER_SYSTEM_TESTS: ${{ steps.filter.outputs.system-tests }}
+          FILTER_INFRA: ${{ steps.filter.outputs.infra }}
+        run: |
+          any() { for v in "$@"; do [[ "$v" == "true" ]] && echo "true" && return; done; echo "false"; }
+
+          KOTLIN_SHARED=$(any "$FILTER_WORKFLOW" "$FILTER_KOTLIN_COMMON" "$FILTER_BUILD_LOGIC" "$FILTER_GRADLE_CONFIG")
+          FRONTEND_SHARED=$(any "$FILTER_WORKFLOW" "$FILTER_VUE_COMMON" "$FILTER_FRONTEND_CONFIG")
+
+          AUTH_API_KOTLIN=$(any "$KOTLIN_SHARED" "$FILTER_AUTH_API")
+          ASSISTANT_API_KOTLIN=$(any "$KOTLIN_SHARED" "$FILTER_ASSISTANT_API")
+          KOTLIN_COMMON_CHANGED="$KOTLIN_SHARED"
+          ANY_KOTLIN=$(any "$KOTLIN_SHARED" "$FILTER_AUTH_API" "$FILTER_ASSISTANT_API")
+          ANY_FRONTEND=$(any "$FRONTEND_SHARED" "$FILTER_AUTH_UI" "$FILTER_ASSISTANT_UI" "$FILTER_APP_UI")
+          ANY_SERVICE=$(any "$ANY_KOTLIN" "$ANY_FRONTEND")
+          RUN_SYSTEM_TESTS=$(any "$FILTER_WORKFLOW" "$FILTER_SYSTEM_TESTS" "$FILTER_INFRA" "$ANY_SERVICE")
+
+          echo "any-kotlin=$ANY_KOTLIN" >> "$GITHUB_OUTPUT"
+          echo "any-frontend=$ANY_FRONTEND" >> "$GITHUB_OUTPUT"
+          echo "run-system-tests=$RUN_SYSTEM_TESTS" >> "$GITHUB_OUTPUT"
+          echo "auth-api-kotlin=$AUTH_API_KOTLIN" >> "$GITHUB_OUTPUT"
+          echo "assistant-api-kotlin=$ASSISTANT_API_KOTLIN" >> "$GITHUB_OUTPUT"
+          echo "kotlin-common-changed=$KOTLIN_COMMON_CHANGED" >> "$GITHUB_OUTPUT"
+      - name: Build dynamic matrices
+        id: matrix
+        env:
+          AUTH_API_KOTLIN: ${{ steps.compute.outputs.auth-api-kotlin }}
+          ASSISTANT_API_KOTLIN: ${{ steps.compute.outputs.assistant-api-kotlin }}
+          KOTLIN_COMMON_CHANGED: ${{ steps.compute.outputs.kotlin-common-changed }}
+        run: |
+          KOTLIN_MATRIX="[]"
+          if [[ "$AUTH_API_KOTLIN" == "true" ]]; then
+            KOTLIN_MATRIX=$(echo "$KOTLIN_MATRIX" | jq -c '. + [{"module":"auth-api","gradle-path":":services:auth-api"}]')
+          fi
+          if [[ "$ASSISTANT_API_KOTLIN" == "true" ]]; then
+            KOTLIN_MATRIX=$(echo "$KOTLIN_MATRIX" | jq -c '. + [{"module":"assistant-api","gradle-path":":services:assistant-api"}]')
+          fi
+          if [[ "$KOTLIN_COMMON_CHANGED" == "true" ]]; then
+            KOTLIN_MATRIX=$(echo "$KOTLIN_MATRIX" | jq -c '. + [{"module":"kotlin-common","gradle-path":":libs:kotlin-common"}]')
+          fi
+          echo "lint-kotlin=$KOTLIN_MATRIX" >> "$GITHUB_OUTPUT"
+          echo "test-kotlin-unit=$KOTLIN_MATRIX" >> "$GITHUB_OUTPUT"
+
+          INT_MATRIX="[]"
+          if [[ "$AUTH_API_KOTLIN" == "true" ]]; then
+            INT_MATRIX=$(echo "$INT_MATRIX" | jq -c '. + [{"module":"auth-api","gradle-path":":services:auth-api"}]')
+          fi
+          if [[ "$ASSISTANT_API_KOTLIN" == "true" ]]; then
+            INT_MATRIX=$(echo "$INT_MATRIX" | jq -c '. + [{"module":"assistant-api","gradle-path":":services:assistant-api"}]')
+          fi
+          echo "test-kotlin-integration=$INT_MATRIX" >> "$GITHUB_OUTPUT"
+
+          COV_MATRIX="[]"
+          if [[ "$AUTH_API_KOTLIN" == "true" ]]; then
+            COV_MATRIX=$(echo "$COV_MATRIX" | jq -c '. + [{"module":"auth-api","gradle-path":":services:auth-api","has-integration":true}]')
+          fi
+          if [[ "$ASSISTANT_API_KOTLIN" == "true" ]]; then
+            COV_MATRIX=$(echo "$COV_MATRIX" | jq -c '. + [{"module":"assistant-api","gradle-path":":services:assistant-api","has-integration":true}]')
+          fi
+          if [[ "$KOTLIN_COMMON_CHANGED" == "true" ]]; then
+            COV_MATRIX=$(echo "$COV_MATRIX" | jq -c '. + [{"module":"kotlin-common","gradle-path":":libs:kotlin-common","has-integration":false}]')
+          fi
+          echo "verify-coverage=$COV_MATRIX" >> "$GITHUB_OUTPUT"
+
   lint-kotlin:
     name: Lint Kotlin (${{ matrix.module }})
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any-kotlin == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
-          - module: auth-api
-            gradle-path: :services:auth-api
-          - module: assistant-api
-            gradle-path: :services:assistant-api
-          - module: kotlin-common
-            gradle-path: :libs:kotlin-common
+        include: ${{ fromJson(needs.detect-changes.outputs.lint-kotlin-matrix) }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-java@v5
@@ -37,6 +165,8 @@ jobs:
 
   lint-frontend:
     name: Lint Frontend
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any-frontend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -51,16 +181,12 @@ jobs:
 
   test-kotlin-unit:
     name: Kotlin Unit Tests (${{ matrix.module }})
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any-kotlin == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
-          - module: auth-api
-            gradle-path: :services:auth-api
-          - module: assistant-api
-            gradle-path: :services:assistant-api
-          - module: kotlin-common
-            gradle-path: :libs:kotlin-common
+        include: ${{ fromJson(needs.detect-changes.outputs.test-kotlin-unit-matrix) }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-java@v5
@@ -72,6 +198,8 @@ jobs:
 
   test-frontend-unit:
     name: Frontend Unit Tests
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any-frontend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -85,14 +213,12 @@ jobs:
 
   test-kotlin-integration:
     name: Kotlin Integration Tests (${{ matrix.module }})
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any-kotlin == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
-          - module: auth-api
-            gradle-path: :services:auth-api
-          - module: assistant-api
-            gradle-path: :services:assistant-api
+        include: ${{ fromJson(needs.detect-changes.outputs.test-kotlin-integration-matrix) }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-java@v5
@@ -104,20 +230,12 @@ jobs:
 
   verify-coverage:
     name: Coverage Threshold (${{ matrix.module }})
-    needs: [test-kotlin-unit, test-kotlin-integration]
+    needs: [detect-changes, test-kotlin-unit, test-kotlin-integration]
+    if: always() && needs.detect-changes.outputs.any-kotlin == 'true' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
-          - module: auth-api
-            gradle-path: :services:auth-api
-            has-integration: true
-          - module: assistant-api
-            gradle-path: :services:assistant-api
-            has-integration: true
-          - module: kotlin-common
-            gradle-path: :libs:kotlin-common
-            has-integration: false
+        include: ${{ fromJson(needs.detect-changes.outputs.verify-coverage-matrix) }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-java@v5
@@ -134,6 +252,8 @@ jobs:
 
   test-architecture:
     name: Architecture Tests
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any-kotlin == 'true' || needs.detect-changes.outputs.any-frontend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -153,6 +273,8 @@ jobs:
 
   build-images:
     name: Build Image (${{ matrix.service.name }})
+    needs: detect-changes
+    if: needs.detect-changes.outputs.run-system-tests == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -204,7 +326,8 @@ jobs:
   test-system:
     name: System Tests
     runs-on: ubuntu-latest
-    needs: [test-kotlin-unit, test-kotlin-integration, build-images]
+    needs: [detect-changes, test-kotlin-unit, test-kotlin-integration, build-images]
+    if: always() && needs.detect-changes.outputs.run-system-tests == 'true' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-java@v5
@@ -317,6 +440,7 @@ jobs:
     name: Pipeline Complete
     if: always()
     needs:
+      - detect-changes
       - lint-kotlin
       - lint-frontend
       - test-kotlin-unit
@@ -335,4 +459,4 @@ jobs:
             echo "Pipeline failed or was cancelled"
             exit 1
           fi
-          echo "All checks passed"
+          echo "All checks passed (some may have been skipped due to no relevant changes)"
