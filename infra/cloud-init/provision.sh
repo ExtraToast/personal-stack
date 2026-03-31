@@ -99,6 +99,7 @@ ensure_password GRAFANA_ADMIN_PASSWORD
 ensure_password N8N_DB_PASSWORD
 ensure_password AUTH_DB_PASSWORD
 ensure_password ASSISTANT_DB_PASSWORD
+ensure_password STALWART_ADMIN_PASSWORD
 
 # Defaults for usernames (not passwords, but must be non-empty)
 : "${POSTGRES_USER:=postgres}"
@@ -107,6 +108,7 @@ ensure_password ASSISTANT_DB_PASSWORD
 : "${N8N_DB_USER:=n8n_user}"
 : "${AUTH_DB_USER:=auth_user}"
 : "${ASSISTANT_DB_USER:=assistant_user}"
+: "${STALWART_ADMIN_USER:=admin}"
 require_var CF_DNS_API_TOKEN
 
 # ── 5. Register deploy key on GitHub ─────────────────────────────
@@ -192,6 +194,8 @@ sed \
   -e "s|__AUTH_DB_PASSWORD__|${AUTH_DB_PASSWORD}|g" \
   -e "s|__ASSISTANT_DB_USER__|${ASSISTANT_DB_USER}|g" \
   -e "s|__ASSISTANT_DB_PASSWORD__|${ASSISTANT_DB_PASSWORD}|g" \
+  -e "s|__STALWART_ADMIN_USER__|${STALWART_ADMIN_USER}|g" \
+  -e "s|__STALWART_ADMIN_PASSWORD__|${STALWART_ADMIN_PASSWORD}|g" \
   -e "s|__GHCR_USER__|${GHCR_USER}|g" \
   -e "s|__GHCR_TOKEN__|${GHCR_TOKEN}|g" \
   "$TEMPLATE" > "$RENDERED"

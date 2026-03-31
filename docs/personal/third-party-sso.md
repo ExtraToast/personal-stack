@@ -13,8 +13,10 @@ reuse the existing auth session and complete login without a separate password p
   and existing instances are repaired through `infra/repair-server.sh`.
 - RabbitMQ management: native OAuth/OIDC resource server and management UI integration, exposed directly
   instead of being pre-gated by forward-auth.
-- Stalwart: still protected by forward-auth here. It is not using the same browser-redirect OIDC client
-  flow as Grafana, Vault, RabbitMQ, and n8n in this stack.
+- Stalwart: protected by forward-auth for webadmin access gating. OIDC directory backend configured
+  for mail protocol authentication (OAUTHBEARER SASL) via the auth service's UserInfo endpoint.
+  The webadmin does not support SSO redirect — this is a Stalwart limitation. Admin access to the
+  webadmin uses the fallback-admin credentials (see `infra/stalwart/config.toml`).
 - n8n: configured through the custom external hook in `infra/n8n/hooks.js` so it can delegate login to
   the auth service without a separate Traefik auth gate.
 - Uptime Kuma: intentionally left outside this SSO work.
