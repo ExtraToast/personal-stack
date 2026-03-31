@@ -37,6 +37,14 @@ write_files:
     permissions: '0644'
     owner: root:root
 
+  - path: /etc/systemd/resolved.conf.d/fallback-dns.conf
+    content: |
+      [Resolve]
+      DNS=1.1.1.1 8.8.8.8
+      FallbackDNS=1.0.0.1 8.8.4.4
+    permissions: '0644'
+    owner: root:root
+
   - path: /etc/fail2ban/jail.local
     content: |
       [DEFAULT]
@@ -54,6 +62,9 @@ write_files:
     owner: root:root
 
 runcmd:
+  # Apply fallback DNS configuration
+  - systemctl restart systemd-resolved
+
   # Restart SSH with new config
   - systemctl restart sshd
 

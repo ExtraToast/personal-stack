@@ -76,7 +76,21 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             export IMAGE_TAG=$(git rev-parse HEAD)
+            MAX_RETRIES=3
+            RETRY_DELAY=10
             for img in auth-api assistant-api auth-ui assistant-ui app-ui; do
-              docker pull ghcr.io/extratoast/personal-stack/${img}:${IMAGE_TAG}
+              success=false
+              for attempt in $(seq 1 $MAX_RETRIES); do
+                if docker pull ghcr.io/extratoast/personal-stack/${img}:${IMAGE_TAG}; then
+                  success=true
+                  break
+                fi
+                echo "⚠️ Pull failed for ${img} (attempt ${attempt}/${MAX_RETRIES}), retrying in ${RETRY_DELAY}s..."
+                sleep $RETRY_DELAY
+              done
+              if [ "$success" = false ]; then
+                echo "❌ Failed to pull ${img} after ${MAX_RETRIES} attempts"
+                exit 1
+              fi
             done
             docker stack deploy --resolve-image always --with-registry-auth -c docker-compose.prod.yml personal-stack
