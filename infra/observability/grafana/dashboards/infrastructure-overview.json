@@ -20,7 +20,7 @@
       "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
       "targets": [
         {
-          "expr": "up{job=~\"auth-api|assistant-api|traefik|grafana|loki|tempo|prometheus|rabbitmq\"}",
+          "expr": "clamp_max(sum by(job)(up{job=~\"auth-api|assistant-api|traefik|grafana|loki|tempo|prometheus|rabbitmq|stalwart\"}), 1)",
           "legendFormat": "{{job}}"
         }
       ],
@@ -129,11 +129,11 @@
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 12 },
       "targets": [
         {
-          "expr": "jvm_memory_used_bytes{job=~\"auth-api|assistant-api\", area=\"heap\"}",
-          "legendFormat": "{{job}} - {{instance}}"
+          "expr": "sum by(job)(jvm_memory_used_bytes{job=~\"auth-api|assistant-api\", area=\"heap\"})",
+          "legendFormat": "{{job}} used"
         },
         {
-          "expr": "jvm_memory_max_bytes{job=~\"auth-api|assistant-api\", area=\"heap\"}",
+          "expr": "max by(job)(jvm_memory_max_bytes{job=~\"auth-api|assistant-api\", area=\"heap\"})",
           "legendFormat": "{{job}} max"
         }
       ],
@@ -152,11 +152,11 @@
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 12 },
       "targets": [
         {
-          "expr": "process_cpu_usage{job=~\"auth-api|assistant-api\"}",
-          "legendFormat": "{{job}} - {{instance}}"
+          "expr": "sum by(job)(process_cpu_usage{job=~\"auth-api|assistant-api\"})",
+          "legendFormat": "{{job}} process"
         },
         {
-          "expr": "system_cpu_usage{job=~\"auth-api|assistant-api\"}",
+          "expr": "sum by(job)(system_cpu_usage{job=~\"auth-api|assistant-api\"})",
           "legendFormat": "{{job}} system"
         }
       ],
@@ -178,7 +178,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "sum by(service_name)(count_over_time({service_name=~\".+\"} | json | level=\"ERROR\" [5m]))",
+          "expr": "sum by(service_name)(count_over_time({service_name=~\".+\"} | json | __error__=\"\" | level=~\"ERROR|error\" [5m]))",
           "legendFormat": "{{service_name}}"
         }
       ],
@@ -197,7 +197,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "{service_name=~\".+\"} | json | level=\"ERROR\"",
+          "expr": "{service_name=~\".+\"} | json | __error__=\"\" | level=~\"ERROR|error\"",
           "maxLines": 50
         }
       ],

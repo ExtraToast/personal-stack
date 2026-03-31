@@ -20,16 +20,6 @@
         "multi": true,
         "current": { "text": "All", "value": "$__all" },
         "refresh": 2
-      },
-      {
-        "name": "instance",
-        "type": "query",
-        "datasource": { "type": "prometheus", "uid": "prometheus" },
-        "query": "label_values(jvm_memory_used_bytes{job=~\"$job\"}, instance)",
-        "includeAll": true,
-        "multi": true,
-        "current": { "text": "All", "value": "$__all" },
-        "refresh": 2
       }
     ]
   },
@@ -41,11 +31,11 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
       "targets": [
         {
-          "expr": "jvm_memory_used_bytes{job=~\"$job\", instance=~\"$instance\", area=\"heap\"}",
+          "expr": "sum by(job)(jvm_memory_used_bytes{job=~\"$job\", area=\"heap\"})",
           "legendFormat": "{{job}} used"
         },
         {
-          "expr": "jvm_memory_max_bytes{job=~\"$job\", instance=~\"$instance\", area=\"heap\"}",
+          "expr": "max by(job)(jvm_memory_max_bytes{job=~\"$job\", area=\"heap\"})",
           "legendFormat": "{{job}} max"
         }
       ],
@@ -64,7 +54,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
       "targets": [
         {
-          "expr": "jvm_memory_used_bytes{job=~\"$job\", instance=~\"$instance\", area=\"nonheap\"}",
+          "expr": "sum by(job, id)(jvm_memory_used_bytes{job=~\"$job\", area=\"nonheap\"})",
           "legendFormat": "{{job}} - {{id}}"
         }
       ],
@@ -83,7 +73,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "targets": [
         {
-          "expr": "jvm_memory_used_bytes{job=~\"$job\", instance=~\"$instance\"}",
+          "expr": "sum by(job, area, id)(jvm_memory_used_bytes{job=~\"$job\"})",
           "legendFormat": "{{job}} {{area}}/{{id}}"
         }
       ],
@@ -102,7 +92,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "targets": [
         {
-          "expr": "jvm_buffer_memory_used_bytes{job=~\"$job\", instance=~\"$instance\"}",
+          "expr": "sum by(job, id)(jvm_buffer_memory_used_bytes{job=~\"$job\"})",
           "legendFormat": "{{job}} - {{id}}"
         }
       ],
@@ -121,7 +111,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "targets": [
         {
-          "expr": "rate(jvm_gc_pause_seconds_sum{job=~\"$job\", instance=~\"$instance\"}[5m]) / rate(jvm_gc_pause_seconds_count{job=~\"$job\", instance=~\"$instance\"}[5m])",
+          "expr": "sum by(job, action, cause)(rate(jvm_gc_pause_seconds_sum{job=~\"$job\"}[5m])) / sum by(job, action, cause)(rate(jvm_gc_pause_seconds_count{job=~\"$job\"}[5m]))",
           "legendFormat": "{{job}} - {{action}} {{cause}}"
         }
       ],
@@ -140,7 +130,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "targets": [
         {
-          "expr": "rate(jvm_gc_pause_seconds_count{job=~\"$job\", instance=~\"$instance\"}[5m])",
+          "expr": "sum by(job, action, cause)(rate(jvm_gc_pause_seconds_count{job=~\"$job\"}[5m]))",
           "legendFormat": "{{job}} - {{action}} {{cause}}"
         }
       ],
@@ -159,15 +149,15 @@
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 24 },
       "targets": [
         {
-          "expr": "jvm_threads_live_threads{job=~\"$job\", instance=~\"$instance\"}",
+          "expr": "sum by(job)(jvm_threads_live_threads{job=~\"$job\"})",
           "legendFormat": "{{job}} live"
         },
         {
-          "expr": "jvm_threads_daemon_threads{job=~\"$job\", instance=~\"$instance\"}",
+          "expr": "sum by(job)(jvm_threads_daemon_threads{job=~\"$job\"})",
           "legendFormat": "{{job}} daemon"
         },
         {
-          "expr": "jvm_threads_peak_threads{job=~\"$job\", instance=~\"$instance\"}",
+          "expr": "sum by(job)(jvm_threads_peak_threads{job=~\"$job\"})",
           "legendFormat": "{{job}} peak"
         }
       ],
@@ -185,7 +175,7 @@
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 24 },
       "targets": [
         {
-          "expr": "jvm_threads_states_threads{job=~\"$job\", instance=~\"$instance\"}",
+          "expr": "sum by(job, state)(jvm_threads_states_threads{job=~\"$job\"})",
           "legendFormat": "{{job}} - {{state}}"
         }
       ],
@@ -203,11 +193,11 @@
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 24 },
       "targets": [
         {
-          "expr": "process_cpu_usage{job=~\"$job\", instance=~\"$instance\"}",
+          "expr": "sum by(job)(process_cpu_usage{job=~\"$job\"})",
           "legendFormat": "{{job}} process"
         },
         {
-          "expr": "system_cpu_usage{job=~\"$job\", instance=~\"$instance\"}",
+          "expr": "sum by(job)(system_cpu_usage{job=~\"$job\"})",
           "legendFormat": "{{job}} system"
         }
       ],
@@ -228,7 +218,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
       "targets": [
         {
-          "expr": "sum by(uri)(rate(http_server_requests_seconds_count{job=~\"$job\", instance=~\"$instance\"}[5m]))",
+          "expr": "sum by(uri)(rate(http_server_requests_seconds_count{job=~\"$job\"}[5m]))",
           "legendFormat": "{{uri}}"
         }
       ],
@@ -247,7 +237,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by(uri, le)(rate(http_server_requests_seconds_bucket{job=~\"$job\", instance=~\"$instance\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by(uri, le)(rate(http_server_requests_seconds_bucket{job=~\"$job\"}[5m])))",
           "legendFormat": "{{uri}}"
         }
       ],
@@ -266,7 +256,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
       "targets": [
         {
-          "expr": "sum by(uri)(rate(http_server_requests_seconds_count{job=~\"$job\", instance=~\"$instance\", status=~\"5..\"}[5m]))",
+          "expr": "sum by(uri)(rate(http_server_requests_seconds_count{job=~\"$job\", status=~\"5..\"}[5m]))",
           "legendFormat": "{{uri}}"
         }
       ],
@@ -286,7 +276,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
       "targets": [
         {
-          "expr": "rate(logback_events_total{job=~\"$job\", instance=~\"$instance\"}[5m])",
+          "expr": "sum by(job, level)(rate(logback_events_total{job=~\"$job\"}[5m]))",
           "legendFormat": "{{job}} - {{level}}"
         }
       ],
@@ -319,7 +309,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 48 },
       "targets": [
         {
-          "expr": "jvm_classes_loaded_classes{job=~\"$job\", instance=~\"$instance\"}",
+          "expr": "sum by(job)(jvm_classes_loaded_classes{job=~\"$job\"})",
           "legendFormat": "{{job}} loaded"
         }
       ],
@@ -337,7 +327,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 48 },
       "targets": [
         {
-          "expr": "sum by(status)(rate(http_server_requests_seconds_count{job=~\"$job\", instance=~\"$instance\"}[5m]))",
+          "expr": "sum by(status)(rate(http_server_requests_seconds_count{job=~\"$job\"}[5m]))",
           "legendFormat": "{{status}}"
         }
       ],
