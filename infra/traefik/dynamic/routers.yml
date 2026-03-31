@@ -25,7 +25,7 @@ http:
 
     # ── Auth API ────────────────────────────────────────────────
     auth-api:
-      rule: 'Host(`auth.jorisjonkers.dev`) && PathPrefix(`/api/`)'
+      rule: 'Host(`auth.jorisjonkers.dev`) && PathPrefix(`/api/`) && !PathPrefix(`/api/actuator/prometheus`) && !PathPrefix(`/api/actuator/metrics`)'
       entryPoints:
         - websecure
       service: auth-api
@@ -48,7 +48,7 @@ http:
 
     # ── Assistant API ───────────────────────────────────────────
     assistant-api:
-      rule: 'Host(`assistant.jorisjonkers.dev`) && PathPrefix(`/api/`)'
+      rule: 'Host(`assistant.jorisjonkers.dev`) && PathPrefix(`/api/`) && !PathPrefix(`/api/actuator/prometheus`) && !PathPrefix(`/api/actuator/metrics`)'
       entryPoints:
         - websecure
       service: assistant-api

@@ -248,7 +248,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "{container=~\".*auth-api.*\"} | json | level=\"ERROR\"",
+          "expr": "{service_name=\"auth-api\"} | json | level=\"ERROR\"",
           "maxLines": 50
         }
       ],
@@ -268,7 +268,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "{container=~\".*auth-api.*\"} | json | message=~\"(?i)login.*fail|authentication.*fail|bad credentials|invalid.*password\"",
+          "expr": "{service_name=\"auth-api\"} | json | message=~\"(?i)login.*fail|authentication.*fail|bad credentials|invalid.*password\"",
           "maxLines": 50
         }
       ],

@@ -164,18 +164,14 @@ class SecurityConfig(
 
         private val CSRF_FREE_ENDPOINTS =
             arrayOf(
-                "/api/actuator/health",
-                "/api/actuator/health/**",
-                "/api/actuator/info",
+                "/api/actuator/**",
                 "/api/v1/health",
                 "/api/v1/auth/verify",
             )
 
         private val PUBLIC_ENDPOINTS =
             arrayOf(
-                "/api/actuator/health",
-                "/api/actuator/health/**",
-                "/api/actuator/info",
+                "/api/actuator/**",
                 "/api/v1/health",
                 "/api/v1/api-docs/**",
                 "/api/v1/swagger-ui/**",
@@ -194,9 +190,7 @@ class SecurityConfig(
             val path = request.requestURI
             return path == "/api/v1/auth/verify" ||
                 path == "/api/v1/health" ||
-                path == "/api/actuator/info" ||
-                path == "/api/actuator/health" ||
-                path.startsWith("/api/actuator/health/")
+                path.startsWith("/api/actuator/")
         }
 
         override fun doFilterInternal(

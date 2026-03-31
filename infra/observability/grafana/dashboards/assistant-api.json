@@ -166,7 +166,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "{container=~\".*assistant-api.*\"} | json | level=\"ERROR\"",
+          "expr": "{service_name=\"assistant-api\"} | json | level=\"ERROR\"",
           "maxLines": 50
         }
       ],

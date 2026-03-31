@@ -19,3 +19,6 @@ scrape_configs:
       - source_labels: [__meta_docker_container_label_com_docker_swarm_service_name]
         target_label: service
         regex: '(.+)'
+      - source_labels: [__meta_docker_container_label_com_docker_swarm_service_name]
+        regex: '(?:personal-stack_)?(.+)'
+        target_label: service_name
