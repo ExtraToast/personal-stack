@@ -200,7 +200,11 @@ prepare_auth_issuer_ca_file() {
   openssl s_client -showcerts -servername "$issuer_host" -connect "$issuer_host:$issuer_port" </dev/null 2>/dev/null \
     | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ { print }' > "$ca_file"
 
-  [[ -s "$ca_file" ]] || die "Failed to fetch the auth issuer certificate chain from $AUTH_ISSUER."
+  if [[ ! -s "$ca_file" ]]; then
+    rm -f "$ca_file"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Failed to fetch the auth issuer certificate chain from $AUTH_ISSUER." >> "$LOG_FILE"
+    return 1
+  fi
   printf '%s\n' "$ca_file"
 }
 
@@ -360,10 +364,10 @@ for policy in auth-api assistant-api; do
   ok "${policy}"
 done
 
-# ── 4. Re-apply Vault OIDC configuration ───────────────────────────────────
+# ── 4. Re-apply Vault OIDC configuration (deferred until after services are up)
 step "Re-applying Vault OIDC configuration"
-reapply_vault_oidc_config
-ok "Vault OIDC configuration repaired"
+info "Deferred until after services are healthy (auth issuer must be reachable)"
+OIDC_DEFERRED=true
 
 # ── 5. Sync credentials to Vault KV ────────────────────────────────────────
 step "Syncing secrets to Vault KV"
@@ -489,6 +493,23 @@ ok "Vault unsealed"
 step "Waiting for services to become healthy"
 
 wait_for_services 180
+
+# ── 10. Apply deferred OIDC configuration ─────────────────────────────────
+if [[ "${OIDC_DEFERRED:-false}" == "true" ]]; then
+  step "Applying Vault OIDC configuration (deferred)"
+
+  # Re-resolve Vault container after redeploy
+  VAULT_CONTAINER=$(docker ps --filter "name=personal-stack_vault" --format "{{.ID}}" | head -1)
+  if [[ -n "$VAULT_CONTAINER" ]]; then
+    if reapply_vault_oidc_config; then
+      ok "Vault OIDC configuration repaired"
+    else
+      warn "OIDC configuration failed -- auth issuer may not be reachable yet. Re-run repair later."
+    fi
+  else
+    warn "Vault container not found -- skipping OIDC configuration"
+  fi
+fi
 
 # ── Final report ────────────────────────────────────────────────────────────
 printf "\n${BOLD}  Service Status${RESET}\n"
