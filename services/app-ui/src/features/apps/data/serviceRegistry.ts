@@ -32,7 +32,7 @@ export const SERVICE_REGISTRY: ServiceEntry[] = [
     permission: 'VAULT',
     label: 'Vault',
     url: buildServiceUrl('vault'),
-    iconUrl: '/icons/vault.png',
+    iconUrl: '/icons/vault.svg',
     description: 'Secrets management',
   },
   {
