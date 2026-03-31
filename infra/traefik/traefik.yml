@@ -36,7 +36,8 @@ api:
   dashboard: true
 
 metrics:
-  prometheus: {}
+  prometheus:
+    addRoutersLabels: true
 
 accessLog:
   filters:

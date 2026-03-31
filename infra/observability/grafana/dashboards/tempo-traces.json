@@ -14,7 +14,7 @@
       {
         "name": "service",
         "type": "custom",
-        "query": "auth-api,assistant-api",
+        "query": "auth-api,assistant-api,traefik",
         "includeAll": true,
         "multi": true,
         "current": { "text": "All", "value": "$__all" }
