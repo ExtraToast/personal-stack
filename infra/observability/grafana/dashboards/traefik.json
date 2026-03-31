@@ -14,7 +14,7 @@
       {
         "name": "entrypoint",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
         "query": "label_values(traefik_entrypoint_requests_total, entrypoint)",
         "current": { "text": "websecure", "value": "websecure" },
         "refresh": 2
@@ -22,7 +22,7 @@
       {
         "name": "service",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
         "query": "label_values(traefik_service_requests_total, service)",
         "includeAll": true,
         "multi": true,
@@ -45,7 +45,7 @@
       "fieldConfig": {
         "defaults": { "unit": "reqps", "thresholds": { "steps": [{ "color": "green", "value": null }] } }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 2,
@@ -70,7 +70,7 @@
           }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 3,
@@ -94,7 +94,7 @@
           }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 4,
@@ -117,7 +117,7 @@
           }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 5,
@@ -136,7 +136,7 @@
           "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 6,
@@ -155,7 +155,7 @@
           "custom": { "drawStyle": "bars", "fillOpacity": 50, "stacking": { "mode": "normal" } }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 7,
@@ -182,7 +182,7 @@
           "custom": { "drawStyle": "line", "fillOpacity": 5, "lineWidth": 2 }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 8,
@@ -201,7 +201,7 @@
         "yAxis": { "unit": "s" },
         "color": { "scheme": "Oranges" }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 9,
@@ -226,7 +226,7 @@
           }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 10,
@@ -242,7 +242,7 @@
       "fieldConfig": {
         "defaults": { "unit": "reqps" }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     }
   ],
   "schemaVersion": 39

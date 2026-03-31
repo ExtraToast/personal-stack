@@ -74,7 +74,7 @@
           "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 4,
@@ -93,7 +93,7 @@
           "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 5,
@@ -128,7 +128,7 @@
           "color": { "fixedColor": "red", "mode": "fixed" }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 7,
@@ -155,7 +155,7 @@
           "custom": { "drawStyle": "line", "fillOpacity": 5, "lineWidth": 2 }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     }
   ],
   "schemaVersion": 39

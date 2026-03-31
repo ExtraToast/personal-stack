@@ -14,7 +14,7 @@
       {
         "name": "job",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
         "query": "label_values(lettuce_command_completion_seconds_count, job)",
         "includeAll": true,
         "multi": true,
@@ -41,7 +41,7 @@
           "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 2,
@@ -60,7 +60,7 @@
           "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 3,
@@ -79,7 +79,7 @@
           "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 4,
@@ -98,7 +98,7 @@
           "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 5,
@@ -121,7 +121,7 @@
           "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 6,
@@ -145,7 +145,7 @@
         "colorMode": "background",
         "graphMode": "area"
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     }
   ],
   "schemaVersion": 39
