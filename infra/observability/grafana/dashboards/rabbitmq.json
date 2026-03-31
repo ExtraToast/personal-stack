@@ -14,7 +14,7 @@
       {
         "name": "queue",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
         "query": "label_values(rabbitmq_queue_messages, queue)",
         "includeAll": true,
         "multi": true,
@@ -47,7 +47,7 @@
           }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 2,
@@ -66,7 +66,7 @@
           "color": { "fixedColor": "orange", "mode": "fixed" }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 3,
@@ -85,7 +85,7 @@
           "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 4,
@@ -104,7 +104,7 @@
           "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 5,
@@ -123,7 +123,7 @@
           "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 6,
@@ -146,7 +146,7 @@
         "colorMode": "background",
         "graphMode": "area"
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 7,
@@ -169,7 +169,7 @@
         "colorMode": "background",
         "graphMode": "area"
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 8,
@@ -192,7 +192,7 @@
         "colorMode": "background",
         "graphMode": "area"
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 9,
@@ -215,7 +215,7 @@
         "colorMode": "background",
         "graphMode": "area"
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 10,
@@ -234,7 +234,7 @@
           "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 11,
@@ -257,7 +257,7 @@
           "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     }
   ],
   "schemaVersion": 39

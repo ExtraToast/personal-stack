@@ -14,7 +14,7 @@
       {
         "name": "instance",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
         "query": "label_values(http_server_requests_seconds_count{job=\"auth-api\"}, instance)",
         "includeAll": true,
         "multi": true,
@@ -41,7 +41,7 @@
           "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 2,
@@ -82,7 +82,7 @@
           }
         ]
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 3,
@@ -105,7 +105,7 @@
           "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 4,
@@ -124,7 +124,7 @@
           "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 5,
@@ -143,7 +143,7 @@
           "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 6,
@@ -162,7 +162,7 @@
           "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 7,
@@ -181,7 +181,7 @@
           "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 8,
@@ -200,7 +200,7 @@
           "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 9,
@@ -219,7 +219,7 @@
           "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 10,
@@ -238,7 +238,7 @@
         "defaults": { "unit": "reqps" }
       },
       "transformations": [{ "id": "organize", "options": { "excludeByName": { "Time": true } } }],
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     },
     {
       "id": 11,
@@ -247,7 +247,7 @@
       "gridPos": { "h": 10, "w": 12, "x": 0, "y": 32 },
       "targets": [
         {
-          "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+          "datasource": { "type": "loki", "uid": "loki" },
           "expr": "{container=~\".*auth-api.*\"} | json | level=\"ERROR\"",
           "maxLines": 50
         }
@@ -267,7 +267,7 @@
       "gridPos": { "h": 10, "w": 12, "x": 12, "y": 32 },
       "targets": [
         {
-          "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+          "datasource": { "type": "loki", "uid": "loki" },
           "expr": "{container=~\".*auth-api.*\"} | json | message=~\"(?i)login.*fail|authentication.*fail|bad credentials|invalid.*password\"",
           "maxLines": 50
         }

@@ -175,6 +175,9 @@ services:
       GF_AUTH_GENERIC_OAUTH_TLS_SKIP_VERIFY_INSECURE: 'true'
     volumes:
       - grafana-data:/var/lib/grafana
+      - ./infra/observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./infra/observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./infra/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/api/health || exit 1']
       interval: 10s
@@ -188,6 +191,60 @@ services:
       - 'traefik.http.routers.grafana.tls=true'
       - 'traefik.http.routers.grafana.middlewares=grafana-security-headers@file'
       - 'traefik.http.services.grafana.loadbalancer.server.port=3000'
+
+  prometheus:
+    image: prom/prometheus:v3.3.1
+    container_name: personal-stack-prometheus
+    volumes:
+      - ./infra/observability/prometheus/prometheus.dev.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=7d'
+      - '--web.enable-remote-write-receiver'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:9090/-/healthy || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  loki:
+    image: grafana/loki:3.5.0
+    container_name: personal-stack-loki
+    volumes:
+      - ./infra/observability/loki/loki.yaml:/etc/loki/loki.yaml:ro
+      - loki-data:/loki
+    command: -config.file=/etc/loki/loki.yaml
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3100/ready || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  promtail:
+    image: grafana/promtail:3.5.0
+    container_name: personal-stack-promtail
+    volumes:
+      - ./infra/observability/promtail/promtail.yaml:/etc/promtail/config.yml:ro
+      - /var/log:/var/log:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: -config.file=/etc/promtail/config.yml
+
+  tempo:
+    image: grafana/tempo:2.7.2
+    container_name: personal-stack-tempo
+    volumes:
+      - ./infra/observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    command: -config.file=/etc/tempo/tempo.yaml
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3200/ready || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
   uptime-kuma:
     image: louislam/uptime-kuma:2
@@ -418,8 +475,10 @@ services:
       AUTH_CORS_ALLOWED_ORIGINS: https://jorisjonkers.test,https://auth.jorisjonkers.test,https://assistant.jorisjonkers.test,https://vault.jorisjonkers.test,https://n8n.jorisjonkers.test,https://grafana.jorisjonkers.test,https://rabbitmq.jorisjonkers.test,https://stalwart.jorisjonkers.test,https://traefik.jorisjonkers.test,https://status.jorisjonkers.test
       OTEL_SERVICE_NAME: auth-api
       OTEL_LOGS_EXPORTER: none
-      OTEL_TRACES_EXPORTER: none
+      OTEL_TRACES_EXPORTER: otlp
       OTEL_METRICS_EXPORTER: none
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
     depends_on:
       postgres:
         condition: service_healthy
@@ -513,8 +572,10 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       OTEL_SERVICE_NAME: assistant-api
       OTEL_LOGS_EXPORTER: none
-      OTEL_TRACES_EXPORTER: none
+      OTEL_TRACES_EXPORTER: otlp
       OTEL_METRICS_EXPORTER: none
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
     depends_on:
       postgres:
         condition: service_healthy
@@ -611,4 +672,7 @@ volumes:
   vault-data:
   n8n-data:
   grafana-data:
+  prometheus-data:
+  loki-data:
+  tempo-data:
   uptime-kuma-data:
