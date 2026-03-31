@@ -6,9 +6,13 @@ job "stalwart" {
     network {
       mode = "host"
       port "smtp" { static = 25 }
+      port "pop3" { static = 110 }
+      port "imap" { static = 143 }
       port "submissions" { static = 465 }
       port "submission" { static = 587 }
       port "imaptls" { static = 993 }
+      port "pop3s" { static = 995 }
+      port "sieve" { static = 4190 }
       port "http" { static = 8080 }
     }
 

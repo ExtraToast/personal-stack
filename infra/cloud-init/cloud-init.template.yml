@@ -16,7 +16,7 @@ packages:
 users:
   - default
   - name: deploy
-    groups: sudo, docker
+    groups: sudo
     shell: /bin/bash
     sudo: 'ALL=(ALL) NOPASSWD:ALL'
     ssh_authorized_keys:
@@ -62,89 +62,67 @@ write_files:
     owner: root:root
 
 runcmd:
-  # Apply fallback DNS configuration
   - systemctl restart systemd-resolved
-
-  # Restart SSH with new config
   - systemctl restart sshd
 
-  # Configure UFW
   - ufw default deny incoming
   - ufw default allow outgoing
   - ufw allow 2222/tcp
   - ufw allow 80/tcp
   - ufw allow 443/tcp
+  - ufw allow 25/tcp
+  - ufw allow 110/tcp
+  - ufw allow 143/tcp
+  - ufw allow 465/tcp
+  - ufw allow 587/tcp
+  - ufw allow 993/tcp
+  - ufw allow 995/tcp
+  - ufw allow 4190/tcp
   - ufw --force enable
   - systemctl enable ufw
 
-  # Start fail2ban
   - systemctl enable fail2ban
   - systemctl start fail2ban
 
-  # Enable unattended upgrades
   - systemctl enable unattended-upgrades
   - systemctl start unattended-upgrades
 
-  # Install Docker via official script
-  - curl -fsSL https://get.docker.com | sh
-  - usermod -aG docker deploy
-  - systemctl enable docker
-  - systemctl start docker
-
-  # Initialize Docker Swarm
-  - docker swarm init
-
-  # Write deploy key (done in runcmd so deploy user definitely exists)
   - mkdir -p /home/deploy/.ssh
   - echo '__DEPLOY_KEY_PRIVATE_B64__' | base64 -d > /home/deploy/.ssh/id_ed25519
   - chmod 600 /home/deploy/.ssh/id_ed25519
   - ssh-keyscan -t ed25519 github.com >> /home/deploy/.ssh/known_hosts
   - chown -R deploy:deploy /home/deploy/.ssh
 
-  # Clone the repository
   - install -d -o deploy -g deploy /opt/personal-stack
   - su - deploy -c 'GIT_SSH_COMMAND="ssh -i /home/deploy/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new" git clone __GITHUB_REPO__ /opt/personal-stack'
 
-  # Create Docker Swarm secrets (printf -n avoids trailing newline)
-  - printf '%s' '__POSTGRES_USER__' | docker secret create postgres_user -
-  - printf '%s' '__POSTGRES_PASSWORD__' | docker secret create postgres_password -
-  - printf '%s' '__RABBITMQ_USER__' | docker secret create rabbitmq_user -
-  - printf '%s' '__RABBITMQ_PASSWORD__' | docker secret create rabbitmq_password -
-  - printf '%s' '__CF_DNS_API_TOKEN__' | docker secret create cf_dns_api_token -
-  - printf '%s' '__GRAFANA_ADMIN_USER__' | docker secret create grafana_admin_user -
-  - printf '%s' '__GRAFANA_ADMIN_PASSWORD__' | docker secret create grafana_admin_password -
-  - printf '%s' '__N8N_DB_USER__' | docker secret create n8n_db_user -
-  - printf '%s' '__N8N_DB_PASSWORD__' | docker secret create n8n_db_password -
-  - printf '%s' '__AUTH_DB_PASSWORD__' | docker secret create auth_db_password -
-  - printf '%s' '__ASSISTANT_DB_PASSWORD__' | docker secret create assistant_db_password -
-  - printf '%s' '__STALWART_ADMIN_USER__' | docker secret create stalwart_admin_user -
-  - printf '%s' '__STALWART_ADMIN_PASSWORD__' | docker secret create stalwart_admin_password -
-  - printf '%s' 'placeholder' | docker secret create vault_auth_api_role_id -
-  - printf '%s' 'placeholder' | docker secret create vault_auth_api_secret_id -
-  - printf '%s' 'placeholder' | docker secret create vault_assistant_api_role_id -
-  - printf '%s' 'placeholder' | docker secret create vault_assistant_api_secret_id -
-
-  # Login to GHCR so both root (Swarm) and deploy user can pull private images
-  - echo '__GHCR_TOKEN__' | docker login ghcr.io -u __GHCR_USER__ --password-stdin
-  - su - deploy -c 'echo __GHCR_TOKEN__ | docker login ghcr.io -u __GHCR_USER__ --password-stdin'
-
-  # Deploy the stack
-  - docker stack deploy -c /opt/personal-stack/docker-compose.prod.yml personal-stack --with-registry-auth
-
-  # Write application credentials for Vault KV population (read by init-vault.sh)
   - |
-    cat > /opt/personal-stack/.vault-app-secrets <<'EOF'
-    RABBITMQ_USER=__RABBITMQ_USER__
-    RABBITMQ_PASSWORD=__RABBITMQ_PASSWORD__
-    AUTH_DB_USER=__AUTH_DB_USER__
-    AUTH_DB_PASSWORD=__AUTH_DB_PASSWORD__
-    ASSISTANT_DB_USER=__ASSISTANT_DB_USER__
-    ASSISTANT_DB_PASSWORD=__ASSISTANT_DB_PASSWORD__
-    STALWART_ADMIN_USER=__STALWART_ADMIN_USER__
-    STALWART_ADMIN_PASSWORD=__STALWART_ADMIN_PASSWORD__
+    cat > /opt/personal-stack/.nomad-bootstrap.env <<'EOF'
+    IMAGE_TAG='__IMAGE_TAG__'
+    GHCR_USER='__GHCR_USER__'
+    GHCR_TOKEN='__GHCR_TOKEN__'
+    POSTGRES_USER='__POSTGRES_USER__'
+    POSTGRES_PASSWORD='__POSTGRES_PASSWORD__'
+    AUTH_DB_USER='__AUTH_DB_USER__'
+    AUTH_DB_PASSWORD='__AUTH_DB_PASSWORD__'
+    ASSISTANT_DB_USER='__ASSISTANT_DB_USER__'
+    ASSISTANT_DB_PASSWORD='__ASSISTANT_DB_PASSWORD__'
+    N8N_DB_USER='__N8N_DB_USER__'
+    N8N_DB_PASSWORD='__N8N_DB_PASSWORD__'
+    RABBITMQ_USER='__RABBITMQ_USER__'
+    RABBITMQ_PASSWORD='__RABBITMQ_PASSWORD__'
+    CF_DNS_API_TOKEN='__CF_DNS_API_TOKEN__'
+    GRAFANA_ADMIN_USER='__GRAFANA_ADMIN_USER__'
+    GRAFANA_ADMIN_PASSWORD='__GRAFANA_ADMIN_PASSWORD__'
+    STALWART_ADMIN_USER='__STALWART_ADMIN_USER__'
+    STALWART_ADMIN_PASSWORD='__STALWART_ADMIN_PASSWORD__'
+    N8N_OAUTH_CLIENT_SECRET='__N8N_OAUTH_CLIENT_SECRET__'
+    GRAFANA_OAUTH_CLIENT_SECRET='__GRAFANA_OAUTH_CLIENT_SECRET__'
+    VAULT_OIDC_CLIENT_SECRET='__VAULT_OIDC_CLIENT_SECRET__'
+    STALWART_OAUTH_CLIENT_SECRET='__STALWART_OAUTH_CLIENT_SECRET__'
+    AUTH_ISSUER='https://auth.jorisjonkers.dev'
+    VAULT_PUBLIC_ADDR='https://vault.jorisjonkers.dev'
     EOF
-    chmod 600 /opt/personal-stack/.vault-app-secrets
+    chmod 600 /opt/personal-stack/.nomad-bootstrap.env
 
-  # Initialize Vault and update Docker secrets with real AppRole credentials
-  # Initialize Vault, swap placeholder secrets with real AppRole credentials, and redeploy
-  - bash /opt/personal-stack/infra/vault/scripts/init-vault.sh
+  - bash -lc 'cd /opt/personal-stack && infra/scripts/migrate-to-nomad.sh bootstrap-server > /var/log/personal-stack-bootstrap.log 2>&1'
