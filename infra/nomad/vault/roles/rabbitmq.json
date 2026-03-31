@@ -1,0 +1,13 @@
+{
+  "role_type": "jwt",
+  "bound_audiences": ["vault.io"],
+  "user_claim": "nomad_job_id",
+  "bound_claims": {
+    "nomad_namespace": "default",
+    "nomad_job_id": "rabbitmq"
+  },
+  "token_policies": ["nomad-workloads", "rabbitmq"],
+  "token_type": "service",
+  "token_period": 1800,
+  "token_explicit_max_ttl": 86400
+}

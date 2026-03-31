@@ -14,9 +14,22 @@ read_secret() {
     fi
 }
 
-AUTH_DB_PASSWORD=$(read_secret auth_db_password auth_password)
-ASSISTANT_DB_PASSWORD=$(read_secret assistant_db_password assistant_password)
-N8N_DB_PASSWORD=$(read_secret n8n_db_password n8n_password)
+resolve_value() {
+    local env_name="$1"
+    local secret_name="$2"
+    local fallback="$3"
+    local current="${!env_name:-}"
+
+    if [ -n "$current" ]; then
+        echo "$current"
+    else
+        read_secret "$secret_name" "$fallback"
+    fi
+}
+
+AUTH_DB_PASSWORD=$(resolve_value AUTH_DB_PASSWORD auth_db_password auth_password)
+ASSISTANT_DB_PASSWORD=$(resolve_value ASSISTANT_DB_PASSWORD assistant_db_password assistant_password)
+N8N_DB_PASSWORD=$(resolve_value N8N_DB_PASSWORD n8n_db_password n8n_password)
 
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
     -- Auth service database

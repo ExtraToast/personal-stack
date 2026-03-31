@@ -1,0 +1,6 @@
+{
+  "oidc_discovery_url": "https://nomad.jorisjonkers.dev",
+  "bound_issuer": "https://nomad.jorisjonkers.dev",
+  "jwks_url": "https://nomad.jorisjonkers.dev/v1/jwks",
+  "default_role": "auth-api"
+}
