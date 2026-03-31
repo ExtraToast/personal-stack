@@ -1,0 +1,285 @@
+{
+  "uid": "auth-api",
+  "title": "Auth API",
+  "tags": ["auth", "oauth2", "spring-boot"],
+  "timezone": "browser",
+  "editable": false,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "query": "label_values(http_server_requests_seconds_count{job=\"auth-api\"}, instance)",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" },
+        "refresh": 2
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Login Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", instance=~\"$instance\", uri=~\"/api/auth/login\"}[5m]))",
+          "legendFormat": "Login requests/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
+        }
+      },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+    },
+    {
+      "id": 2,
+      "title": "Login Success vs Failure",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", instance=~\"$instance\", uri=~\"/api/auth/login\", status=~\"2..\"}[5m]))",
+          "legendFormat": "Success (2xx)"
+        },
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", instance=~\"$instance\", uri=~\"/api/auth/login\", status=~\"4..\"}[5m]))",
+          "legendFormat": "Client Error (4xx)"
+        },
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", instance=~\"$instance\", uri=~\"/api/auth/login\", status=~\"5..\"}[5m]))",
+          "legendFormat": "Server Error (5xx)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "drawStyle": "bars", "fillOpacity": 50, "stacking": { "mode": "normal" } }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Success (2xx)" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Client Error (4xx)" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Server Error (5xx)" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }]
+          }
+        ]
+      },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+    },
+    {
+      "id": 3,
+      "title": "Login Latency P95",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by(le)(rate(http_server_requests_seconds_bucket{job=\"auth-api\", instance=~\"$instance\", uri=~\"/api/auth/login\"}[5m])))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum by(le)(rate(http_server_requests_seconds_bucket{job=\"auth-api\", instance=~\"$instance\", uri=~\"/api/auth/login\"}[5m])))",
+          "legendFormat": "p50"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
+        }
+      },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+    },
+    {
+      "id": 4,
+      "title": "Token Requests/s",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", instance=~\"$instance\", uri=\"/api/oauth2/token\"}[5m]))",
+          "legendFormat": "Token requests/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
+        }
+      },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+    },
+    {
+      "id": 5,
+      "title": "Authorization Requests/s",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", instance=~\"$instance\", uri=~\"/api/oauth2/authorize.*\"}[5m]))",
+          "legendFormat": "Authorize requests/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
+        }
+      },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+    },
+    {
+      "id": 6,
+      "title": "Token Latency P95",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by(le)(rate(http_server_requests_seconds_bucket{job=\"auth-api\", instance=~\"$instance\", uri=\"/api/oauth2/token\"}[5m])))",
+          "legendFormat": "p95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
+        }
+      },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+    },
+    {
+      "id": 7,
+      "title": "Userinfo Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", instance=~\"$instance\", uri=\"/api/userinfo\"}[5m]))",
+          "legendFormat": "Userinfo requests/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
+        }
+      },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+    },
+    {
+      "id": 8,
+      "title": "Forward-Auth Verify Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", instance=~\"$instance\", uri=~\"/api/v1/auth/verify\"}[5m]))",
+          "legendFormat": "Verify requests/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
+        }
+      },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+    },
+    {
+      "id": 9,
+      "title": "Registration Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"auth-api\", instance=~\"$instance\", uri=~\"/api/auth/register\"}[5m]))",
+          "legendFormat": "Register requests/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
+        }
+      },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+    },
+    {
+      "id": 10,
+      "title": "4xx/5xx by Endpoint (Top 10)",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "expr": "topk(10, sum by(uri, status)(rate(http_server_requests_seconds_count{job=\"auth-api\", instance=~\"$instance\", status=~\"[45]..\"}[5m])))",
+          "legendFormat": "{{uri}} - {{status}}",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps" }
+      },
+      "transformations": [{ "id": "organize", "options": { "excludeByName": { "Time": true } } }],
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }
+    },
+    {
+      "id": 11,
+      "title": "Recent Auth Errors",
+      "type": "logs",
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 32 },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+          "expr": "{container=~\".*auth-api.*\"} | json | level=\"ERROR\"",
+          "maxLines": 50
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending"
+      }
+    },
+    {
+      "id": 12,
+      "title": "Failed Login Attempts",
+      "type": "logs",
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 32 },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+          "expr": "{container=~\".*auth-api.*\"} | json | message=~\"(?i)login.*fail|authentication.*fail|bad credentials|invalid.*password\"",
+          "maxLines": 50
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending"
+      }
+    }
+  ],
+  "schemaVersion": 39
+}

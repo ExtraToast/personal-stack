@@ -397,6 +397,9 @@ services:
       GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
     volumes:
       - grafana-data:/var/lib/grafana
+      - ./infra/observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./infra/observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./infra/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
     secrets:
       - grafana_admin_user
       - grafana_admin_password
