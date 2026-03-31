@@ -36,13 +36,17 @@ api:
   dashboard: true
 
 metrics:
-  prometheus:
-    entryPoint: websecure
+  prometheus: {}
 
 accessLog:
   filters:
     statusCodes:
       - '400-599'
+
+tracing:
+  otlp:
+    http:
+      endpoint: http://tempo:4318/v1/traces
 
 ping:
   entryPoint: web
