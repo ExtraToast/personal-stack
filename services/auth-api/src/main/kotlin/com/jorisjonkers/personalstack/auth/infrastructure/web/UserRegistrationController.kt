@@ -28,6 +28,8 @@ class UserRegistrationController(
             RegisterUserCommand(
                 username = request.username,
                 email = request.email,
+                firstName = request.firstName,
+                lastName = request.lastName,
                 password = request.password,
             )
         commandBus.dispatch(command)

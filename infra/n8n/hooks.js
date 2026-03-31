@@ -177,8 +177,16 @@ function verifySignedCookie(cookieValue, secret) {
 }
 
 function getCookieSecret() {
-  const seed = process.env.N8N_ENCRYPTION_KEY || process.env.OIDC_CLIENT_SECRET || 'personal-stack-n8n-oidc'
-  return crypto.createHash('sha256').update(`${seed}:oidc-state`).digest('hex')
+  const seed = process.env.N8N_ENCRYPTION_KEY || process.env.OIDC_CLIENT_SECRET
+  if (!seed) {
+    console.warn(
+      '[oidc-hook] WARNING: Neither N8N_ENCRYPTION_KEY nor OIDC_CLIENT_SECRET is set — using insecure fallback for cookie signing',
+    )
+  }
+  return crypto
+    .createHash('sha256')
+    .update(`${seed || 'personal-stack-n8n-oidc'}:oidc-state`)
+    .digest('hex')
 }
 
 function isValidEmail(email) {

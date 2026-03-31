@@ -49,6 +49,8 @@ class AdminValidationIntegrationTest : IntegrationTestBase() {
                 id = UserId(UUID.randomUUID()),
                 username = "adminval_$suffix",
                 email = "adminval_$suffix@example.com",
+                firstName = "",
+                lastName = "",
                 role = Role.USER,
                 emailConfirmed = true,
                 totpEnabled = false,

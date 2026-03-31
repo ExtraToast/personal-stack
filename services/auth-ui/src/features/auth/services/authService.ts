@@ -3,6 +3,8 @@ import { useAuth } from '@personal-stack/vue-common'
 interface RegisterData {
   username: string
   email: string
+  firstName: string
+  lastName: string
   password: string
 }
 

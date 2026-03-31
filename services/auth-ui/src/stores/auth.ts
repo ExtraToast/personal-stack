@@ -37,11 +37,17 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function register(username: string, email: string, password: string): Promise<void> {
+  async function register(
+    username: string,
+    email: string,
+    firstName: string,
+    lastName: string,
+    password: string,
+  ): Promise<void> {
     isLoading.value = true
     error.value = null
     try {
-      await apiRegister({ username, email, password })
+      await apiRegister({ username, email, firstName, lastName, password })
     } catch (e: unknown) {
       const msg = isProblemDetail(e) ? (e.detail ?? e.title) : 'Registration failed'
       error.value = msg

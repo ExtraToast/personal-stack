@@ -47,6 +47,8 @@ class AuthRegistrationIntegrationTest : IntegrationTestBase() {
             {
               "username": "integrationuser",
               "email": "integration@example.com",
+              "firstName": "Test",
+              "lastName": "User",
               "password": "securepass123"
             }
             """.trimIndent()
@@ -74,6 +76,8 @@ class AuthRegistrationIntegrationTest : IntegrationTestBase() {
             {
               "username": "duplicate",
               "email": "first@example.com",
+              "firstName": "Test",
+              "lastName": "User",
               "password": "securepass123"
             }
             """.trimIndent()
@@ -89,6 +93,8 @@ class AuthRegistrationIntegrationTest : IntegrationTestBase() {
             {
               "username": "duplicate",
               "email": "second@example.com",
+              "firstName": "Test",
+              "lastName": "User",
               "password": "securepass123"
             }
             """.trimIndent()
@@ -124,6 +130,8 @@ class AuthRegistrationIntegrationTest : IntegrationTestBase() {
             {
               "username": "reg_first_$suffix",
               "email": "$email",
+              "firstName": "Test",
+              "lastName": "User",
               "password": "securepass123"
             }
             """.trimIndent()
@@ -139,6 +147,8 @@ class AuthRegistrationIntegrationTest : IntegrationTestBase() {
             {
               "username": "reg_second_$suffix",
               "email": "$email",
+              "firstName": "Test",
+              "lastName": "User",
               "password": "securepass123"
             }
             """.trimIndent()
@@ -166,6 +176,8 @@ class AuthRegistrationIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "$username",
                       "email": "$email",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": "securepass123"
                     }
                     """.trimIndent()
@@ -211,6 +223,8 @@ class AuthRegistrationIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "$username",
                       "email": "$username@example.com",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": "securepass123"
                     }
                     """.trimIndent()

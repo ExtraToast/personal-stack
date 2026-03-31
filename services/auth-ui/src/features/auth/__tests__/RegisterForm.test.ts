@@ -128,12 +128,14 @@ describe('registerForm', () => {
 
     await wrapper.find('#username').setValue('alice')
     await wrapper.find('#email').setValue('alice@example.com')
+    await wrapper.find('#firstName').setValue('Alice')
+    await wrapper.find('#lastName').setValue('Smith')
     await wrapper.find('#password').setValue('password123')
     await wrapper.find('#confirmPassword').setValue('password123')
     await wrapper.find('form').trigger('submit')
     await wrapper.vm.$nextTick()
 
-    expect(mockRegister).toHaveBeenCalledWith('alice', 'alice@example.com', 'password123')
+    expect(mockRegister).toHaveBeenCalledWith('alice', 'alice@example.com', 'Alice', 'Smith', 'password123')
     expect(pushSpy).toHaveBeenCalledWith({ name: 'check-email', query: { email: 'alice@example.com' } })
   })
 })

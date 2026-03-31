@@ -6,6 +6,8 @@ describe('registerSchema', () => {
     const result = registerSchema.safeParse({
       username: 'alice',
       email: 'alice@example.com',
+      firstName: 'Alice',
+      lastName: 'Smith',
       password: 'securepass123',
       confirmPassword: 'securepass123',
     })
@@ -17,6 +19,8 @@ describe('registerSchema', () => {
     const result = registerSchema.safeParse({
       username: 'alice',
       email: 'alice@example.com',
+      firstName: 'Alice',
+      lastName: 'Smith',
       password: 'securepass123',
       confirmPassword: 'differentpass',
     })
@@ -33,6 +37,8 @@ describe('registerSchema', () => {
     const result = registerSchema.safeParse({
       username: 'alice',
       email: 'not-an-email',
+      firstName: 'Alice',
+      lastName: 'Smith',
       password: 'securepass123',
       confirmPassword: 'securepass123',
     })
@@ -48,6 +54,8 @@ describe('registerSchema', () => {
     const result = registerSchema.safeParse({
       username: 'alice',
       email: 'alice@example.com',
+      firstName: 'Alice',
+      lastName: 'Smith',
       password: 'short',
       confirmPassword: 'short',
     })

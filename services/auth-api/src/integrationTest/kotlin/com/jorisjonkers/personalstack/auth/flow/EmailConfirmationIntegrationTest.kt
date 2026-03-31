@@ -46,7 +46,7 @@ class EmailConfirmationIntegrationTest : IntegrationTestBase() {
             .post("/api/v1/users/register") {
                 contentType = MediaType.APPLICATION_JSON
                 content =
-                    """{"username":"$username","email":"$username@test.com","password":"Secure123!"}"""
+                    """{"username":"$username","email":"$username@test.com","firstName":"Test","lastName":"User","password":"Secure123!"}"""
             }.andExpect { status { isCreated() } }
     }
 

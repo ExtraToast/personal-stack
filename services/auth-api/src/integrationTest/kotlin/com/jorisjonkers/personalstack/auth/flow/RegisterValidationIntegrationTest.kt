@@ -38,6 +38,8 @@ class RegisterValidationIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "",
                       "email": "valid@example.com",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": "securepass123"
                     }
                     """.trimIndent()
@@ -58,6 +60,8 @@ class RegisterValidationIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "validuser",
                       "email": "",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": "securepass123"
                     }
                     """.trimIndent()
@@ -77,6 +81,8 @@ class RegisterValidationIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "validuser2",
                       "email": "valid2@example.com",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": ""
                     }
                     """.trimIndent()
@@ -96,6 +102,8 @@ class RegisterValidationIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "validuser3",
                       "email": "not-an-email",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": "securepass123"
                     }
                     """.trimIndent()
@@ -117,6 +125,8 @@ class RegisterValidationIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "$longUsername",
                       "email": "long@example.com",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": "securepass123"
                     }
                     """.trimIndent()
@@ -139,6 +149,8 @@ class RegisterValidationIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "$username",
                       "email": "$username@example.com",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": "securepass123"
                     }
                     """.trimIndent()
@@ -152,6 +164,8 @@ class RegisterValidationIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "$username",
                       "email": "${username}_2@example.com",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": "securepass123"
                     }
                     """.trimIndent()

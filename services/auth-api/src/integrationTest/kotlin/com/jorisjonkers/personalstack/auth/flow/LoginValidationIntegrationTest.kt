@@ -96,6 +96,8 @@ class LoginValidationIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "$username",
                       "email": "$username@example.com",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": "correctpass123"
                     }
                     """.trimIndent()

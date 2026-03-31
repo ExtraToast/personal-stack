@@ -18,7 +18,7 @@ const mockUser: AdminUser = {
 
 function authenticateStore(): void {
   const authStore = useAuthStore()
-  authStore.user = { sub: 'a1', username: 'admin', email: 'admin@example.com' }
+  authStore.user = { sub: 'a1', username: 'admin', email: 'admin@example.com', firstName: 'Test', lastName: 'User' }
   authStore.roles = ['ROLE_ADMIN']
 }
 
