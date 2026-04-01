@@ -19,7 +19,7 @@ job "rotate-secrets" {
 
       config {
         command = "/bin/bash"
-        args    = ["${var.repo_dir}/infra/scripts/migrate-to-nomad.sh", "rotate-secrets"]
+        args    = ["${var.repo_dir}/infra/scripts/setup.sh", "rotate-secrets"]
       }
 
       env {

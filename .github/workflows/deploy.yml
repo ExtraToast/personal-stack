@@ -13,6 +13,29 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  validate:
+    name: Validate Nomad Jobs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Nomad
+        run: |
+          curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
+            | sudo tee /etc/apt/sources.list.d/hashicorp.list > /dev/null
+          sudo apt-get update && sudo apt-get install -y nomad
+      - name: Validate HCL and JSON
+        run: |
+          find infra/nomad/jobs -name '*.hcl' -print0 | sort -z | while IFS= read -r -d '' f; do
+            echo "==> $f"
+            nomad fmt -check "$f"
+            nomad job validate "$f"
+          done
+          find infra/nomad/vault -name '*.json' -print0 | while IFS= read -r -d '' f; do
+            echo "==> $f"
+            python3 -m json.tool "$f" > /dev/null
+          done
+
   build-and-push:
     name: Build & Push Images
     runs-on: ubuntu-latest
@@ -57,7 +80,7 @@ jobs:
   deploy:
     name: Deploy to Nomad
     runs-on: ubuntu-latest
-    needs: [build-and-push]
+    needs: [validate, build-and-push]
     permissions:
       packages: read
       contents: read
@@ -77,21 +100,4 @@ jobs:
             git reset --hard origin/main
             export IMAGE_TAG=$(git rev-parse HEAD)
             export IMAGE_REPO=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')
-            MAX_RETRIES=3
-            RETRY_DELAY=10
-            for img in auth-api assistant-api auth-ui assistant-ui app-ui; do
-              success=false
-              for attempt in $(seq 1 $MAX_RETRIES); do
-                if docker pull ${IMAGE_REPO}/${img}:${IMAGE_TAG}; then
-                  success=true
-                  break
-                fi
-                echo "⚠️ Pull failed for ${img} (attempt ${attempt}/${MAX_RETRIES}), retrying in ${RETRY_DELAY}s..."
-                sleep $RETRY_DELAY
-              done
-              if [ "$success" = false ]; then
-                echo "❌ Failed to pull ${img} after ${MAX_RETRIES} attempts"
-                exit 1
-              fi
-            done
-            IMAGE_REPO="${IMAGE_REPO}" bash infra/scripts/migrate-to-nomad.sh deploy
+            bash infra/scripts/deploy.sh --phase apps --wait
