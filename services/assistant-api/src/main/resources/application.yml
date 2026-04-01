@@ -15,6 +15,12 @@ spring:
       app-role:
         role-id: ${VAULT_ROLE_ID:}
         secret-id: ${VAULT_SECRET_ID:}
+      config:
+        lifecycle:
+          enabled: true
+          min-renewal: 10s
+          expiry-threshold: 60s
+          lease-endpoints: sysleases
       database:
         enabled: ${VAULT_DB_ENABLED:false}
         role: assistant-api

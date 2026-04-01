@@ -66,7 +66,7 @@ job "auth-api" {
     task "auth-api" {
       vault {
         role        = "auth-api"
-        change_mode = "restart"
+        change_mode = "noop"
       }
 
       template {

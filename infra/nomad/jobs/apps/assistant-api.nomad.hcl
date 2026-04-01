@@ -60,7 +60,7 @@ job "assistant-api" {
     task "assistant-api" {
       vault {
         role        = "assistant-api"
-        change_mode = "restart"
+        change_mode = "noop"
       }
 
       template {

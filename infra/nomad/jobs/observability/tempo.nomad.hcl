@@ -2,10 +2,10 @@ job "tempo" {
   datacenters = ["dc1"]
   type        = "service"
 
-  group "tempo" {
+  group "tempo-write" {
     network {
       mode = "host"
-      port "http" { static = 3200 }
+      port "http" { static = 3201 }
       port "otlp_grpc" { static = 4317 }
       port "otlp_http" { static = 4318 }
     }
@@ -17,7 +17,7 @@ job "tempo" {
     }
 
     service {
-      name = "tempo"
+      name = "tempo-write"
       port = "http"
 
       check {
@@ -28,11 +28,11 @@ job "tempo" {
       }
     }
 
-    task "tempo" {
+    task "tempo-write" {
       template {
         destination = "local/tempo.yml"
         change_mode = "restart"
-        data        = file("infra/nomad/templates/tempo.yml.tpl")
+        data        = file("infra/nomad/templates/tempo-write.yml.tpl")
       }
 
       driver = "docker"
@@ -49,8 +49,59 @@ job "tempo" {
       }
 
       resources {
-        cpu    = 700
-        memory = 768
+        cpu    = 500
+        memory = 512
+      }
+    }
+  }
+
+  group "tempo-read" {
+    network {
+      mode = "host"
+      port "http" { static = 3200 }
+    }
+
+    volume "tempo_data" {
+      type      = "host"
+      source    = "tempo_data"
+      read_only = true
+    }
+
+    service {
+      name = "tempo"
+      port = "http"
+
+      check {
+        type     = "http"
+        path     = "/ready"
+        interval = "15s"
+        timeout  = "5s"
+      }
+    }
+
+    task "tempo-read" {
+      template {
+        destination = "local/tempo.yml"
+        change_mode = "restart"
+        data        = file("infra/nomad/templates/tempo-read.yml.tpl")
+      }
+
+      driver = "docker"
+
+      config {
+        image        = "grafana/tempo:2.7.2"
+        network_mode = "host"
+        args         = ["-config.file=/local/tempo.yml"]
+      }
+
+      volume_mount {
+        volume      = "tempo_data"
+        destination = "/var/tempo"
+      }
+
+      resources {
+        cpu    = 300
+        memory = 384
       }
     }
   }

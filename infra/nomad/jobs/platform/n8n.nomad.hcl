@@ -55,7 +55,7 @@ job "n8n" {
     task "n8n" {
       vault {
         role        = "n8n"
-        change_mode = "restart"
+        change_mode = "noop"
       }
 
       template {

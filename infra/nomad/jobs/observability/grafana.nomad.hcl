@@ -55,7 +55,7 @@ job "grafana" {
     task "grafana" {
       vault {
         role        = "grafana"
-        change_mode = "restart"
+        change_mode = "noop"
       }
 
       template {

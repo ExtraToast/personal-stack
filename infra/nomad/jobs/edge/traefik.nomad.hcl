@@ -7,6 +7,13 @@ job "traefik" {
   datacenters = ["dc1"]
   type        = "service"
 
+  update {
+    min_healthy_time  = "10s"
+    healthy_deadline  = "5m"
+    progress_deadline = "10m"
+    auto_revert       = true
+  }
+
   group "traefik" {
     network {
       mode = "host"
@@ -36,7 +43,7 @@ job "traefik" {
     task "traefik" {
       vault {
         role        = "traefik"
-        change_mode = "restart"
+        change_mode = "noop"
       }
 
       template {
@@ -48,13 +55,13 @@ job "traefik" {
 
       template {
         destination = "local/traefik-static.yml"
-        change_mode = "restart"
+        change_mode = "noop"
         data        = file("infra/nomad/templates/traefik-static.yml.tpl")
       }
 
       template {
         destination = "local/traefik-dynamic.yml"
-        change_mode = "restart"
+        change_mode = "noop"
         data        = file("infra/nomad/templates/traefik-dynamic.yml.tpl")
       }
 

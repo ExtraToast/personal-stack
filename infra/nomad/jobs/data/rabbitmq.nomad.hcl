@@ -60,13 +60,13 @@ job "rabbitmq" {
     task "rabbitmq" {
       vault {
         role        = "rabbitmq"
-        change_mode = "restart"
+        change_mode = "noop"
       }
 
       template {
         destination = "secrets/rabbitmq.env"
         env         = true
-        change_mode = "restart"
+        change_mode = "noop"
         data        = file("infra/nomad/templates/rabbitmq.env.tpl")
       }
 

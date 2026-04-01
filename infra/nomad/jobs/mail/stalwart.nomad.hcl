@@ -7,6 +7,13 @@ job "stalwart" {
   datacenters = ["dc1"]
   type        = "service"
 
+  update {
+    min_healthy_time  = "10s"
+    healthy_deadline  = "5m"
+    progress_deadline = "10m"
+    auto_revert       = true
+  }
+
   group "stalwart" {
     network {
       mode = "host"
@@ -49,7 +56,7 @@ job "stalwart" {
     task "stalwart" {
       vault {
         role        = "stalwart"
-        change_mode = "restart"
+        change_mode = "noop"
       }
 
       template {

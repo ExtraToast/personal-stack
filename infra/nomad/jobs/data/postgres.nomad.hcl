@@ -33,13 +33,13 @@ job "postgres" {
     task "postgres" {
       vault {
         role        = "postgres"
-        change_mode = "restart"
+        change_mode = "noop"
       }
 
       template {
         destination = "secrets/postgres.env"
         env         = true
-        change_mode = "restart"
+        change_mode = "noop"
         data        = file("infra/nomad/templates/postgres.env.tpl")
       }
 
