@@ -9,8 +9,6 @@ ROOT_KEY="$HOME/.ssh/personal-stack-root-user"
 TEMPLATE="cloud-init.template.yml"
 RENDERED="cloud-init.rendered.yml"
 
-# ── Helpers ──────────────────────────────────────────────────────
-
 info()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 ok()    { printf '\033[1;32m OK\033[0m %s\n' "$*"; }
 err()   { printf '\033[1;31mERR\033[0m %b\n' "$*" >&2; exit 1; }
@@ -33,33 +31,109 @@ require_var() {
   fi
 }
 
+upsert_env_value() {
+  local key="$1" value="$2"
+  python3 - "$key" "$value" .env <<'PY'
+import pathlib
+import sys
+
+key = sys.argv[1]
+value = sys.argv[2]
+path = pathlib.Path(sys.argv[3])
+lines = path.read_text().splitlines()
+needle = f"{key}="
+
+for index, line in enumerate(lines):
+    if line.startswith(needle):
+        lines[index] = f"{key}={value}"
+        break
+else:
+    lines.append(f"{key}={value}")
+
+path.write_text("\n".join(lines) + "\n")
+PY
+}
+
 random_password() {
   openssl rand -base64 24 | tr -d '/+=' | head -c 32
 }
 
-# Auto-generate a password if the var is empty, and write it back to .env
 ensure_password() {
   local name="$1"
   if [[ -z "${!name:-}" ]]; then
     local val
-    val=$(random_password)
-    eval "$name=\$val"
-    if grep -q "^${name}=" .env; then
-      sed -i "s|^${name}=.*|${name}=${val}|" .env
-    else
-      echo "${name}=${val}" >> .env
-    fi
+    val="$(random_password)"
+    printf -v "$name" '%s' "$val"
+    upsert_env_value "$name" "$val"
     info "Generated random value for $name"
   fi
 }
 
-# ── 1. SSH Keys ──────────────────────────────────────────────────
+extract_secret_id() {
+  python3 - "$1" <<'PY'
+import re
+import sys
+
+text = sys.argv[1]
+match = re.search(r'"secretId"\s*:\s*(\d+)', text)
+if match:
+    print(match.group(1))
+PY
+}
+
+render_template() {
+  local output_file="$1"
+
+  python3 - "$TEMPLATE" "$output_file" <<'PY'
+import os
+import pathlib
+import sys
+
+template_path = pathlib.Path(sys.argv[1])
+output_path = pathlib.Path(sys.argv[2])
+template = template_path.read_text()
+
+def sq(value: str) -> str:
+    return value.replace("'", "'\"'\"'")
+
+placeholders = {
+    "__SSH_PUBLIC_KEY__": sq(os.environ["SSH_PUB_KEY"]),
+    "__DEPLOY_KEY_PRIVATE_B64__": sq(os.environ["DEPLOY_KEY_B64"]),
+    "__GITHUB_REPO__": sq(os.environ["GITHUB_REPO"]),
+    "__IMAGE_TAG__": sq(os.environ["IMAGE_TAG"]),
+    "__POSTGRES_USER__": sq(os.environ["POSTGRES_USER"]),
+    "__POSTGRES_PASSWORD__": sq(os.environ["POSTGRES_PASSWORD"]),
+    "__RABBITMQ_USER__": sq(os.environ["RABBITMQ_USER"]),
+    "__RABBITMQ_PASSWORD__": sq(os.environ["RABBITMQ_PASSWORD"]),
+    "__CF_DNS_API_TOKEN__": sq(os.environ["CF_DNS_API_TOKEN"]),
+    "__GRAFANA_ADMIN_USER__": sq(os.environ["GRAFANA_ADMIN_USER"]),
+    "__GRAFANA_ADMIN_PASSWORD__": sq(os.environ["GRAFANA_ADMIN_PASSWORD"]),
+    "__N8N_DB_USER__": sq(os.environ["N8N_DB_USER"]),
+    "__N8N_DB_PASSWORD__": sq(os.environ["N8N_DB_PASSWORD"]),
+    "__AUTH_DB_USER__": sq(os.environ["AUTH_DB_USER"]),
+    "__AUTH_DB_PASSWORD__": sq(os.environ["AUTH_DB_PASSWORD"]),
+    "__ASSISTANT_DB_USER__": sq(os.environ["ASSISTANT_DB_USER"]),
+    "__ASSISTANT_DB_PASSWORD__": sq(os.environ["ASSISTANT_DB_PASSWORD"]),
+    "__STALWART_ADMIN_USER__": sq(os.environ["STALWART_ADMIN_USER"]),
+    "__STALWART_ADMIN_PASSWORD__": sq(os.environ["STALWART_ADMIN_PASSWORD"]),
+    "__N8N_OAUTH_CLIENT_SECRET__": sq(os.environ.get("N8N_OAUTH_CLIENT_SECRET", "")),
+    "__GRAFANA_OAUTH_CLIENT_SECRET__": sq(os.environ.get("GRAFANA_OAUTH_CLIENT_SECRET", "")),
+    "__VAULT_OIDC_CLIENT_SECRET__": sq(os.environ.get("VAULT_OIDC_CLIENT_SECRET", "")),
+    "__STALWART_OAUTH_CLIENT_SECRET__": sq(os.environ.get("STALWART_OAUTH_CLIENT_SECRET", "")),
+    "__GHCR_USER__": sq(os.environ["GHCR_USER"]),
+    "__GHCR_TOKEN__": sq(os.environ["GHCR_TOKEN"]),
+}
+
+for placeholder, value in placeholders.items():
+    template = template.replace(placeholder, value)
+
+output_path.write_text(template)
+PY
+}
 
 info "Checking SSH keys..."
 generate_key_if_missing "$DEPLOY_KEY" "deploy@personal-stack"
 generate_key_if_missing "$ROOT_KEY" "root@personal-stack"
-
-# ── 2. Load .env ─────────────────────────────────────────────────
 
 if [[ ! -f .env ]]; then
   cp .env.example .env
@@ -70,8 +144,6 @@ fi
 
 # shellcheck source=/dev/null
 source .env
-
-# ── 3. Validate Contabo credentials ─────────────────────────────
 
 require_var CONTABO_OAUTH2_CLIENT_ID
 require_var CONTABO_OAUTH2_CLIENT_SECRET
@@ -90,9 +162,7 @@ CNTB_AUTH=(
   --oauth2-password "$CONTABO_OAUTH2_PASSWORD"
 )
 
-# ── 4. Auto-generate Docker Swarm secret values ─────────────────
-
-info "Ensuring Docker Swarm secret values..."
+info "Ensuring bootstrap secrets..."
 ensure_password POSTGRES_PASSWORD
 ensure_password RABBITMQ_PASSWORD
 ensure_password GRAFANA_ADMIN_PASSWORD
@@ -101,7 +171,6 @@ ensure_password AUTH_DB_PASSWORD
 ensure_password ASSISTANT_DB_PASSWORD
 ensure_password STALWART_ADMIN_PASSWORD
 
-# Defaults for usernames (not passwords, but must be non-empty)
 : "${POSTGRES_USER:=postgres}"
 : "${RABBITMQ_USER:=appuser}"
 : "${GRAFANA_ADMIN_USER:=admin}"
@@ -109,9 +178,12 @@ ensure_password STALWART_ADMIN_PASSWORD
 : "${AUTH_DB_USER:=auth_user}"
 : "${ASSISTANT_DB_USER:=assistant_user}"
 : "${STALWART_ADMIN_USER:=admin}"
+: "${IMAGE_TAG:=latest}"
+: "${N8N_OAUTH_CLIENT_SECRET:=}"
+: "${GRAFANA_OAUTH_CLIENT_SECRET:=}"
+: "${VAULT_OIDC_CLIENT_SECRET:=}"
+: "${STALWART_OAUTH_CLIENT_SECRET:=}"
 require_var CF_DNS_API_TOKEN
-
-# ── 5. Register deploy key on GitHub ─────────────────────────────
 
 info "Checking GitHub deploy key..."
 if gh repo deploy-key list 2>/dev/null | grep -q "personal-stack-deploy-key"; then
@@ -123,36 +195,32 @@ else
   ok "Deploy key registered"
 fi
 
-# ── 6. Upload SSH key to Contabo ─────────────────────────────────
-
 if [[ -n "${CONTABO_SSH_SECRET_ID:-}" ]]; then
   ok "Contabo SSH secret ID already set: $CONTABO_SSH_SECRET_ID"
 else
   info "Checking for existing SSH secret on Contabo..."
-  EXISTING_SECRETS=""
-  EXISTING_SECRETS=$(cntb get secrets \
+  EXISTING_SECRETS="$(cntb get secrets \
     --name "personal-stack-root-user" \
     --type ssh \
     "${CNTB_AUTH[@]}" \
-    -o json 2>&1 || true)
+    -o json 2>&1 || true)"
 
-  CONTABO_SSH_SECRET_ID=$(echo "$EXISTING_SECRETS" | grep -oP '"secretId"\s*:\s*\K\d+' | head -1 || true)
+  CONTABO_SSH_SECRET_ID="$(extract_secret_id "$EXISTING_SECRETS" || true)"
 
   if [[ -n "$CONTABO_SSH_SECRET_ID" ]]; then
     ok "Found existing SSH secret: ID=$CONTABO_SSH_SECRET_ID"
   else
     info "Creating new SSH secret on Contabo..."
-    CREATE_OUTPUT=""
-    if ! CREATE_OUTPUT=$(cntb create secret \
+    if ! CREATE_OUTPUT="$(cntb create secret \
       --name "personal-stack-root-user" \
       --type ssh \
       --value "$(cat "${ROOT_KEY}.pub")" \
       "${CNTB_AUTH[@]}" \
-      -o json 2>&1); then
+      -o json 2>&1)"; then
       err "cntb create secret failed:\n$CREATE_OUTPUT"
     fi
 
-    CONTABO_SSH_SECRET_ID=$(echo "$CREATE_OUTPUT" | grep -oP '"secretId"\s*:\s*\K\d+' | head -1 || true)
+    CONTABO_SSH_SECRET_ID="$(extract_secret_id "$CREATE_OUTPUT" || true)"
 
     if [[ -z "$CONTABO_SSH_SECRET_ID" ]]; then
       err "Could not extract secret ID from response:\n$CREATE_OUTPUT"
@@ -161,48 +229,26 @@ else
     ok "Contabo SSH secret created: ID=$CONTABO_SSH_SECRET_ID"
   fi
 
-  if grep -q "^CONTABO_SSH_SECRET_ID=" .env; then
-    sed -i "s/^CONTABO_SSH_SECRET_ID=.*/CONTABO_SSH_SECRET_ID=$CONTABO_SSH_SECRET_ID/" .env
-  else
-    echo "CONTABO_SSH_SECRET_ID=$CONTABO_SSH_SECRET_ID" >> .env
-  fi
-
+  upsert_env_value CONTABO_SSH_SECRET_ID "$CONTABO_SSH_SECRET_ID"
   ok "Saved CONTABO_SSH_SECRET_ID=$CONTABO_SSH_SECRET_ID to .env"
 fi
 
-# ── 7. Render cloud-init template ───────────────────────────────
-
 info "Rendering cloud-init template..."
 
-SSH_PUB_KEY=$(cat "${ROOT_KEY}.pub")
-DEPLOY_KEY_B64=$(base64 -w 0 < "$DEPLOY_KEY")
+export SSH_PUB_KEY
+SSH_PUB_KEY="$(cat "${ROOT_KEY}.pub")"
+export DEPLOY_KEY_B64
+DEPLOY_KEY_B64="$(base64 < "${DEPLOY_KEY}" | tr -d '\n')"
 
-sed \
-  -e "s|__SSH_PUBLIC_KEY__|${SSH_PUB_KEY}|g" \
-  -e "s|__DEPLOY_KEY_PRIVATE_B64__|${DEPLOY_KEY_B64}|g" \
-  -e "s|__GITHUB_REPO__|${GITHUB_REPO}|g" \
-  -e "s|__POSTGRES_USER__|${POSTGRES_USER}|g" \
-  -e "s|__POSTGRES_PASSWORD__|${POSTGRES_PASSWORD}|g" \
-  -e "s|__RABBITMQ_USER__|${RABBITMQ_USER}|g" \
-  -e "s|__RABBITMQ_PASSWORD__|${RABBITMQ_PASSWORD}|g" \
-  -e "s|__CF_DNS_API_TOKEN__|${CF_DNS_API_TOKEN}|g" \
-  -e "s|__GRAFANA_ADMIN_USER__|${GRAFANA_ADMIN_USER}|g" \
-  -e "s|__GRAFANA_ADMIN_PASSWORD__|${GRAFANA_ADMIN_PASSWORD}|g" \
-  -e "s|__N8N_DB_USER__|${N8N_DB_USER}|g" \
-  -e "s|__N8N_DB_PASSWORD__|${N8N_DB_PASSWORD}|g" \
-  -e "s|__AUTH_DB_USER__|${AUTH_DB_USER}|g" \
-  -e "s|__AUTH_DB_PASSWORD__|${AUTH_DB_PASSWORD}|g" \
-  -e "s|__ASSISTANT_DB_USER__|${ASSISTANT_DB_USER}|g" \
-  -e "s|__ASSISTANT_DB_PASSWORD__|${ASSISTANT_DB_PASSWORD}|g" \
-  -e "s|__STALWART_ADMIN_USER__|${STALWART_ADMIN_USER}|g" \
-  -e "s|__STALWART_ADMIN_PASSWORD__|${STALWART_ADMIN_PASSWORD}|g" \
-  -e "s|__GHCR_USER__|${GHCR_USER}|g" \
-  -e "s|__GHCR_TOKEN__|${GHCR_TOKEN}|g" \
-  "$TEMPLATE" > "$RENDERED"
+export GITHUB_REPO IMAGE_TAG POSTGRES_USER POSTGRES_PASSWORD RABBITMQ_USER RABBITMQ_PASSWORD
+export CF_DNS_API_TOKEN GRAFANA_ADMIN_USER GRAFANA_ADMIN_PASSWORD N8N_DB_USER N8N_DB_PASSWORD
+export AUTH_DB_USER AUTH_DB_PASSWORD ASSISTANT_DB_USER ASSISTANT_DB_PASSWORD
+export STALWART_ADMIN_USER STALWART_ADMIN_PASSWORD GHCR_USER GHCR_TOKEN
+export N8N_OAUTH_CLIENT_SECRET GRAFANA_OAUTH_CLIENT_SECRET VAULT_OIDC_CLIENT_SECRET STALWART_OAUTH_CLIENT_SECRET
+
+render_template "$RENDERED"
 
 ok "Rendered $RENDERED"
-
-# ── 8. Confirmation ──────────────────────────────────────────────
 
 echo ""
 echo "┌─────────────────────────────────────────────────────────┐"
@@ -221,8 +267,6 @@ if [[ ! "$confirm" =~ ^[yY]$ ]]; then
   exit 0
 fi
 
-# ── 9. Reinstall ─────────────────────────────────────────────────
-
 info "Reinstalling VPS..."
 cntb reinstall instance "$CONTABO_INSTANCE_ID" \
   --imageId "$CONTABO_IMAGE_ID" \
@@ -231,13 +275,11 @@ cntb reinstall instance "$CONTABO_INSTANCE_ID" \
   --defaultUser root \
   "${CNTB_AUTH[@]}"
 
-# ── 10. Done ─────────────────────────────────────────────────────
-
 echo ""
 ok "VPS reinstall initiated."
 echo ""
 info "Next steps:"
-echo "  1. Wait a few minutes for cloud-init to finish (installs Docker, clones repo,"
-echo "     deploys stack, initializes Vault, and redeploys with real secrets)"
+echo "  1. Wait for cloud-init to finish cloning the repo, installing Nomad/Vault, and deploying jobs"
 echo "  2. SSH in:  ssh -i ~/.ssh/personal-stack-root-user -p 2222 deploy@<VPS_IP>"
-echo "  3. Check:   docker stack ps personal-stack"
+echo "  3. Check:   sudo nomad status"
+echo "  4. Review:  sudo tail -n 200 /var/log/personal-stack-bootstrap.log"

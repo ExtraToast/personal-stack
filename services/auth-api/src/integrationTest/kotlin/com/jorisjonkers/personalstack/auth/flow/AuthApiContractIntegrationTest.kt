@@ -67,6 +67,8 @@ class AuthApiContractIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "$username",
                       "email": "$email",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": "$password"
                     }
                     """.trimIndent()
@@ -120,6 +122,8 @@ class AuthApiContractIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "contract_reg_$suffix",
                       "email": "contract_reg_$suffix@example.com",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": "securepass123"
                     }
                     """.trimIndent()

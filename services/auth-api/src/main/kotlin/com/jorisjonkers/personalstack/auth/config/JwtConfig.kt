@@ -1,6 +1,10 @@
 package com.jorisjonkers.personalstack.auth.config
 
+import com.jorisjonkers.personalstack.common.vault.VaultTransitClient
+import com.jorisjonkers.personalstack.common.vault.VaultTransitJwtEncoder
+import com.jorisjonkers.personalstack.common.vault.VaultTransitKeyVersion
 import com.nimbusds.jose.JWSAlgorithm
+import com.nimbusds.jose.jwk.JWK
 import com.nimbusds.jose.jwk.JWKSet
 import com.nimbusds.jose.jwk.RSAKey
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet
@@ -26,33 +30,95 @@ import java.util.UUID
 
 @Configuration
 class JwtConfig(
+    @param:Value("\${auth.transit.enabled:false}")
+    private val transitEnabled: Boolean,
+    @param:Value("\${auth.transit-key-name:auth-api-jwt}")
+    private val transitKeyName: String,
     @param:Value("\${auth.signing-key:}")
     private val signingKeyPem: String,
+    @param:Value("\${auth.signing-key-previous:}")
+    private val previousSigningKeyPem: String,
+    private val vaultTransitClient: VaultTransitClient?,
 ) {
     /**
      * Loads a shared RSA key from PEM (Vault KV in production) if available,
      * otherwise generates an ephemeral key pair (suitable for single-replica dev).
+     *
+     * When a previous signing key is present (during key rotation), both keys are
+     * included in the JWKSet. The current key is used for signing new tokens, while
+     * the previous key remains available for verifying tokens issued before rotation.
      */
     @Bean
+    @Suppress("LongMethod")
     fun jwkSource(): JWKSource<SecurityContext> {
-        val rsaKey =
+        if (transitEnabled) {
+            val keys: MutableList<JWK> =
+                loadTransitKeys()
+                    .map { key ->
+                        RSAKey
+                            .Builder(key.publicKey)
+                            .keyID(key.keyId)
+                            .build()
+                    }.toMutableList()
+
             if (signingKeyPem.isNotBlank()) {
-                val privateKey = parseRsaPrivateKey(signingKeyPem)
-                val publicKey = derivePublicKey(privateKey)
+                keys.add(
+                    RSAKey
+                        .Builder(derivePublicKey(parseRsaPrivateKey(signingKeyPem)))
+                        .keyID(CURRENT_KEY_ID)
+                        .build(),
+                )
+            }
+
+            if (previousSigningKeyPem.isNotBlank()) {
+                keys.add(
+                    RSAKey
+                        .Builder(derivePublicKey(parseRsaPrivateKey(previousSigningKeyPem)))
+                        .keyID(PREVIOUS_KEY_ID)
+                        .build(),
+                )
+            }
+
+            return ImmutableJWKSet(JWKSet(keys))
+        }
+
+        val keys = mutableListOf<RSAKey>()
+
+        if (signingKeyPem.isNotBlank()) {
+            val privateKey = parseRsaPrivateKey(signingKeyPem)
+            val publicKey = derivePublicKey(privateKey)
+            keys.add(
                 RSAKey
                     .Builder(publicKey)
                     .privateKey(privateKey)
-                    .keyID("prod-signing-key-1")
-                    .build()
-            } else {
-                val keyPair = KeyPairGenerator.getInstance("RSA").apply { initialize(RSA_KEY_SIZE) }.generateKeyPair()
+                    .keyID(CURRENT_KEY_ID)
+                    .build(),
+            )
+        } else {
+            val keyPair = KeyPairGenerator.getInstance("RSA").apply { initialize(RSA_KEY_SIZE) }.generateKeyPair()
+            keys.add(
                 RSAKey
                     .Builder(keyPair.public as RSAPublicKey)
                     .privateKey(keyPair.private as RSAPrivateKey)
                     .keyID(UUID.randomUUID().toString())
-                    .build()
-            }
-        return ImmutableJWKSet(JWKSet(rsaKey))
+                    .build(),
+            )
+        }
+
+        // Include the previous key for verification during rotation window
+        if (previousSigningKeyPem.isNotBlank()) {
+            val prevPrivateKey = parseRsaPrivateKey(previousSigningKeyPem)
+            val prevPublicKey = derivePublicKey(prevPrivateKey)
+            keys.add(
+                RSAKey
+                    .Builder(prevPublicKey)
+                    .privateKey(prevPrivateKey)
+                    .keyID(PREVIOUS_KEY_ID)
+                    .build(),
+            )
+        }
+
+        return ImmutableJWKSet(JWKSet(keys.toList()))
     }
 
     @Bean
@@ -65,10 +131,28 @@ class JwtConfig(
     }
 
     @Bean
-    fun jwtEncoder(jwkSource: JWKSource<SecurityContext>): JwtEncoder = NimbusJwtEncoder(jwkSource)
+    fun jwtEncoder(jwkSource: JWKSource<SecurityContext>): JwtEncoder {
+        if (transitEnabled) {
+            val activeTransitKey =
+                loadTransitKeys()
+                    .maxByOrNull { it.version }
+                    ?: error("No transit keys found for '$transitKeyName'")
+            return VaultTransitJwtEncoder(
+                transitClient =
+                    requireNotNull(vaultTransitClient) {
+                        "VaultTransitClient is required when auth.transit.enabled=true"
+                    },
+                keyName = transitKeyName,
+                activeKey = activeTransitKey,
+            )
+        }
+        return NimbusJwtEncoder(jwkSource)
+    }
 
     companion object {
         private const val RSA_KEY_SIZE = 2048
+        private const val CURRENT_KEY_ID = "signing-key-current"
+        private const val PREVIOUS_KEY_ID = "signing-key-previous"
         private val RSA_PUBLIC_EXPONENT = java.math.BigInteger.valueOf(65537)
 
         private fun parseRsaPrivateKey(pem: String): RSAPrivateKey {
@@ -89,4 +173,9 @@ class JwtConfig(
             return KeyFactory.getInstance("RSA").generatePublic(publicKeySpec) as RSAPublicKey
         }
     }
+
+    private fun loadTransitKeys(): List<VaultTransitKeyVersion> =
+        requireNotNull(vaultTransitClient) {
+            "VaultTransitClient is required when auth.transit.enabled=true"
+        }.readKeyVersions(transitKeyName)
 }

@@ -15,6 +15,7 @@ import java.time.ZoneOffset
 import java.util.UUID
 
 @Repository
+@Suppress("TooManyFunctions")
 class JooqUserRepository(
     private val dsl: DSLContext,
 ) : UserRepository {
@@ -62,6 +63,8 @@ class JooqUserRepository(
             .set(APP_USER.ID, user.id.value)
             .set(APP_USER.USERNAME, user.username)
             .set(APP_USER.EMAIL, user.email)
+            .set(APP_USER.FIRST_NAME, user.firstName)
+            .set(APP_USER.LAST_NAME, user.lastName)
             .set(APP_USER.PASSWORD_HASH, passwordHash)
             .set(APP_USER.TOTP_SECRET, null as String?)
             .set(APP_USER.EMAIL_CONFIRMED, user.emailConfirmed)
@@ -77,6 +80,8 @@ class JooqUserRepository(
         val now = user.updatedAt.atOffset(ZoneOffset.UTC).toLocalDateTime()
         dsl
             .update(APP_USER)
+            .set(APP_USER.FIRST_NAME, user.firstName)
+            .set(APP_USER.LAST_NAME, user.lastName)
             .set(APP_USER.EMAIL_CONFIRMED, user.emailConfirmed)
             .set(APP_USER.TOTP_ENABLED, user.totpEnabled)
             .set(APP_USER.ROLE, user.role.name)
@@ -130,6 +135,23 @@ class JooqUserRepository(
     override fun existsByEmail(email: String): Boolean =
         dsl.fetchExists(dsl.selectFrom(APP_USER).where(APP_USER.EMAIL.eq(email)))
 
+    override fun updatePassword(
+        userId: UserId,
+        passwordHash: String,
+    ) {
+        val now =
+            java.time.Instant
+                .now()
+                .atOffset(ZoneOffset.UTC)
+                .toLocalDateTime()
+        dsl
+            .update(APP_USER)
+            .set(APP_USER.PASSWORD_HASH, passwordHash)
+            .set(APP_USER.UPDATED_AT, now)
+            .where(APP_USER.ID.eq(userId.value))
+            .execute()
+    }
+
     private fun loadServicePermissions(userId: UserId): Set<ServicePermission> =
         dsl
             .select(USER_SERVICE_PERMISSIONS.SERVICE)
@@ -144,6 +166,8 @@ class JooqUserRepository(
             id = userId,
             username = this[APP_USER.USERNAME] as String,
             email = this[APP_USER.EMAIL] as String,
+            firstName = this[APP_USER.FIRST_NAME] as String,
+            lastName = this[APP_USER.LAST_NAME] as String,
             role = Role.valueOf(this[APP_USER.ROLE] as String),
             emailConfirmed = this[APP_USER.EMAIL_CONFIRMED] as Boolean,
             totpEnabled = this[APP_USER.TOTP_ENABLED] as Boolean,
@@ -159,6 +183,8 @@ class JooqUserRepository(
             userId = userId,
             username = this[APP_USER.USERNAME] as String,
             email = this[APP_USER.EMAIL] as String,
+            firstName = this[APP_USER.FIRST_NAME] as String,
+            lastName = this[APP_USER.LAST_NAME] as String,
             passwordHash = this[APP_USER.PASSWORD_HASH] as String,
             totpSecret = this[APP_USER.TOTP_SECRET],
             totpEnabled = this[APP_USER.TOTP_ENABLED] as Boolean,

@@ -41,6 +41,8 @@ class RateLimitingTest {
         UserCredentials(
             userId = userId,
             username = "alice",
+            firstName = "",
+            lastName = "",
             passwordHash = "hashed-password",
             totpSecret = null,
             totpEnabled = false,
@@ -143,6 +145,8 @@ class RateLimitingTest {
                 id = userId,
                 username = "alice",
                 email = "alice@example.com",
+                firstName = "",
+                lastName = "",
                 role = Role.USER,
                 emailConfirmed = true,
                 totpEnabled = false,

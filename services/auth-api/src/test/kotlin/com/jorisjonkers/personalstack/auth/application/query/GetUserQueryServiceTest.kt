@@ -25,6 +25,8 @@ class GetUserQueryServiceTest {
                 id = userId,
                 username = "testuser",
                 email = "test@example.com",
+                firstName = "",
+                lastName = "",
                 role = Role.USER,
                 emailConfirmed = true,
                 totpEnabled = false,

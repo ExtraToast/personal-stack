@@ -4,6 +4,8 @@ data class UserCredentials(
     val userId: UserId,
     val username: String,
     val email: String = "",
+    val firstName: String = "",
+    val lastName: String = "",
     val passwordHash: String,
     val totpSecret: String?,
     val totpEnabled: Boolean,

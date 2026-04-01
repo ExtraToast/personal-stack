@@ -59,6 +59,8 @@ class UserRegisteredEventPublishingIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "event_pub_$suffix",
                       "email": "event_pub_$suffix@example.com",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": "securepass123"
                     }
                     """.trimIndent()
@@ -82,6 +84,8 @@ class UserRegisteredEventPublishingIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "$username",
                       "email": "$email",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": "securepass123"
                     }
                     """.trimIndent()
@@ -110,6 +114,8 @@ class UserRegisteredEventPublishingIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "event_exch_$suffix",
                       "email": "event_exch_$suffix@example.com",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": "securepass123"
                     }
                     """.trimIndent()
@@ -136,6 +142,8 @@ class UserRegisteredEventPublishingIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "event_rk_$suffix",
                       "email": "event_rk_$suffix@example.com",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": "securepass123"
                     }
                     """.trimIndent()
@@ -162,6 +170,8 @@ class UserRegisteredEventPublishingIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "$username",
                       "email": "$username@example.com",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": "securepass123"
                     }
                     """.trimIndent()
@@ -180,6 +190,8 @@ class UserRegisteredEventPublishingIntegrationTest : IntegrationTestBase() {
                     {
                       "username": "$username",
                       "email": "other_$username@example.com",
+                      "firstName": "Test",
+                      "lastName": "User",
                       "password": "securepass123"
                     }
                     """.trimIndent()

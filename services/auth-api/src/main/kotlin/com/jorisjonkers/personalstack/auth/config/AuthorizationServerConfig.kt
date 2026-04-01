@@ -171,6 +171,7 @@ class AuthorizationServerConfig(
         JdbcOAuth2AuthorizationConsentService(jdbcOperations, registeredClientRepository)
 
     @Bean
+    @Suppress("LongMethod")
     fun jwtTokenCustomizer(userRepository: UserRepository): OAuth2TokenCustomizer<JwtEncodingContext> =
         OAuth2TokenCustomizer { context ->
             val principal = context.getPrincipal<Authentication>()
@@ -178,12 +179,17 @@ class AuthorizationServerConfig(
                 userRepository.findCredentialsByUsername(principal.name) ?: return@OAuth2TokenCustomizer
             val roles = buildRoles(credentials)
 
+            val stalwartEmail =
+                "${credentials.firstName}.${credentials.lastName}".lowercase()
+
             when {
                 context.tokenType == OAuth2TokenType.ACCESS_TOKEN -> {
+                    val email =
+                        if (context.registeredClient.clientId == "stalwart") stalwartEmail else credentials.email
                     context.claims.claim("roles", roles)
                     context.claims.claim("username", credentials.username)
                     context.claims.claim("preferred_username", credentials.username)
-                    context.claims.claim("email", credentials.email)
+                    context.claims.claim("email", email)
                     context.claims.claim("aud", listOf(context.registeredClient.clientId))
                     context.claims.subject(credentials.userId.value.toString())
                 }
@@ -194,11 +200,13 @@ class AuthorizationServerConfig(
 
                     if (OidcScopes.PROFILE in context.authorizedScopes) {
                         context.claims.claim("preferred_username", credentials.username)
-                        context.claims.claim("name", credentials.username)
+                        context.claims.claim("name", "${credentials.firstName} ${credentials.lastName}")
                     }
 
                     if (OidcScopes.EMAIL in context.authorizedScopes) {
-                        context.claims.claim("email", credentials.email)
+                        val isStalwart = context.registeredClient.clientId == "stalwart"
+                        val email = if (isStalwart) stalwartEmail else credentials.email
+                        context.claims.claim("email", email)
                         context.claims.claim("email_verified", credentials.emailConfirmed)
                     }
                 }

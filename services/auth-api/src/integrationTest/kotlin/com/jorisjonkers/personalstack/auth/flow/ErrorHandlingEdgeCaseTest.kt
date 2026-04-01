@@ -107,6 +107,8 @@ class ErrorHandlingEdgeCaseTest : IntegrationTestBase() {
                                     {
                                       "username": "$username",
                                       "email": "${username}_$i@example.com",
+                                      "firstName": "Test",
+                                      "lastName": "User",
                                       "password": "securepass123"
                                     }
                                     """.trimIndent()

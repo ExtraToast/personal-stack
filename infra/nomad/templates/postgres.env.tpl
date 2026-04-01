@@ -1,0 +1,9 @@
+POSTGRES_DB=postgres
+POSTGRES_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "postgres.user" }}{{ end }}
+POSTGRES_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "postgres.password" }}{{ end }}
+AUTH_DB_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "auth.user" }}{{ end }}
+AUTH_DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "auth.password" }}{{ end }}
+ASSISTANT_DB_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "assistant.user" }}{{ end }}
+ASSISTANT_DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "assistant.password" }}{{ end }}
+N8N_DB_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "n8n.user" }}{{ end }}
+N8N_DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "n8n.password" }}{{ end }}

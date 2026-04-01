@@ -9,4 +9,5 @@ regexes = [
   '''(?:auth|assistant)\.jorisjonkers\.test:80/api/actuator/health''',
   '''eyJhbGciOiJSUzI1NiJ9\.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxfQ\.invalid''',
   '''-----BEGIN (?:RSA )?PRIVATE KEY-----.*""''',
+  '''\d+/api/actuator/prometheus''',
 ]

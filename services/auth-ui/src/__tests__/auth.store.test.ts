@@ -111,11 +111,13 @@ describe('auth store', () => {
       mockApiRegister.mockResolvedValue(undefined)
 
       const store = useAuthStore()
-      await store.register('bob', 'bob@example.com', 'pass1234')
+      await store.register('bob', 'bob@example.com', 'Test', 'User', 'pass1234')
 
       expect(mockApiRegister).toHaveBeenCalledWith({
         username: 'bob',
         email: 'bob@example.com',
+        firstName: 'Test',
+        lastName: 'User',
         password: 'pass1234',
       })
       expect(store.isLoading).toBe(false)
@@ -125,7 +127,7 @@ describe('auth store', () => {
       mockApiRegister.mockRejectedValue({ title: 'Conflict', status: 409, detail: 'Username taken' })
 
       const store = useAuthStore()
-      await expect(store.register('bob', 'bob@example.com', 'pass')).rejects.toBeTruthy()
+      await expect(store.register('bob', 'bob@example.com', 'Test', 'User', 'pass')).rejects.toBeTruthy()
 
       expect(store.error).toBe('Username taken')
     })

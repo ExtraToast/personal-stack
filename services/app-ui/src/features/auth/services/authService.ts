@@ -7,6 +7,8 @@ interface SessionPayload {
   sub?: string
   username: string
   email?: string
+  firstName?: string
+  lastName?: string
   role?: string
   roles?: string[]
 }
@@ -27,6 +29,8 @@ export async function checkSession(): Promise<AuthUser> {
     sub: payload.sub ?? payload.id ?? '',
     username: payload.username,
     email: payload.email ?? '',
+    firstName: payload.firstName ?? '',
+    lastName: payload.lastName ?? '',
     roles: payload.roles ?? (payload.role ? [`ROLE_${payload.role}`] : []),
   }
 }

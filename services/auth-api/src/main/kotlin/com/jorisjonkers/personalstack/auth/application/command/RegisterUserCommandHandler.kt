@@ -43,6 +43,8 @@ class RegisterUserCommandHandler(
                 id = UserId(UUID.randomUUID()),
                 username = command.username,
                 email = command.email,
+                firstName = command.firstName,
+                lastName = command.lastName,
                 role = Role.USER,
                 emailConfirmed = false,
                 totpEnabled = false,

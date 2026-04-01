@@ -36,14 +36,26 @@ describe('authService', () => {
   it('register sends registration data', async () => {
     mockFetch.mockResolvedValue(jsonResponse(undefined, 204))
 
-    await register({ username: 'bob', email: 'bob@example.com', password: 'pass1234' })
+    await register({
+      username: 'bob',
+      email: 'bob@example.com',
+      firstName: 'Test',
+      lastName: 'User',
+      password: 'pass1234',
+    })
 
     expect(mockFetch).toHaveBeenCalledWith(
       '/api/v1/users/register',
       expect.objectContaining({
         method: 'POST',
         credentials: 'include',
-        body: JSON.stringify({ username: 'bob', email: 'bob@example.com', password: 'pass1234' }),
+        body: JSON.stringify({
+          username: 'bob',
+          email: 'bob@example.com',
+          firstName: 'Test',
+          lastName: 'User',
+          password: 'pass1234',
+        }),
       }),
     )
   })
@@ -170,6 +182,8 @@ describe('authService', () => {
     const errorData = { title: 'Bad Request', status: 400, detail: 'Invalid input' }
     mockFetch.mockResolvedValue(jsonResponse(errorData, 400))
 
-    await expect(register({ username: 'x', email: 'x@x.com', password: 'y' })).rejects.toEqual(errorData)
+    await expect(
+      register({ username: 'x', email: 'x@x.com', firstName: 'Test', lastName: 'User', password: 'y' }),
+    ).rejects.toEqual(errorData)
   })
 })

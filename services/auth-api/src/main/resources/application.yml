@@ -11,10 +11,20 @@ spring:
     vault:
       enabled: ${VAULT_ENABLED:false}
       uri: ${VAULT_ADDR:http://localhost:8200}
-      authentication: APPROLE
+      authentication: ${VAULT_AUTHENTICATION:APPROLE}
       app-role:
         role-id: ${VAULT_ROLE_ID:}
         secret-id: ${VAULT_SECRET_ID:}
+      config:
+        lifecycle:
+          enabled: true
+          min-renewal: 10s
+          expiry-threshold: 60s
+          lease-endpoints: sysleases
+      database:
+        enabled: ${VAULT_DB_ENABLED:false}
+        role: auth-api
+        backend: database
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/auth_db
     username: ${DB_USER:auth_user}
