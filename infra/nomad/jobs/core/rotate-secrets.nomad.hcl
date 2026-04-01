@@ -23,7 +23,7 @@ job "rotate-secrets" {
       }
 
       env {
-        VAULT_ADDR     = "http://127.0.0.1:8200"
+        VAULT_ADDR      = "http://127.0.0.1:8200"
         VAULT_KEYS_FILE = "${var.repo_dir}/.vault-keys"
         DB_ENGINE_HOST  = "127.0.0.1"
         DB_ENGINE_PORT  = "5432"
