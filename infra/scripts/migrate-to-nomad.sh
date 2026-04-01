@@ -103,6 +103,10 @@ load_bootstrap_env() {
 
 load_vault_context() {
   load_bootstrap_env
+  # Prefer the host IP from bootstrap env (Vault binds to the real IP, not 127.0.0.1)
+  if [[ -n "${HOST_IP:-}" ]]; then
+    VAULT_ADDR_DEFAULT="http://${HOST_IP}:8200"
+  fi
   export VAULT_ADDR="${VAULT_ADDR:-${VAULT_ADDR_DEFAULT}}"
 
   if [[ -z "${VAULT_TOKEN:-}" && -f "${VAULT_KEYS_FILE}" ]]; then
@@ -576,11 +580,18 @@ deploy_all_jobs() {
   submit_job "${ROOT_DIR}/infra/nomad/jobs/platform/uptime-kuma.nomad.hcl"
   submit_job "${ROOT_DIR}/infra/nomad/jobs/mail/stalwart.nomad.hcl"
 
-  submit_job "${ROOT_DIR}/infra/nomad/jobs/apps/auth-api.nomad.hcl" -var "image_tag=${IMAGE_TAG}" -var "image_repo=${IMAGE_REPO}"
-  submit_job "${ROOT_DIR}/infra/nomad/jobs/apps/assistant-api.nomad.hcl" -var "image_tag=${IMAGE_TAG}" -var "image_repo=${IMAGE_REPO}"
-  submit_job "${ROOT_DIR}/infra/nomad/jobs/apps/auth-ui.nomad.hcl" -var "image_tag=${IMAGE_TAG}" -var "image_repo=${IMAGE_REPO}"
-  submit_job "${ROOT_DIR}/infra/nomad/jobs/apps/assistant-ui.nomad.hcl" -var "image_tag=${IMAGE_TAG}" -var "image_repo=${IMAGE_REPO}"
-  submit_job "${ROOT_DIR}/infra/nomad/jobs/apps/app-ui.nomad.hcl" -var "image_tag=${IMAGE_TAG}" -var "image_repo=${IMAGE_REPO}"
+  # Resolve the host IP for containers that need to reach host services (Vault, Postgres, etc.)
+  local host_gw="${HOST_IP:-}"
+  if [[ -z "${host_gw}" ]]; then
+    host_gw="$(ip -4 route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' || hostname -I | awk '{print $1}')"
+  fi
+  local app_vars=(-var "image_tag=${IMAGE_TAG}" -var "image_repo=${IMAGE_REPO}" -var "host_gateway=${host_gw}")
+
+  submit_job "${ROOT_DIR}/infra/nomad/jobs/apps/auth-api.nomad.hcl" "${app_vars[@]}"
+  submit_job "${ROOT_DIR}/infra/nomad/jobs/apps/assistant-api.nomad.hcl" "${app_vars[@]}"
+  submit_job "${ROOT_DIR}/infra/nomad/jobs/apps/auth-ui.nomad.hcl" "${app_vars[@]}"
+  submit_job "${ROOT_DIR}/infra/nomad/jobs/apps/assistant-ui.nomad.hcl" "${app_vars[@]}"
+  submit_job "${ROOT_DIR}/infra/nomad/jobs/apps/app-ui.nomad.hcl" "${app_vars[@]}"
 
   submit_job "${ROOT_DIR}/infra/nomad/jobs/edge/traefik.nomad.hcl"
 
@@ -715,10 +726,17 @@ bootstrap_command() {
     primary_ip="$(hostname -I | awk '{print $1}')"
   fi
   if [[ -n "${primary_ip}" ]]; then
-    sed -i "s/__BIND_ADDR__/${primary_ip}/" /etc/consul.d/personal-stack.hcl
+    sed -i "s/__BIND_ADDR__/${primary_ip}/g" /etc/consul.d/personal-stack.hcl
+    sed -i "s/__BIND_ADDR__/${primary_ip}/g" /etc/vault.d/personal-stack.hcl
+    sed -i "s/__BIND_ADDR__/${primary_ip}/g" /etc/nomad.d/personal-stack.hcl
     echo "Consul bind_addr set to ${primary_ip}"
+    echo "Vault listener set to ${primary_ip}"
+    echo "Nomad Vault address set to ${primary_ip}"
+
+    # Persist the host IP so Nomad jobs can use it as host_gateway
+    ensure_bootstrap_env_line HOST_IP "${primary_ip}"
   else
-    echo "WARNING: Could not detect primary IP — edit /etc/consul.d/personal-stack.hcl manually" >&2
+    echo "WARNING: Could not detect primary IP — edit configs manually" >&2
   fi
 
   cat <<'EOF' | write_text_file /etc/systemd/system/nomad.service.d/override.conf 0644
@@ -737,7 +755,8 @@ EOF
   wait_for_http "http://127.0.0.1:8500/v1/status/leader" "Consul API" 60
 
   systemctl restart vault || true
-  wait_for_http "${VAULT_ADDR_DEFAULT}/v1/sys/health" "Vault API" 90
+  local vault_health_url="http://${primary_ip:-127.0.0.1}:8200/v1/sys/health"
+  wait_for_http "${vault_health_url}" "Vault API" 90
 
   systemctl restart nomad || true
   wait_for_nomad_api

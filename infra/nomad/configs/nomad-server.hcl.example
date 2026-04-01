@@ -90,7 +90,7 @@ consul {
 
 vault {
   enabled = true
-  address = "http://127.0.0.1:8200"
+  address = "http://__BIND_ADDR__:8200"
   jwt_auth_backend_path = "jwt-nomad"
 
   default_identity {
