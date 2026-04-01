@@ -1,3 +1,8 @@
+variable "domain" {
+  type    = string
+  default = "jorisjonkers.dev"
+}
+
 variable "repo_dir" {
   type    = string
   default = "/opt/personal-stack"
@@ -32,7 +37,7 @@ job "grafana" {
       port = "http"
       tags = [
         "traefik.enable=true",
-        "traefik.http.routers.grafana.rule=Host(`grafana.jorisjonkers.dev`)",
+        "traefik.http.routers.grafana.rule=Host(`grafana.${var.domain}`)",
         "traefik.http.routers.grafana.entrypoints=websecure",
         "traefik.http.routers.grafana.tls=true",
         "traefik.http.routers.grafana.middlewares=grafana-security-headers@file",
@@ -63,14 +68,14 @@ job "grafana" {
       driver = "docker"
 
       env {
-        GF_SERVER_ROOT_URL                               = "https://grafana.jorisjonkers.dev"
+        GF_SERVER_ROOT_URL                               = "https://grafana.${var.domain}"
         GF_AUTH_GENERIC_OAUTH_ENABLED                    = "true"
         GF_AUTH_GENERIC_OAUTH_NAME                       = "personal-stack"
         GF_AUTH_GENERIC_OAUTH_CLIENT_ID                  = "grafana"
         GF_AUTH_GENERIC_OAUTH_SCOPES                     = "openid profile email"
-        GF_AUTH_GENERIC_OAUTH_AUTH_URL                   = "https://auth.jorisjonkers.dev/api/oauth2/authorize"
-        GF_AUTH_GENERIC_OAUTH_TOKEN_URL                  = "https://auth.jorisjonkers.dev/api/oauth2/token"
-        GF_AUTH_GENERIC_OAUTH_API_URL                    = "https://auth.jorisjonkers.dev/api/userinfo"
+        GF_AUTH_GENERIC_OAUTH_AUTH_URL                   = "https://auth.${var.domain}/api/oauth2/authorize"
+        GF_AUTH_GENERIC_OAUTH_TOKEN_URL                  = "https://auth.${var.domain}/api/oauth2/token"
+        GF_AUTH_GENERIC_OAUTH_API_URL                    = "https://auth.${var.domain}/api/userinfo"
         GF_AUTH_GENERIC_OAUTH_LOGIN_ATTRIBUTE_PATH       = "preferred_username"
         GF_AUTH_GENERIC_OAUTH_NAME_ATTRIBUTE_PATH        = "name"
         GF_AUTH_GENERIC_OAUTH_EMAIL_ATTRIBUTE_PATH       = "email"

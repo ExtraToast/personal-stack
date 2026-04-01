@@ -514,8 +514,8 @@ configure_vault_oidc_auth() {
     oidc_client_secret="${vault_oauth_secret}" \
     default_role="default" >/dev/null
 
-  role_payload_file="$(mktemp)"
-  cat >"${role_payload_file}" <<EOF
+  echo "+ vault write auth/oidc/role/default"
+  vault write auth/oidc/role/default - <<EOF >/dev/null
 {
   "bound_audiences": "vault",
   "allowed_redirect_uris": [
@@ -531,10 +531,6 @@ configure_vault_oidc_auth() {
   "token_policies": ["admin"]
 }
 EOF
-
-  echo "+ vault write auth/oidc/role/default @${role_payload_file}"
-  vault write auth/oidc/role/default @"${role_payload_file}" >/dev/null
-  rm -f "${role_payload_file}"
 }
 
 submit_job() {
@@ -585,6 +581,7 @@ backup_vault() {
   if [[ "${MODE}" == "apply" ]]; then
     docker exec "${container}" vault operator raft snapshot save /tmp/swarm-vault.snap
     docker cp "${container}:/tmp/swarm-vault.snap" "${BACKUP_DIR}/vault.snap"
+    [[ -s "${BACKUP_DIR}/vault.snap" ]] || { echo "Vault backup is empty or missing." >&2; exit 1; }
   fi
 }
 
@@ -596,6 +593,7 @@ backup_postgres() {
   echo "+ docker exec ${container} pg_dumpall -U postgres > ${BACKUP_DIR}/postgres.sql"
   if [[ "${MODE}" == "apply" ]]; then
     docker exec "${container}" pg_dumpall -U postgres > "${BACKUP_DIR}/postgres.sql"
+    [[ -s "${BACKUP_DIR}/postgres.sql" ]] || { echo "PostgreSQL backup is empty or missing." >&2; exit 1; }
   fi
 }
 
@@ -607,6 +605,7 @@ backup_traefik_acme() {
   echo "+ docker cp ${container}:/letsencrypt/acme.json ${BACKUP_DIR}/acme.json"
   if [[ "${MODE}" == "apply" ]]; then
     docker cp "${container}:/letsencrypt/acme.json" "${BACKUP_DIR}/acme.json"
+    [[ -s "${BACKUP_DIR}/acme.json" ]] || { echo "Traefik ACME backup is empty or missing." >&2; exit 1; }
   fi
 }
 
@@ -756,6 +755,52 @@ EOF
   export NOMAD_TOKEN="${bootstrap_token}"
 }
 
+write_all_secrets_to_vault() {
+  upsert_kv secret/auth-api \
+    "spring.rabbitmq.username=${RABBITMQ_USER}" \
+    "spring.rabbitmq.password=${RABBITMQ_PASSWORD}" \
+    "auth.clients.grafana.secret=${GRAFANA_OAUTH_CLIENT_SECRET}" \
+    "auth.clients.n8n.secret=${N8N_OAUTH_CLIENT_SECRET}" \
+    "auth.clients.vault.secret=${VAULT_OIDC_CLIENT_SECRET}" \
+    "auth.clients.stalwart.secret=${STALWART_OAUTH_CLIENT_SECRET}"
+
+  upsert_kv secret/assistant-api \
+    "spring.rabbitmq.username=${RABBITMQ_USER}" \
+    "spring.rabbitmq.password=${RABBITMQ_PASSWORD}"
+
+  vault kv put secret/platform/postgres \
+    "postgres.user=${POSTGRES_USER}" \
+    "postgres.password=${POSTGRES_PASSWORD}" \
+    "auth.user=${AUTH_DB_USER}" \
+    "auth.password=${AUTH_DB_PASSWORD}" \
+    "assistant.user=${ASSISTANT_DB_USER}" \
+    "assistant.password=${ASSISTANT_DB_PASSWORD}" \
+    "n8n.user=${N8N_DB_USER}" \
+    "n8n.password=${N8N_DB_PASSWORD}" >/dev/null
+
+  vault kv put secret/platform/rabbitmq \
+    "rabbitmq.user=${RABBITMQ_USER}" \
+    "rabbitmq.password=${RABBITMQ_PASSWORD}" >/dev/null
+
+  vault kv put secret/platform/edge \
+    "cloudflare.dns_api_token=${CF_DNS_API_TOKEN}" >/dev/null
+
+  vault kv put secret/platform/automation \
+    "n8n.db_user=${N8N_DB_USER}" \
+    "n8n.db_password=${N8N_DB_PASSWORD}" \
+    "n8n.oauth_client_secret=${N8N_OAUTH_CLIENT_SECRET}" >/dev/null
+
+  vault kv put secret/platform/observability \
+    "grafana.admin_user=${GRAFANA_ADMIN_USER}" \
+    "grafana.admin_password=${GRAFANA_ADMIN_PASSWORD}" \
+    "grafana.oauth_client_secret=${GRAFANA_OAUTH_CLIENT_SECRET}" >/dev/null
+
+  vault kv put secret/platform/mail \
+    "stalwart.admin_user=${STALWART_ADMIN_USER}" \
+    "stalwart.admin_password=${STALWART_ADMIN_PASSWORD}" \
+    "stalwart.oauth_client_secret=${STALWART_OAUTH_CLIENT_SECRET}" >/dev/null
+}
+
 seed_secrets_command() {
   load_bootstrap_env
   load_vault_context
@@ -805,48 +850,7 @@ seed_secrets_command() {
     return
   fi
 
-  upsert_kv secret/auth-api \
-    "spring.rabbitmq.username=${RABBITMQ_USER}" \
-    "spring.rabbitmq.password=${RABBITMQ_PASSWORD}" \
-    "auth.clients.grafana.secret=${GRAFANA_OAUTH_CLIENT_SECRET}" \
-    "auth.clients.n8n.secret=${N8N_OAUTH_CLIENT_SECRET}" \
-    "auth.clients.vault.secret=${VAULT_OIDC_CLIENT_SECRET}" \
-    "auth.clients.stalwart.secret=${STALWART_OAUTH_CLIENT_SECRET}"
-
-  upsert_kv secret/assistant-api \
-    "spring.rabbitmq.username=${RABBITMQ_USER}" \
-    "spring.rabbitmq.password=${RABBITMQ_PASSWORD}"
-
-  vault kv put secret/platform/postgres \
-    "postgres.user=${POSTGRES_USER}" \
-    "postgres.password=${POSTGRES_PASSWORD}" \
-    "auth.user=${AUTH_DB_USER}" \
-    "auth.password=${AUTH_DB_PASSWORD}" \
-    "assistant.user=${ASSISTANT_DB_USER}" \
-    "assistant.password=${ASSISTANT_DB_PASSWORD}" >/dev/null
-
-  vault kv put secret/platform/rabbitmq \
-    "rabbitmq.user=${RABBITMQ_USER}" \
-    "rabbitmq.password=${RABBITMQ_PASSWORD}" >/dev/null
-
-  vault kv put secret/platform/edge \
-    "cloudflare.dns_api_token=${CF_DNS_API_TOKEN}" >/dev/null
-
-  vault kv put secret/platform/automation \
-    "n8n.db_user=${N8N_DB_USER}" \
-    "n8n.db_password=${N8N_DB_PASSWORD}" \
-    "n8n.oauth_client_secret=${N8N_OAUTH_CLIENT_SECRET}" >/dev/null
-
-  vault kv put secret/platform/observability \
-    "grafana.admin_user=${GRAFANA_ADMIN_USER}" \
-    "grafana.admin_password=${GRAFANA_ADMIN_PASSWORD}" \
-    "grafana.oauth_client_secret=${GRAFANA_OAUTH_CLIENT_SECRET}" >/dev/null
-
-  vault kv put secret/platform/mail \
-    "stalwart.admin_user=${STALWART_ADMIN_USER}" \
-    "stalwart.admin_password=${STALWART_ADMIN_PASSWORD}" \
-    "stalwart.oauth_client_secret=${STALWART_OAUTH_CLIENT_SECRET}" >/dev/null
-
+  write_all_secrets_to_vault
   echo "Bootstrap secrets seeded into Vault KV."
 }
 
@@ -878,7 +882,7 @@ validate_command() {
   done < <(find "${ROOT_DIR}/infra/nomad/vault" -type f -name "*.json" | sort)
 }
 
-prepare_vault_command() {
+prepare_vault_core() {
   load_bootstrap_env
   load_vault_context
 
@@ -892,9 +896,7 @@ prepare_vault_command() {
     echo "+ vault secrets enable transit"
     echo "+ vault write auth/jwt-nomad/config jwks_url=${NOMAD_JWKS_URL} jwt_supported_algs=[RS256,EdDSA] default_role=nomad-workloads"
     echo "+ ensure transit key auth-api-jwt"
-    echo "+ configure database secrets engine from secret/platform/postgres against ${DB_ENGINE_HOST}:${DB_ENGINE_PORT}"
     echo "+ write Nomad Vault policies and roles from ${VAULT_DIR}"
-    echo "+ configure Vault OIDC auth against ${AUTH_ISSUER}"
     return
   fi
 
@@ -906,19 +908,14 @@ prepare_vault_command() {
   vault secrets enable database 2>/dev/null || true
   vault secrets enable transit 2>/dev/null || true
 
-  local auth_config_file
-  auth_config_file="$(mktemp)"
-  cat >"${auth_config_file}" <<EOF
+  echo "+ vault write auth/jwt-nomad/config"
+  vault write auth/jwt-nomad/config - <<EOF >/dev/null
 {
   "jwks_url": "${NOMAD_JWKS_URL}",
   "jwt_supported_algs": ["RS256", "EdDSA"],
   "default_role": "nomad-workloads"
 }
 EOF
-
-  echo "+ vault write auth/jwt-nomad/config @${auth_config_file}"
-  vault write auth/jwt-nomad/config @"${auth_config_file}" >/dev/null
-  rm -f "${auth_config_file}"
 
   ensure_transit_key
 
@@ -934,10 +931,34 @@ EOF
     write_role "$(basename "${role_file}" .json)" "${role_file}"
   done < <(find "${VAULT_DIR}/roles" -type f -name "*.json" | sort)
 
+  echo "Vault core configuration complete (engines, policies, roles, transit)."
+}
+
+prepare_vault_runtime() {
+  load_bootstrap_env
+  load_vault_context
+
+  : "${VAULT_ADDR:?Set VAULT_ADDR}"
+  : "${VAULT_TOKEN:?Set VAULT_TOKEN}"
+
+  if [[ "${MODE}" == "dry-run" ]]; then
+    echo "+ configure database secrets engine from secret/platform/postgres against ${DB_ENGINE_HOST}:${DB_ENGINE_PORT}"
+    echo "+ configure Vault OIDC auth against ${AUTH_ISSUER}"
+    return
+  fi
+
+  export VAULT_ADDR
+  export VAULT_TOKEN
+
   configure_database_engine
   configure_vault_oidc_auth
 
-  echo "Vault is prepared for Nomad workload identity."
+  echo "Vault runtime configuration complete (database engine, OIDC)."
+}
+
+prepare_vault_command() {
+  prepare_vault_core
+  prepare_vault_runtime
 }
 
 sync_secrets_command() {
@@ -1005,48 +1026,27 @@ sync_secrets_command() {
   stalwart_admin_password="$(read_secret_or_default stalwart /run/secrets/stalwart_admin_password)"
   [[ -n "${stalwart_admin_password}" ]] || stalwart_admin_password="$(random_secret)"
 
-  upsert_kv secret/auth-api \
-    "spring.rabbitmq.username=${rabbitmq_user}" \
-    "spring.rabbitmq.password=${rabbitmq_password}" \
-    "auth.clients.grafana.secret=${grafana_oauth_secret}" \
-    "auth.clients.n8n.secret=${n8n_oauth_secret}" \
-    "auth.clients.vault.secret=${vault_oauth_secret}" \
-    "auth.clients.stalwart.secret=${stalwart_oauth_secret}"
+  POSTGRES_USER="${postgres_user}"
+  POSTGRES_PASSWORD="${postgres_password}"
+  AUTH_DB_USER="${auth_db_user}"
+  AUTH_DB_PASSWORD="${auth_db_password}"
+  ASSISTANT_DB_USER="${assistant_db_user}"
+  ASSISTANT_DB_PASSWORD="${assistant_db_password}"
+  N8N_DB_USER="${n8n_db_user}"
+  N8N_DB_PASSWORD="${n8n_db_password}"
+  RABBITMQ_USER="${rabbitmq_user}"
+  RABBITMQ_PASSWORD="${rabbitmq_password}"
+  CF_DNS_API_TOKEN="${cf_dns_api_token}"
+  N8N_OAUTH_CLIENT_SECRET="${n8n_oauth_secret}"
+  GRAFANA_OAUTH_CLIENT_SECRET="${grafana_oauth_secret}"
+  GRAFANA_ADMIN_USER="${grafana_admin_user}"
+  GRAFANA_ADMIN_PASSWORD="${grafana_admin_password}"
+  VAULT_OIDC_CLIENT_SECRET="${vault_oauth_secret}"
+  STALWART_OAUTH_CLIENT_SECRET="${stalwart_oauth_secret}"
+  STALWART_ADMIN_USER="${stalwart_admin_user}"
+  STALWART_ADMIN_PASSWORD="${stalwart_admin_password}"
 
-  upsert_kv secret/assistant-api \
-    "spring.rabbitmq.username=${rabbitmq_user}" \
-    "spring.rabbitmq.password=${rabbitmq_password}"
-
-  vault kv put secret/platform/postgres \
-    "postgres.user=${postgres_user}" \
-    "postgres.password=${postgres_password}" \
-    "auth.user=${auth_db_user}" \
-    "auth.password=${auth_db_password}" \
-    "assistant.user=${assistant_db_user}" \
-    "assistant.password=${assistant_db_password}" >/dev/null
-
-  vault kv put secret/platform/rabbitmq \
-    "rabbitmq.user=${rabbitmq_user}" \
-    "rabbitmq.password=${rabbitmq_password}" >/dev/null
-
-  vault kv put secret/platform/edge \
-    "cloudflare.dns_api_token=${cf_dns_api_token}" >/dev/null
-
-  vault kv put secret/platform/automation \
-    "n8n.db_user=${n8n_db_user}" \
-    "n8n.db_password=${n8n_db_password}" \
-    "n8n.oauth_client_secret=${n8n_oauth_secret}" >/dev/null
-
-  vault kv put secret/platform/observability \
-    "grafana.admin_user=${grafana_admin_user}" \
-    "grafana.admin_password=${grafana_admin_password}" \
-    "grafana.oauth_client_secret=${grafana_oauth_secret}" >/dev/null
-
-  vault kv put secret/platform/mail \
-    "stalwart.admin_user=${stalwart_admin_user}" \
-    "stalwart.admin_password=${stalwart_admin_password}" \
-    "stalwart.oauth_client_secret=${stalwart_oauth_secret}" >/dev/null
-
+  write_all_secrets_to_vault
   echo "Swarm secrets synced into Vault KV for Nomad consumers."
 }
 
@@ -1077,7 +1077,7 @@ bootstrap_server_command() {
   init_vault_command
   init_nomad_acl_command
   seed_secrets_command
-  prepare_vault_command
+  prepare_vault_core
 
   local original_phase="${PHASE}"
   PHASE="data"
@@ -1088,7 +1088,7 @@ bootstrap_server_command() {
   wait_for_postgres 240
   wait_for_job_running rabbitmq 180
 
-  prepare_vault_command
+  prepare_vault_runtime
   deploy_command
 
   wait_for_job_running traefik 180
@@ -1118,6 +1118,17 @@ cutover_command() {
 }
 
 rollback_command() {
+  load_nomad_context
+
+  echo "Stopping Nomad edge and app jobs to free ports..."
+  nomad job stop -purge traefik 2>/dev/null || true
+  nomad job stop -purge stalwart 2>/dev/null || true
+  nomad job stop -purge app-ui 2>/dev/null || true
+  nomad job stop -purge auth-ui 2>/dev/null || true
+  nomad job stop -purge assistant-ui 2>/dev/null || true
+  nomad job stop -purge auth-api 2>/dev/null || true
+  nomad job stop -purge assistant-api 2>/dev/null || true
+
   STACK_PREFIX="${STACK_PREFIX:-$(detect_stack_prefix_from_services)}"
   echo "Scaling Swarm stack back up: ${STACK_PREFIX}"
 
@@ -1147,14 +1158,14 @@ migrate_command() {
   backup_postgres
   backup_traefik_acme
   sync_secrets_command
-  prepare_vault_command
+  prepare_vault_core
 
   local original_phase="${PHASE}"
   PHASE="data"
   deploy_command
   PHASE="${original_phase}"
 
-  prepare_vault_command
+  prepare_vault_runtime
   deploy_command
 
   echo "Migration preparation complete."

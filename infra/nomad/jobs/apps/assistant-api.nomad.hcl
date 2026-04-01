@@ -1,3 +1,8 @@
+variable "domain" {
+  type    = string
+  default = "jorisjonkers.dev"
+}
+
 variable "image_tag" {
   type    = string
   default = "latest"
@@ -6,6 +11,11 @@ variable "image_tag" {
 variable "image_repo" {
   type    = string
   default = "ghcr.io/extratoast/personal-stack"
+}
+
+variable "host_gateway" {
+  type    = string
+  default = "host.docker.internal"
 }
 
 job "assistant-api" {
@@ -32,7 +42,7 @@ job "assistant-api" {
       port = "http"
       tags = [
         "traefik.enable=true",
-        "traefik.http.routers.assistant-api.rule=Host(`assistant.jorisjonkers.dev`) && PathPrefix(`/api/`) && !PathPrefix(`/api/actuator/prometheus`) && !PathPrefix(`/api/actuator/metrics`)",
+        "traefik.http.routers.assistant-api.rule=Host(`assistant.${var.domain}`) && PathPrefix(`/api/`) && !PathPrefix(`/api/actuator/prometheus`) && !PathPrefix(`/api/actuator/metrics`)",
         "traefik.http.routers.assistant-api.entrypoints=websecure",
         "traefik.http.routers.assistant-api.tls=true",
         "traefik.http.routers.assistant-api.middlewares=forward-auth@file,security-headers@file,rate-limit@file",
@@ -66,16 +76,18 @@ job "assistant-api" {
         SPRING_PROFILES_ACTIVE      = "prod"
         SPRING_CONFIG_IMPORT        = "vault://"
         VAULT_ENABLED               = "true"
-        VAULT_ADDR                  = "http://host.docker.internal:8200"
+        VAULT_ADDR                  = "http://${var.host_gateway}:8200"
         VAULT_DB_ENABLED            = "true"
-        DB_HOST                     = "host.docker.internal"
+        DB_HOST                     = var.host_gateway
         DB_PORT                     = "5432"
-        VALKEY_HOST                 = "host.docker.internal"
+        VALKEY_HOST                 = var.host_gateway
         VALKEY_PORT                 = "6379"
-        SPRING_RABBITMQ_HOST        = "host.docker.internal"
+        SPRING_RABBITMQ_HOST        = var.host_gateway
         SPRING_RABBITMQ_PORT        = "5672"
+        MAIL_HOST                   = "mail.${var.domain}"
+        MAIL_PORT                   = "587"
         OTEL_SERVICE_NAME           = "assistant-api"
-        OTEL_EXPORTER_OTLP_ENDPOINT = "http://host.docker.internal:4318"
+        OTEL_EXPORTER_OTLP_ENDPOINT = "http://${var.host_gateway}:4318"
         OTEL_EXPORTER_OTLP_PROTOCOL = "http/protobuf"
         OTEL_LOGS_EXPORTER          = "none"
         OTEL_METRICS_EXPORTER       = "none"
@@ -84,7 +96,7 @@ job "assistant-api" {
 
       config {
         image       = "${var.image_repo}/assistant-api:${var.image_tag}"
-        extra_hosts = ["host.docker.internal:host-gateway"]
+        extra_hosts = ["${var.host_gateway}:host-gateway"]
       }
 
       resources {

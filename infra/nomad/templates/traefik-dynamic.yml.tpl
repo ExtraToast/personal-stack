@@ -1,7 +1,7 @@
-http:
+{{ $domain := env "DOMAIN" }}http:
   routers:
     vault:
-      rule: 'Host(`vault.jorisjonkers.dev`)'
+      rule: 'Host(`vault.{{ $domain }}`)'
       entryPoints:
         - websecure
       service: vault
@@ -12,7 +12,7 @@ http:
         certResolver: cloudflare
 
     traefik-dashboard:
-      rule: 'Host(`traefik.jorisjonkers.dev`)'
+      rule: 'Host(`traefik.{{ $domain }}`)'
       entryPoints:
         - websecure
       service: api@internal
@@ -26,7 +26,7 @@ http:
   middlewares:
     forward-auth:
       forwardAuth:
-        address: 'https://auth.jorisjonkers.dev/api/v1/auth/verify'
+        address: 'https://auth.{{ $domain }}/api/v1/auth/verify'
         trustForwardHeader: true
         authResponseHeaders:
           - 'X-User-Id'
@@ -39,52 +39,31 @@ http:
         burst: 200
 
     security-headers:
-      headers:
+      headers: &base-headers
         stsSeconds: 31536000
         stsIncludeSubdomains: true
         stsPreload: true
         frameDeny: true
         contentTypeNosniff: true
         referrerPolicy: 'strict-origin-when-cross-origin'
-        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.jorisjonkers.dev https://*.jorisjonkers.test; font-src 'self'; connect-src 'self' https://*.jorisjonkers.dev https://*.jorisjonkers.test; frame-ancestors 'none'"
+        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.{{ $domain }} https://*.jorisjonkers.test; font-src 'self'; connect-src 'self' https://*.{{ $domain }} https://*.jorisjonkers.test; frame-ancestors 'none'"
         customResponseHeaders:
           X-Frame-Options: 'DENY'
 
     stalwart-security-headers:
       headers:
-        stsSeconds: 31536000
-        stsIncludeSubdomains: true
-        stsPreload: true
-        frameDeny: true
-        contentTypeNosniff: true
-        referrerPolicy: 'strict-origin-when-cross-origin'
-        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.jorisjonkers.dev https://*.jorisjonkers.test; font-src 'self'; connect-src 'self' https://*.jorisjonkers.dev https://*.jorisjonkers.test; frame-ancestors 'none'"
-        customResponseHeaders:
-          X-Frame-Options: 'DENY'
+        <<: *base-headers
+        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.{{ $domain }} https://*.jorisjonkers.test; font-src 'self'; connect-src 'self' https://*.{{ $domain }} https://*.jorisjonkers.test; frame-ancestors 'none'"
 
     n8n-security-headers:
       headers:
-        stsSeconds: 31536000
-        stsIncludeSubdomains: true
-        stsPreload: true
-        frameDeny: true
-        contentTypeNosniff: true
-        referrerPolicy: 'strict-origin-when-cross-origin'
-        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn-rs.n8n.io; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.jorisjonkers.dev https://*.jorisjonkers.test; font-src 'self'; connect-src 'self' https://*.jorisjonkers.dev https://*.jorisjonkers.test https://api.n8n.io https://ph.n8n.io; frame-ancestors 'none'"
-        customResponseHeaders:
-          X-Frame-Options: 'DENY'
+        <<: *base-headers
+        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn-rs.n8n.io; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.{{ $domain }} https://*.jorisjonkers.test; font-src 'self'; connect-src 'self' https://*.{{ $domain }} https://*.jorisjonkers.test https://api.n8n.io https://ph.n8n.io; frame-ancestors 'none'"
 
     grafana-security-headers:
       headers:
-        stsSeconds: 31536000
-        stsIncludeSubdomains: true
-        stsPreload: true
-        frameDeny: true
-        contentTypeNosniff: true
-        referrerPolicy: 'strict-origin-when-cross-origin'
-        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.jorisjonkers.dev https://*.jorisjonkers.test; font-src 'self'; connect-src 'self' https://*.jorisjonkers.dev https://*.jorisjonkers.test; frame-ancestors 'none'"
-        customResponseHeaders:
-          X-Frame-Options: 'DENY'
+        <<: *base-headers
+        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.{{ $domain }} https://*.jorisjonkers.test; font-src 'self'; connect-src 'self' https://*.{{ $domain }} https://*.jorisjonkers.test; frame-ancestors 'none'"
 
   services:
     vault:

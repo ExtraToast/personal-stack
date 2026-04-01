@@ -1,3 +1,8 @@
+variable "domain" {
+  type    = string
+  default = "jorisjonkers.dev"
+}
+
 job "stalwart" {
   datacenters = ["dc1"]
   type        = "service"
@@ -27,7 +32,7 @@ job "stalwart" {
       port = "http"
       tags = [
         "traefik.enable=true",
-        "traefik.http.routers.stalwart.rule=Host(`stalwart.jorisjonkers.dev`)",
+        "traefik.http.routers.stalwart.rule=Host(`stalwart.${var.domain}`)",
         "traefik.http.routers.stalwart.entrypoints=websecure",
         "traefik.http.routers.stalwart.tls=true",
         "traefik.http.routers.stalwart.middlewares=forward-auth@file,stalwart-security-headers@file",
@@ -36,8 +41,8 @@ job "stalwart" {
 
       check {
         type     = "tcp"
-        interval = "30s"
-        timeout  = "10s"
+        interval = "15s"
+        timeout  = "5s"
       }
     }
 
@@ -51,6 +56,10 @@ job "stalwart" {
         destination = "local/config.toml"
         change_mode = "restart"
         data        = file("infra/nomad/templates/stalwart-config.toml.tpl")
+      }
+
+      env {
+        DOMAIN = var.domain
       }
 
       driver = "docker"

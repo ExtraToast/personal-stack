@@ -1,3 +1,8 @@
+variable "domain" {
+  type    = string
+  default = "jorisjonkers.dev"
+}
+
 variable "image_tag" {
   type    = string
   default = "latest"
@@ -32,10 +37,10 @@ job "auth-ui" {
       port = "http"
       tags = [
         "traefik.enable=true",
-        "traefik.http.routers.auth-ui.rule=Host(`auth.jorisjonkers.dev`) && !PathPrefix(`/api/`) && !PathPrefix(`/.well-known/`)",
+        "traefik.http.routers.auth-ui.rule=Host(`auth.${var.domain}`) && !PathPrefix(`/api/`) && !PathPrefix(`/.well-known/`)",
         "traefik.http.routers.auth-ui.entrypoints=websecure",
         "traefik.http.routers.auth-ui.tls=true",
-        "traefik.http.routers.auth-ui.middlewares=security-headers@file",
+        "traefik.http.routers.auth-ui.middlewares=rate-limit@file,security-headers@file",
         "traefik.http.services.auth-ui.loadbalancer.server.port=80",
       ]
 

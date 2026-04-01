@@ -1,3 +1,8 @@
+variable "domain" {
+  type    = string
+  default = "jorisjonkers.dev"
+}
+
 job "traefik" {
   datacenters = ["dc1"]
   type        = "service"
@@ -53,6 +58,10 @@ job "traefik" {
         data        = file("infra/nomad/templates/traefik-dynamic.yml.tpl")
       }
 
+      env {
+        DOMAIN = var.domain
+      }
+
       driver = "docker"
 
       config {
@@ -74,7 +83,7 @@ job "traefik" {
 
       resources {
         cpu    = 500
-        memory = 256
+        memory = 512
       }
     }
   }

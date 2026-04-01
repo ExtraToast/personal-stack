@@ -1,3 +1,8 @@
+variable "domain" {
+  type    = string
+  default = "jorisjonkers.dev"
+}
+
 variable "repo_dir" {
   type    = string
   default = "/opt/personal-stack"
@@ -32,7 +37,7 @@ job "n8n" {
       port = "http"
       tags = [
         "traefik.enable=true",
-        "traefik.http.routers.n8n.rule=Host(`n8n.jorisjonkers.dev`)",
+        "traefik.http.routers.n8n.rule=Host(`n8n.${var.domain}`)",
         "traefik.http.routers.n8n.entrypoints=websecure",
         "traefik.http.routers.n8n.tls=true",
         "traefik.http.routers.n8n.middlewares=rate-limit@file,n8n-security-headers@file",
@@ -68,16 +73,16 @@ job "n8n" {
         DB_POSTGRESDB_PORT           = "5432"
         DB_POSTGRESDB_DATABASE       = "n8n_db"
         N8N_PROTOCOL                 = "https"
-        N8N_HOST                     = "n8n.jorisjonkers.dev"
-        N8N_EDITOR_BASE_URL          = "https://n8n.jorisjonkers.dev"
+        N8N_HOST                     = "n8n.${var.domain}"
+        N8N_EDITOR_BASE_URL          = "https://n8n.${var.domain}"
         N8N_TRUST_PROXY              = "true"
-        WEBHOOK_URL                  = "https://n8n.jorisjonkers.dev/"
+        WEBHOOK_URL                  = "https://n8n.${var.domain}/"
         EXTERNAL_HOOK_FILES          = "/data/n8n/hooks.js"
         EXTERNAL_FRONTEND_HOOKS_URLS = "/assets/oidc-frontend-hook.js"
         N8N_ADDITIONAL_NON_UI_ROUTES = "auth"
-        OIDC_ISSUER_URL              = "https://auth.jorisjonkers.dev"
+        OIDC_ISSUER_URL              = "https://auth.${var.domain}"
         OIDC_CLIENT_ID               = "n8n"
-        OIDC_REDIRECT_URI            = "https://n8n.jorisjonkers.dev/auth/oidc/callback"
+        OIDC_REDIRECT_URI            = "https://n8n.${var.domain}/auth/oidc/callback"
         OIDC_SCOPES                  = "openid email profile"
       }
 

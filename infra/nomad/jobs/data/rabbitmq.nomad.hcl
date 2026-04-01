@@ -1,3 +1,8 @@
+variable "domain" {
+  type    = string
+  default = "jorisjonkers.dev"
+}
+
 variable "repo_dir" {
   type    = string
   default = "/opt/personal-stack"
@@ -26,7 +31,7 @@ job "rabbitmq" {
       port = "management"
       tags = [
         "traefik.enable=true",
-        "traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.jorisjonkers.dev`)",
+        "traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.${var.domain}`)",
         "traefik.http.routers.rabbitmq.entrypoints=websecure",
         "traefik.http.routers.rabbitmq.tls=true",
         "traefik.http.routers.rabbitmq.middlewares=security-headers@file",

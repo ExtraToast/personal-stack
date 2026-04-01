@@ -1,6 +1,6 @@
-# Stalwart Mail Server Configuration (Nomad)
+{{ $domain := env "DOMAIN" }}# Stalwart Mail Server Configuration (Nomad)
 
-server.hostname = "mail.jorisjonkers.dev"
+server.hostname = "mail.{{ $domain }}"
 
 server.listener.smtp.bind = "[::]:25"
 server.listener.smtp.protocol = "smtp"
@@ -35,8 +35,8 @@ server.listener.http.protocol = "http"
 
 acme."letsencrypt".directory = "https://acme-v02.api.letsencrypt.org/directory"
 acme."letsencrypt".challenge = "dns-01"
-acme."letsencrypt".contact = ["postmaster@jorisjonkers.dev"]
-acme."letsencrypt".domains = ["mail.jorisjonkers.dev"]
+acme."letsencrypt".contact = ["postmaster@{{ $domain }}"]
+acme."letsencrypt".domains = ["mail.{{ $domain }}"]
 acme."letsencrypt".cache = "/opt/stalwart/etc/acme"
 acme."letsencrypt".renew-before = "30d"
 acme."letsencrypt".default = true
@@ -54,7 +54,7 @@ store.rocksdb.path = "/opt/stalwart/data"
 store.rocksdb.compression = "lz4"
 
 directory.auth-api.type = "oidc"
-directory.auth-api.endpoint.url = "https://auth.jorisjonkers.dev/api/userinfo"
+directory.auth-api.endpoint.url = "https://auth.{{ $domain }}/api/userinfo"
 directory.auth-api.endpoint.method = "userinfo"
 directory.auth-api.timeout = "15s"
 directory.auth-api.fields.email = "email"

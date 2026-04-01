@@ -5,5 +5,5 @@ AUTH_DB_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.dat
 AUTH_DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "auth.password" }}{{ end }}
 ASSISTANT_DB_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "assistant.user" }}{{ end }}
 ASSISTANT_DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "assistant.password" }}{{ end }}
-N8N_DB_USER={{ with secret "secret/data/platform/automation" }}{{ index .Data.data "n8n.db_user" }}{{ end }}
-N8N_DB_PASSWORD={{ with secret "secret/data/platform/automation" }}{{ index .Data.data "n8n.db_password" }}{{ end }}
+N8N_DB_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "n8n.user" }}{{ end }}
+N8N_DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "n8n.password" }}{{ end }}

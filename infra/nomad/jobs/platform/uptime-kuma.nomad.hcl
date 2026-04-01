@@ -1,3 +1,8 @@
+variable "domain" {
+  type    = string
+  default = "jorisjonkers.dev"
+}
+
 job "uptime-kuma" {
   datacenters = ["dc1"]
   type        = "service"
@@ -19,7 +24,7 @@ job "uptime-kuma" {
       port = "http"
       tags = [
         "traefik.enable=true",
-        "traefik.http.routers.uptime-kuma.rule=Host(`status.jorisjonkers.dev`)",
+        "traefik.http.routers.uptime-kuma.rule=Host(`status.${var.domain}`)",
         "traefik.http.routers.uptime-kuma.entrypoints=websecure",
         "traefik.http.routers.uptime-kuma.tls=true",
         "traefik.http.routers.uptime-kuma.middlewares=security-headers@file",

@@ -1,3 +1,8 @@
+variable "domain" {
+  type    = string
+  default = "jorisjonkers.dev"
+}
+
 variable "image_tag" {
   type    = string
   default = "latest"
@@ -6,6 +11,11 @@ variable "image_tag" {
 variable "image_repo" {
   type    = string
   default = "ghcr.io/extratoast/personal-stack"
+}
+
+variable "host_gateway" {
+  type    = string
+  default = "host.docker.internal"
 }
 
 job "auth-api" {
@@ -32,12 +42,12 @@ job "auth-api" {
       port = "http"
       tags = [
         "traefik.enable=true",
-        "traefik.http.routers.auth-api.rule=Host(`auth.jorisjonkers.dev`) && PathPrefix(`/api/`) && !PathPrefix(`/api/actuator/prometheus`) && !PathPrefix(`/api/actuator/metrics`)",
+        "traefik.http.routers.auth-api.rule=Host(`auth.${var.domain}`) && PathPrefix(`/api/`) && !PathPrefix(`/api/actuator/prometheus`) && !PathPrefix(`/api/actuator/metrics`)",
         "traefik.http.routers.auth-api.entrypoints=websecure",
         "traefik.http.routers.auth-api.tls=true",
         "traefik.http.routers.auth-api.middlewares=security-headers@file,rate-limit@file",
         "traefik.http.routers.auth-api.service=auth-api",
-        "traefik.http.routers.auth-api-well-known.rule=Host(`auth.jorisjonkers.dev`) && PathPrefix(`/.well-known/`)",
+        "traefik.http.routers.auth-api-well-known.rule=Host(`auth.${var.domain}`) && PathPrefix(`/.well-known/`)",
         "traefik.http.routers.auth-api-well-known.entrypoints=websecure",
         "traefik.http.routers.auth-api-well-known.tls=true",
         "traefik.http.routers.auth-api-well-known.middlewares=security-headers@file",
@@ -72,23 +82,23 @@ job "auth-api" {
         SPRING_PROFILES_ACTIVE      = "prod"
         SPRING_CONFIG_IMPORT        = "vault://"
         VAULT_ENABLED               = "true"
-        VAULT_ADDR                  = "http://host.docker.internal:8200"
+        VAULT_ADDR                  = "http://${var.host_gateway}:8200"
         VAULT_DB_ENABLED            = "true"
-        DB_HOST                     = "host.docker.internal"
+        DB_HOST                     = var.host_gateway
         DB_PORT                     = "5432"
-        VALKEY_HOST                 = "host.docker.internal"
+        VALKEY_HOST                 = var.host_gateway
         VALKEY_PORT                 = "6379"
-        SPRING_RABBITMQ_HOST        = "host.docker.internal"
+        SPRING_RABBITMQ_HOST        = var.host_gateway
         SPRING_RABBITMQ_PORT        = "5672"
-        MAIL_HOST                   = "mail.jorisjonkers.dev"
+        MAIL_HOST                   = "mail.${var.domain}"
         MAIL_PORT                   = "587"
-        AUTH_LOGIN_URL              = "https://auth.jorisjonkers.dev/login"
-        AUTH_ISSUER                 = "https://auth.jorisjonkers.dev"
-        SESSION_COOKIE_DOMAIN       = "jorisjonkers.dev"
+        AUTH_LOGIN_URL              = "https://auth.${var.domain}/login"
+        AUTH_ISSUER                 = "https://auth.${var.domain}"
+        SESSION_COOKIE_DOMAIN       = "${var.domain}"
         SESSION_COOKIE_SECURE       = "true"
-        AUTH_CORS_ALLOWED_ORIGINS   = "https://jorisjonkers.dev,https://auth.jorisjonkers.dev,https://assistant.jorisjonkers.dev,https://vault.jorisjonkers.dev,https://n8n.jorisjonkers.dev,https://grafana.jorisjonkers.dev,https://rabbitmq.jorisjonkers.dev,https://stalwart.jorisjonkers.dev,https://traefik.jorisjonkers.dev,https://status.jorisjonkers.dev"
+        AUTH_CORS_ALLOWED_ORIGINS   = "https://${var.domain},https://auth.${var.domain},https://assistant.${var.domain},https://vault.${var.domain},https://n8n.${var.domain},https://grafana.${var.domain},https://rabbitmq.${var.domain},https://stalwart.${var.domain},https://traefik.${var.domain},https://status.${var.domain}"
         OTEL_SERVICE_NAME           = "auth-api"
-        OTEL_EXPORTER_OTLP_ENDPOINT = "http://host.docker.internal:4318"
+        OTEL_EXPORTER_OTLP_ENDPOINT = "http://${var.host_gateway}:4318"
         OTEL_EXPORTER_OTLP_PROTOCOL = "http/protobuf"
         OTEL_LOGS_EXPORTER          = "none"
         OTEL_METRICS_EXPORTER       = "none"
@@ -97,7 +107,7 @@ job "auth-api" {
 
       config {
         image       = "${var.image_repo}/auth-api:${var.image_tag}"
-        extra_hosts = ["host.docker.internal:host-gateway"]
+        extra_hosts = ["${var.host_gateway}:host-gateway"]
       }
 
       resources {

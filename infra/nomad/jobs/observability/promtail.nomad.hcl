@@ -8,6 +8,18 @@ job "promtail" {
       port "http" { static = 9080 }
     }
 
+    service {
+      name = "promtail"
+      port = "http"
+
+      check {
+        type     = "http"
+        path     = "/ready"
+        interval = "15s"
+        timeout  = "5s"
+      }
+    }
+
     task "promtail" {
       template {
         destination = "local/promtail.yml"

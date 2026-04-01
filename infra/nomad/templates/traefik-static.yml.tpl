@@ -17,7 +17,7 @@ entryPoints:
 certificatesResolvers:
   cloudflare:
     acme:
-      email: admin@jorisjonkers.dev
+      email: admin@{{ env "DOMAIN" }}
       storage: /letsencrypt/acme.json
       dnsChallenge:
         provider: cloudflare
