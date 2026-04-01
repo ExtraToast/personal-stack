@@ -19,7 +19,7 @@ job "traefik" {
       mode = "host"
       port "http" { static = 80 }
       port "https" { static = 443 }
-      port "admin" { static = 8080 }
+      port "admin" { static = 8088 }
     }
 
     volume "traefik_data" {

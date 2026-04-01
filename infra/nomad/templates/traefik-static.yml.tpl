@@ -12,7 +12,7 @@ entryPoints:
       tls:
         certResolver: cloudflare
   traefik:
-    address: ':8080'
+    address: ':8088'
 
 certificatesResolvers:
   cloudflare:

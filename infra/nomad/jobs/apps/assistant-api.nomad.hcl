@@ -96,7 +96,7 @@ job "assistant-api" {
 
       config {
         image       = "${var.image_repo}/assistant-api:${var.image_tag}"
-        extra_hosts = ["${var.host_gateway}:host-gateway"]
+        extra_hosts = ["host.docker.internal:host-gateway"]
       }
 
       resources {
