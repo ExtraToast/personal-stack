@@ -49,7 +49,7 @@ job "tempo" {
       }
 
       resources {
-        cpu    = 500
+        cpu    = 400
         memory = 512
       }
     }
@@ -100,8 +100,8 @@ job "tempo" {
       }
 
       resources {
-        cpu    = 300
-        memory = 384
+        cpu    = 200
+        memory = 256
       }
     }
   }

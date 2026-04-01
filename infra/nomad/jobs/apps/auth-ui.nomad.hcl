@@ -60,8 +60,8 @@ job "auth-ui" {
       }
 
       resources {
-        cpu    = 500
-        memory = 256
+        cpu    = 200
+        memory = 128
       }
     }
   }

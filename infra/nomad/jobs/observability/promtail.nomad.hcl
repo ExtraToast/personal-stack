@@ -40,8 +40,8 @@ job "promtail" {
       }
 
       resources {
-        cpu    = 300
-        memory = 256
+        cpu    = 200
+        memory = 128
       }
     }
   }

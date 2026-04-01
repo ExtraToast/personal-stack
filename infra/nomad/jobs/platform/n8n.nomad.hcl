@@ -100,8 +100,8 @@ job "n8n" {
       }
 
       resources {
-        cpu    = 700
-        memory = 1024
+        cpu    = 500
+        memory = 768
       }
     }
   }

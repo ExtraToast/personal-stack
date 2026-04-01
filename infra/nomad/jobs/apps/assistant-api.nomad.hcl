@@ -100,7 +100,7 @@ job "assistant-api" {
       }
 
       resources {
-        cpu    = 1200
+        cpu    = 800
         memory = 1024
       }
     }

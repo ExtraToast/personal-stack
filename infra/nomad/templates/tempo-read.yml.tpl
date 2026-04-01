@@ -1,7 +1,10 @@
-target: querier,query-frontend
+target: querier
 
 server:
   http_listen_port: 3200
+
+memberlist:
+  bind_port: 0
 
 storage:
   trace:

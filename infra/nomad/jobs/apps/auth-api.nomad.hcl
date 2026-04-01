@@ -25,8 +25,8 @@ job "auth-api" {
   update {
     max_parallel      = 1
     min_healthy_time  = "10s"
-    healthy_deadline  = "5m"
-    progress_deadline = "10m"
+    healthy_deadline  = "8m"
+    progress_deadline = "12m"
     auto_revert       = true
   }
 
@@ -111,7 +111,7 @@ job "auth-api" {
       }
 
       resources {
-        cpu    = 1200
+        cpu    = 800
         memory = 1024
       }
     }
