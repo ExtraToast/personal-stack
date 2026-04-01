@@ -53,12 +53,13 @@ class JwtConfig(
     fun jwkSource(): JWKSource<SecurityContext> {
         if (transitEnabled) {
             val keys: MutableList<JWK> =
-                loadTransitKeys().map { key ->
+                loadTransitKeys()
+                    .map { key ->
                         RSAKey
                             .Builder(key.publicKey)
                             .keyID(key.keyId)
                             .build()
-                }.toMutableList()
+                    }.toMutableList()
 
             if (signingKeyPem.isNotBlank()) {
                 keys.add(
@@ -133,12 +134,14 @@ class JwtConfig(
     fun jwtEncoder(jwkSource: JWKSource<SecurityContext>): JwtEncoder {
         if (transitEnabled) {
             val activeTransitKey =
-                loadTransitKeys().maxByOrNull { it.version }
-                ?: error("No transit keys found for '$transitKeyName'")
+                loadTransitKeys()
+                    .maxByOrNull { it.version }
+                    ?: error("No transit keys found for '$transitKeyName'")
             return VaultTransitJwtEncoder(
-                transitClient = requireNotNull(vaultTransitClient) {
-                    "VaultTransitClient is required when auth.transit.enabled=true"
-                },
+                transitClient =
+                    requireNotNull(vaultTransitClient) {
+                        "VaultTransitClient is required when auth.transit.enabled=true"
+                    },
                 keyName = transitKeyName,
                 activeKey = activeTransitKey,
             )

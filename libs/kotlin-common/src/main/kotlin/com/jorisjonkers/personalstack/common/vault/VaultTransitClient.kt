@@ -35,11 +35,17 @@ interface VaultTransitClient {
 open class SpringVaultTransitClient(
     private val vaultTemplate: VaultTemplate,
 ) : VaultTransitClient {
+    companion object {
+        private const val TRANSIT_SIGNATURE_PARTS = 3
+    }
+
     override fun readKeyVersions(keyName: String): List<VaultTransitKeyVersion> {
-        val response = vaultTemplate.read("transit/keys/$keyName")
-            ?: error("No transit key found at transit/keys/$keyName")
-        val rawKeys = response.data?.get("keys") as? Map<*, *>
-            ?: error("Transit key '$keyName' does not expose key versions")
+        val response =
+            vaultTemplate.read("transit/keys/$keyName")
+                ?: error("No transit key found at transit/keys/$keyName")
+        val rawKeys =
+            response.data?.get("keys") as? Map<*, *>
+                ?: error("Transit key '$keyName' does not expose key versions")
 
         return rawKeys.entries
             .mapNotNull { (version, rawValue) ->
@@ -68,12 +74,14 @@ open class SpringVaultTransitClient(
                 "prehashed" to false,
             )
 
-        val response = vaultTemplate.write("transit/sign/$keyName", payload)
-            ?: error("Transit signing request returned no response for key '$keyName'")
-        val rawSignature = response.data?.get("signature")?.toString()
-            ?: error("Transit signing response did not include a signature for key '$keyName'")
+        val response =
+            vaultTemplate.write("transit/sign/$keyName", payload)
+                ?: error("Transit signing request returned no response for key '$keyName'")
+        val rawSignature =
+            response.data?.get("signature")?.toString()
+                ?: error("Transit signing response did not include a signature for key '$keyName'")
         val signatureParts = rawSignature.split(":")
-        require(signatureParts.size == 3) {
+        require(signatureParts.size == TRANSIT_SIGNATURE_PARTS) {
             "Unexpected transit signature format for key '$keyName'"
         }
         return Base64.getDecoder().decode(signatureParts[2])
@@ -131,11 +139,7 @@ class VaultTransitJwtEncoder(
         )
     }
 
-    private fun Map<String, Any>.toBase64UrlJson(): String =
-        objectMapper
-            .writeValueAsBytes(this)
-            .toBase64Url()
+    private fun Map<String, Any>.toBase64UrlJson(): String = objectMapper.writeValueAsBytes(this).toBase64Url()
 
-    private fun ByteArray.toBase64Url(): String =
-        Base64.getUrlEncoder().withoutPadding().encodeToString(this)
+    private fun ByteArray.toBase64Url(): String = Base64.getUrlEncoder().withoutPadding().encodeToString(this)
 }
