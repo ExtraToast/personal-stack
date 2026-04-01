@@ -1,4 +1,4 @@
-target: all,metrics-generator
+target: all
 
 server:
   http_listen_port: 3201

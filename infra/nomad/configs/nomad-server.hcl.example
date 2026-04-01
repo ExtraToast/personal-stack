@@ -71,6 +71,15 @@ client {
   }
 }
 
+plugin "docker" {
+  config {
+    volumes {
+      enabled = true
+    }
+    allow_privileged = false
+  }
+}
+
 acl {
   enabled = true
 }

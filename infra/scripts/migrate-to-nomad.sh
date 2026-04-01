@@ -112,6 +112,24 @@ load_vault_context() {
   fi
 }
 
+# Unseal the systemd Vault if it is sealed. Requires VAULT_ADDR and
+# VAULT_UNSEAL_KEY to be set (via load_vault_context / .vault-keys).
+ensure_vault_unsealed() {
+  if ! vault status -format=json 2>/dev/null | jq -e '.sealed == false' >/dev/null 2>&1; then
+    if [[ -z "${VAULT_UNSEAL_KEY:-}" && -f "${VAULT_KEYS_FILE}" ]]; then
+      # shellcheck source=/dev/null
+      source "${VAULT_KEYS_FILE}"
+    fi
+    if [[ -n "${VAULT_UNSEAL_KEY:-}" ]]; then
+      echo "+ vault operator unseal"
+      vault operator unseal "${VAULT_UNSEAL_KEY}" >/dev/null
+    else
+      echo "Vault is sealed and no unseal key is available." >&2
+      exit 1
+    fi
+  fi
+}
+
 load_nomad_context() {
   export NOMAD_ADDR="${NOMAD_ADDR:-http://127.0.0.1:4646}"
 
@@ -582,7 +600,16 @@ backup_vault() {
   run mkdir -p "${BACKUP_DIR}"
   echo "+ docker exec ${container} vault operator raft snapshot save /tmp/swarm-vault.snap"
   if [[ "${MODE}" == "apply" ]]; then
-    docker exec "${container}" vault operator raft snapshot save /tmp/swarm-vault.snap
+    # The Swarm Vault has a different root token than the systemd Vault.
+    # Look for the swarm backup keys first, then fall back to .vault-keys.
+    local swarm_token="${VAULT_TOKEN}"
+    if [[ -f "${STACK_DIR}/.vault-keys.swarm-backup" ]]; then
+      local _swarm_root
+      _swarm_root="$(grep '^VAULT_ROOT_TOKEN=' "${STACK_DIR}/.vault-keys.swarm-backup" | head -1 | cut -d= -f2- | tr -d "'")"
+      [[ -n "${_swarm_root}" ]] && swarm_token="${_swarm_root}"
+    fi
+    docker exec -e VAULT_ADDR=http://127.0.0.1:8200 -e VAULT_TOKEN="${swarm_token}" \
+      "${container}" vault operator raft snapshot save /tmp/swarm-vault.snap
     docker cp "${container}:/tmp/swarm-vault.snap" "${BACKUP_DIR}/vault.snap"
     [[ -s "${BACKUP_DIR}/vault.snap" ]] || { echo "Vault backup is empty or missing." >&2; exit 1; }
   fi
@@ -654,9 +681,45 @@ bootstrap_command() {
   run chown -R nomad:nomad /opt/nomad
   run chown -R vault:vault /opt/vault
 
+  # Set ownership on host volumes to match the UID each container runs as.
+  # Without this, containers that run as non-root cannot write to the volume.
+  run chown -R 70:70       /srv/nomad/postgres      # postgres user
+  run chown -R 65534:65534 /srv/nomad/prometheus     # nobody (prom/prometheus)
+  run chown -R 999:999     /srv/nomad/valkey         # valkey user
+  run chown -R 999:999     /srv/nomad/rabbitmq       # rabbitmq user
+  run chown -R 472:472     /srv/nomad/grafana        # grafana user
+  run chown -R 10001:10001 /srv/nomad/loki           # loki user
+  run chown -R 10001:10001 /srv/nomad/tempo          # tempo user
+  run chown -R 1000:1000   /srv/nomad/n8n            # node user (n8n)
+  run chown -R 1000:1000   /srv/nomad/uptime-kuma    # node user (uptime-kuma)
+  # traefik and stalwart run as root — no chown needed
+
   copy_example "${ROOT_DIR}/infra/nomad/configs/consul-server.hcl.example" /etc/consul.d/personal-stack.hcl 0644
   copy_example "${ROOT_DIR}/infra/nomad/configs/nomad-server.hcl.example" /etc/nomad.d/personal-stack.hcl 0644
   copy_example "${ROOT_DIR}/infra/nomad/configs/vault-server.hcl.example" /etc/vault.d/personal-stack.hcl 0644
+
+  # The vault systemd unit requires /etc/vault.d/vault.hcl to exist
+  # (ConditionFileNotEmpty + ExecStart both reference it). The package ships a
+  # default with TLS enabled that conflicts with our HTTP-only config. Replace
+  # it with a symlink to our config.
+  rm -f /etc/vault.d/vault.hcl
+  ln -sf /etc/vault.d/personal-stack.hcl /etc/vault.d/vault.hcl
+  # The consul package may ship a default consul.hcl as well.
+  rm -f /etc/consul.d/consul.hcl
+
+  # Auto-detect the primary IP for Consul bind_addr (avoids "Multiple private
+  # IPv4 addresses found" error on hosts with docker/bridge interfaces).
+  local primary_ip
+  primary_ip="$(ip -4 route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' || true)"
+  if [[ -z "${primary_ip}" ]]; then
+    primary_ip="$(hostname -I | awk '{print $1}')"
+  fi
+  if [[ -n "${primary_ip}" ]]; then
+    sed -i "s/__BIND_ADDR__/${primary_ip}/" /etc/consul.d/personal-stack.hcl
+    echo "Consul bind_addr set to ${primary_ip}"
+  else
+    echo "WARNING: Could not detect primary IP — edit /etc/consul.d/personal-stack.hcl manually" >&2
+  fi
 
   cat <<'EOF' | write_text_file /etc/systemd/system/nomad.service.d/override.conf 0644
 [Unit]
@@ -666,15 +729,17 @@ EOF
 
   run systemctl daemon-reload
   run systemctl enable consul vault nomad
-  run systemctl restart consul
-  run systemctl restart vault
 
-  wait_for_systemd consul
-  wait_for_systemd vault
+  # Start Consul. The first raft election can take a few seconds, which may
+  # cause systemd to report a timeout. We ignore the exit code and wait for
+  # the HTTP API instead.
+  systemctl restart consul || true
+  wait_for_http "http://127.0.0.1:8500/v1/status/leader" "Consul API" 60
+
+  systemctl restart vault || true
   wait_for_http "${VAULT_ADDR_DEFAULT}/v1/sys/health" "Vault API" 90
 
-  run systemctl restart nomad
-  wait_for_systemd nomad
+  systemctl restart nomad || true
   wait_for_nomad_api
 
   docker_login_ghcr
@@ -698,15 +763,20 @@ init_vault_command() {
       exit 1
     fi
 
-    echo "+ vault operator init -format=json"
-    init_response="$(vault operator init -format=json)"
+    echo "+ vault operator init -key-shares=1 -key-threshold=1 -format=json"
+    init_response="$(vault operator init -key-shares=1 -key-threshold=1 -format=json)"
     unseal_key="$(printf '%s' "${init_response}" | jq -r '.unseal_keys_b64[0]')"
     root_token="$(printf '%s' "${init_response}" | jq -r '.root_token')"
 
-    cat <<EOF | write_text_file "${VAULT_KEYS_FILE}" 0600
+    cat <<EOF | write_text_file "${VAULT_KEYS_FILE}" 0640
 VAULT_UNSEAL_KEY=$(shell_single_quote "${unseal_key}")
 VAULT_ROOT_TOKEN=$(shell_single_quote "${root_token}")
 EOF
+    # Ensure the deploy user can read the keys file (the script often runs
+    # as root via sudo, but subsequent commands may run as deploy).
+    if id deploy >/dev/null 2>&1; then
+      chown root:deploy "${VAULT_KEYS_FILE}" 2>/dev/null || true
+    fi
   fi
 
   # shellcheck source=/dev/null
@@ -751,9 +821,12 @@ init_nomad_acl_command() {
   fi
   bootstrap_token="$(printf '%s' "${bootstrap_response}" | jq -r '.SecretID')"
 
-  cat <<EOF | write_text_file "${NOMAD_KEYS_FILE}" 0600
+  cat <<EOF | write_text_file "${NOMAD_KEYS_FILE}" 0640
 NOMAD_BOOTSTRAP_TOKEN=$(shell_single_quote "${bootstrap_token}")
 EOF
+  if id deploy >/dev/null 2>&1; then
+    chown root:deploy "${NOMAD_KEYS_FILE}" 2>/dev/null || true
+  fi
 
   export NOMAD_TOKEN="${bootstrap_token}"
 }
@@ -871,10 +944,13 @@ validate_command() {
     nomad job validate "${file}"
   done < <(find "${ROOT_DIR}/infra/nomad/jobs" -type f -name "*.hcl" | sort)
 
-  while IFS= read -r file; do
-    echo "+ consul validate -config-format=hcl ${file}"
-    consul validate -config-format=hcl "${file}"
-  done < <(find "${ROOT_DIR}/infra/nomad/configs" -type f -name "consul-*.hcl.example" | sort)
+  # Validate the installed Consul config (not example templates with placeholders).
+  if [[ -f /etc/consul.d/personal-stack.hcl ]]; then
+    echo "+ consul validate -config-format=hcl /etc/consul.d/personal-stack.hcl"
+    consul validate -config-format=hcl /etc/consul.d/personal-stack.hcl
+  else
+    echo "Skipping Consul config validation (no installed config found)."
+  fi
 
   echo "+ bash -n ${ROOT_DIR}/infra/scripts/migrate-to-nomad.sh"
   bash -n "${ROOT_DIR}/infra/scripts/migrate-to-nomad.sh"
@@ -888,6 +964,7 @@ validate_command() {
 prepare_vault_core() {
   load_bootstrap_env
   load_vault_context
+  ensure_vault_unsealed
 
   : "${VAULT_ADDR:?Set VAULT_ADDR}"
   : "${VAULT_TOKEN:?Set VAULT_TOKEN}"
@@ -940,6 +1017,7 @@ EOF
 prepare_vault_runtime() {
   load_bootstrap_env
   load_vault_context
+  ensure_vault_unsealed
 
   : "${VAULT_ADDR:?Set VAULT_ADDR}"
   : "${VAULT_TOKEN:?Set VAULT_TOKEN}"
@@ -966,6 +1044,7 @@ prepare_vault_command() {
 
 sync_secrets_command() {
   load_vault_context
+  ensure_vault_unsealed
 
   : "${VAULT_ADDR:?Set VAULT_ADDR}"
   : "${VAULT_TOKEN:?Set VAULT_TOKEN}"
@@ -1150,6 +1229,7 @@ rotate_secrets_command() {
   require_command openssl
 
   load_vault_context
+  ensure_vault_unsealed
   : "${VAULT_ADDR:?Set VAULT_ADDR}"
   : "${VAULT_TOKEN:?Set VAULT_TOKEN}"
   export VAULT_ADDR VAULT_TOKEN
@@ -1227,6 +1307,7 @@ migrate_command() {
 
   load_nomad_context
   load_vault_context
+  ensure_vault_unsealed
 
   STACK_PREFIX="${STACK_PREFIX:-$(detect_stack_prefix_from_containers)}"
   echo "Detected Swarm stack prefix: ${STACK_PREFIX}"
