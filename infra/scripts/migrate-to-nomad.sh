@@ -39,6 +39,7 @@ Commands:
   cutover           Scale down Swarm ingress and app services after Nomad is ready
   rollback          Scale Swarm ingress and app services back up
   migrate           Backup Swarm state, sync secrets, prepare Vault, deploy data, re-prepare Vault, deploy all jobs
+  rotate-secrets    Rotate PostgreSQL and RabbitMQ passwords, update Vault KV and live services
 
 Options:
   --dry-run         Print commands without executing them
@@ -564,6 +565,8 @@ deploy_all_jobs() {
   submit_job "${ROOT_DIR}/infra/nomad/jobs/apps/app-ui.nomad.hcl" -var "image_tag=${IMAGE_TAG}" -var "image_repo=${IMAGE_REPO}"
 
   submit_job "${ROOT_DIR}/infra/nomad/jobs/edge/traefik.nomad.hcl"
+
+  submit_job "${ROOT_DIR}/infra/nomad/jobs/core/rotate-secrets.nomad.hcl"
 }
 
 scale_service() {
@@ -1142,6 +1145,80 @@ rollback_command() {
   echo "After rollback, revert DNS or your load balancer target to the Swarm host."
 }
 
+rotate_secrets_command() {
+  require_command vault
+  require_command openssl
+
+  load_vault_context
+  : "${VAULT_ADDR:?Set VAULT_ADDR}"
+  : "${VAULT_TOKEN:?Set VAULT_TOKEN}"
+  export VAULT_ADDR VAULT_TOKEN
+
+  local pg_host="${DB_ENGINE_HOST}"
+  local pg_port="${DB_ENGINE_PORT}"
+  local errors=0
+
+  # --- Read current credentials from Vault ---
+  local postgres_user rabbitmq_user
+  postgres_user="$(vault kv get -field=postgres.user secret/platform/postgres 2>/dev/null || echo postgres)"
+  rabbitmq_user="$(vault kv get -field=rabbitmq.user secret/platform/rabbitmq 2>/dev/null || echo appuser)"
+
+  echo "=== Rotating PostgreSQL service passwords ==="
+
+  # Rotate n8n DB password
+  local n8n_new_pass
+  n8n_new_pass="$(random_secret)"
+  echo "+ ALTER USER n8n_user password (via psql)"
+  if [[ "${MODE}" == "apply" ]]; then
+    if PGPASSWORD="$(vault kv get -field=postgres.password secret/platform/postgres 2>/dev/null)" \
+       psql -h "${pg_host}" -p "${pg_port}" -U "${postgres_user}" -d postgres \
+       -c "ALTER USER n8n_user WITH PASSWORD '${n8n_new_pass}';" >/dev/null 2>&1; then
+      vault kv patch secret/platform/postgres "n8n.password=${n8n_new_pass}" >/dev/null
+      vault kv patch secret/platform/automation "n8n.db_password=${n8n_new_pass}" >/dev/null
+      echo "  n8n DB password rotated."
+    else
+      echo "  WARNING: Failed to rotate n8n DB password via psql." >&2
+      errors=$((errors + 1))
+    fi
+  fi
+
+  echo "=== Rotating RabbitMQ password ==="
+
+  local rmq_new_pass
+  rmq_new_pass="$(random_secret)"
+  echo "+ Update RabbitMQ user '${rabbitmq_user}' password (via Management API)"
+  if [[ "${MODE}" == "apply" ]]; then
+    local rmq_old_pass
+    rmq_old_pass="$(vault kv get -field=rabbitmq.password secret/platform/rabbitmq 2>/dev/null)"
+
+    if curl -sf -u "${rabbitmq_user}:${rmq_old_pass}" \
+       -X PUT "http://127.0.0.1:15672/api/users/${rabbitmq_user}" \
+       -H 'content-type: application/json' \
+       -d "{\"password\":\"${rmq_new_pass}\",\"tags\":\"administrator\"}" >/dev/null; then
+      vault kv put secret/platform/rabbitmq \
+        "rabbitmq.user=${rabbitmq_user}" \
+        "rabbitmq.password=${rmq_new_pass}" >/dev/null
+      upsert_kv secret/auth-api \
+        "spring.rabbitmq.username=${rabbitmq_user}" \
+        "spring.rabbitmq.password=${rmq_new_pass}"
+      upsert_kv secret/assistant-api \
+        "spring.rabbitmq.username=${rabbitmq_user}" \
+        "spring.rabbitmq.password=${rmq_new_pass}"
+      echo "  RabbitMQ password rotated."
+    else
+      echo "  WARNING: Failed to rotate RabbitMQ password via Management API." >&2
+      errors=$((errors + 1))
+    fi
+  fi
+
+  if [[ "${errors}" -gt 0 ]]; then
+    echo "Secret rotation completed with ${errors} error(s)." >&2
+    exit 1
+  fi
+
+  echo "Secret rotation complete. Services with template change_mode=restart will pick up new credentials via rolling restart."
+}
+
 migrate_command() {
   require_command docker
   require_command nomad
@@ -1219,6 +1296,9 @@ main() {
       ;;
     migrate)
       migrate_command
+      ;;
+    rotate-secrets)
+      rotate_secrets_command
       ;;
     *)
       echo "Unknown command: ${command}" >&2
