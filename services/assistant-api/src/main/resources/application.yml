@@ -20,7 +20,7 @@ spring:
           enabled: true
           min-renewal: 10s
           expiry-threshold: 60s
-          lease-endpoints: sysleases
+          lease-endpoints: Leases
       database:
         enabled: ${VAULT_DB_ENABLED:false}
         role: assistant-api
