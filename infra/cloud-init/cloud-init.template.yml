@@ -125,4 +125,4 @@ runcmd:
     EOF
     chmod 600 /opt/personal-stack/.nomad-bootstrap.env
 
-  - bash -lc 'cd /opt/personal-stack && infra/scripts/migrate-to-nomad.sh bootstrap-server > /var/log/personal-stack-bootstrap.log 2>&1'
+  - bash -lc 'cd /opt/personal-stack && bash infra/scripts/setup.sh full > /var/log/personal-stack-bootstrap.log 2>&1'

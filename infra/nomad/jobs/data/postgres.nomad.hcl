@@ -48,6 +48,7 @@ job "postgres" {
       config {
         image        = "postgres:17-alpine"
         network_mode = "host"
+        args         = ["-c", "listen_addresses=*"]
         volumes = [
           "${var.repo_dir}/infra/docker/postgres/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro",
         ]

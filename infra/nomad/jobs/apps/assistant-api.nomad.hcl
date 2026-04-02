@@ -13,11 +13,6 @@ variable "image_repo" {
   default = "ghcr.io/extratoast/personal-stack"
 }
 
-variable "host_gateway" {
-  type    = string
-  default = "host.docker.internal"
-}
-
 job "assistant-api" {
   datacenters = ["dc1"]
   type        = "service"
@@ -34,7 +29,8 @@ job "assistant-api" {
     count = 2
 
     network {
-      port "http" { to = 8082 }
+      mode = "host"
+      port "http" {}
     }
 
     service {
@@ -46,7 +42,6 @@ job "assistant-api" {
         "traefik.http.routers.assistant-api.entrypoints=websecure",
         "traefik.http.routers.assistant-api.tls=true",
         "traefik.http.routers.assistant-api.middlewares=forward-auth@file,security-headers@file,rate-limit@file",
-        "traefik.http.services.assistant-api.loadbalancer.server.port=8082",
       ]
 
       check {
@@ -73,21 +68,22 @@ job "assistant-api" {
       driver = "docker"
 
       env {
+        SERVER_PORT                 = "${NOMAD_PORT_http}"
         SPRING_PROFILES_ACTIVE      = "prod"
         SPRING_CONFIG_IMPORT        = "vault://"
         VAULT_ENABLED               = "true"
-        VAULT_ADDR                  = "http://${var.host_gateway}:8200"
+        VAULT_ADDR                  = "http://127.0.0.1:8200"
         VAULT_DB_ENABLED            = "true"
-        DB_HOST                     = var.host_gateway
+        DB_HOST                     = "127.0.0.1"
         DB_PORT                     = "5432"
-        VALKEY_HOST                 = var.host_gateway
+        VALKEY_HOST                 = "127.0.0.1"
         VALKEY_PORT                 = "6379"
-        SPRING_RABBITMQ_HOST        = var.host_gateway
+        SPRING_RABBITMQ_HOST        = "127.0.0.1"
         SPRING_RABBITMQ_PORT        = "5672"
         MAIL_HOST                   = "mail.${var.domain}"
         MAIL_PORT                   = "587"
         OTEL_SERVICE_NAME           = "assistant-api"
-        OTEL_EXPORTER_OTLP_ENDPOINT = "http://${var.host_gateway}:4318"
+        OTEL_EXPORTER_OTLP_ENDPOINT = "http://127.0.0.1:4318"
         OTEL_EXPORTER_OTLP_PROTOCOL = "http/protobuf"
         OTEL_LOGS_EXPORTER          = "none"
         OTEL_METRICS_EXPORTER       = "none"
@@ -95,12 +91,12 @@ job "assistant-api" {
       }
 
       config {
-        image       = "${var.image_repo}/assistant-api:${var.image_tag}"
-        extra_hosts = ["${var.host_gateway}:host-gateway"]
+        image        = "${var.image_repo}/assistant-api:${var.image_tag}"
+        network_mode = "host"
       }
 
       resources {
-        cpu    = 1200
+        cpu    = 800
         memory = 1024
       }
     }

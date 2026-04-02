@@ -1,5 +1,6 @@
 server:
   http_listen_port: 9080
+  grpc_listen_port: 9097
 
 positions:
   filename: /tmp/positions.yaml

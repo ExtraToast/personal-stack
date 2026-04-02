@@ -1,0 +1,11 @@
+datacenter   = "dc1"
+data_dir     = "/opt/consul"
+bind_addr    = "__BIND_ADDR__"
+client_addr  = "127.0.0.1"
+
+server           = true
+bootstrap_expect = 1
+
+ui_config {
+  enabled = true
+}

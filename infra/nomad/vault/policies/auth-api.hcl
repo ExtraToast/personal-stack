@@ -2,6 +2,18 @@ path "secret/data/auth-api" {
   capabilities = ["read"]
 }
 
+path "secret/data/auth-api/*" {
+  capabilities = ["read"]
+}
+
+path "secret/data/application" {
+  capabilities = ["read"]
+}
+
+path "secret/data/application/*" {
+  capabilities = ["read"]
+}
+
 path "database/creds/auth-api" {
   capabilities = ["read"]
 }

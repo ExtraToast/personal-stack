@@ -39,8 +39,8 @@ job "valkey" {
       }
 
       resources {
-        cpu    = 400
-        memory = 512
+        cpu    = 300
+        memory = 256
       }
     }
   }

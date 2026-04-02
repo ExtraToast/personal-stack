@@ -19,7 +19,7 @@ job "traefik" {
       mode = "host"
       port "http" { static = 80 }
       port "https" { static = 443 }
-      port "admin" { static = 8080 }
+      port "admin" { static = 8088 }
     }
 
     volume "traefik_data" {
@@ -74,13 +74,7 @@ job "traefik" {
       config {
         image        = "traefik:v3.6"
         network_mode = "host"
-        args = [
-          "--configFile=/local/traefik-static.yml",
-          "--providers.file.filename=/local/traefik-dynamic.yml",
-          "--providers.consulcatalog=true",
-          "--providers.consulcatalog.endpoint.address=127.0.0.1:8500",
-          "--providers.consulcatalog.exposedbydefault=false",
-        ]
+        args = ["--configFile=/local/traefik-static.yml"]
       }
 
       volume_mount {
@@ -89,8 +83,8 @@ job "traefik" {
       }
 
       resources {
-        cpu    = 500
-        memory = 512
+        cpu    = 400
+        memory = 256
       }
     }
   }

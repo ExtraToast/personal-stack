@@ -13,11 +13,6 @@ variable "image_repo" {
   default = "ghcr.io/extratoast/personal-stack"
 }
 
-variable "host_gateway" {
-  type    = string
-  default = "host.docker.internal"
-}
-
 job "auth-api" {
   datacenters = ["dc1"]
   type        = "service"
@@ -25,8 +20,8 @@ job "auth-api" {
   update {
     max_parallel      = 1
     min_healthy_time  = "10s"
-    healthy_deadline  = "5m"
-    progress_deadline = "10m"
+    healthy_deadline  = "8m"
+    progress_deadline = "12m"
     auto_revert       = true
   }
 
@@ -34,7 +29,8 @@ job "auth-api" {
     count = 2
 
     network {
-      port "http" { to = 8081 }
+      mode = "host"
+      port "http" {}
     }
 
     service {
@@ -52,7 +48,6 @@ job "auth-api" {
         "traefik.http.routers.auth-api-well-known.tls=true",
         "traefik.http.routers.auth-api-well-known.middlewares=security-headers@file",
         "traefik.http.routers.auth-api-well-known.service=auth-api",
-        "traefik.http.services.auth-api.loadbalancer.server.port=8081",
       ]
 
       check {
@@ -79,16 +74,17 @@ job "auth-api" {
       driver = "docker"
 
       env {
+        SERVER_PORT                 = "${NOMAD_PORT_http}"
         SPRING_PROFILES_ACTIVE      = "prod"
         SPRING_CONFIG_IMPORT        = "vault://"
         VAULT_ENABLED               = "true"
-        VAULT_ADDR                  = "http://${var.host_gateway}:8200"
+        VAULT_ADDR                  = "http://127.0.0.1:8200"
         VAULT_DB_ENABLED            = "true"
-        DB_HOST                     = var.host_gateway
+        DB_HOST                     = "127.0.0.1"
         DB_PORT                     = "5432"
-        VALKEY_HOST                 = var.host_gateway
+        VALKEY_HOST                 = "127.0.0.1"
         VALKEY_PORT                 = "6379"
-        SPRING_RABBITMQ_HOST        = var.host_gateway
+        SPRING_RABBITMQ_HOST        = "127.0.0.1"
         SPRING_RABBITMQ_PORT        = "5672"
         MAIL_HOST                   = "mail.${var.domain}"
         MAIL_PORT                   = "587"
@@ -98,7 +94,7 @@ job "auth-api" {
         SESSION_COOKIE_SECURE       = "true"
         AUTH_CORS_ALLOWED_ORIGINS   = "https://${var.domain},https://auth.${var.domain},https://assistant.${var.domain},https://vault.${var.domain},https://n8n.${var.domain},https://grafana.${var.domain},https://rabbitmq.${var.domain},https://stalwart.${var.domain},https://traefik.${var.domain},https://status.${var.domain}"
         OTEL_SERVICE_NAME           = "auth-api"
-        OTEL_EXPORTER_OTLP_ENDPOINT = "http://${var.host_gateway}:4318"
+        OTEL_EXPORTER_OTLP_ENDPOINT = "http://127.0.0.1:4318"
         OTEL_EXPORTER_OTLP_PROTOCOL = "http/protobuf"
         OTEL_LOGS_EXPORTER          = "none"
         OTEL_METRICS_EXPORTER       = "none"
@@ -106,12 +102,12 @@ job "auth-api" {
       }
 
       config {
-        image       = "${var.image_repo}/auth-api:${var.image_tag}"
-        extra_hosts = ["${var.host_gateway}:host-gateway"]
+        image        = "${var.image_repo}/auth-api:${var.image_tag}"
+        network_mode = "host"
       }
 
       resources {
-        cpu    = 1200
+        cpu    = 800
         memory = 1024
       }
     }

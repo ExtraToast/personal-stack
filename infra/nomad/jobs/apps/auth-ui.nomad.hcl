@@ -29,7 +29,8 @@ job "auth-ui" {
     count = 2
 
     network {
-      port "http" { to = 80 }
+      mode = "host"
+      port "http" {}
     }
 
     service {
@@ -41,7 +42,6 @@ job "auth-ui" {
         "traefik.http.routers.auth-ui.entrypoints=websecure",
         "traefik.http.routers.auth-ui.tls=true",
         "traefik.http.routers.auth-ui.middlewares=rate-limit@file,security-headers@file",
-        "traefik.http.services.auth-ui.loadbalancer.server.port=80",
       ]
 
       check {
@@ -56,12 +56,35 @@ job "auth-ui" {
       driver = "docker"
 
       config {
-        image = "${var.image_repo}/auth-ui:${var.image_tag}"
+        image        = "${var.image_repo}/auth-ui:${var.image_tag}"
+        network_mode = "host"
+        args         = ["nginx", "-g", "daemon off;", "-c", "/local/nginx.conf"]
+      }
+
+      template {
+        destination = "local/nginx.conf"
+        data        = <<-EOT
+          worker_processes auto;
+          events { worker_connections 512; }
+          http {
+            include       /etc/nginx/mime.types;
+            default_type  application/octet-stream;
+            sendfile      on;
+            server {
+              listen {{ env "NOMAD_PORT_http" }};
+              location / {
+                root   /usr/share/nginx/html;
+                index  index.html;
+                try_files $uri $uri/ /index.html;
+              }
+            }
+          }
+        EOT
       }
 
       resources {
-        cpu    = 500
-        memory = 256
+        cpu    = 200
+        memory = 128
       }
     }
   }

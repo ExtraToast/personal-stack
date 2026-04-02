@@ -3,8 +3,13 @@ data_dir   = "/opt/nomad"
 bind_addr  = "0.0.0.0"
 region     = "global"
 
+ui {
+  enabled = true
+}
+
 server {
-  enabled = false
+  enabled          = true
+  bootstrap_expect = 1
 }
 
 client {
@@ -66,6 +71,15 @@ client {
   }
 }
 
+plugin "docker" {
+  config {
+    volumes {
+      enabled = true
+    }
+    allow_privileged = false
+  }
+}
+
 acl {
   enabled = true
 }
@@ -75,8 +89,8 @@ consul {
 }
 
 vault {
-  enabled = true
-  address = "http://127.0.0.1:8200"
+  enabled               = true
+  address               = "http://127.0.0.1:8200"
   jwt_auth_backend_path = "jwt-nomad"
 
   default_identity {
