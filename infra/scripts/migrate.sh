@@ -279,20 +279,29 @@ backup_command() {
 
   run mkdir -p "${BACKUP_DIR}"
 
-  # Vault raft snapshot
+  # Vault raft snapshot (best-effort: the Swarm Vault has its own root token
+  # and may be sealed. Secrets are migrated via sync_secrets_command instead.)
   local vault_container
-  vault_container="$(find_container vault)"
-  echo "+ Vault raft snapshot"
-  if [[ "${MODE}" == "apply" ]]; then
-    local swarm_token="${VAULT_TOKEN}"
-    if [[ -f "${STACK_DIR}/.vault-keys.swarm-backup" ]]; then
-      local _t; _t="$(grep '^VAULT_ROOT_TOKEN=' "${STACK_DIR}/.vault-keys.swarm-backup" | head -1 | cut -d= -f2- | tr -d "'")"
-      [[ -n "${_t}" ]] && swarm_token="${_t}"
+  vault_container="$(container_for_service vault)" || true
+  if [[ -n "${vault_container}" ]]; then
+    echo "+ Vault raft snapshot (best-effort)"
+    if [[ "${MODE}" == "apply" ]]; then
+      local swarm_token="${VAULT_TOKEN}"
+      if [[ -f "${STACK_DIR}/.vault-keys.swarm-backup" ]]; then
+        local _t; _t="$(grep '^VAULT_ROOT_TOKEN=' "${STACK_DIR}/.vault-keys.swarm-backup" | head -1 | cut -d= -f2- | tr -d "'")"
+        [[ -n "${_t}" ]] && swarm_token="${_t}"
+      fi
+      if docker exec -e VAULT_ADDR=http://127.0.0.1:8200 -e VAULT_TOKEN="${swarm_token}" \
+          "${vault_container}" vault operator raft snapshot save /tmp/swarm-vault.snap 2>/dev/null \
+        && docker cp "${vault_container}:/tmp/swarm-vault.snap" "${BACKUP_DIR}/vault.snap" 2>/dev/null \
+        && [[ -s "${BACKUP_DIR}/vault.snap" ]]; then
+        echo "  Vault snapshot saved."
+      else
+        echo "  WARNING: Vault snapshot failed (Swarm Vault may be sealed or use a different token). Continuing."
+      fi
     fi
-    docker exec -e VAULT_ADDR=http://127.0.0.1:8200 -e VAULT_TOKEN="${swarm_token}" \
-      "${vault_container}" vault operator raft snapshot save /tmp/swarm-vault.snap
-    docker cp "${vault_container}:/tmp/swarm-vault.snap" "${BACKUP_DIR}/vault.snap"
-    [[ -s "${BACKUP_DIR}/vault.snap" ]] || { echo "Vault backup empty." >&2; exit 1; }
+  else
+    echo "  No Swarm Vault container found, skipping snapshot."
   fi
 
   # PostgreSQL dump
