@@ -30,6 +30,17 @@ DOMAIN="jorisjonkers.test"
 IMAGE_REPO="personal-stack"
 IMAGE_TAG="latest"
 
+ensure_vault_unsealed() {
+  if [[ -f "${VAULT_KEYS_FILE}" ]]; then
+    source "${VAULT_KEYS_FILE}"
+    export VAULT_TOKEN="${VAULT_ROOT_TOKEN:-}"
+  fi
+  if vault status -format=json 2>/dev/null | jq -e '.sealed == true' >/dev/null 2>&1; then
+    echo "  Vault is sealed, unsealing..."
+    vault operator unseal "${VAULT_UNSEAL_KEY}" >/dev/null
+  fi
+}
+
 # ── Write bootstrap env with deterministic CI passwords ───────────────────
 
 echo "==> Writing CI bootstrap secrets"
@@ -55,6 +66,12 @@ VAULT_OIDC_CLIENT_SECRET=ci_vault_oidc_secret
 STALWART_OAUTH_CLIENT_SECRET=ci_stalwart_oauth_secret
 ENVFILE
 
+# ── Disable UFW — CI doesn't need a firewall and it blocks internal traffic ─
+
+if command -v ufw >/dev/null 2>&1; then
+  ufw disable 2>/dev/null || true
+fi
+
 # ── Install HashiCorp tools and create data directories ───────────────────
 
 echo "==> Installing Consul, Nomad, Vault and creating data directories"
@@ -64,6 +81,30 @@ bash "${SCRIPT_DIR}/setup.sh" install
 
 echo "==> Configuring host (Consul, Vault, Nomad)"
 bash "${SCRIPT_DIR}/setup.sh" configure
+
+# Verify services are running
+echo "==> Verifying services..."
+for svc in consul vault nomad; do
+  if systemctl is-active --quiet "${svc}"; then
+    echo "  ${svc}: running"
+  else
+    echo "  ${svc}: NOT running — attempting restart"
+    systemctl restart "${svc}" || true
+    sleep 3
+  fi
+done
+
+# Wait for APIs to be reachable
+for attempt in $(seq 1 30); do
+  if curl -sf http://127.0.0.1:8500/v1/status/leader >/dev/null 2>&1; then break; fi
+  sleep 2
+done
+for attempt in $(seq 1 30); do
+  if curl -sf http://127.0.0.1:8200/v1/sys/health >/dev/null 2>&1; then break; fi
+  # Vault returns 503 when sealed but HTTP is up — that's fine for now
+  if curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8200/v1/sys/health 2>/dev/null | grep -qE '200|429|501|503'; then break; fi
+  sleep 2
+done
 
 # ── Initialize Vault ──────────────────────────────────────────────────────
 
@@ -78,11 +119,13 @@ bash "${SCRIPT_DIR}/setup.sh" init-nomad
 # ── Seed secrets into Vault KV ────────────────────────────────────────────
 
 echo "==> Seeding Vault secrets"
+ensure_vault_unsealed
 bash "${SCRIPT_DIR}/setup.sh" seed-secrets
 
 # ── Configure Vault engines (first pass — DB/RMQ engines will be skipped) ─
 
 echo "==> Preparing Vault (first pass: JWT, policies, roles, transit)"
+ensure_vault_unsealed
 bash "${SCRIPT_DIR}/setup.sh" prepare-vault
 
 # ── Generate self-signed TLS certs for Traefik ────────────────────────────
@@ -102,23 +145,27 @@ update-ca-certificates
 # ── Deploy data tier ──────────────────────────────────────────────────────
 
 echo "==> Deploying data tier (postgres, valkey, rabbitmq)"
+ensure_vault_unsealed
 DOMAIN="${DOMAIN}" REPO_DIR="${ROOT_DIR}" \
   bash "${SCRIPT_DIR}/deploy.sh" --phase data --wait
 
 # ── Re-run prepare-vault (database + rabbitmq engines now possible) ───────
 
 echo "==> Preparing Vault (second pass: database + rabbitmq engines)"
+ensure_vault_unsealed
 bash "${SCRIPT_DIR}/setup.sh" prepare-vault
 
 # ── Deploy edge (Traefik with file-based TLS) ────────────────────────────
 
 echo "==> Deploying edge (Traefik with self-signed TLS)"
+ensure_vault_unsealed
 DOMAIN="${DOMAIN}" NOMAD_EXTRA_VARS="-var tls_mode=file -var tls_cert_dir=${CERT_DIR}" \
   bash "${SCRIPT_DIR}/deploy.sh" --phase edge
 
 # ── Deploy apps with count=1 to save CI runner resources ──────────────────
 
 echo "==> Deploying apps (count=1)"
+ensure_vault_unsealed
 DOMAIN="${DOMAIN}" IMAGE_REPO="${IMAGE_REPO}" IMAGE_TAG="${IMAGE_TAG}" \
   REPO_DIR="${ROOT_DIR}" NOMAD_EXTRA_VARS="-var count=1" \
   bash "${SCRIPT_DIR}/deploy.sh" --phase apps --wait
@@ -126,16 +173,16 @@ DOMAIN="${DOMAIN}" IMAGE_REPO="${IMAGE_REPO}" IMAGE_TAG="${IMAGE_TAG}" \
 # ── Re-run prepare-vault (Vault OIDC needs auth-api running) ─────────────
 
 echo "==> Preparing Vault (third pass: OIDC configuration)"
+ensure_vault_unsealed
 AUTH_ISSUER="https://auth.${DOMAIN}" \
   bash "${SCRIPT_DIR}/setup.sh" prepare-vault
 
 # ── Deploy platform services needed by tests ──────────────────────────────
 
 echo "==> Deploying platform services (n8n, grafana, stalwart)"
+ensure_vault_unsealed
 source "${NOMAD_KEYS_FILE}"
 export NOMAD_TOKEN="${NOMAD_TOKEN:-${NOMAD_BOOTSTRAP_TOKEN:-}}"
-source "${VAULT_KEYS_FILE}"
-export VAULT_TOKEN="${VAULT_TOKEN:-${VAULT_ROOT_TOKEN:-}}"
 
 JOBS_DIR="${ROOT_DIR}/infra/nomad/jobs"
 cd "${ROOT_DIR}"
