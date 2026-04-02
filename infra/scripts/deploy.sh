@@ -19,6 +19,8 @@ VAULT_KEYS_FILE="${VAULT_KEYS_FILE:-${STACK_DIR}/.vault-keys}"
 NOMAD_KEYS_FILE="${NOMAD_KEYS_FILE:-${STACK_DIR}/.nomad-keys}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 IMAGE_REPO="${IMAGE_REPO:-ghcr.io/extratoast/personal-stack}"
+DOMAIN="${DOMAIN:-jorisjonkers.dev}"
+REPO_DIR_VAR="${REPO_DIR:-/opt/personal-stack}"
 
 MODE="apply"
 PHASE="all"
@@ -119,35 +121,41 @@ load_context
 ensure_vault_unsealed
 
 JOBS_DIR="${ROOT_DIR}/infra/nomad/jobs"
+DOMAIN_VAR=(-var "domain=${DOMAIN}")
+REPO_VAR=(-var "repo_dir=${REPO_DIR_VAR}")
 APP_VARS=(-var "image_tag=${IMAGE_TAG}" -var "image_repo=${IMAGE_REPO}")
+EXTRA_VARS=()  # additional vars passed via NOMAD_EXTRA_VARS env (e.g. "-var count=1 -var tls_mode=file")
+if [[ -n "${NOMAD_EXTRA_VARS:-}" ]]; then
+  read -ra EXTRA_VARS <<< "${NOMAD_EXTRA_VARS}"
+fi
 
 deploy_data() {
-  submit_job "${JOBS_DIR}/data/postgres.nomad.hcl"
+  submit_job "${JOBS_DIR}/data/postgres.nomad.hcl"  "${REPO_VAR[@]}"
   submit_job "${JOBS_DIR}/data/valkey.nomad.hcl"
-  submit_job "${JOBS_DIR}/data/rabbitmq.nomad.hcl"
+  submit_job "${JOBS_DIR}/data/rabbitmq.nomad.hcl"  "${DOMAIN_VAR[@]}" "${REPO_VAR[@]}"
 }
 
 deploy_infra() {
-  submit_job "${JOBS_DIR}/observability/loki.nomad.hcl"
+  submit_job "${JOBS_DIR}/observability/loki.nomad.hcl"      "${REPO_VAR[@]}"
   submit_job "${JOBS_DIR}/observability/tempo.nomad.hcl"
   submit_job "${JOBS_DIR}/observability/prometheus.nomad.hcl"
   submit_job "${JOBS_DIR}/observability/promtail.nomad.hcl"
-  submit_job "${JOBS_DIR}/observability/grafana.nomad.hcl"
-  submit_job "${JOBS_DIR}/platform/n8n.nomad.hcl"
-  submit_job "${JOBS_DIR}/platform/uptime-kuma.nomad.hcl"
-  submit_job "${JOBS_DIR}/mail/stalwart.nomad.hcl"
+  submit_job "${JOBS_DIR}/observability/grafana.nomad.hcl"   "${DOMAIN_VAR[@]}" "${REPO_VAR[@]}"
+  submit_job "${JOBS_DIR}/platform/n8n.nomad.hcl"            "${DOMAIN_VAR[@]}" "${REPO_VAR[@]}"
+  submit_job "${JOBS_DIR}/platform/uptime-kuma.nomad.hcl"    "${DOMAIN_VAR[@]}"
+  submit_job "${JOBS_DIR}/mail/stalwart.nomad.hcl"           "${DOMAIN_VAR[@]}"
 }
 
 deploy_edge() {
-  submit_job "${JOBS_DIR}/edge/traefik.nomad.hcl"
+  submit_job "${JOBS_DIR}/edge/traefik.nomad.hcl" "${DOMAIN_VAR[@]}" "${EXTRA_VARS[@]}"
 }
 
 deploy_apps() {
-  submit_job "${JOBS_DIR}/apps/auth-api.nomad.hcl"     "${APP_VARS[@]}"
-  submit_job "${JOBS_DIR}/apps/assistant-api.nomad.hcl" "${APP_VARS[@]}"
-  submit_job "${JOBS_DIR}/apps/auth-ui.nomad.hcl"       "${APP_VARS[@]}"
-  submit_job "${JOBS_DIR}/apps/assistant-ui.nomad.hcl"   "${APP_VARS[@]}"
-  submit_job "${JOBS_DIR}/apps/app-ui.nomad.hcl"         "${APP_VARS[@]}"
+  submit_job "${JOBS_DIR}/apps/auth-api.nomad.hcl"     "${DOMAIN_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
+  submit_job "${JOBS_DIR}/apps/assistant-api.nomad.hcl" "${DOMAIN_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
+  submit_job "${JOBS_DIR}/apps/auth-ui.nomad.hcl"       "${DOMAIN_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
+  submit_job "${JOBS_DIR}/apps/assistant-ui.nomad.hcl"   "${DOMAIN_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
+  submit_job "${JOBS_DIR}/apps/app-ui.nomad.hcl"         "${DOMAIN_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
 }
 
 case "${PHASE}" in

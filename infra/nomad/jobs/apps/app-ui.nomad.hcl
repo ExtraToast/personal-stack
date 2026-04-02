@@ -13,6 +13,11 @@ variable "image_repo" {
   default = "ghcr.io/extratoast/personal-stack"
 }
 
+variable "count" {
+  type    = number
+  default = 2
+}
+
 job "app-ui" {
   datacenters = ["dc1"]
   type        = "service"
@@ -26,7 +31,7 @@ job "app-ui" {
   }
 
   group "app-ui" {
-    count = 2
+    count = var.count
 
     network {
       mode = "host"
