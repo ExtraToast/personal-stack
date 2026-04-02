@@ -154,7 +154,19 @@ esac
 
 if [[ "${WAIT}" == true && "${MODE}" == "apply" ]]; then
   echo "Waiting for critical jobs..."
-  wait_for_job_running auth-api 300
-  wait_for_job_running assistant-api 300
+  case "${PHASE}" in
+    data)
+      wait_for_job_running postgres 240
+      wait_for_job_running rabbitmq 180
+      ;;
+    apps)
+      wait_for_job_running auth-api 300
+      wait_for_job_running assistant-api 300
+      ;;
+    all|infra)
+      wait_for_job_running auth-api 300
+      wait_for_job_running assistant-api 300
+      ;;
+  esac
   echo "All critical jobs running."
 fi
