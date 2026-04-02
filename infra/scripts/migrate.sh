@@ -279,20 +279,25 @@ backup_command() {
 
   run mkdir -p "${BACKUP_DIR}"
 
-  # Vault raft snapshot (best-effort: the Swarm Vault has its own root token
-  # and may be sealed. Secrets are migrated via sync_secrets_command instead.)
+  # Vault raft snapshot (best-effort: secrets are migrated via sync_secrets_command).
+  # The Swarm Vault container has its own root token, stored in .vault-keys.swarm-backup.
   local vault_container
   vault_container="$(container_for_service vault)" || true
   if [[ -n "${vault_container}" ]]; then
     echo "+ Vault raft snapshot (best-effort)"
     if [[ "${MODE}" == "apply" ]]; then
-      local swarm_token="${VAULT_TOKEN}"
+      local swarm_token=""
+      # Prefer the dedicated swarm backup keys file
       if [[ -f "${STACK_DIR}/.vault-keys.swarm-backup" ]]; then
-        local _t; _t="$(grep '^VAULT_ROOT_TOKEN=' "${STACK_DIR}/.vault-keys.swarm-backup" | head -1 | cut -d= -f2- | tr -d "'")"
-        [[ -n "${_t}" ]] && swarm_token="${_t}"
+        swarm_token="$(grep '^VAULT_ROOT_TOKEN=' "${STACK_DIR}/.vault-keys.swarm-backup" | head -1 | cut -d= -f2- | tr -d "'")"
       fi
-      if docker exec -e VAULT_ADDR=http://127.0.0.1:8200 -e VAULT_TOKEN="${swarm_token}" \
-          "${vault_container}" vault operator raft snapshot save /tmp/swarm-vault.snap 2>/dev/null \
+      # Fall back to the current .vault-keys (may still hold the original Swarm token)
+      [[ -n "${swarm_token}" ]] || swarm_token="${VAULT_TOKEN:-}"
+
+      if [[ -z "${swarm_token}" ]]; then
+        echo "  WARNING: No Vault token available for Swarm snapshot. Continuing."
+      elif docker exec -e VAULT_ADDR=http://127.0.0.1:8200 -e VAULT_TOKEN="${swarm_token}" \
+          "${vault_container}" vault operator raft snapshot save /tmp/swarm-vault.snap 2>&1 \
         && docker cp "${vault_container}:/tmp/swarm-vault.snap" "${BACKUP_DIR}/vault.snap" 2>/dev/null \
         && [[ -s "${BACKUP_DIR}/vault.snap" ]]; then
         echo "  Vault snapshot saved."
