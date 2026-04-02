@@ -105,30 +105,34 @@ bash "${SCRIPT_DIR}/setup.sh" install
 echo "==> Configuring host (Consul, Vault, Nomad)"
 bash "${SCRIPT_DIR}/setup.sh" configure
 
-# ── Disable UFW after configure (configure re-enables it) ─────────────────
+# ── Fix CI-specific issues ─────────────────────────────────────────────────
 
-echo "==> Disabling UFW (not needed in CI, blocks internal traffic)"
+# Disable UFW — configure re-enables it and it blocks internal traffic
+echo "==> Disabling UFW (not needed in CI)"
 ufw disable 2>/dev/null || true
 
-# ── Verify and fix services ───────────────────────────────────────────────
+# Consul fails with systemd timeout because the bind_addr is the runner's
+# private IP and Consul's notify-based readiness check doesn't complete in time.
+# Override to 127.0.0.1 — all CI traffic is on localhost with host networking.
+echo "==> Overriding Consul bind_addr to 127.0.0.1 for CI"
+sed -i 's/bind_addr.*/bind_addr = "127.0.0.1"/' /etc/consul.d/consul.hcl
 
-echo "==> Verifying services after configure..."
+# Restart all services now that UFW is disabled and Consul bind is fixed
+echo "==> Restarting services..."
+for svc in consul vault nomad; do
+  systemctl restart "${svc}" || true
+  sleep 2
+done
 
-# Consul may have failed due to UFW blocking its bind_addr during first start.
-# Now that UFW is disabled, restart it.
+# Verify services are running
+echo "==> Verifying services..."
 for svc in consul vault nomad; do
   if systemctl is-active --quiet "${svc}"; then
     echo "  ${svc}: running"
   else
-    echo "  ${svc}: NOT running — restarting (UFW was blocking during initial start)"
-    systemctl restart "${svc}"
-    sleep 3
-    if systemctl is-active --quiet "${svc}"; then
-      echo "  ${svc}: running after restart"
-    else
-      echo "  ${svc}: STILL NOT RUNNING"
-      journalctl -u "${svc}" --no-pager -n 20 || true
-    fi
+    echo "  ${svc}: FAILED"
+    journalctl -u "${svc}" --no-pager -n 30 || true
+    exit 1
   fi
 done
 
