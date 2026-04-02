@@ -12,7 +12,7 @@ on:
         default: true
 
 concurrency:
-  group: full-${{ github.ref }}
+  group: system-tests-${{ github.ref }}
   cancel-in-progress: true
 
 env:
