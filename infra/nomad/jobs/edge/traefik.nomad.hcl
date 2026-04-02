@@ -74,7 +74,7 @@ job "traefik" {
       config {
         image        = "traefik:v3.6"
         network_mode = "host"
-        args = ["--configFile=/local/traefik-static.yml"]
+        args         = ["--configFile=/local/traefik-static.yml"]
       }
 
       volume_mount {
