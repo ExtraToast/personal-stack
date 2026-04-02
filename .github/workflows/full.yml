@@ -273,8 +273,8 @@ jobs:
 
   system-tests:
     name: System Tests
-    needs: [detect-changes, test-kotlin-unit, test-kotlin-integration]
-    if: always() && needs.detect-changes.outputs.run-system-tests == 'true' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.run-system-tests == 'true'
     uses: ./.github/workflows/system-tests.yml
     with:
       java-version: '21'

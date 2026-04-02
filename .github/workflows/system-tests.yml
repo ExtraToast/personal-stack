@@ -83,12 +83,31 @@ jobs:
       - name: Load images
         run: |
           for tar in /tmp/images/image-*/*.tar; do docker load -i "$tar"; done
+      - name: Cache HashiCorp binaries and CNI plugins
+        id: cache-hashicorp
+        uses: actions/cache@v4
+        with:
+          path: /tmp/hashicorp-cache
+          key: hashicorp-nomad-stack-v1
+      - name: Pre-install cached binaries
+        if: steps.cache-hashicorp.outputs.cache-hit == 'true'
+        run: |
+          echo "Restoring cached HashiCorp binaries..."
+          sudo cp /tmp/hashicorp-cache/consul /tmp/hashicorp-cache/nomad /tmp/hashicorp-cache/vault /usr/bin/
+          sudo mkdir -p /opt/cni/bin
+          sudo cp /tmp/hashicorp-cache/cni/* /opt/cni/bin/
       - name: Set up dev DNS
         run: sudo bash infra/scripts/setup-dev-dns.sh
       - name: Bootstrap Nomad stack
         run: sudo bash infra/scripts/ci-bootstrap-nomad.sh
         env:
           STACK_DIR: ${{ github.workspace }}
+      - name: Save HashiCorp binaries to cache
+        if: steps.cache-hashicorp.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p /tmp/hashicorp-cache/cni
+          cp /usr/bin/consul /usr/bin/nomad /usr/bin/vault /tmp/hashicorp-cache/
+          cp /opt/cni/bin/* /tmp/hashicorp-cache/cni/
       - name: Wait for Traefik routes to stabilize
         run: |
           echo "Waiting for Traefik routes to become reachable..."

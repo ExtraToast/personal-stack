@@ -57,7 +57,7 @@ ENVFILE
 
 # ── Install HashiCorp tools and create data directories ───────────────────
 
-echo "==> Installing Consul, Nomad, Vault"
+echo "==> Installing Consul, Nomad, Vault and creating data directories"
 bash "${SCRIPT_DIR}/setup.sh" install
 
 # ── Configure and start services ──────────────────────────────────────────
