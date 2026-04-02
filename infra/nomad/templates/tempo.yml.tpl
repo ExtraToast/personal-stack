@@ -1,6 +1,9 @@
 server:
   http_listen_port: 3200
 
+ingester:
+  max_block_duration: 30s
+
 distributor:
   receivers:
     otlp:
