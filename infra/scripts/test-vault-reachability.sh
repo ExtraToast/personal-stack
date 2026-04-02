@@ -27,4 +27,4 @@ test_http  "Vault"    "http://${HOST}:8200/v1/sys/health"
 test_tcp   "Postgres" "${HOST}" 5432
 test_tcp   "RabbitMQ" "${HOST}" 5672
 test_tcp   "Valkey"   "${HOST}" 6379
-test_http  "Tempo"    "http://${HOST}:4318/v1/status/buildinfo"
+test_http  "Tempo"    "http://${HOST}:3200/ready"
