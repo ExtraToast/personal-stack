@@ -474,6 +474,8 @@ persist_bootstrap_secrets() {
 
 write_all_secrets_to_vault() {
   upsert_kv secret/auth-api \
+    "spring.datasource.username=${AUTH_DB_USER}" \
+    "spring.datasource.password=${AUTH_DB_PASSWORD}" \
     "spring.rabbitmq.username=${RABBITMQ_USER}" \
     "spring.rabbitmq.password=${RABBITMQ_PASSWORD}" \
     "auth.clients.grafana.secret=${GRAFANA_OAUTH_CLIENT_SECRET}" \
@@ -482,6 +484,8 @@ write_all_secrets_to_vault() {
     "auth.clients.stalwart.secret=${STALWART_OAUTH_CLIENT_SECRET}"
 
   upsert_kv secret/assistant-api \
+    "spring.datasource.username=${ASSISTANT_DB_USER}" \
+    "spring.datasource.password=${ASSISTANT_DB_PASSWORD}" \
     "spring.rabbitmq.username=${RABBITMQ_USER}" \
     "spring.rabbitmq.password=${RABBITMQ_PASSWORD}"
 
