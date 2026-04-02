@@ -30,14 +30,43 @@ DOMAIN="jorisjonkers.test"
 IMAGE_REPO="personal-stack"
 IMAGE_TAG="latest"
 
+# ── Helper: ensure Vault is unsealed ──────────────────────────────────────
+
 ensure_vault_unsealed() {
   if [[ -f "${VAULT_KEYS_FILE}" ]]; then
     source "${VAULT_KEYS_FILE}"
     export VAULT_TOKEN="${VAULT_ROOT_TOKEN:-}"
+    export VAULT_UNSEAL_KEY="${VAULT_UNSEAL_KEY:-}"
+  else
+    echo "  WARN: ${VAULT_KEYS_FILE} not found, skipping unseal check"
+    return 0
   fi
-  if vault status -format=json 2>/dev/null | jq -e '.sealed == true' >/dev/null 2>&1; then
-    echo "  Vault is sealed, unsealing..."
+
+  # Wait for Vault HTTP to be reachable (may be starting up)
+  local attempt
+  for attempt in $(seq 1 15); do
+    if vault status -format=json >/dev/null 2>&1; then break; fi
+    echo "  Waiting for Vault API... (attempt ${attempt}/15)"
+    sleep 2
+  done
+
+  local status
+  status="$(vault status -format=json 2>/dev/null || echo '{}')"
+  local sealed
+  sealed="$(echo "${status}" | jq -r '.sealed // "unknown"')"
+  local initialized
+  initialized="$(echo "${status}" | jq -r '.initialized // "unknown"')"
+
+  echo "  Vault status: initialized=${initialized} sealed=${sealed}"
+
+  if [[ "${sealed}" == "true" ]]; then
+    echo "  Unsealing Vault..."
     vault operator unseal "${VAULT_UNSEAL_KEY}" >/dev/null
+    echo "  Vault unsealed."
+  elif [[ "${sealed}" == "unknown" ]]; then
+    echo "  ERROR: Cannot determine Vault status — API may not be reachable"
+    vault status 2>&1 || true
+    return 1
   fi
 }
 
@@ -66,12 +95,6 @@ VAULT_OIDC_CLIENT_SECRET=ci_vault_oidc_secret
 STALWART_OAUTH_CLIENT_SECRET=ci_stalwart_oauth_secret
 ENVFILE
 
-# ── Disable UFW — CI doesn't need a firewall and it blocks internal traffic ─
-
-if command -v ufw >/dev/null 2>&1; then
-  ufw disable 2>/dev/null || true
-fi
-
 # ── Install HashiCorp tools and create data directories ───────────────────
 
 echo "==> Installing Consul, Nomad, Vault and creating data directories"
@@ -82,27 +105,78 @@ bash "${SCRIPT_DIR}/setup.sh" install
 echo "==> Configuring host (Consul, Vault, Nomad)"
 bash "${SCRIPT_DIR}/setup.sh" configure
 
-# Verify services are running
-echo "==> Verifying services..."
+# ── Disable UFW after configure (configure re-enables it) ─────────────────
+
+echo "==> Disabling UFW (not needed in CI, blocks internal traffic)"
+ufw disable 2>/dev/null || true
+
+# ── Verify and fix services ───────────────────────────────────────────────
+
+echo "==> Verifying services after configure..."
+
+# Consul may have failed due to UFW blocking its bind_addr during first start.
+# Now that UFW is disabled, restart it.
 for svc in consul vault nomad; do
   if systemctl is-active --quiet "${svc}"; then
     echo "  ${svc}: running"
   else
-    echo "  ${svc}: NOT running — attempting restart"
-    systemctl restart "${svc}" || true
+    echo "  ${svc}: NOT running — restarting (UFW was blocking during initial start)"
+    systemctl restart "${svc}"
     sleep 3
+    if systemctl is-active --quiet "${svc}"; then
+      echo "  ${svc}: running after restart"
+    else
+      echo "  ${svc}: STILL NOT RUNNING"
+      journalctl -u "${svc}" --no-pager -n 20 || true
+    fi
   fi
 done
 
-# Wait for APIs to be reachable
+# Wait for Consul API
+echo "==> Waiting for Consul API..."
 for attempt in $(seq 1 30); do
-  if curl -sf http://127.0.0.1:8500/v1/status/leader >/dev/null 2>&1; then break; fi
+  if curl -sf http://127.0.0.1:8500/v1/status/leader >/dev/null 2>&1; then
+    echo "  Consul API reachable (attempt ${attempt})"
+    break
+  fi
+  if [[ "${attempt}" -eq 30 ]]; then
+    echo "  ERROR: Consul API not reachable after 60s"
+    systemctl status consul --no-pager || true
+    journalctl -u consul --no-pager -n 30 || true
+    exit 1
+  fi
   sleep 2
 done
+
+# Wait for Vault API
+echo "==> Waiting for Vault API..."
 for attempt in $(seq 1 30); do
-  if curl -sf http://127.0.0.1:8200/v1/sys/health >/dev/null 2>&1; then break; fi
-  # Vault returns 503 when sealed but HTTP is up — that's fine for now
-  if curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8200/v1/sys/health 2>/dev/null | grep -qE '200|429|501|503'; then break; fi
+  if vault status >/dev/null 2>&1; then
+    echo "  Vault API reachable (attempt ${attempt})"
+    break
+  fi
+  if [[ "${attempt}" -eq 30 ]]; then
+    echo "  ERROR: Vault API not reachable after 60s"
+    systemctl status vault --no-pager || true
+    journalctl -u vault --no-pager -n 30 || true
+    exit 1
+  fi
+  sleep 2
+done
+
+# Wait for Nomad API
+echo "==> Waiting for Nomad API..."
+for attempt in $(seq 1 30); do
+  if curl -sf http://127.0.0.1:4646/v1/status/leader >/dev/null 2>&1; then
+    echo "  Nomad API reachable (attempt ${attempt})"
+    break
+  fi
+  if [[ "${attempt}" -eq 30 ]]; then
+    echo "  ERROR: Nomad API not reachable after 60s"
+    systemctl status nomad --no-pager || true
+    journalctl -u nomad --no-pager -n 30 || true
+    exit 1
+  fi
   sleep 2
 done
 
@@ -110,6 +184,10 @@ done
 
 echo "==> Initializing Vault"
 bash "${SCRIPT_DIR}/setup.sh" init-vault
+
+# Verify unseal worked
+echo "==> Verifying Vault is unsealed after init"
+ensure_vault_unsealed
 
 # ── Initialize Nomad ACL ──────────────────────────────────────────────────
 
