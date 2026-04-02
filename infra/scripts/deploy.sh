@@ -111,6 +111,9 @@ done
 
 # ── Main ───────────────────────────────────────────────────────────────────
 
+# Nomad HCL files use file() with paths relative to the project root
+cd "${ROOT_DIR}"
+
 load_context
 ensure_vault_unsealed
 
