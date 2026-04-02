@@ -1,19 +1,30 @@
 #!/usr/bin/env bash
+# Test internal service reachability from inside a bridge-mode Docker container,
+# using the same host.docker.internal:host-gateway mapping that Nomad app jobs use.
 
-for svc in \
-  "Vault:host.docker.internal:8200/v1/sys/health" \
-  "Postgres:host.docker.internal:5432" \
-  "RabbitMQ:host.docker.internal:5672" \
-  "Valkey:host.docker.internal:6379" \
-  "Tempo:host.docker.internal:4318/v1/status/buildinfo"; do
-  name="${svc%%:*}"
-  addr="${svc#*:}"
-  if [[ "$addr" == */* ]]; then
-    result=$(docker run --rm --add-host=host.docker.internal:host-gateway curlimages/curl -sf "http://${addr}" 2>&1) && echo
-"$name: OK" || echo "$name: UNREACHABLE"
+EXTRA_HOST="--add-host=host.docker.internal:host-gateway"
+HOST="host.docker.internal"
+
+test_http() {
+  local name="$1" url="$2"
+  if docker run --rm ${EXTRA_HOST} curlimages/curl -sf "${url}" >/dev/null 2>&1; then
+    echo "${name}: OK"
   else
-    host="${addr%:*}"; port="${addr#*:}"
-    docker run --rm --add-host=host.docker.internal:host-gateway busybox nc -zw2 "$host" "$port" 2>&1 && echo "$name: OK" ||
-echo "$name: UNREACHABLE"
+    echo "${name}: UNREACHABLE"
   fi
-done
+}
+
+test_tcp() {
+  local name="$1" host="$2" port="$3"
+  if docker run --rm ${EXTRA_HOST} busybox nc -zw2 "${host}" "${port}" 2>/dev/null; then
+    echo "${name}: OK"
+  else
+    echo "${name}: UNREACHABLE"
+  fi
+}
+
+test_http  "Vault"    "http://${HOST}:8200/v1/sys/health"
+test_tcp   "Postgres" "${HOST}" 5432
+test_tcp   "RabbitMQ" "${HOST}" 5672
+test_tcp   "Valkey"   "${HOST}" 6379
+test_http  "Tempo"    "http://${HOST}:4318/v1/status/buildinfo"
