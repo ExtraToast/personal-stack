@@ -337,8 +337,10 @@ cutover_command() {
 rollback_command() {
   load_nomad_context
 
-  echo "Stopping Nomad edge and app jobs..."
-  for job in traefik stalwart app-ui auth-ui assistant-ui auth-api assistant-api; do
+  echo "Stopping all Nomad jobs..."
+  for job in traefik stalwart app-ui auth-ui assistant-ui auth-api assistant-api \
+             postgres valkey rabbitmq \
+             grafana prometheus loki tempo promtail n8n uptime-kuma rotate-secrets; do
     nomad job stop -purge "${job}" 2>/dev/null || true
   done
 
@@ -364,10 +366,14 @@ full_command() {
   backup_command
   sync_secrets_command
 
+  # First pass: configure JWT auth, policies, roles, transit key.
+  # Database engine and OIDC are skipped because postgres isn't running yet.
   sudo bash "${setup_script}" prepare-vault
 
   bash "${deploy_script}" --phase data --wait
 
+  # Second pass: now that postgres is running, the database secrets engine
+  # and OIDC auth (which needs auth-api) can be configured.
   sudo bash "${setup_script}" prepare-vault
 
   IMAGE_TAG="${IMAGE_TAG}" IMAGE_REPO="${IMAGE_REPO}" \
