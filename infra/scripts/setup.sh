@@ -252,6 +252,16 @@ install_command() {
   run apt-get update
   run apt-get install -y consul nomad vault
 
+  # CNI plugins (required for Nomad bridge networking)
+  if [[ ! -f /opt/cni/bin/bridge ]]; then
+    CNI_VERSION="v1.4.0"
+    run mkdir -p /opt/cni/bin
+    run curl -sL "https://github.com/containernetworking/plugins/releases/download/${CNI_VERSION}/cni-plugins-linux-amd64-${CNI_VERSION}.tgz" \
+      -o /tmp/cni-plugins.tgz
+    run tar -xz -C /opt/cni/bin -f /tmp/cni-plugins.tgz
+    run rm -f /tmp/cni-plugins.tgz
+  fi
+
   # Data directories
   run mkdir -p /etc/consul.d /etc/nomad.d /etc/vault.d
   run mkdir -p /opt/consul /opt/nomad /opt/vault/data

@@ -41,7 +41,6 @@ job "assistant-ui" {
         "traefik.http.routers.assistant-ui.entrypoints=websecure",
         "traefik.http.routers.assistant-ui.tls=true",
         "traefik.http.routers.assistant-ui.middlewares=rate-limit@file,security-headers@file",
-        "traefik.http.services.assistant-ui.loadbalancer.server.port=80",
       ]
 
       check {

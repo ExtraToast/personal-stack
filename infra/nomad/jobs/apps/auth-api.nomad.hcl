@@ -52,7 +52,6 @@ job "auth-api" {
         "traefik.http.routers.auth-api-well-known.tls=true",
         "traefik.http.routers.auth-api-well-known.middlewares=security-headers@file",
         "traefik.http.routers.auth-api-well-known.service=auth-api",
-        "traefik.http.services.auth-api.loadbalancer.server.port=8081",
       ]
 
       check {

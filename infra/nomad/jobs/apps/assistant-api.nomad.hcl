@@ -46,7 +46,6 @@ job "assistant-api" {
         "traefik.http.routers.assistant-api.entrypoints=websecure",
         "traefik.http.routers.assistant-api.tls=true",
         "traefik.http.routers.assistant-api.middlewares=forward-auth@file,security-headers@file,rate-limit@file",
-        "traefik.http.services.assistant-api.loadbalancer.server.port=8082",
       ]
 
       check {

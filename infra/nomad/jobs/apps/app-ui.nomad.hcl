@@ -41,7 +41,6 @@ job "app-ui" {
         "traefik.http.routers.app-ui.entrypoints=websecure",
         "traefik.http.routers.app-ui.tls=true",
         "traefik.http.routers.app-ui.middlewares=rate-limit@file,security-headers@file",
-        "traefik.http.services.app-ui.loadbalancer.server.port=80",
       ]
 
       check {

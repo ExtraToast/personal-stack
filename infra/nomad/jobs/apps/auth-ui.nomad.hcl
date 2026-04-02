@@ -41,7 +41,6 @@ job "auth-ui" {
         "traefik.http.routers.auth-ui.entrypoints=websecure",
         "traefik.http.routers.auth-ui.tls=true",
         "traefik.http.routers.auth-ui.middlewares=rate-limit@file,security-headers@file",
-        "traefik.http.services.auth-ui.loadbalancer.server.port=80",
       ]
 
       check {
