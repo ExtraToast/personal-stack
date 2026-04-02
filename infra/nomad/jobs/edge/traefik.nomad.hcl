@@ -74,13 +74,7 @@ job "traefik" {
       config {
         image        = "traefik:v3.6"
         network_mode = "host"
-        args = [
-          "--configFile=/local/traefik-static.yml",
-          "--providers.file.filename=/local/traefik-dynamic.yml",
-          "--providers.consulcatalog=true",
-          "--providers.consulcatalog.endpoint.address=127.0.0.1:8500",
-          "--providers.consulcatalog.exposedbydefault=false",
-        ]
+        args = ["--configFile=/local/traefik-static.yml"]
       }
 
       volume_mount {

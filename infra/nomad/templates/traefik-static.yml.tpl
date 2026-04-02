@@ -25,6 +25,14 @@ certificatesResolvers:
           - '1.1.1.1:53'
           - '1.0.0.1:53'
 
+providers:
+  file:
+    filename: /local/traefik-dynamic.yml
+  consulCatalog:
+    endpoint:
+      address: 127.0.0.1:8500
+    exposedByDefault: false
+
 api:
   dashboard: true
 
