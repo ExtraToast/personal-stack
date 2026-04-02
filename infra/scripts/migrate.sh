@@ -390,10 +390,19 @@ full_command() {
   # and OIDC auth (which needs auth-api) can be configured.
   sudo bash "${setup_script}" prepare-vault
 
+  # Deploy everything except Traefik (Swarm still holds ports 80/443).
   IMAGE_TAG="${IMAGE_TAG}" IMAGE_REPO="${IMAGE_REPO}" \
-    bash "${deploy_script}" --phase all --wait
+    bash "${deploy_script}" --phase infra
+  IMAGE_TAG="${IMAGE_TAG}" IMAGE_REPO="${IMAGE_REPO}" \
+    bash "${deploy_script}" --phase apps --wait
 
-  echo "Migration complete. Verify health, then run: migrate.sh cutover"
+  # Cut over: scale down Swarm services, freeing ports 80/443.
+  cutover_command
+
+  # Now Traefik can bind its ports.
+  bash "${deploy_script}" --phase edge
+
+  echo "Migration complete."
 }
 
 # ── Main ───────────────────────────────────────────────────────────────────

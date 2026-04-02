@@ -2,11 +2,12 @@
 # deploy.sh — Submit Nomad jobs for zero-downtime rolling updates.
 #
 # Usage:
-#   deploy.sh [--phase data|infra|apps|all] [--wait] [--dry-run]
+#   deploy.sh [--phase data|infra|edge|apps|all] [--wait] [--dry-run]
 #
 # Phases:
 #   data   PostgreSQL, Valkey, RabbitMQ
-#   infra  Observability, platform, mail, edge, core jobs
+#   infra  Observability, platform, mail, core jobs (no Traefik)
+#   edge   Traefik only — run after cutover so Swarm no longer holds ports 80/443
 #   apps   auth-api, assistant-api, auth-ui, assistant-ui, app-ui
 #   all    Everything (default)
 set -euo pipefail
@@ -135,8 +136,11 @@ deploy_infra() {
   submit_job "${JOBS_DIR}/platform/n8n.nomad.hcl"
   submit_job "${JOBS_DIR}/platform/uptime-kuma.nomad.hcl"
   submit_job "${JOBS_DIR}/mail/stalwart.nomad.hcl"
-  submit_job "${JOBS_DIR}/edge/traefik.nomad.hcl"
   submit_job "${JOBS_DIR}/core/rotate-secrets.nomad.hcl"
+}
+
+deploy_edge() {
+  submit_job "${JOBS_DIR}/edge/traefik.nomad.hcl"
 }
 
 deploy_apps() {
@@ -150,8 +154,9 @@ deploy_apps() {
 case "${PHASE}" in
   data)  deploy_data ;;
   infra) deploy_infra ;;
+  edge)  deploy_edge ;;
   apps)  deploy_apps ;;
-  all)   deploy_data; deploy_infra; deploy_apps ;;
+  all)   deploy_data; deploy_infra; deploy_apps; deploy_edge ;;
   *)     echo "Unknown phase: ${PHASE}" >&2; exit 1 ;;
 esac
 
