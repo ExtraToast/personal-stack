@@ -1,5 +1,9 @@
 server:
   http_listen_port: 3200
+  grpc_listen_port: 9096
+
+memberlist:
+  bind_port: 7946
 
 ingester:
   max_block_duration: 30s

@@ -6,6 +6,8 @@ job "tempo" {
     network {
       mode = "host"
       port "http" { static = 3200 }
+      port "grpc" { static = 9096 }
+      port "memberlist" { static = 7946 }
       port "otlp_grpc" { static = 4317 }
       port "otlp_http" { static = 4318 }
     }
