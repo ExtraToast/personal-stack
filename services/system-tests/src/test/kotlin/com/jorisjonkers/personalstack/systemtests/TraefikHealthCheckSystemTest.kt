@@ -1,6 +1,5 @@
 package com.jorisjonkers.personalstack.systemtests
 
-import io.restassured.RestAssured.given
 import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.params.ParameterizedTest
@@ -17,7 +16,7 @@ import java.util.stream.Stream
  */
 @Tag("system")
 class TraefikHealthCheckSystemTest {
-    private fun traefikRequest() = given().relaxedHTTPSValidation()
+    private fun traefikRequest() = TestHelper.givenApi()
 
     companion object {
         @JvmStatic

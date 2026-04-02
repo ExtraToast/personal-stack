@@ -1,6 +1,5 @@
 package com.jorisjonkers.personalstack.systemtests
 
-import io.restassured.RestAssured.given
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.TestInstance
@@ -38,8 +37,7 @@ class DownstreamOidcAuthorizationSystemTest {
         redirectUri: String,
         scope: String,
         requiresPkce: Boolean,
-    ) = given()
-        .relaxedHTTPSValidation()
+    ) = TestHelper.givenApi()
         .baseUri("https://auth.jorisjonkers.test")
         .cookie("SESSION", sessionCookie)
         .accept("text/html")

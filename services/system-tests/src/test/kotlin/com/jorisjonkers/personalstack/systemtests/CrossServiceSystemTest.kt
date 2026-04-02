@@ -1,6 +1,5 @@
 package com.jorisjonkers.personalstack.systemtests
 
-import io.restassured.RestAssured.given
 import io.restassured.http.ContentType
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Tag
@@ -17,8 +16,8 @@ import org.junit.jupiter.api.TestInstance
 @Tag("system")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CrossServiceSystemTest {
-    private val authBaseUrl = System.getProperty("test.auth-api.url", "http://localhost:8081")
-    private val assistantBaseUrl = System.getProperty("test.assistant-api.url", "http://localhost:8082")
+    private val authBaseUrl = TestHelper.authBaseUrl
+    private val assistantBaseUrl = TestHelper.assistantBaseUrl
 
     private fun registerAndAuthenticate(): String {
         val session = TestHelper.registerConfirmAndGetSession()
@@ -27,7 +26,7 @@ class CrossServiceSystemTest {
 
     private fun verifyAndGetUserId(sessionCookie: String): String {
         val userId =
-            given()
+            TestHelper.givenApi()
                 .baseUri(authBaseUrl)
                 .cookie("SESSION", sessionCookie)
                 .`when`()
@@ -51,7 +50,7 @@ class CrossServiceSystemTest {
 
     private fun createConversation(userId: String): String {
         val conversationId =
-            given()
+            TestHelper.givenApi()
                 .baseUri(assistantBaseUrl)
                 .contentType(ContentType.JSON)
                 .header("X-User-Id", userId)
@@ -71,7 +70,7 @@ class CrossServiceSystemTest {
         userId: String,
         conversationId: String,
     ) {
-        given()
+        TestHelper.givenApi()
             .baseUri(assistantBaseUrl)
             .contentType(ContentType.JSON)
             .header("X-User-Id", userId)
@@ -86,7 +85,7 @@ class CrossServiceSystemTest {
         userId: String,
         conversationId: String,
     ): List<Map<String, Any>> =
-        given()
+        TestHelper.givenApi()
             .baseUri(assistantBaseUrl)
             .header("X-User-Id", userId)
             .`when`()
