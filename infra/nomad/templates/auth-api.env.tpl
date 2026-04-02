@@ -6,3 +6,7 @@ AUTH_CLIENTS_GRAFANA_SECRET={{ with secret "secret/data/auth-api" }}{{ index .Da
 AUTH_CLIENTS_N8N_SECRET={{ with secret "secret/data/auth-api" }}{{ index .Data.data "auth.clients.n8n.secret" }}{{ end }}
 AUTH_CLIENTS_VAULT_SECRET={{ with secret "secret/data/auth-api" }}{{ index .Data.data "auth.clients.vault.secret" }}{{ end }}
 AUTH_CLIENTS_STALWART_SECRET={{ with secret "secret/data/auth-api" }}{{ index .Data.data "auth.clients.stalwart.secret" }}{{ end }}
+{{ with secret "rabbitmq/creds/app-consumer" }}
+SPRING_RABBITMQ_USERNAME={{ .Data.username }}
+SPRING_RABBITMQ_PASSWORD={{ .Data.password }}
+{{ end }}

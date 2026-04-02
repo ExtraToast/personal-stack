@@ -136,7 +136,6 @@ deploy_infra() {
   submit_job "${JOBS_DIR}/platform/n8n.nomad.hcl"
   submit_job "${JOBS_DIR}/platform/uptime-kuma.nomad.hcl"
   submit_job "${JOBS_DIR}/mail/stalwart.nomad.hcl"
-  submit_job "${JOBS_DIR}/core/rotate-secrets.nomad.hcl"
 }
 
 deploy_edge() {

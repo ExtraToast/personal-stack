@@ -1,4 +1,4 @@
-path "secret/data/assistant-api" {
+path "rabbitmq/creds/app-consumer" {
   capabilities = ["read"]
 }
 

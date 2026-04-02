@@ -233,16 +233,10 @@ sync_secrets_command() {
 
   # Write to Vault KV
   upsert_kv secret/auth-api \
-    "spring.rabbitmq.username=${RABBITMQ_USER}" \
-    "spring.rabbitmq.password=${RABBITMQ_PASSWORD}" \
     "auth.clients.grafana.secret=${GRAFANA_OAUTH_CLIENT_SECRET}" \
     "auth.clients.n8n.secret=${N8N_OAUTH_CLIENT_SECRET}" \
     "auth.clients.vault.secret=${VAULT_OIDC_CLIENT_SECRET}" \
     "auth.clients.stalwart.secret=${STALWART_OAUTH_CLIENT_SECRET}"
-
-  upsert_kv secret/assistant-api \
-    "spring.rabbitmq.username=${RABBITMQ_USER}" \
-    "spring.rabbitmq.password=${RABBITMQ_PASSWORD}"
 
   vault kv put secret/platform/postgres \
     "postgres.user=${POSTGRES_USER}" "postgres.password=${POSTGRES_PASSWORD}" \
@@ -257,7 +251,6 @@ sync_secrets_command() {
     "cloudflare.dns_api_token=${CF_DNS_API_TOKEN}" >/dev/null
 
   vault kv put secret/platform/automation \
-    "n8n.db_user=${N8N_DB_USER}" "n8n.db_password=${N8N_DB_PASSWORD}" \
     "n8n.oauth_client_secret=${N8N_OAUTH_CLIENT_SECRET}" >/dev/null
 
   vault kv put secret/platform/observability \
@@ -354,7 +347,7 @@ rollback_command() {
   echo "Stopping all Nomad jobs..."
   for job in traefik stalwart app-ui auth-ui assistant-ui auth-api assistant-api \
              postgres valkey rabbitmq \
-             grafana prometheus loki tempo promtail n8n uptime-kuma rotate-secrets; do
+             grafana prometheus loki tempo promtail n8n uptime-kuma; do
     nomad job stop -purge "${job}" 2>/dev/null || true
   done
 
