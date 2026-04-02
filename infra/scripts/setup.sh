@@ -308,11 +308,22 @@ configure_command() {
 
   ensure_bootstrap_env_line HOST_IP "${primary_ip}"
 
-  # Firewall: block internal service ports from the public interface
+  # Firewall: default deny, whitelist only public-facing ports
   if command -v ufw >/dev/null 2>&1; then
-    for port in 4646 5432 5672 6379 8200 8500 4317 4318; do
-      run ufw deny in on eth0 to any port "${port}" proto tcp comment 'block-public-internal' 2>/dev/null || true
-    done
+    run ufw default deny incoming
+    run ufw default allow outgoing
+    run ufw allow 2222/tcp  comment 'ssh'
+    run ufw allow 80/tcp    comment 'http'
+    run ufw allow 443/tcp   comment 'https'
+    run ufw allow 25/tcp    comment 'smtp'
+    run ufw allow 110/tcp   comment 'pop3'
+    run ufw allow 143/tcp   comment 'imap'
+    run ufw allow 465/tcp   comment 'smtps'
+    run ufw allow 587/tcp   comment 'submission'
+    run ufw allow 993/tcp   comment 'imaps'
+    run ufw allow 995/tcp   comment 'pop3s'
+    run ufw allow 4190/tcp  comment 'sieve'
+    run ufw --force enable
   fi
 
   # Systemd ordering: Nomad starts after Docker, Consul, and Vault
