@@ -8,8 +8,12 @@
       middlewares:
         - rate-limit
         - security-headers
+{{ if ne (env "TLS_MODE") "file" }}
       tls:
         certResolver: cloudflare
+{{ else }}
+      tls: {}
+{{ end }}
 
     traefik-dashboard:
       rule: 'Host(`traefik.{{ $domain }}`)'
@@ -20,8 +24,12 @@
         - forward-auth
         - rate-limit
         - security-headers
+{{ if ne (env "TLS_MODE") "file" }}
       tls:
         certResolver: cloudflare
+{{ else }}
+      tls: {}
+{{ end }}
 
   middlewares:
     forward-auth:

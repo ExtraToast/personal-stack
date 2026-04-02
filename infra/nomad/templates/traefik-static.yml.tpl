@@ -8,12 +8,23 @@ entryPoints:
           scheme: https
   websecure:
     address: ':443'
+{{ if eq (env "TLS_MODE") "file" }}
+    http:
+      tls: {}
+{{ else }}
     http:
       tls:
         certResolver: cloudflare
+{{ end }}
   traefik:
     address: ':8088'
 
+{{ if eq (env "TLS_MODE") "file" }}
+tls:
+  certificates:
+    - certFile: /certs/wildcard.crt
+      keyFile: /certs/wildcard.key
+{{ else }}
 certificatesResolvers:
   cloudflare:
     acme:
@@ -24,6 +35,7 @@ certificatesResolvers:
         resolvers:
           - '1.1.1.1:53'
           - '1.0.0.1:53'
+{{ end }}
 
 providers:
   file:
