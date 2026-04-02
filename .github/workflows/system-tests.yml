@@ -1,0 +1,143 @@
+name: System Tests
+
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        type: string
+        default: '21'
+      fail-fast:
+        description: 'Fail the workflow if system tests fail (false = continue-on-error)'
+        type: boolean
+        default: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build-images:
+    name: Build Image (${{ matrix.service.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - name: auth-api
+            dockerfile: services/auth-api/Dockerfile
+            build_arg: ''
+          - name: assistant-api
+            dockerfile: services/assistant-api/Dockerfile
+            build_arg: ''
+          - name: auth-ui
+            dockerfile: services/auth-ui/Dockerfile
+            build_arg: ''
+          - name: assistant-ui
+            dockerfile: services/assistant-ui/Dockerfile
+            build_arg: VITE_AUTH_URL=https://auth.jorisjonkers.test
+          - name: app-ui
+            dockerfile: services/app-ui/Dockerfile
+            build_arg: VITE_AUTH_URL=https://auth.jorisjonkers.test
+    steps:
+      - uses: actions/checkout@v6
+      - uses: docker/setup-buildx-action@v4
+      - name: Build image
+        shell: bash
+        run: |
+          set -euo pipefail
+          build_args=()
+          if [ -n "${{ matrix.service.build_arg }}" ]; then
+            build_args+=(--build-arg "${{ matrix.service.build_arg }}")
+          fi
+
+          docker buildx build \
+            --progress=plain \
+            --load \
+            -f "${{ matrix.service.dockerfile }}" \
+            -t "personal-stack/${{ matrix.service.name }}:latest" \
+            --cache-from "type=gha,scope=${{ matrix.service.name }}" \
+            --cache-to "type=gha,mode=max,scope=${{ matrix.service.name }}" \
+            "${build_args[@]}" \
+            .
+      - name: Export image
+        run: docker save personal-stack/${{ matrix.service.name }}:latest -o /tmp/${{ matrix.service.name }}.tar
+      - uses: actions/upload-artifact@v7
+        with:
+          name: image-${{ matrix.service.name }}
+          path: /tmp/${{ matrix.service.name }}.tar
+          retention-days: 1
+
+  test-system:
+    name: System Tests (Nomad)
+    runs-on: ubuntu-latest
+    needs: [build-images]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ inputs.java-version }}
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: image-*
+          path: /tmp/images
+      - name: Load images
+        run: |
+          for tar in /tmp/images/image-*/*.tar; do docker load -i "$tar"; done
+      - name: Set up dev DNS
+        run: sudo bash infra/scripts/setup-dev-dns.sh
+      - name: Bootstrap Nomad stack
+        run: sudo bash infra/scripts/ci-bootstrap-nomad.sh
+        env:
+          STACK_DIR: ${{ github.workspace }}
+      - name: Wait for Traefik routes to stabilize
+        run: |
+          echo "Waiting for Traefik routes to become reachable..."
+          check_route() {
+            local route="$1" url="$2"
+            echo -n "  $route ($url): "
+            for i in $(seq 1 60); do
+              if curl -sfk --max-time 2 -o /dev/null "$url" 2>/dev/null; then
+                echo "reachable"
+                return 0
+              fi
+              sleep 2
+            done
+            echo "TIMEOUT"
+            return 1
+          }
+          check_route auth-api       "https://auth.jorisjonkers.test/api/actuator/health"
+          check_route assistant-api  "https://assistant.jorisjonkers.test/api/actuator/health"
+          check_route app-ui         "https://jorisjonkers.test/"
+          check_route auth-ui        "https://auth.jorisjonkers.test/"
+          check_route assistant-ui   "https://assistant.jorisjonkers.test/"
+      - name: Verify database migrations ran
+        run: |
+          PGPASSWORD=ci_auth_pass psql -h 127.0.0.1 -U auth_user -d auth_db -c '\dt' | grep -q app_user || { echo "auth_db migrations missing"; exit 1; }
+          PGPASSWORD=ci_assistant_pass psql -h 127.0.0.1 -U assistant_user -d assistant_db -c '\dt' | grep -q conversation || { echo "assistant_db migrations missing"; exit 1; }
+          echo "==> Database migrations verified"
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Run system tests
+        id: run-tests
+        continue-on-error: ${{ !inputs.fail-fast }}
+        run: >-
+          bash infra/scripts/run-strict-command.sh ./gradlew :services:system-tests:test
+          -Dtest.auth-api.url=https://auth.jorisjonkers.test
+          -Dtest.assistant-api.url=https://assistant.jorisjonkers.test
+          -Dtest.db.password=ci_auth_pass
+      - name: Dump Nomad job status and logs on failure
+        if: failure() || steps.run-tests.outcome == 'failure'
+        run: |
+          source "${{ github.workspace }}/.nomad-keys" 2>/dev/null || true
+          export NOMAD_TOKEN="${NOMAD_BOOTSTRAP_TOKEN:-}"
+          echo "==> Nomad job status:"
+          nomad status || true
+          echo ""
+          for job in postgres valkey rabbitmq traefik auth-api assistant-api auth-ui assistant-ui app-ui n8n grafana stalwart; do
+            echo "========== $job =========="
+            nomad job status "$job" 2>/dev/null | tail -20 || true
+            alloc=$(nomad job allocs -json "$job" 2>/dev/null | jq -r '.[0].ID // empty' 2>/dev/null)
+            if [ -n "$alloc" ]; then
+              nomad alloc logs "$alloc" 2>/dev/null | tail -60 || true
+            fi
+          done
