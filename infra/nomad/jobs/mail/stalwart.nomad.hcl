@@ -87,7 +87,7 @@ job "stalwart" {
 
       resources {
         cpu    = 600
-        memory = 640
+        memory = 1024
       }
     }
   }
