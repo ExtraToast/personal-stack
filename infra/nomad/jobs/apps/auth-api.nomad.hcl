@@ -113,7 +113,7 @@ job "auth-api" {
 
       resources {
         cpu    = 800
-        memory = 1024
+        memory = 1280
       }
     }
   }
