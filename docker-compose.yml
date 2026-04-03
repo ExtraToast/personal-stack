@@ -433,7 +433,6 @@ services:
       - stalwart-data:/opt/stalwart
       - ./infra/stalwart/config.toml:/opt/stalwart/etc/config.toml
     environment:
-      OIDC_USERINFO_URL: http://auth-api:8081/api/userinfo
       STALWART_ADMIN_USER: admin
       STALWART_ADMIN_SECRET: stalwart-dev-admin
       STALWART_HOSTNAME: stalwart.jorisjonkers.test
@@ -480,7 +479,6 @@ services:
       AUTH_CLIENTS_GRAFANA_SECRET: grafana-secret
       AUTH_CLIENTS_N8N_SECRET: n8n-secret
       AUTH_CLIENTS_VAULT_SECRET: vault-secret
-      AUTH_CLIENTS_STALWART_SECRET: stalwart-secret
       SESSION_COOKIE_DOMAIN: jorisjonkers.test
       SESSION_COOKIE_SECURE: 'true'
       SESSION_COOKIE_SAME_SITE: Lax

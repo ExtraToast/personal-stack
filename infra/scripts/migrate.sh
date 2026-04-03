@@ -174,7 +174,7 @@ sync_secrets_command() {
   local assistant_db_user assistant_db_password n8n_db_user n8n_db_password
   local grafana_admin_user grafana_admin_password rabbitmq_user rabbitmq_password
   local cf_dns_api_token stalwart_admin_user stalwart_admin_password
-  local n8n_oauth_secret grafana_oauth_secret vault_oauth_secret stalwart_oauth_secret
+  local n8n_oauth_secret grafana_oauth_secret vault_oauth_secret
 
   postgres_user="$(read_secret_or_default postgres /run/secrets/postgres_user postgres)"
   postgres_password="$(read_secret_or_default postgres /run/secrets/postgres_password)"
@@ -198,9 +198,6 @@ sync_secrets_command() {
   [[ -n "${grafana_oauth_secret}" ]] || grafana_oauth_secret="$(random_secret)"
   vault_oauth_secret="$(vault_field_or_default secret/auth-api "auth.clients.vault.secret")"
   [[ -n "${vault_oauth_secret}" ]] || vault_oauth_secret="$(random_secret)"
-  stalwart_oauth_secret="$(vault_field_or_default secret/auth-api "auth.clients.stalwart.secret")"
-  [[ -n "${stalwart_oauth_secret}" ]] || stalwart_oauth_secret="$(random_secret)"
-
   stalwart_admin_user="$(read_secret_or_default stalwart /run/secrets/stalwart_admin_user admin)"
   stalwart_admin_password="$(read_secret_or_default stalwart /run/secrets/stalwart_admin_password)"
   [[ -n "${stalwart_admin_password}" ]] || stalwart_admin_password="$(random_secret)"
@@ -222,7 +219,6 @@ sync_secrets_command() {
   GRAFANA_ADMIN_USER="${grafana_admin_user}"
   GRAFANA_ADMIN_PASSWORD="${grafana_admin_password}"
   VAULT_OIDC_CLIENT_SECRET="${vault_oauth_secret}"
-  STALWART_OAUTH_CLIENT_SECRET="${stalwart_oauth_secret}"
   STALWART_ADMIN_USER="${stalwart_admin_user}"
   STALWART_ADMIN_PASSWORD="${stalwart_admin_password}"
 
@@ -231,7 +227,7 @@ sync_secrets_command() {
     ASSISTANT_DB_USER ASSISTANT_DB_PASSWORD N8N_DB_USER N8N_DB_PASSWORD \
     RABBITMQ_USER RABBITMQ_PASSWORD CF_DNS_API_TOKEN \
     GRAFANA_ADMIN_USER GRAFANA_ADMIN_PASSWORD STALWART_ADMIN_USER STALWART_ADMIN_PASSWORD \
-    N8N_OAUTH_CLIENT_SECRET GRAFANA_OAUTH_CLIENT_SECRET VAULT_OIDC_CLIENT_SECRET STALWART_OAUTH_CLIENT_SECRET; do
+    N8N_OAUTH_CLIENT_SECRET GRAFANA_OAUTH_CLIENT_SECRET VAULT_OIDC_CLIENT_SECRET; do
     ensure_bootstrap_env_line "${var}" "${!var}"
   done
 
@@ -239,8 +235,7 @@ sync_secrets_command() {
   upsert_kv secret/auth-api \
     "auth.clients.grafana.secret=${GRAFANA_OAUTH_CLIENT_SECRET}" \
     "auth.clients.n8n.secret=${N8N_OAUTH_CLIENT_SECRET}" \
-    "auth.clients.vault.secret=${VAULT_OIDC_CLIENT_SECRET}" \
-    "auth.clients.stalwart.secret=${STALWART_OAUTH_CLIENT_SECRET}"
+    "auth.clients.vault.secret=${VAULT_OIDC_CLIENT_SECRET}"
 
   vault kv put secret/platform/postgres \
     "postgres.user=${POSTGRES_USER}" "postgres.password=${POSTGRES_PASSWORD}" \
@@ -262,8 +257,7 @@ sync_secrets_command() {
     "grafana.oauth_client_secret=${GRAFANA_OAUTH_CLIENT_SECRET}" >/dev/null
 
   vault kv put secret/platform/mail \
-    "stalwart.admin_user=${STALWART_ADMIN_USER}" "stalwart.admin_password=${STALWART_ADMIN_PASSWORD}" \
-    "stalwart.oauth_client_secret=${STALWART_OAUTH_CLIENT_SECRET}" >/dev/null
+    "stalwart.admin_user=${STALWART_ADMIN_USER}" "stalwart.admin_password=${STALWART_ADMIN_PASSWORD}" >/dev/null
 
   echo "Swarm secrets synced into Vault KV."
 }

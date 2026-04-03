@@ -118,7 +118,6 @@ STALWART_ADMIN_PASSWORD=ci_stalwart_pass
 N8N_OAUTH_CLIENT_SECRET=ci_n8n_oauth_secret
 GRAFANA_OAUTH_CLIENT_SECRET=ci_grafana_oauth_secret
 VAULT_OIDC_CLIENT_SECRET=ci_vault_oidc_secret
-STALWART_OAUTH_CLIENT_SECRET=ci_stalwart_oauth_secret
 ENVFILE
 handoff_ci_state_files "${BOOTSTRAP_ENV_FILE}"
 

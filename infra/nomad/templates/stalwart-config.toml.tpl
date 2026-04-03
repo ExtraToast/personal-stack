@@ -53,17 +53,6 @@ store.rocksdb.type = "rocksdb"
 store.rocksdb.path = "/opt/stalwart/data"
 store.rocksdb.compression = "lz4"
 
-directory.auth-api.type = "oidc"
-directory.auth-api.endpoint.url = "https://auth.{{ $domain }}/api/userinfo"
-directory.auth-api.endpoint.method = "userinfo"
-directory.auth-api.timeout = "15s"
-directory.auth-api.fields.email = "email"
-directory.auth-api.fields.username = "preferred_username"
-directory.auth-api.fields.full-name = "name"
-directory.auth-api.cache.size = 1048576
-directory.auth-api.cache.ttl.positive = "1h"
-directory.auth-api.cache.ttl.negative = "10m"
-
 directory.internal.type = "internal"
 directory.internal.store = "rocksdb"
 

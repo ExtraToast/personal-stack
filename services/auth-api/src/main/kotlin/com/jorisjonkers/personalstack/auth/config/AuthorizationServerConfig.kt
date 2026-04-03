@@ -76,8 +76,6 @@ class AuthorizationServerConfig(
     private val n8nClientSecret: String,
     @param:Value("\${auth.clients.vault.secret:vault-secret}")
     private val vaultClientSecret: String,
-    @param:Value("\${auth.clients.stalwart.secret:stalwart-secret}")
-    private val stalwartClientSecret: String,
 ) {
     @Bean
     @Order(1)
@@ -124,7 +122,6 @@ class AuthorizationServerConfig(
             buildN8nClient(n8nClientSecret),
             buildRabbitMqClient(),
             buildVaultClient(vaultClientSecret),
-            buildStalwartClient(stalwartClientSecret),
         )
 
     @Bean
@@ -179,17 +176,12 @@ class AuthorizationServerConfig(
                 userRepository.findCredentialsByUsername(principal.name) ?: return@OAuth2TokenCustomizer
             val roles = buildRoles(credentials)
 
-            val stalwartEmail =
-                "${credentials.firstName}.${credentials.lastName}".lowercase()
-
             when {
                 context.tokenType == OAuth2TokenType.ACCESS_TOKEN -> {
-                    val email =
-                        if (context.registeredClient.clientId == "stalwart") stalwartEmail else credentials.email
                     context.claims.claim("roles", roles)
                     context.claims.claim("username", credentials.username)
                     context.claims.claim("preferred_username", credentials.username)
-                    context.claims.claim("email", email)
+                    context.claims.claim("email", credentials.email)
                     context.claims.claim("aud", listOf(context.registeredClient.clientId))
                     context.claims.subject(credentials.userId.value.toString())
                 }
@@ -204,9 +196,7 @@ class AuthorizationServerConfig(
                     }
 
                     if (OidcScopes.EMAIL in context.authorizedScopes) {
-                        val isStalwart = context.registeredClient.clientId == "stalwart"
-                        val email = if (isStalwart) stalwartEmail else credentials.email
-                        context.claims.claim("email", email)
+                        context.claims.claim("email", credentials.email)
                         context.claims.claim("email_verified", credentials.emailConfirmed)
                     }
                 }
@@ -277,7 +267,6 @@ class AuthorizationServerConfig(
                 "vault" to ServicePermission.VAULT,
                 "n8n" to ServicePermission.N8N,
                 "rabbitmq" to ServicePermission.RABBITMQ,
-                "stalwart" to ServicePermission.MAIL,
             )
     }
 }

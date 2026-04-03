@@ -491,15 +491,13 @@ persist_bootstrap_secrets() {
   ensure_bootstrap_env_line N8N_OAUTH_CLIENT_SECRET "${N8N_OAUTH_CLIENT_SECRET}"
   ensure_bootstrap_env_line GRAFANA_OAUTH_CLIENT_SECRET "${GRAFANA_OAUTH_CLIENT_SECRET}"
   ensure_bootstrap_env_line VAULT_OIDC_CLIENT_SECRET "${VAULT_OIDC_CLIENT_SECRET}"
-  ensure_bootstrap_env_line STALWART_OAUTH_CLIENT_SECRET "${STALWART_OAUTH_CLIENT_SECRET}"
 }
 
 write_all_secrets_to_vault() {
   upsert_kv secret/auth-api \
     "auth.clients.grafana.secret=${GRAFANA_OAUTH_CLIENT_SECRET}" \
     "auth.clients.n8n.secret=${N8N_OAUTH_CLIENT_SECRET}" \
-    "auth.clients.vault.secret=${VAULT_OIDC_CLIENT_SECRET}" \
-    "auth.clients.stalwart.secret=${STALWART_OAUTH_CLIENT_SECRET}"
+    "auth.clients.vault.secret=${VAULT_OIDC_CLIENT_SECRET}"
 
   vault kv put secret/platform/postgres \
     "postgres.user=${POSTGRES_USER}" \
@@ -528,8 +526,7 @@ write_all_secrets_to_vault() {
 
   vault kv put secret/platform/mail \
     "stalwart.admin_user=${STALWART_ADMIN_USER}" \
-    "stalwart.admin_password=${STALWART_ADMIN_PASSWORD}" \
-    "stalwart.oauth_client_secret=${STALWART_OAUTH_CLIENT_SECRET}" >/dev/null
+    "stalwart.admin_password=${STALWART_ADMIN_PASSWORD}" >/dev/null
 }
 
 seed_secrets_command() {
@@ -558,7 +555,6 @@ seed_secrets_command() {
   [[ -n "${N8N_OAUTH_CLIENT_SECRET:-}" ]]      || { N8N_OAUTH_CLIENT_SECRET="$(random_secret)";      ensure_bootstrap_env_line N8N_OAUTH_CLIENT_SECRET "${N8N_OAUTH_CLIENT_SECRET}"; }
   [[ -n "${GRAFANA_OAUTH_CLIENT_SECRET:-}" ]]   || { GRAFANA_OAUTH_CLIENT_SECRET="$(random_secret)";   ensure_bootstrap_env_line GRAFANA_OAUTH_CLIENT_SECRET "${GRAFANA_OAUTH_CLIENT_SECRET}"; }
   [[ -n "${VAULT_OIDC_CLIENT_SECRET:-}" ]]      || { VAULT_OIDC_CLIENT_SECRET="$(random_secret)";      ensure_bootstrap_env_line VAULT_OIDC_CLIENT_SECRET "${VAULT_OIDC_CLIENT_SECRET}"; }
-  [[ -n "${STALWART_OAUTH_CLIENT_SECRET:-}" ]]  || { STALWART_OAUTH_CLIENT_SECRET="$(random_secret)";  ensure_bootstrap_env_line STALWART_OAUTH_CLIENT_SECRET "${STALWART_OAUTH_CLIENT_SECRET}"; }
 
   if [[ "${MODE}" == "dry-run" ]]; then
     echo "+ seed Vault KV from ${BOOTSTRAP_ENV_FILE}"; return
