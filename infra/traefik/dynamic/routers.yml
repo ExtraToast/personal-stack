@@ -139,6 +139,19 @@ http:
       tls:
         certResolver: cloudflare
 
+    # ── Nomad ───────────────────────────────────────────────────
+    nomad:
+      rule: 'Host(`nomad.jorisjonkers.dev`)'
+      entryPoints:
+        - websecure
+      service: nomad
+      middlewares:
+        - forward-auth
+        - rate-limit
+        - security-headers
+      tls:
+        certResolver: cloudflare
+
     # ── Traefik Dashboard ───────────────────────────────────────
     traefik-dashboard:
       rule: 'Host(`traefik.jorisjonkers.dev`)'
@@ -207,3 +220,8 @@ http:
       loadBalancer:
         servers:
           - url: 'http://stalwart:8080'
+
+    nomad:
+      loadBalancer:
+        servers:
+          - url: 'http://127.0.0.1:4646'

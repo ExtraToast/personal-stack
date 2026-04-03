@@ -31,6 +31,22 @@
       tls: {}
 {{ end }}
 
+    nomad:
+      rule: 'Host(`nomad.{{ $domain }}`)'
+      entryPoints:
+        - websecure
+      service: nomad
+      middlewares:
+        - forward-auth
+        - rate-limit
+        - security-headers
+{{ if ne (env "TLS_MODE") "file" }}
+      tls:
+        certResolver: cloudflare
+{{ else }}
+      tls: {}
+{{ end }}
+
   middlewares:
     forward-auth:
       forwardAuth:
@@ -78,3 +94,8 @@
       loadBalancer:
         servers:
           - url: 'http://127.0.0.1:8200'
+
+    nomad:
+      loadBalancer:
+        servers:
+          - url: 'http://127.0.0.1:4646'
