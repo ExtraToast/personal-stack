@@ -56,13 +56,13 @@ jobs:
             --progress=plain \
             --load \
             -f "${{ matrix.service.dockerfile }}" \
-            -t "personal-stack/${{ matrix.service.name }}:latest" \
+            -t "personal-stack/${{ matrix.service.name }}:ci" \
             --cache-from "type=gha,scope=${{ matrix.service.name }}" \
             --cache-to "type=gha,mode=max,scope=${{ matrix.service.name }}" \
             "${build_args[@]}" \
             .
       - name: Export image
-        run: docker save personal-stack/${{ matrix.service.name }}:latest -o /tmp/${{ matrix.service.name }}.tar
+        run: docker save personal-stack/${{ matrix.service.name }}:ci -o /tmp/${{ matrix.service.name }}.tar
       - uses: actions/upload-artifact@v7
         with:
           name: image-${{ matrix.service.name }}

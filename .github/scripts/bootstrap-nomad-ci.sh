@@ -17,7 +17,7 @@ export NOMAD_ADDR="${NOMAD_ADDR:-http://127.0.0.1:4646}"
 
 DOMAIN="jorisjonkers.test"
 IMAGE_REPO="personal-stack"
-IMAGE_TAG="latest"
+IMAGE_TAG="ci"
 CERT_DIR="/srv/nomad/traefik/certs"
 BOOTSTRAP_DIAGNOSTICS_RAN=false
 
