@@ -51,4 +51,14 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
     GRANT ALL PRIVILEGES ON DATABASE n8n_db TO ${N8N_DB_USER};
 EOSQL
 
+# PostgreSQL 15+ revoked default CREATE on the public schema for non-superusers.
+# Transfer public schema ownership so each service can run migrations.
+for db_and_user in "auth_db:${AUTH_DB_USER}" "assistant_db:${ASSISTANT_DB_USER}" "n8n_db:${N8N_DB_USER}"; do
+    db="${db_and_user%%:*}"
+    user="${db_and_user##*:}"
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$db" <<-EOSQL
+        ALTER SCHEMA public OWNER TO ${user};
+EOSQL
+done
+
 echo "==> All databases and users created successfully."
