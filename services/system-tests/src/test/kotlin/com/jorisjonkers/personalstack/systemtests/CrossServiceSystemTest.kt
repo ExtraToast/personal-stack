@@ -20,7 +20,10 @@ class CrossServiceSystemTest {
     private val assistantBaseUrl = TestHelper.assistantBaseUrl
 
     private fun registerAndAuthenticate(): AuthenticatedSession {
-        val session = TestHelper.registerConfirmAndGetSession()
+        val username = "cross_${java.util.UUID.randomUUID().toString().take(8)}"
+        val user = TestHelper.registerAndConfirm(username)
+        TestHelper.grantServicePermission(username, "ASSISTANT")
+        val session = TestHelper.sessionLogin(user)
         val userId = verifyAndGetUserId(session.sessionCookie)
         return AuthenticatedSession(session.sessionCookie, userId)
     }
