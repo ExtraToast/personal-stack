@@ -89,10 +89,12 @@ deploy_platform_phase() {
   ensure_vault_unsealed
   submit_nomad_job "${ROOT_DIR}/infra/nomad/jobs/observability/grafana.nomad.hcl" \
     -var "domain=${DOMAIN}" \
-    -var "repo_dir=${ROOT_DIR}"
+    -var "repo_dir=${ROOT_DIR}" \
+    -var "oidc_tls_skip_verify=true"
   submit_nomad_job "${ROOT_DIR}/infra/nomad/jobs/platform/n8n.nomad.hcl" \
     -var "domain=${DOMAIN}" \
-    -var "repo_dir=${ROOT_DIR}"
+    -var "repo_dir=${ROOT_DIR}" \
+    -var "oidc_ca_cert_path=${CERT_DIR}/wildcard.crt"
   submit_nomad_job "${ROOT_DIR}/infra/nomad/jobs/mail/stalwart.nomad.hcl" \
     -var "domain=${DOMAIN}"
   wait_for_nomad_jobs grafana 300 n8n 300 stalwart 300
@@ -240,6 +242,7 @@ deploy_apps_phase
 
 echo "==> Preparing Vault (third pass: OIDC configuration)"
 ensure_vault_unsealed
+VAULT_PUBLIC_ADDR="https://vault.${DOMAIN}" \
 AUTH_ISSUER="https://auth.${DOMAIN}" \
   bash "${ROOT_DIR}/infra/scripts/setup.sh" prepare-vault
 

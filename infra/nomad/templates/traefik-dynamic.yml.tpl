@@ -58,6 +58,10 @@ http:
       forwardAuth:
         address: 'https://auth.{{ $domain }}/api/v1/auth/verify'
         trustForwardHeader: true
+{{ if eq (env "TLS_MODE") "file" }}
+        tls:
+          ca: /certs/wildcard.crt
+{{ end }}
         authResponseHeaders:
           - 'X-User-Id'
           - 'X-User-Email'

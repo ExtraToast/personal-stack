@@ -8,6 +8,11 @@ variable "repo_dir" {
   default = "/opt/personal-stack"
 }
 
+variable "oidc_tls_skip_verify" {
+  type    = bool
+  default = false
+}
+
 job "grafana" {
   datacenters = ["dc1"]
   type        = "service"
@@ -83,6 +88,7 @@ job "grafana" {
         GF_AUTH_GENERIC_OAUTH_ALLOW_ASSIGN_GRAFANA_ADMIN = "true"
         GF_AUTH_GENERIC_OAUTH_AUTO_LOGIN                 = "true"
         GF_AUTH_GENERIC_OAUTH_USE_PKCE                   = "true"
+        GF_AUTH_GENERIC_OAUTH_TLS_SKIP_VERIFY_INSECURE   = var.oidc_tls_skip_verify ? "true" : "false"
       }
 
       config {
