@@ -156,4 +156,3 @@ fun buildVaultClient(secret: String): RegisteredClient =
         .clientSettings(noConsentSettings(requirePkce = false))
         .tokenSettings(defaultTokenSettings())
         .build()
-
