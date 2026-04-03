@@ -19,12 +19,7 @@ entryPoints:
   traefik:
     address: ':8088'
 
-{{ if eq (env "TLS_MODE") "file" }}
-tls:
-  certificates:
-    - certFile: /certs/wildcard.crt
-      keyFile: /certs/wildcard.key
-{{ else }}
+{{ if ne (env "TLS_MODE") "file" }}
 certificatesResolvers:
   cloudflare:
     acme:

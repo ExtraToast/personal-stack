@@ -1,4 +1,10 @@
-{{ $domain := env "DOMAIN" }}http:
+{{ $domain := env "DOMAIN" }}{{ if eq (env "TLS_MODE") "file" }}
+tls:
+  certificates:
+    - certFile: /certs/wildcard.crt
+      keyFile: /certs/wildcard.key
+{{ end }}
+http:
   routers:
     vault:
       rule: 'Host(`vault.{{ $domain }}`)'
