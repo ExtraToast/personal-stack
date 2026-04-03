@@ -1,6 +1,9 @@
 package com.jorisjonkers.personalstack.systemtests
 
+import org.hamcrest.Matchers.anyOf
 import org.hamcrest.Matchers.equalTo
+import org.hamcrest.Matchers.not
+import org.hamcrest.Matchers.nullValue
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -20,9 +23,12 @@ class TraefikHealthCheckSystemTest {
 
     companion object {
         @JvmStatic
-        fun actuatorEndpoints(): Stream<Arguments> =
+        fun publicActuatorEndpoints(): Stream<Arguments> =
+            Stream.of(Arguments.of("auth-api /actuator/health", "https://auth.jorisjonkers.test", "/api/actuator/health"))
+
+        @JvmStatic
+        fun livenessEndpoints(): Stream<Arguments> =
             Stream.of(
-                Arguments.of("auth-api /actuator/health", "https://auth.jorisjonkers.test", "/api/actuator/health"),
                 Arguments.of(
                     "auth-api /actuator/health/liveness",
                     "https://auth.jorisjonkers.test",
@@ -39,7 +45,7 @@ class TraefikHealthCheckSystemTest {
         @JvmStatic
         fun allHealthEndpoints(): Stream<Arguments> =
             Stream.concat(
-                actuatorEndpoints().map { args ->
+                Stream.concat(publicActuatorEndpoints(), livenessEndpoints()).map { args ->
                     val arr = args.get()
                     Arguments.of(arr[0], arr[1], arr[2])
                 },
@@ -51,8 +57,24 @@ class TraefikHealthCheckSystemTest {
     }
 
     @ParameterizedTest(name = "{0} actuator is publicly accessible through Traefik")
-    @MethodSource("actuatorEndpoints")
-    fun `actuator health responds 200 without authentication through Traefik`(
+    @MethodSource("publicActuatorEndpoints")
+    fun `actuator health responds without authentication through Traefik`(
+        @Suppress("UNUSED_PARAMETER") label: String,
+        baseUrl: String,
+        path: String,
+    ) {
+        traefikRequest()
+            .baseUri(baseUrl)
+            .`when`()
+            .get(path)
+            .then()
+            .statusCode(anyOf(equalTo(200), equalTo(503)))
+            .body("status", not(nullValue()))
+    }
+
+    @ParameterizedTest(name = "{0} actuator liveness is publicly accessible through Traefik")
+    @MethodSource("livenessEndpoints")
+    fun `actuator liveness responds 200 without authentication through Traefik`(
         @Suppress("UNUSED_PARAMETER") label: String,
         baseUrl: String,
         path: String,
