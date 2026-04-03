@@ -99,7 +99,7 @@ deploy_platform_phase() {
 
   echo "==> Seeding stalwart mail account for auth-api"
   local stalwart_addr
-  stalwart_addr="$(nomad service info -json stalwart | jq -r '.[0].Address + ":" + (.[] | .Port | tostring)')"
+  stalwart_addr="$(nomad service info -json stalwart | jq -r '.[0] | .Address + ":" + (.Port | tostring)')"
   curl -sf -u "admin:${STALWART_ADMIN_PASSWORD}" \
     "http://${stalwart_addr}/api/principal" \
     -H "Content-Type: application/json" \

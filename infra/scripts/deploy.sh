@@ -139,6 +139,31 @@ deploy_data() {
   submit_job "${JOBS_DIR}/data/rabbitmq.nomad.hcl"  "${DOMAIN_VAR[@]}" "${REPO_VAR[@]}"
 }
 
+seed_stalwart_mail_account() {
+  local stalwart_addr password="${STALWART_MAIL_PASSWORD:-}"
+  [[ -n "${password}" ]] || { echo "STALWART_MAIL_PASSWORD not set, skipping mail account seed."; return 0; }
+
+  echo "+ Waiting for stalwart to be ready"
+  wait_for_job_running stalwart 120
+
+  stalwart_addr="$(nomad service info -json stalwart 2>/dev/null | jq -r '.[0] | .Address + ":" + (.Port | tostring)')" || true
+  [[ -n "${stalwart_addr}" && "${stalwart_addr}" != "null:null" ]] || { echo "Could not resolve stalwart address, skipping account seed."; return 0; }
+
+  local admin_user="${STALWART_ADMIN_USER:-admin}"
+  local admin_pass="${STALWART_ADMIN_PASSWORD:-}"
+
+  echo "+ Seeding stalwart mail account 'auth'"
+  curl -sf -u "${admin_user}:${admin_pass}" \
+    "http://${stalwart_addr}/api/principal" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "type": "individual",
+      "name": "auth",
+      "secrets": ["'"${password}"'"],
+      "emails": ["auth@'"${DOMAIN}"'"]
+    }' && echo " done" || echo " (may already exist)"
+}
+
 deploy_infra() {
   submit_job "${JOBS_DIR}/observability/loki.nomad.hcl"      "${REPO_VAR[@]}"
   submit_job "${JOBS_DIR}/observability/tempo.nomad.hcl"
@@ -148,6 +173,7 @@ deploy_infra() {
   submit_job "${JOBS_DIR}/platform/n8n.nomad.hcl"            "${DOMAIN_VAR[@]}" "${REPO_VAR[@]}"
   submit_job "${JOBS_DIR}/platform/uptime-kuma.nomad.hcl"    "${DOMAIN_VAR[@]}"
   submit_job "${JOBS_DIR}/mail/stalwart.nomad.hcl"           "${DOMAIN_VAR[@]}"
+  seed_stalwart_mail_account
 }
 
 deploy_edge() {
