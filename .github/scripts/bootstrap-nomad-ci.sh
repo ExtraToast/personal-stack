@@ -98,19 +98,27 @@ deploy_platform_phase() {
   wait_for_nomad_jobs grafana 300 n8n 300 stalwart 300
 
   echo "==> Seeding stalwart mail account for auth-api"
+  local admin_user="${STALWART_ADMIN_USER:-admin}"
+  local admin_pass="${STALWART_ADMIN_PASSWORD:-}"
+  local mail_password="${STALWART_MAIL_PASSWORD:-}"
+  [[ -n "${mail_password}" ]] || {
+    echo "  STALWART_MAIL_PASSWORD not set, skipping stalwart account seed"
+    return 0
+  }
+
   local stalwart_addr
   stalwart_addr="$(resolve_nomad_service_address stalwart 10 2 || true)"
   if [[ -z "${stalwart_addr}" || "${stalwart_addr}" == "null:null" ]]; then
     echo "  Stalwart is healthy but not yet in Nomad service discovery; falling back to 127.0.0.1:8080"
     stalwart_addr="127.0.0.1:8080"
   fi
-  curl -sf -u "admin:${STALWART_ADMIN_PASSWORD}" \
+  curl -sf -u "${admin_user}:${admin_pass}" \
     "http://${stalwart_addr}/api/principal" \
     -H "Content-Type: application/json" \
     -d '{
       "type": "individual",
       "name": "auth",
-      "secrets": ["'"${STALWART_MAIL_PASSWORD}"'"],
+      "secrets": ["'"${mail_password}"'"],
       "emails": ["auth@'"${DOMAIN}"'"]
     }' || echo "Warning: failed to seed stalwart account (may already exist)"
 }
@@ -138,6 +146,9 @@ GRAFANA_OAUTH_CLIENT_SECRET=ci_grafana_oauth_secret
 VAULT_OIDC_CLIENT_SECRET=ci_vault_oidc_secret
 ENVFILE
 handoff_ci_state_files "${BOOTSTRAP_ENV_FILE}"
+set -a
+source "${BOOTSTRAP_ENV_FILE}"
+set +a
 
 echo "==> Installing Consul, Nomad, Vault and creating data directories"
 bash "${ROOT_DIR}/infra/scripts/setup.sh" install
