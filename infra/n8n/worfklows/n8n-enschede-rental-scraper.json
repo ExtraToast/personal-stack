@@ -1,630 +1,251 @@
 {
-  "name": "Enschede Huurwoning Scraper (3+ slaapkamers, €1000-1500)",
+  "name": "Enschede Huurwoning Scraper v2",
   "nodes": [
     {
-      "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "hours",
-              "hoursInterval": 12
-            }
-          ]
-        }
-      },
-      "id": "a1b2c3d4-0001-4000-8000-000000000001",
-      "name": "Elke 12 uur",
+      "parameters": { "rule": { "interval": [{ "field": "cronExpression", "expression": "0 8 * * *" }] } },
+      "id": "d100-0001",
+      "name": "Dagelijks 08:00",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [-200, 400]
+      "position": [0, 400]
+    },
+    {
+      "parameters": {},
+      "id": "d100-0002",
+      "name": "Handmatig Testen",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 580]
     },
     {
       "parameters": {
-        "method": "GET",
-        "url": "https://www.pararius.nl/huurwoningen/enschede/1000-1500/3-slaapkamers",
+        "jsCode": "return [{ json: {\n  emailTo: 'house-search@jorisjonkers.dev',\n  geminiApiKey: 'KEY_HERE',\n  woninghurenBody: JSON.stringify({\n    limit: 25, page: 0, locale: 'nl_NL',\n    filters: { '$and': [\n      {'municipality.name': {'$eq': 'Enschede'}},\n      {'totalRent': {'$gte': 1000}},\n      {'totalRent': {'$lte': 1500}},\n      {'sleepingRoom.amountOfRooms': {'$gte': 3}},\n      {'dwellingType.categorie': {'$ne': 'parkeerplaats'}},\n      {'dwellingType.categorie': {'$ne': 'garage'}},\n      {'dwellingType.categorie': {'$ne': 'berging'}}\n    ]}\n  }),\n  parariusBody: JSON.stringify({cmd: 'request.get', url: 'https://www.pararius.nl/huurwoningen/enschede/1000-1500/3-slaapkamers', maxTimeout: 60000}),\n  huurwoningenBody: JSON.stringify({cmd: 'request.get', url: 'https://www.huurwoningen.nl/in/enschede/?price=1000-1500&bedrooms=3', maxTimeout: 60000})\n}}];"
+      },
+      "id": "d100-0003",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [260, 490]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://woninghuren-aanbodapi.zig365.nl/api/v1/actueel-aanbod",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "User-Agent",
-              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-            },
-            {
-              "name": "Accept",
-              "value": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
-            },
-            {
-              "name": "Accept-Language",
-              "value": "nl-NL,nl;q=0.9,en-US;q=0.8,en;q=0.7"
-            },
-            {
-              "name": "Cache-Control",
-              "value": "no-cache"
-            },
-            {
-              "name": "Referer",
-              "value": "https://www.pararius.nl/"
-            }
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Accept", "value": "application/json" },
+            { "name": "Origin", "value": "https://www.woninghuren.nl" },
+            { "name": "Referer", "value": "https://www.woninghuren.nl/" }
           ]
         },
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "text"
-            }
-          },
-          "timeout": 30000
-        }
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.woninghurenBody }}",
+        "options": { "timeout": 30000 }
       },
-      "id": "a1b2c3d4-0001-4000-8000-000000000010",
+      "id": "d100-0010",
+      "name": "Woninghuren API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [540, 200],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8191/v1",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.parariusBody }}",
+        "options": { "timeout": 90000 }
+      },
+      "id": "d100-0020",
       "name": "Fetch Pararius",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [100, 100],
+      "position": [540, 460],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "method": "GET",
-        "url": "https://www.pararius.nl/huurwoningen/enschede/1000-1500/3-slaapkamers/page-2",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "User-Agent",
-              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-            },
-            {
-              "name": "Accept",
-              "value": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
-            },
-            {
-              "name": "Accept-Language",
-              "value": "nl-NL,nl;q=0.9,en-US;q=0.8,en;q=0.7"
-            },
-            {
-              "name": "Referer",
-              "value": "https://www.pararius.nl/huurwoningen/enschede/1000-1500/3-slaapkamers"
-            }
-          ]
-        },
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "text"
-            }
-          },
-          "timeout": 30000
-        }
+        "method": "POST",
+        "url": "http://127.0.0.1:8191/v1",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.huurwoningenBody }}",
+        "options": { "timeout": 90000 }
       },
-      "id": "a1b2c3d4-0001-4000-8000-000000000011",
-      "name": "Fetch Pararius Pagina 2",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [100, 250],
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "mode": "append"
-      },
-      "id": "a1b2c3d4-0001-4000-8000-000000000012",
-      "name": "Merge Pararius Paginas",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [350, 175]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Parse Pararius.nl HTML listings\n// Pararius uses server-side rendered HTML with stable CSS classes\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const html = item.json.data || '';\n  \n  if (!html || html.length < 500) {\n    continue; // Skip empty/error responses\n  }\n\n  // Split HTML by listing search items\n  // Pararius uses <section> or <li> with class containing 'search-list__item--listing'\n  const listingBlocks = html.split(/(?=<(?:section|li|div)[^>]*listing-search-item[^>]*>)/);\n\n  for (const block of listingBlocks) {\n    // Extract the listing URL\n    const urlMatch = block.match(/href=\"(\\/huurwoning[^\"]+)\"/i)\n                  || block.match(/href=\"(\\/appartement[^\"]+)\"/i)\n                  || block.match(/href=\"(\\/huurwoningen-detail[^\"]+)\"/i);\n    \n    // Extract the title/address\n    const titleMatch = block.match(/listing-search-item__title[^>]*>\\s*([^<]+)/)\n                     || block.match(/class=\"[^\"]*title[^\"]*\"[^>]*>\\s*([^<]+)/);\n    \n    // Extract the price\n    const priceMatch = block.match(/listing-search-item__price[^>]*>\\s*([^<]+)/)\n                     || block.match(/price[^>]*>\\s*(?:€|&euro;)\\s*([\\d.,]+)/);\n\n    // Extract features (rooms, area)\n    const roomsMatch = block.match(/(\\d+)\\s*(?:kamer|slaapkamer|bedroom)/i);\n    const areaMatch = block.match(/(\\d+)\\s*m[²2]/);\n\n    if (urlMatch && titleMatch) {\n      const priceText = priceMatch ? priceMatch[1].trim() : 'Prijs onbekend';\n      // Parse numeric price: handle \"€ 1.250\" or \"1250\" or \"€1,250\"\n      const priceClean = priceText.replace(/[^\\d.,]/g, '').replace(/\\./g, '').replace(',', '.');\n      const priceNum = parseInt(priceClean) || 0;\n\n      // Only include listings in our price range\n      if (priceNum === 0 || (priceNum >= 900 && priceNum <= 1600)) {\n        results.push({\n          json: {\n            bron: 'Pararius',\n            titel: titleMatch[1].trim(),\n            prijs: priceText.includes('€') ? priceText : '€ ' + priceText,\n            prijsNumeriek: priceNum,\n            kamers: roomsMatch ? parseInt(roomsMatch[1]) : null,\n            oppervlakte: areaMatch ? areaMatch[1] + ' m²' : null,\n            url: 'https://www.pararius.nl' + urlMatch[1],\n            scraped: new Date().toISOString()\n          }\n        });\n      }\n    }\n  }\n}\n\nif (results.length === 0) {\n  return [{ json: { bron: 'Pararius', fout: 'Geen woningen gevonden of geblokkeerd door anti-scraping', scraped: new Date().toISOString() } }];\n}\n\n// Deduplicate by URL\nconst seen = new Set();\nconst unique = results.filter(r => {\n  if (seen.has(r.json.url)) return false;\n  seen.add(r.json.url);\n  return true;\n});\n\nreturn unique;"
-      },
-      "id": "a1b2c3d4-0001-4000-8000-000000000013",
-      "name": "Parse Pararius",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [600, 175]
-    },
-    {
-      "parameters": {
-        "method": "GET",
-        "url": "https://www.huurwoningen.nl/in/enschede/",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "User-Agent",
-              "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-            },
-            {
-              "name": "Accept",
-              "value": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
-            },
-            {
-              "name": "Accept-Language",
-              "value": "nl-NL,nl;q=0.9,en-US;q=0.8,en;q=0.7"
-            },
-            {
-              "name": "Referer",
-              "value": "https://www.huurwoningen.nl/"
-            },
-            {
-              "name": "Sec-Fetch-Dest",
-              "value": "document"
-            },
-            {
-              "name": "Sec-Fetch-Mode",
-              "value": "navigate"
-            },
-            {
-              "name": "Sec-Fetch-Site",
-              "value": "same-origin"
-            }
-          ]
-        },
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "text"
-            }
-          },
-          "timeout": 30000
-        }
-      },
-      "id": "a1b2c3d4-0001-4000-8000-000000000020",
+      "id": "d100-0030",
       "name": "Fetch Huurwoningen",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [100, 450],
+      "position": [540, 720],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "// Parse Huurwoningen.nl HTML listings\n// Huurwoningen.nl may block automated requests (403)\n// If the page loads, listings are in server-rendered HTML\nconst html = $input.first().json.data || '';\nconst results = [];\n\nif (!html || html.length < 500 || html.includes('403') || html.includes('Access Denied')) {\n  return [{ json: { bron: 'Huurwoningen.nl', fout: 'Geblokkeerd door website (403). Probeer met proxy of browser-extensie.', scraped: new Date().toISOString() } }];\n}\n\n// Huurwoningen.nl listing blocks\n// They use classes like 'listing' or 'object-list__item' for listing cards\nconst listingBlocks = html.split(/(?=<(?:div|article|li)[^>]*(?:listing|object-list__item|search-result)[^>]*>)/i);\n\nfor (const block of listingBlocks) {\n  // Try multiple selector patterns for URL\n  const urlMatch = block.match(/href=\"((?:https?:\\/\\/www\\.huurwoningen\\.nl)?\\/[^\"]*enschede[^\"]*)\"/i)\n                || block.match(/href=\"(\\/woning[^\"]+)\"/i)\n                || block.match(/href=\"(\\/appartement[^\"]+)\"/i);\n\n  // Title / address\n  const titleMatch = block.match(/class=\"[^\"]*(?:title|address|street)[^\"]*\"[^>]*>\\s*([^<]+)/i)\n                   || block.match(/<h[23][^>]*>\\s*([^<]*enschede[^<]*)/i)\n                   || block.match(/<h[23][^>]*>\\s*([^<]+)/i);\n\n  // Price\n  const priceMatch = block.match(/(?:€|&euro;)\\s*([\\d.,]+)/)\n                   || block.match(/class=\"[^\"]*price[^\"]*\"[^>]*>\\s*([^<]+)/i);\n\n  const roomsMatch = block.match(/(\\d+)\\s*(?:kamer|slaapkamer)/i);\n  const areaMatch = block.match(/(\\d+)\\s*m[²2]/);\n\n  if (urlMatch && titleMatch) {\n    const priceText = priceMatch ? priceMatch[1].trim() : 'Prijs onbekend';\n    const priceClean = priceText.replace(/[^\\d.,]/g, '').replace(/\\./g, '').replace(',', '.');\n    const priceNum = parseInt(priceClean) || 0;\n    const rooms = roomsMatch ? parseInt(roomsMatch[1]) : null;\n\n    // Filter: price range and minimum rooms\n    if ((priceNum === 0 || (priceNum >= 900 && priceNum <= 1600)) && (rooms === null || rooms >= 3)) {\n      const url = urlMatch[1].startsWith('http') ? urlMatch[1] : 'https://www.huurwoningen.nl' + urlMatch[1];\n      results.push({\n        json: {\n          bron: 'Huurwoningen.nl',\n          titel: titleMatch[1].trim(),\n          prijs: '€ ' + priceText,\n          prijsNumeriek: priceNum,\n          kamers: rooms,\n          oppervlakte: areaMatch ? areaMatch[1] + ' m²' : null,\n          url: url,\n          scraped: new Date().toISOString()\n        }\n      });\n    }\n  }\n}\n\nif (results.length === 0) {\n  return [{ json: { bron: 'Huurwoningen.nl', fout: 'Geen woningen gevonden - site structuur mogelijk gewijzigd', scraped: new Date().toISOString() } }];\n}\n\n// Deduplicate by URL\nconst seen = new Set();\nreturn results.filter(r => {\n  if (seen.has(r.json.url)) return false;\n  seen.add(r.json.url);\n  return true;\n});"
+        "jsCode": "// Prepare Gemini extraction requests for FlareSolverr HTML responses\n// FlareSolverr returns: { solution: { url, status, response (HTML) } }\nconst configs = $('Config').all();\nconst geminiApiKey = configs[0]?.json?.geminiApiKey || '';\nconst results = [];\n\nconst sources = [\n  { node: 'Fetch Pararius', naam: 'Pararius', url: 'https://www.pararius.nl/huurwoningen/enschede/1000-1500/3-slaapkamers' },\n  { node: 'Fetch Huurwoningen', naam: 'Huurwoningen.nl', url: 'https://www.huurwoningen.nl/in/enschede/?price=1000-1500&bedrooms=3' }\n];\n\nfor (const src of sources) {\n  try {\n    const resp = $(src.node).first().json;\n    const html = resp?.solution?.response || resp?.data || '';\n\n    if (!html || html.length < 500) {\n      results.push({ json: { naam: src.naam, sourceUrl: src.url, isError: true, fout: 'Geen HTML ontvangen van FlareSolverr' } });\n      continue;\n    }\n\n    if (!geminiApiKey || geminiApiKey.length < 10) {\n      results.push({ json: { naam: src.naam, sourceUrl: src.url, isError: true, fout: 'Geen Gemini API key' } });\n      continue;\n    }\n\n    // Clean HTML\n    const cleaned = html\n      .replace(/<script[\\s\\S]*?<\\/script>/gi, '')\n      .replace(/<style[\\s\\S]*?<\\/style>/gi, '')\n      .replace(/<noscript[\\s\\S]*?<\\/noscript>/gi, '')\n      .replace(/<svg[\\s\\S]*?<\\/svg>/gi, '')\n      .replace(/<!--[\\s\\S]*?-->/g, '')\n      .substring(0, 60000);\n\n    const domain = src.url.match(/https?:\\/\\/[^/]+/)?.[0] || '';\n    const prompt = `Extract ALL rental property listings from this HTML from ${src.naam}.\\nReturn ONLY a JSON array: [{\"titel\": \"address\", \"prijs\": rent_number, \"kamers\": bedrooms_or_null, \"oppervlakte\": area_m2_or_null, \"url\": \"absolute_url\", \"afbeelding\": \"img_url_or_null\"}]\\nBase domain: ${domain}\\nSkip navigation, cookies, ads. Only real property listings. Return [] if none found.\\n\\nHTML:\\n${cleaned}`;\n\n    results.push({ json: {\n      naam: src.naam, sourceUrl: src.url, isError: false,\n      geminiUrl: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,\n      requestBody: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 4000, temperature: 0.1 } })\n    }});\n  } catch (e) {\n    results.push({ json: { naam: src.naam, sourceUrl: src.url, isError: true, fout: 'Error: ' + e.message } });\n  }\n}\n\nreturn results;"
       },
-      "id": "a1b2c3d4-0001-4000-8000-000000000021",
-      "name": "Parse Huurwoningen",
+      "id": "d100-0040",
+      "name": "Prepare Gemini Extract",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [400, 450]
+      "position": [840, 590]
     },
     {
       "parameters": {
-        "method": "GET",
-        "url": "https://www.funda.nl/zoeken/huur?selected_area=%5B%22enschede%22%5D&price=%221000-1500%22&bedrooms=%223-%22",
+        "method": "POST",
+        "url": "={{ $json.isError ? 'https://httpbin.org/status/200' : $json.geminiUrl }}",
         "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "User-Agent",
-              "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-            },
-            {
-              "name": "Accept",
-              "value": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
-            },
-            {
-              "name": "Accept-Language",
-              "value": "nl-NL,nl;q=0.9,en-US;q=0.8,en;q=0.7"
-            },
-            {
-              "name": "Referer",
-              "value": "https://www.funda.nl/"
-            },
-            {
-              "name": "Sec-Fetch-Dest",
-              "value": "document"
-            },
-            {
-              "name": "Sec-Fetch-Mode",
-              "value": "navigate"
-            },
-            {
-              "name": "Sec-Fetch-Site",
-              "value": "same-origin"
-            },
-            {
-              "name": "Sec-Ch-Ua",
-              "value": "\"Chromium\";v=\"124\", \"Google Chrome\";v=\"124\""
-            },
-            {
-              "name": "Sec-Ch-Ua-Platform",
-              "value": "\"macOS\""
-            }
-          ]
-        },
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "text"
-            }
-          },
-          "timeout": 30000
-        }
+        "headerParameters": { "parameters": [{ "name": "Content-Type", "value": "application/json" }] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.isError ? '{}' : $json.requestBody }}",
+        "options": { "response": { "response": { "responseFormat": "text" } }, "timeout": 60000 }
       },
-      "id": "a1b2c3d4-0001-4000-8000-000000000030",
-      "name": "Fetch Funda",
+      "id": "d100-0050",
+      "name": "Gemini Extract",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [100, 650],
+      "position": [1100, 590],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "// Parse Funda.nl response\n// Funda is a React SPA with heavy anti-scraping (reCAPTCHA)\n// This parser tries to extract any embedded JSON state or server-rendered content\nconst html = $input.first().json.data || '';\nconst results = [];\n\n// Check if we got blocked by captcha\nif (html.includes('recaptcha') || html.includes('captcha') || html.length < 1000) {\n  return [{ json: { bron: 'Funda', fout: 'Geblokkeerd door reCAPTCHA. Overweeg: (1) Funda RSS feed, (2) handmatig zoeken op funda.nl/zoeken/huur', url: 'https://www.funda.nl/zoeken/huur?selected_area=%5B%22enschede%22%5D&price=%221000-1500%22&bedrooms=%223-%22', scraped: new Date().toISOString() } }];\n}\n\n// Try to find embedded JSON data (React hydration state)\nconst jsonMatch = html.match(/<script[^>]*id=\"__NEXT_DATA__\"[^>]*>([\\s\\S]*?)<\\/script>/)\n               || html.match(/<script[^>]*type=\"application\\/json\"[^>]*>([\\s\\S]*?)<\\/script>/);\n\nif (jsonMatch) {\n  try {\n    const data = JSON.parse(jsonMatch[1]);\n    // Navigate the JSON structure to find listings\n    // Funda's structure varies but search results are usually nested\n    const findListings = (obj, depth = 0) => {\n      if (depth > 10 || !obj) return [];\n      if (Array.isArray(obj)) {\n        const listings = [];\n        for (const item of obj) {\n          if (item && typeof item === 'object' && (item.address || item.street || item.priceText || item.url)) {\n            listings.push(item);\n          } else {\n            listings.push(...findListings(item, depth + 1));\n          }\n        }\n        return listings;\n      }\n      if (typeof obj === 'object') {\n        for (const key of Object.keys(obj)) {\n          if (['searchResults', 'listings', 'objects', 'results', 'items'].includes(key)) {\n            const found = findListings(obj[key], depth + 1);\n            if (found.length > 0) return found;\n          }\n        }\n        for (const key of Object.keys(obj)) {\n          const found = findListings(obj[key], depth + 1);\n          if (found.length > 0) return found;\n        }\n      }\n      return [];\n    };\n\n    const listings = findListings(data);\n    for (const listing of listings) {\n      const title = listing.address || listing.street || listing.title || listing.name || 'Onbekend';\n      const price = listing.priceText || listing.price || listing.rentPrice || '';\n      const priceClean = String(price).replace(/[^\\d]/g, '');\n      const priceNum = parseInt(priceClean) || 0;\n      const url = listing.url || listing.link || listing.detailUrl || '';\n      const fullUrl = url.startsWith('http') ? url : 'https://www.funda.nl' + url;\n\n      if (priceNum === 0 || (priceNum >= 900 && priceNum <= 1600)) {\n        results.push({\n          json: {\n            bron: 'Funda',\n            titel: title,\n            prijs: priceNum > 0 ? '€ ' + priceNum : price,\n            prijsNumeriek: priceNum,\n            kamers: listing.bedrooms || listing.rooms || listing.numberOfBedrooms || null,\n            oppervlakte: listing.area || listing.livingArea ? (listing.area || listing.livingArea) + ' m²' : null,\n            url: fullUrl,\n            scraped: new Date().toISOString()\n          }\n        });\n      }\n    }\n  } catch (e) {\n    // JSON parse failed\n  }\n}\n\n// Fallback: try regex on raw HTML for any visible listing data\nif (results.length === 0) {\n  // Try to find listing links and data in rendered HTML\n  const linkPattern = /href=\"(\\/huur\\/enschede[^\"]+)\"/g;\n  let match;\n  while ((match = linkPattern.exec(html)) !== null) {\n    const url = 'https://www.funda.nl' + match[1];\n    // Try to extract nearby text\n    const context = html.substring(Math.max(0, match.index - 500), match.index + 500);\n    const priceInContext = context.match(/(?:€|&euro;)\\s*([\\d.,]+)/);\n    const titleInContext = context.match(/<[^>]*>([^<]*(?:straat|weg|laan|plein|dijk|singel|kade|gracht|markt|hof|park)[^<]*)</i);\n\n    results.push({\n      json: {\n        bron: 'Funda',\n        titel: titleInContext ? titleInContext[1].trim() : 'Zie link',\n        prijs: priceInContext ? '€ ' + priceInContext[1] : 'Zie link',\n        prijsNumeriek: priceInContext ? parseInt(priceInContext[1].replace(/[^\\d]/g, '')) : 0,\n        kamers: null,\n        oppervlakte: null,\n        url: url,\n        scraped: new Date().toISOString()\n      }\n    });\n  }\n}\n\nif (results.length === 0) {\n  return [{ json: { bron: 'Funda', fout: 'Geen data - waarschijnlijk geblokkeerd door reCAPTCHA. Gebruik de directe link om handmatig te zoeken.', url: 'https://www.funda.nl/zoeken/huur?selected_area=%5B%22enschede%22%5D&price=%221000-1500%22&bedrooms=%223-%22', scraped: new Date().toISOString() } }];\n}\n\nreturn results;"
+        "jsCode": "// Combine Woninghuren API results + Gemini-extracted Pararius/Huurwoningen results\nconst SKIP = ['parking','parkeerplaats','garage','berging','storage','garagebox','opslagruimte'];\nconst results = [];\n\n// --- Woninghuren.nl (direct API) ---\ntry {\n  const items = $('Woninghuren API').all();\n  for (const item of items) {\n    const d = item.json;\n    const listings = Array.isArray(d) ? d : (d.result || d.data || (d.street ? [d] : []));\n    if (!Array.isArray(listings)) continue;\n    for (const l of listings) {\n      if (!l.street) continue;\n      const type = (l.dwellingType?.localizedName || l.dwellingType?.categorie || '').toLowerCase();\n      if (SKIP.some(s => type.includes(s))) continue;\n      const rooms = l.sleepingRoom?.amountOfRooms || 0;\n      if (rooms < 3) continue;\n      const addr = [l.street, l.houseNumber, l.houseNumberAddition].filter(Boolean).join(' ');\n      const img = l.pictures?.[0]?.uri;\n      results.push({ json: {\n        bron: 'Woninghuren.nl',\n        titel: addr + (l.postalcode ? ', ' + l.postalcode : '') + ' Enschede',\n        prijs: '€ ' + (l.totalRent || 0),\n        prijsNumeriek: l.totalRent || 0,\n        kamers: rooms,\n        oppervlakte: l.areaDwelling ? l.areaDwelling + ' m²' : null,\n        url: 'https://www.woninghuren.nl/aanbod/te-huur/details/' + (l.urlKey || l.id || ''),\n        afbeelding: img ? (img.startsWith('http') ? img : 'https://www.woninghuren.nl' + img) : null,\n        scraped: new Date().toISOString()\n      }});\n    }\n  }\n} catch (e) {\n  results.push({ json: { bron: 'Woninghuren.nl', fout: 'Error: ' + e.message, url: 'https://www.woninghuren.nl/aanbod/te-huur', scraped: new Date().toISOString() } });\n}\n\n// --- Pararius + Huurwoningen (Gemini-extracted) ---\nlet geminiResponses = [];\nlet prepItems = [];\ntry { geminiResponses = $('Gemini Extract').all(); } catch (e) { /* FlareSolverr branch not executed */ }\ntry { prepItems = $('Prepare Gemini Extract').all(); } catch (e) { /* FlareSolverr branch not executed */ }\n\nfor (let i = 0; i < prepItems.length; i++) {\n  const prep = prepItems[i]?.json || {};\n  if (prep.isError) {\n    results.push({ json: { bron: prep.naam, fout: prep.fout, url: prep.sourceUrl, scraped: new Date().toISOString() } });\n    continue;\n  }\n\n  try {\n    const raw = geminiResponses[i]?.json?.data || JSON.stringify(geminiResponses[i]?.json) || '';\n    let text = raw;\n    try {\n      const parsed = JSON.parse(raw);\n      if (parsed.candidates) text = parsed.candidates[0]?.content?.parts?.[0]?.text || '[]';\n    } catch (e) {}\n    const cleaned = text.replace(/^```(?:json)?\\s*/m, '').replace(/```\\s*$/m, '').trim();\n    const m = cleaned.match(/\\[[\\s\\S]*\\]/);\n    const listings = m ? JSON.parse(m[0]) : [];\n\n    if (listings.length === 0) {\n      results.push({ json: { bron: prep.naam, fout: 'Geen woningen gevonden', url: prep.sourceUrl, scraped: new Date().toISOString() } });\n      continue;\n    }\n\n    for (const l of listings) {\n      const title = (l.titel || '').toLowerCase();\n      if (SKIP.some(s => title.includes(s))) continue;\n      if (l.kamers && l.kamers < 3) continue;\n      const priceNum = parseInt(l.prijs) || 0;\n      if (priceNum > 0 && (priceNum < 800 || priceNum > 1600)) continue;\n      results.push({ json: {\n        bron: prep.naam,\n        titel: l.titel || 'Zie link',\n        prijs: priceNum ? '€ ' + priceNum : 'Onbekend',\n        prijsNumeriek: priceNum,\n        kamers: l.kamers || null,\n        oppervlakte: l.oppervlakte ? l.oppervlakte + (String(l.oppervlakte).includes('m') ? '' : ' m²') : null,\n        url: l.url || prep.sourceUrl,\n        afbeelding: l.afbeelding || null,\n        scraped: new Date().toISOString()\n      }});\n    }\n  } catch (e) {\n    results.push({ json: { bron: prep.naam, fout: 'Parse error: ' + e.message, url: prep.sourceUrl, scraped: new Date().toISOString() } });\n  }\n}\n\nreturn results.length > 0 ? results : [{ json: { bron: 'Systeem', fout: 'Geen resultaten', scraped: new Date().toISOString() } }];"
       },
-      "id": "a1b2c3d4-0001-4000-8000-000000000031",
-      "name": "Parse Funda",
+      "id": "d100-0060",
+      "name": "Parse All",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [400, 650]
+      "position": [1360, 400]
     },
     {
       "parameters": {
-        "method": "GET",
-        "url": "https://www.kamernet.nl/en/for-rent/properties-enschede?minRent=1000&maxRent=1500",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "User-Agent",
-              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-            },
-            {
-              "name": "Accept",
-              "value": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
-            },
-            {
-              "name": "Accept-Language",
-              "value": "nl-NL,nl;q=0.9,en-US;q=0.8,en;q=0.7"
-            },
-            {
-              "name": "Referer",
-              "value": "https://www.kamernet.nl/"
-            }
-          ]
-        },
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "text"
-            }
-          },
-          "timeout": 30000
-        }
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nif (!staticData.known) staticData.known = {};\n\nconst items = $input.all();\nconst newListings = [];\nconst errors = [];\nconst seenUrls = new Set();\nconst now = new Date().toISOString();\n\nfor (const item of items) {\n  const d = item.json;\n  if (d.fout) { errors.push(d); continue; }\n  if (!d.url || seenUrls.has(d.url)) continue;\n  seenUrls.add(d.url);\n\n  const existing = staticData.known[d.url];\n  const isNew = !existing;\n  const priceChanged = existing && existing.prijs !== d.prijsNumeriek && d.prijsNumeriek > 0;\n\n  staticData.known[d.url] = {\n    titel: d.titel, prijs: d.prijsNumeriek, bron: d.bron,\n    eersteGezien: existing ? existing.eersteGezien : now,\n    laatstGezien: now\n  };\n\n  if (isNew || priceChanged) {\n    newListings.push({ ...d, isNew, priceChanged });\n  }\n}\n\n// Cleanup > 30 days\nconst cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;\nfor (const [url, data] of Object.entries(staticData.known)) {\n  if (new Date(data.laatstGezien).getTime() < cutoff) delete staticData.known[url];\n}\n\nif (newListings.length > 0) {\n  return [{ json: { geenNieuws: false, listings: newListings, errors } }];\n}\nreturn [{ json: { geenNieuws: true, errors } }];"
       },
-      "id": "a1b2c3d4-0001-4000-8000-000000000040",
-      "name": "Fetch Kamernet",
+      "id": "d100-0070",
+      "name": "Vergelijk & Bewaar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1620, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst geminiApiKey = $('Config').first().json.geminiApiKey || '';\n\nif (data.geenNieuws || !data.listings?.length) {\n  return [{ json: { ...data, geminiUrl: '', requestBody: '{}' } }];\n}\n\nif (!geminiApiKey || geminiApiKey.length < 10) {\n  return [{ json: { ...data, geminiUrl: '', requestBody: '{}' } }];\n}\n\nconst evalList = data.listings.map((l, i) =>\n  `${i+1}. ${l.titel} — ${l.prijs}/maand, ${l.kamers ? l.kamers + ' kamers' : '?'}, ${l.oppervlakte || '?'}, bron: ${l.bron}`\n).join('\\n');\n\nconst prompt = `Beoordeel deze huurwoningen in Enschede 1-10 op aantrekkelijkheid, leefbaarheid en prijs/kwaliteit.\\nReturn ALLEEN een JSON array in dezelfde volgorde: [{\"score\": N, \"uitleg\": \"max 2 zinnen NL\"}, ...]\\n\\n${evalList}`;\n\nreturn [{ json: {\n  ...data,\n  geminiUrl: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,\n  requestBody: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 2000, temperature: 0.3 } })\n}}];"
+      },
+      "id": "d100-0080",
+      "name": "Prepare Eval",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1880, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.geminiUrl || 'https://httpbin.org/status/200' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "Content-Type", "value": "application/json" }] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.requestBody || '{}' }}",
+        "options": { "response": { "response": { "responseFormat": "text" } }, "timeout": 60000 }
+      },
+      "id": "d100-0090",
+      "name": "Gemini Evaluate",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [100, 850],
+      "position": [2140, 400],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "// Parse Kamernet.nl (Next.js)\n// Kamernet embeds listing data in __NEXT_DATA__ JSON\nconst html = $input.first().json.data || '';\nconst results = [];\n\nif (!html || html.length < 500) {\n  return [{ json: { bron: 'Kamernet', fout: 'Geen response ontvangen', scraped: new Date().toISOString() } }];\n}\n\n// Extract __NEXT_DATA__ JSON from Next.js hydration\nconst nextDataMatch = html.match(/<script\\s+id=\"__NEXT_DATA__\"[^>]*>([\\s\\S]*?)<\\/script>/);\n\nif (nextDataMatch) {\n  try {\n    const nextData = JSON.parse(nextDataMatch[1]);\n    \n    // Navigate to find listings in the props\n    const findInProps = (obj, depth = 0) => {\n      if (depth > 12 || !obj) return [];\n      if (Array.isArray(obj)) {\n        // Check if this array contains listing-like objects\n        const hasListings = obj.some(item => \n          item && typeof item === 'object' && \n          (item.rent || item.price || item.monthlyRent || item.address || item.city)\n        );\n        if (hasListings) return obj;\n        // Recurse into array items\n        for (const item of obj) {\n          const found = findInProps(item, depth + 1);\n          if (found.length > 0) return found;\n        }\n        return [];\n      }\n      if (typeof obj === 'object') {\n        for (const [key, val] of Object.entries(obj)) {\n          if (['listings', 'properties', 'results', 'items', 'rooms', 'searchResults'].includes(key)) {\n            const found = findInProps(val, depth + 1);\n            if (found.length > 0) return found;\n          }\n        }\n        for (const [key, val] of Object.entries(obj)) {\n          const found = findInProps(val, depth + 1);\n          if (found.length > 0) return found;\n        }\n      }\n      return [];\n    };\n\n    const listings = findInProps(nextData.props || nextData);\n    \n    for (const listing of listings) {\n      const title = listing.title || listing.address || listing.street || listing.name || 'Onbekend';\n      const rent = listing.rent || listing.price || listing.monthlyRent || listing.totalRent || 0;\n      const rentNum = typeof rent === 'number' ? rent : parseInt(String(rent).replace(/[^\\d]/g, '')) || 0;\n      const city = listing.city || listing.location || '';\n      \n      // Filter for Enschede and price range\n      const isEnschede = !city || String(city).toLowerCase().includes('enschede');\n      const inPriceRange = rentNum === 0 || (rentNum >= 900 && rentNum <= 1600);\n      \n      if (isEnschede && inPriceRange) {\n        const slug = listing.slug || listing.id || '';\n        const url = listing.url || (slug ? 'https://kamernet.nl/en/for-rent/property-enschede/' + slug : 'https://kamernet.nl');\n        \n        results.push({\n          json: {\n            bron: 'Kamernet',\n            titel: title,\n            prijs: '€ ' + rentNum,\n            prijsNumeriek: rentNum,\n            kamers: listing.bedrooms || listing.rooms || listing.numberOfRooms || null,\n            oppervlakte: listing.size || listing.area || listing.surface ? (listing.size || listing.area || listing.surface) + ' m²' : null,\n            url: url,\n            scraped: new Date().toISOString()\n          }\n        });\n      }\n    }\n  } catch (e) {\n    return [{ json: { bron: 'Kamernet', fout: 'JSON parsing mislukt: ' + e.message, scraped: new Date().toISOString() } }];\n  }\n}\n\nif (results.length === 0) {\n  // Fallback: try to find any listing URLs in the HTML\n  const urlPattern = /href=\"(\\/(?:en\\/)?for-rent\\/property-enschede[^\"]*)\"/g;\n  let match;\n  while ((match = urlPattern.exec(html)) !== null) {\n    results.push({\n      json: {\n        bron: 'Kamernet',\n        titel: 'Zie link',\n        prijs: 'Zie link',\n        prijsNumeriek: 0,\n        kamers: null,\n        oppervlakte: null,\n        url: 'https://kamernet.nl' + match[1],\n        scraped: new Date().toISOString()\n      }\n    });\n  }\n}\n\nif (results.length === 0) {\n  return [{ json: { bron: 'Kamernet', fout: 'Geen geschikte woningen gevonden', scraped: new Date().toISOString() } }];\n}\n\nreturn results;"
+        "jsCode": "const prepData = $('Prepare Eval').first().json;\nconst listings = prepData.listings || [];\nconst errors = prepData.errors || [];\nconst emailTo = $('Config').first().json.emailTo;\n\nif (prepData.geenNieuws || listings.length === 0) {\n  return [{ json: { aantalNieuw: 0, geenNieuws: true } }];\n}\n\n// Parse Gemini scores\ntry {\n  const raw = $input.first().json.data || JSON.stringify($input.first().json) || '';\n  let text = raw;\n  try {\n    const parsed = JSON.parse(raw);\n    if (parsed.candidates) text = parsed.candidates[0]?.content?.parts?.[0]?.text || '[]';\n  } catch (e) {}\n  const cleaned = text.replace(/^```(?:json)?\\s*/m, '').replace(/```\\s*$/m, '').trim();\n  const m = cleaned.match(/\\[[\\s\\S]*\\]/);\n  if (m) {\n    const scores = JSON.parse(m[0]);\n    for (let i = 0; i < Math.min(scores.length, listings.length); i++) {\n      listings[i].aiScore = scores[i].score;\n      listings[i].aiUitleg = scores[i].uitleg;\n    }\n  }\n} catch (e) { /* continue without scores */ }\n\nlistings.sort((a, b) => (b.aiScore || 0) - (a.aiScore || 0) || (a.prijsNumeriek || 9999) - (b.prijsNumeriek || 9999));\n\nconst datum = new Date().toLocaleDateString('nl-NL');\nlet h = `<div style=\"font-family:Arial,sans-serif;max-width:900px;margin:0 auto;\">`;\nh += `<h2 style=\"color:#2c3e50;\">🏠 Nieuwe huurwoningen in Enschede!</h2>`;\nh += `<p style=\"color:#555;\">Gevonden via: ${[...new Set(listings.map(l => l.bron))].join(', ')}</p>`;\nh += `<p><strong>${listings.length} nieuwe/gewijzigde woning(en)</strong> op ${datum}</p>`;\n\nconst hasAi = listings.some(l => l.aiScore);\nfor (const l of listings) {\n  const scoreColor = l.aiScore >= 7 ? '#27ae60' : l.aiScore >= 5 ? '#f39c12' : l.aiScore ? '#e74c3c' : '#999';\n  const scoreEmoji = l.aiScore >= 8 ? '🌟' : l.aiScore >= 6 ? '👍' : l.aiScore >= 4 ? '👌' : l.aiScore ? '👎' : '';\n  const badge = l.isNew ? '<span style=\"background:#27ae60;color:white;padding:2px 8px;border-radius:3px;font-size:11px;font-weight:bold;\">NIEUW</span> ' : l.priceChanged ? '<span style=\"background:#e67e22;color:white;padding:2px 8px;border-radius:3px;font-size:11px;font-weight:bold;\">PRIJS GEWIJZIGD</span> ' : '';\n  h += `<div style=\"border:1px solid #ddd;border-radius:8px;margin:12px 0;overflow:hidden;\"><table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr>`;\n  if (l.afbeelding) h += `<td style=\"width:180px;vertical-align:top;\"><img src=\"${l.afbeelding}\" style=\"width:180px;height:130px;object-fit:cover;display:block;\" alt=\"Foto\"></td>`;\n  h += `<td style=\"padding:12px;vertical-align:top;\">`;\n  h += `<div>${badge}<strong style=\"color:#2c3e50;font-size:16px;\">${l.titel}</strong></div>`;\n  h += `<p style=\"margin:4px 0;color:#555;font-size:13px;\">${l.bron} | ${l.kamers ? l.kamers + ' kamers' : '-'} | ${l.oppervlakte || '-'}</p>`;\n  h += `<p style=\"margin:4px 0;font-size:20px;font-weight:bold;color:#2c3e50;\">${l.prijs} <span style=\"font-size:12px;font-weight:normal;color:#999;\">/maand</span></p>`;\n  if (hasAi && l.aiScore) {\n    h += `<div style=\"margin:4px 0;padding:4px 8px;background:#f8f9fa;border-radius:4px;font-size:13px;display:inline-block;\"><span style=\"color:${scoreColor};font-weight:bold;\">${scoreEmoji} ${l.aiScore}/10</span>`;\n    if (l.aiUitleg) h += ` — <em>${l.aiUitleg}</em>`;\n    h += `</div>`;\n  }\n  h += `<div style=\"margin-top:8px;\"><a href=\"${l.url}\" style=\"display:inline-block;padding:6px 16px;background:#3498db;color:white;text-decoration:none;border-radius:4px;font-size:13px;\">Bekijk woning →</a></div>`;\n  h += `</td></tr></table></div>`;\n}\n\nif (errors.length > 0) {\n  h += `<h3 style=\"color:#e67e22;\">⚠️ Waarschuwingen</h3><ul style=\"color:#555;font-size:13px;\">`;\n  for (const e of errors) {\n    h += `<li><strong>${e.bron}:</strong> ${e.fout}`;\n    if (e.url) h += ` — <a href=\"${e.url}\">Handmatig zoeken</a>`;\n    h += `</li>`;\n  }\n  h += `</ul>`;\n}\n\nh += `<h3 style=\"color:#2c3e50;\">🔗 Directe zoeklinks</h3><ul style=\"font-size:13px;\">`;\nh += `<li><a href=\"https://www.woninghuren.nl/aanbod/te-huur#?locatie=Enschede&huurprijs=1000&huurprijs=1500&aantal-slaapkamers=3\">Woninghuren.nl</a></li>`;\nh += `<li><a href=\"https://www.pararius.nl/huurwoningen/enschede/1000-1500/3-slaapkamers\">Pararius.nl</a></li>`;\nh += `<li><a href=\"https://www.huurwoningen.nl/in/enschede/?price=1000-1500&bedrooms=3\">Huurwoningen.nl</a></li>`;\nh += `<li><a href=\"https://www.funda.nl/zoeken/huur?selected_area=[%22enschede%22]&price=%221000-1500%22&bedrooms=%223-%22\">Funda.nl (handmatig)</a></li>`;\nh += `</ul>`;\nh += `<p style=\"color:#999;font-size:11px;\">Gegenereerd op ${new Date().toLocaleString('nl-NL')} door n8n Huurwoning Scraper v2</p></div>`;\n\nreturn [{ json: { aantalNieuw: listings.length, emailOnderwerp: `🏠 ${listings.length} nieuwe huurwoning(en) in Enschede — ${datum}`, emailHtml: h, emailTo } }];"
       },
-      "id": "a1b2c3d4-0001-4000-8000-000000000041",
-      "name": "Parse Kamernet",
+      "id": "d100-0100",
+      "name": "Bouw Email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [400, 850]
-    },
-    {
-      "parameters": {
-        "mode": "append"
-      },
-      "id": "a1b2c3d4-0001-4000-8000-000000000050",
-      "name": "Merge Pararius + Huurwoningen",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [850, 300]
-    },
-    {
-      "parameters": {
-        "mode": "append"
-      },
-      "id": "a1b2c3d4-0001-4000-8000-000000000051",
-      "name": "Merge + Funda",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [1100, 450]
-    },
-    {
-      "parameters": {
-        "mode": "append"
-      },
-      "id": "a1b2c3d4-0001-4000-8000-000000000052",
-      "name": "Merge + Kamernet",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [1350, 550]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Deduplicate results and build final overview\nconst items = $input.all();\nconst listings = [];\nconst errors = [];\nconst seenUrls = new Set();\nconst seenTitles = new Set();\n\nfor (const item of items) {\n  const d = item.json;\n  \n  // Collect errors/warnings separately\n  if (d.fout) {\n    errors.push(d);\n    continue;\n  }\n  \n  // Skip if no URL or already seen\n  if (!d.url || seenUrls.has(d.url)) continue;\n  \n  // Also dedupe by title (address) to catch cross-site duplicates\n  const titleKey = d.titel ? d.titel.toLowerCase().replace(/[^a-z0-9]/g, '') : '';\n  if (titleKey && titleKey !== 'zielink' && seenTitles.has(titleKey)) {\n    continue;\n  }\n  \n  seenUrls.add(d.url);\n  if (titleKey) seenTitles.add(titleKey);\n  listings.push(d);\n}\n\n// Sort by price (lowest first)\nlistings.sort((a, b) => (a.prijsNumeriek || 9999) - (b.prijsNumeriek || 9999));\n\n// Build HTML email body\nlet emailHtml = '<h2>🏠 Huurwoningen Enschede — Dagelijks Overzicht</h2>';\nemailHtml += `<p>Zoekcriteria: <strong>Enschede</strong> | <strong>3+ slaapkamers</strong> | <strong>€1.000 - €1.500/maand</strong></p>`;\nemailHtml += `<p>Gevonden: <strong>${listings.length} woning(en)</strong> op ${new Date().toLocaleDateString('nl-NL')}</p>`;\n\nif (listings.length > 0) {\n  emailHtml += '<table style=\"border-collapse:collapse;width:100%;font-family:Arial,sans-serif;\">';\n  emailHtml += '<tr style=\"background:#2c3e50;color:white;\">';\n  emailHtml += '<th style=\"padding:10px;text-align:left;\">Adres</th>';\n  emailHtml += '<th style=\"padding:10px;text-align:left;\">Prijs</th>';\n  emailHtml += '<th style=\"padding:10px;text-align:left;\">Kamers</th>';\n  emailHtml += '<th style=\"padding:10px;text-align:left;\">Oppervlakte</th>';\n  emailHtml += '<th style=\"padding:10px;text-align:left;\">Bron</th>';\n  emailHtml += '<th style=\"padding:10px;text-align:left;\">Link</th>';\n  emailHtml += '</tr>';\n  \n  listings.forEach((l, i) => {\n    const bg = i % 2 === 0 ? '#f8f9fa' : '#ffffff';\n    emailHtml += `<tr style=\"background:${bg};\">`;\n    emailHtml += `<td style=\"padding:8px;border-bottom:1px solid #ddd;\">${l.titel}</td>`;\n    emailHtml += `<td style=\"padding:8px;border-bottom:1px solid #ddd;font-weight:bold;\">${l.prijs}</td>`;\n    emailHtml += `<td style=\"padding:8px;border-bottom:1px solid #ddd;\">${l.kamers || '-'}</td>`;\n    emailHtml += `<td style=\"padding:8px;border-bottom:1px solid #ddd;\">${l.oppervlakte || '-'}</td>`;\n    emailHtml += `<td style=\"padding:8px;border-bottom:1px solid #ddd;\">${l.bron}</td>`;\n    emailHtml += `<td style=\"padding:8px;border-bottom:1px solid #ddd;\"><a href=\"${l.url}\" style=\"color:#3498db;\">Bekijk →</a></td>`;\n    emailHtml += '</tr>';\n  });\n  emailHtml += '</table>';\n} else {\n  emailHtml += '<p style=\"color:#e74c3c;\">Geen woningen gevonden die aan de criteria voldoen.</p>';\n}\n\n// Add errors/warnings\nif (errors.length > 0) {\n  emailHtml += '<br><h3>⚠️ Waarschuwingen</h3><ul>';\n  for (const err of errors) {\n    emailHtml += `<li><strong>${err.bron}:</strong> ${err.fout}`;\n    if (err.url) emailHtml += ` — <a href=\"${err.url}\">Handmatig zoeken</a>`;\n    emailHtml += '</li>';\n  }\n  emailHtml += '</ul>';\n}\n\n// Add direct search links for manual fallback\nemailHtml += '<br><h3>🔗 Directe zoeklinks</h3><ul>';\nemailHtml += '<li><a href=\"https://www.pararius.nl/huurwoningen/enschede/1000-1500/3-slaapkamers\">Pararius.nl — Enschede huurwoningen</a></li>';\nemailHtml += '<li><a href=\"https://www.funda.nl/zoeken/huur?selected_area=%5B%22enschede%22%5D&price=%221000-1500%22&bedrooms=%223-%22\">Funda.nl — Enschede huur</a></li>';\nemailHtml += '<li><a href=\"https://www.huurwoningen.nl/in/enschede/\">Huurwoningen.nl — Enschede</a></li>';\nemailHtml += '<li><a href=\"https://kamernet.nl/en/for-rent/properties-enschede?minRent=1000&maxRent=1500\">Kamernet.nl — Enschede</a></li>';\nemailHtml += '<li><a href=\"https://www.jaap.nl/huur/overijssel/enschede\">Jaap.nl — Enschede huur</a></li>';\nemailHtml += '</ul>';\n\nemailHtml += `<p style=\"color:#999;font-size:12px;\">Gegenereerd op ${new Date().toLocaleString('nl-NL')} door n8n Huurwoning Scraper</p>`;\n\n// Return both structured data and HTML for email\nconst output = [{\n  json: {\n    aantalWoningen: listings.length,\n    aantalFouten: errors.length,\n    emailOnderwerp: `🏠 ${listings.length} huurwoning(en) gevonden in Enschede — ${new Date().toLocaleDateString('nl-NL')}`,\n    emailHtml: emailHtml,\n    woningen: listings,\n    fouten: errors\n  }\n}];\n\nreturn output;"
-      },
-      "id": "a1b2c3d4-0001-4000-8000-000000000060",
-      "name": "Verwerk Resultaten",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1600, 550]
+      "position": [2400, 400]
     },
     {
       "parameters": {
         "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
           "conditions": [
             {
-              "id": "condition-listings",
-              "leftValue": "={{ $json.aantalWoningen }}",
+              "id": "has-news",
+              "leftValue": "={{ $json.aantalNieuw }}",
               "rightValue": 0,
-              "operator": {
-                "type": "number",
-                "operation": "gt"
-              }
+              "operator": { "type": "number", "operation": "gt" }
             }
           ],
           "combinator": "and"
         }
       },
-      "id": "a1b2c3d4-0001-4000-8000-000000000070",
-      "name": "Woningen Gevonden?",
+      "id": "d100-0110",
+      "name": "Heeft Nieuws?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1850, 550]
+      "position": [2660, 400]
     },
     {
       "parameters": {
-        "fromEmail": "n8n@example.com",
-        "toEmail": "jouw-email@example.com",
+        "fromEmail": "n8n@jorisjonkers.dev",
+        "toEmail": "={{ $json.emailTo }}",
         "subject": "={{ $json.emailOnderwerp }}",
         "emailType": "html",
         "html": "={{ $json.emailHtml }}",
         "options": {}
       },
-      "id": "a1b2c3d4-0001-4000-8000-000000000080",
+      "id": "d100-0120",
       "name": "Stuur Email",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [2100, 450],
-      "credentials": {
-        "smtp": {
-          "id": "CONFIGURE_YOUR_SMTP_CREDENTIALS",
-          "name": "SMTP Account"
-        }
-      }
+      "position": [2920, 400],
+      "credentials": { "smtp": { "id": "CONFIGURE_YOUR_SMTP_CREDENTIALS", "name": "SMTP Account" } }
     },
     {
       "parameters": {
-        "content": "## 🏠 Enschede Huurwoning Scraper\n\n**Zoekcriteria:**\n- Stad: Enschede\n- Slaapkamers: 3+\n- Prijs: €1.000 - €1.500/maand\n\n**Bronnen:**\n1. **Pararius.nl** — Grootste huurwoningensite NL (SSR, best scrapable)\n2. **Huurwoningen.nl** — Populaire huursite (kan 403 geven)\n3. **Funda.nl** — Grootste vastgoedsite NL (zware anti-scraping, reCAPTCHA)\n4. **Kamernet.nl** — Kamers & appartementen (Next.js)\n\n**Setup:**\n1. Configureer SMTP credentials voor de 'Stuur Email' node\n2. Pas het e-mailadres aan in 'Stuur Email'\n3. Activeer de workflow\n\n**Tips:**\n- Funda blokkeert bijna altijd → gebruik de directe link in de email\n- Bij 403 errors: overweeg een proxy of residential IP\n- Voeg extra sites toe door een HTTP+Parse branch te kopiëren\n- CSS selectors kunnen veranderen → check na site-updates",
-        "height": 520,
-        "width": 420
+        "content": "## 🏠 Huurwoning Scraper v2\n\n**Bronnen:**\n- Woninghuren.nl → Direct API (gratis, betrouwbaar)\n- Pararius → FlareSolverr + Gemini (gratis, self-hosted)\n- Huurwoningen.nl → FlareSolverr + Gemini (gratis)\n- Funda → Handmatige link (te zwaar beveiligd)\n\n**100% gratis stack:**\n- FlareSolverr: self-hosted (Nomad job)\n- Gemini: gratis API tier\n- Woninghuren: publieke API\n\n**Filters:** 3+ slaapkamers, €1000-1500, Enschede\nParkeerplaatsen/garages/bergingen uitgesloten\n\n**Schema:** Dagelijks om 08:00\nAlleen email bij NIEUWE woningen",
+        "height": 420,
+        "width": 380
       },
-      "id": "a1b2c3d4-0001-4000-8000-000000000090",
+      "id": "d100-0200",
       "name": "Instructies",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-600, 50]
-    },
-    {
-      "parameters": {
-        "content": "## Geen resultaten\n\nAls er geen woningen zijn gevonden of alle bronnen geblokkeerd zijn, wordt er geen email verstuurd.\n\nControleer de 'Verwerk Resultaten' node output voor details.",
-        "height": 200,
-        "width": 300
-      },
-      "id": "a1b2c3d4-0001-4000-8000-000000000091",
-      "name": "Geen resultaten info",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [2050, 650]
+      "position": [-380, 200]
     }
   ],
   "connections": {
-    "Elke 12 uur": {
+    "Dagelijks 08:00": { "main": [[{ "node": "Config", "type": "main", "index": 0 }]] },
+    "Handmatig Testen": { "main": [[{ "node": "Config", "type": "main", "index": 0 }]] },
+    "Config": {
       "main": [
         [
-          {
-            "node": "Fetch Pararius",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Fetch Pararius Pagina 2",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Fetch Huurwoningen",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Fetch Funda",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Fetch Kamernet",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Woninghuren API", "type": "main", "index": 0 },
+          { "node": "Fetch Pararius", "type": "main", "index": 0 },
+          { "node": "Fetch Huurwoningen", "type": "main", "index": 0 }
         ]
       ]
     },
-    "Fetch Pararius": {
-      "main": [
-        [
-          {
-            "node": "Merge Pararius Paginas",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch Pararius Pagina 2": {
-      "main": [
-        [
-          {
-            "node": "Merge Pararius Paginas",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Merge Pararius Paginas": {
-      "main": [
-        [
-          {
-            "node": "Parse Pararius",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch Huurwoningen": {
-      "main": [
-        [
-          {
-            "node": "Parse Huurwoningen",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch Funda": {
-      "main": [
-        [
-          {
-            "node": "Parse Funda",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch Kamernet": {
-      "main": [
-        [
-          {
-            "node": "Parse Kamernet",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Pararius": {
-      "main": [
-        [
-          {
-            "node": "Merge Pararius + Huurwoningen",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Huurwoningen": {
-      "main": [
-        [
-          {
-            "node": "Merge Pararius + Huurwoningen",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Merge Pararius + Huurwoningen": {
-      "main": [
-        [
-          {
-            "node": "Merge + Funda",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Funda": {
-      "main": [
-        [
-          {
-            "node": "Merge + Funda",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Merge + Funda": {
-      "main": [
-        [
-          {
-            "node": "Merge + Kamernet",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Kamernet": {
-      "main": [
-        [
-          {
-            "node": "Merge + Kamernet",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Merge + Kamernet": {
-      "main": [
-        [
-          {
-            "node": "Verwerk Resultaten",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Verwerk Resultaten": {
-      "main": [
-        [
-          {
-            "node": "Woningen Gevonden?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Woningen Gevonden?": {
-      "main": [
-        [
-          {
-            "node": "Stuur Email",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
+    "Fetch Pararius": { "main": [[{ "node": "Prepare Gemini Extract", "type": "main", "index": 0 }]] },
+    "Fetch Huurwoningen": { "main": [[{ "node": "Prepare Gemini Extract", "type": "main", "index": 0 }]] },
+    "Prepare Gemini Extract": { "main": [[{ "node": "Gemini Extract", "type": "main", "index": 0 }]] },
+    "Gemini Extract": { "main": [[{ "node": "Parse All", "type": "main", "index": 0 }]] },
+    "Woninghuren API": { "main": [[{ "node": "Parse All", "type": "main", "index": 0 }]] },
+    "Parse All": { "main": [[{ "node": "Vergelijk & Bewaar", "type": "main", "index": 0 }]] },
+    "Vergelijk & Bewaar": { "main": [[{ "node": "Prepare Eval", "type": "main", "index": 0 }]] },
+    "Prepare Eval": { "main": [[{ "node": "Gemini Evaluate", "type": "main", "index": 0 }]] },
+    "Gemini Evaluate": { "main": [[{ "node": "Bouw Email", "type": "main", "index": 0 }]] },
+    "Bouw Email": { "main": [[{ "node": "Heeft Nieuws?", "type": "main", "index": 0 }]] },
+    "Heeft Nieuws?": { "main": [[{ "node": "Stuur Email", "type": "main", "index": 0 }]] }
   },
   "pinData": {},
-  "settings": {
-    "executionOrder": "v1"
-  },
+  "settings": { "executionOrder": "v1" },
   "staticData": null,
   "tags": [],
   "triggerCount": 1
