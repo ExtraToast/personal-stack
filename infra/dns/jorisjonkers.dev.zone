@@ -42,8 +42,8 @@ jorisjonkers.dev.    1    IN    MX    10 mail.jorisjonkers.dev.
 jorisjonkers.dev.    1    IN    TXT    "v=spf1 mx -all"
 mail.jorisjonkers.dev.    1    IN    TXT    "v=spf1 a -all"
 
-;; DMARC — start with p=none to collect reports, upgrade to p=reject later
-_dmarc.jorisjonkers.dev.    1    IN    TXT    "v=DMARC1; p=none; rua=mailto:postmaster@jorisjonkers.dev; fo=1"
+;; DMARC — quarantine policy; upgrade to p=reject after one clean week
+_dmarc.jorisjonkers.dev.    1    IN    TXT    "v=DMARC1; p=quarantine; rua=mailto:postmaster@jorisjonkers.dev; fo=1"
 
 ;; DKIM — ed25519 + RSA dual signing
 202604e._domainkey.jorisjonkers.dev.    1    IN    TXT    "v=DKIM1; k=ed25519; h=sha256; p=4Ki5wXjYI1M33WGOHV6DKY2MMlX953wP4MH6hn+ek8w="
