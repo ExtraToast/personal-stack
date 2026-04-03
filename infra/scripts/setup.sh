@@ -657,8 +657,10 @@ configure_database_engine() {
       GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"{{name}}\";
       GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO \"{{name}}\";
       ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO \"{{name}}\";
-      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO \"{{name}}\";" \
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO \"{{name}}\";
+      ALTER SCHEMA public OWNER TO \"{{name}}\";" \
     revocation_statements="
+      ALTER SCHEMA public OWNER TO ${n8n_db_user};
       REASSIGN OWNED BY \"{{name}}\" TO ${n8n_db_user};
       DROP OWNED BY \"{{name}}\";
       DROP ROLE IF EXISTS \"{{name}}\";" \
