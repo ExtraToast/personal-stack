@@ -196,6 +196,11 @@ cp "${ROOT_DIR}/infra/traefik/dynamic-dev/certs/jorisjonkers.test.key" "${CERT_D
 cp "${CERT_DIR}/wildcard.crt" /usr/local/share/ca-certificates/jorisjonkers-test.crt
 update-ca-certificates
 
+echo "==> Restarting Vault to pick up new CA certificates"
+systemctl restart vault
+sleep 2
+ensure_vault_unsealed
+
 deploy_data_phase
 
 echo "==> Preparing Vault (second pass: database + rabbitmq engines)"

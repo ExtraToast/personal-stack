@@ -47,7 +47,7 @@ storage.data = "rocksdb"
 storage.fts = "rocksdb"
 storage.blob = "rocksdb"
 storage.lookup = "rocksdb"
-storage.directory = "auth-api"
+storage.directory = "internal"
 
 store.rocksdb.type = "rocksdb"
 store.rocksdb.path = "/opt/stalwart/data"
