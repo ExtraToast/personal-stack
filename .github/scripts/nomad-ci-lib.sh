@@ -15,11 +15,6 @@ CI_NOMAD_JOBS=(
   n8n
   grafana
   stalwart
-  loki
-  tempo
-  prometheus
-  promtail
-  uptime-kuma
 )
 
 wait_for_http_endpoint() {
