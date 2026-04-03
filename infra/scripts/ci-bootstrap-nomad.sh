@@ -30,6 +30,28 @@ DOMAIN="jorisjonkers.test"
 IMAGE_REPO="personal-stack"
 IMAGE_TAG="latest"
 
+wait_for_http_endpoint() {
+  local url="$1" description="$2" attempts="${3:-30}" delay="${4:-2}"
+  local attempt
+  for attempt in $(seq 1 "${attempts}"); do
+    if curl -sS -o /dev/null "${url}" >/dev/null 2>&1; then
+      echo "  ${description} reachable (attempt ${attempt})"
+      return 0
+    fi
+    sleep "${delay}"
+  done
+
+  echo "  ERROR: ${description} not reachable after $((attempts * delay))s"
+  return 1
+}
+
+read_vault_status_json() {
+  local status
+  status="$(vault status -format=json 2>/dev/null || true)"
+  [[ -n "${status}" ]] || return 1
+  printf '%s' "${status}"
+}
+
 # ── Helper: ensure Vault is unsealed ──────────────────────────────────────
 
 ensure_vault_unsealed() {
@@ -42,24 +64,29 @@ ensure_vault_unsealed() {
     return 0
   fi
 
-  # Wait for Vault HTTP to be reachable (may be starting up)
-  local attempt
-  for attempt in $(seq 1 15); do
-    if vault status -format=json >/dev/null 2>&1; then break; fi
-    echo "  Waiting for Vault API... (attempt ${attempt}/15)"
-    sleep 2
-  done
-
   local status
-  status="$(vault status -format=json 2>/dev/null || echo '{}')"
+  if ! wait_for_http_endpoint "${VAULT_ADDR}/v1/sys/health" "Vault API" 15 2; then
+    systemctl status vault --no-pager || true
+    journalctl -u vault --no-pager -n 30 || true
+    return 1
+  fi
+  if ! status="$(read_vault_status_json)"; then
+    echo "  ERROR: Cannot determine Vault status"
+    vault status 2>&1 || true
+    return 1
+  fi
+
   local sealed
-  sealed="$(echo "${status}" | jq -r '.sealed // "unknown"')"
+  sealed="$(printf '%s' "${status}" | jq -r '.sealed // "unknown"')"
   local initialized
-  initialized="$(echo "${status}" | jq -r '.initialized // "unknown"')"
+  initialized="$(printf '%s' "${status}" | jq -r '.initialized // "unknown"')"
 
   echo "  Vault status: initialized=${initialized} sealed=${sealed}"
 
-  if [[ "${sealed}" == "true" ]]; then
+  if [[ "${initialized}" != "true" ]]; then
+    echo "  ERROR: Vault is reachable but not initialized"
+    return 1
+  elif [[ "${sealed}" == "true" ]]; then
     echo "  Unsealing Vault..."
     vault operator unseal "${VAULT_UNSEAL_KEY}" >/dev/null
     echo "  Vault unsealed."
@@ -163,19 +190,11 @@ done
 
 # Wait for Vault API
 echo "==> Waiting for Vault API..."
-for attempt in $(seq 1 30); do
-  if vault status >/dev/null 2>&1; then
-    echo "  Vault API reachable (attempt ${attempt})"
-    break
-  fi
-  if [[ "${attempt}" -eq 30 ]]; then
-    echo "  ERROR: Vault API not reachable after 60s"
-    systemctl status vault --no-pager || true
-    journalctl -u vault --no-pager -n 30 || true
-    exit 1
-  fi
-  sleep 2
-done
+if ! wait_for_http_endpoint "${VAULT_ADDR}/v1/sys/health" "Vault API" 30 2; then
+  systemctl status vault --no-pager || true
+  journalctl -u vault --no-pager -n 30 || true
+  exit 1
+fi
 
 # Wait for Nomad API
 echo "==> Waiting for Nomad API..."
