@@ -42,7 +42,9 @@ job "stalwart" {
         "traefik.http.routers.stalwart.rule=Host(`stalwart.${var.domain}`)",
         "traefik.http.routers.stalwart.entrypoints=websecure",
         "traefik.http.routers.stalwart.tls=true",
-        "traefik.http.routers.stalwart.middlewares=stalwart-security-headers@file",
+        # Stalwart no longer does OIDC itself, but the admin UI still stays behind
+        # auth-api forward-auth just like the Compose and static Traefik setups.
+        "traefik.http.routers.stalwart.middlewares=forward-auth@file,stalwart-security-headers@file",
         "traefik.http.services.stalwart.loadbalancer.server.port=8080",
       ]
 
