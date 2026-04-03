@@ -32,6 +32,27 @@ wait_for_http_endpoint() {
   return 1
 }
 
+resolve_nomad_service_address() {
+  local service="$1" attempts="${2:-15}" delay="${3:-2}"
+  local attempt service_json address
+
+  for attempt in $(seq 1 "${attempts}"); do
+    service_json="$(nomad service info -json "${service}" 2>/dev/null || true)"
+    address="$(printf '%s' "${service_json}" \
+      | jq -r '.[0]? | select(.Address != null and .Port != null) | .Address + ":" + (.Port | tostring)' \
+        2>/dev/null || true)"
+
+    if [[ -n "${address}" && "${address}" != "null:null" ]]; then
+      echo "${address}"
+      return 0
+    fi
+
+    sleep "${delay}"
+  done
+
+  return 1
+}
+
 read_vault_status_json() {
   curl -fsS "${VAULT_ADDR}/v1/sys/seal-status"
 }
