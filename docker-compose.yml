@@ -601,10 +601,17 @@ services:
       start_period: 30s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.assistant-api.rule=Host(`assistant.jorisjonkers.test`) && PathPrefix(`/api/`)'
+      - 'traefik.http.routers.assistant-api.rule=Host(`assistant.jorisjonkers.test`) && PathPrefix(`/api/`) && !PathPrefix(`/api/actuator/health`) && !Path(`/api/v1/health`)'
       - 'traefik.http.routers.assistant-api.entrypoints=websecure'
       - 'traefik.http.routers.assistant-api.tls=true'
       - 'traefik.http.routers.assistant-api.middlewares=forward-auth@docker,security-headers@file'
+      - 'traefik.http.routers.assistant-api.service=assistant-api'
+      - 'traefik.http.routers.assistant-api-health.rule=Host(`assistant.jorisjonkers.test`) && (Path(`/api/actuator/health`) || PathPrefix(`/api/actuator/health/`) || Path(`/api/v1/health`))'
+      - 'traefik.http.routers.assistant-api-health.entrypoints=websecure'
+      - 'traefik.http.routers.assistant-api-health.tls=true'
+      - 'traefik.http.routers.assistant-api-health.middlewares=security-headers@file'
+      - 'traefik.http.routers.assistant-api-health.priority=100'
+      - 'traefik.http.routers.assistant-api-health.service=assistant-api'
       - 'traefik.http.services.assistant-api.loadbalancer.server.port=8082'
 
   # ── Frontend Services ───────────────────────────────────────────

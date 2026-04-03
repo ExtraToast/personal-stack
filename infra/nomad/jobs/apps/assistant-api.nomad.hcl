@@ -43,10 +43,17 @@ job "assistant-api" {
       port = "http"
       tags = [
         "traefik.enable=true",
-        "traefik.http.routers.assistant-api.rule=Host(`assistant.${var.domain}`) && PathPrefix(`/api/`) && !PathPrefix(`/api/actuator/prometheus`) && !PathPrefix(`/api/actuator/metrics`)",
+        "traefik.http.routers.assistant-api.rule=Host(`assistant.${var.domain}`) && PathPrefix(`/api/`) && !PathPrefix(`/api/actuator/health`) && !Path(`/api/v1/health`) && !PathPrefix(`/api/actuator/prometheus`) && !PathPrefix(`/api/actuator/metrics`)",
         "traefik.http.routers.assistant-api.entrypoints=websecure",
         "traefik.http.routers.assistant-api.tls=true",
         "traefik.http.routers.assistant-api.middlewares=forward-auth@file,security-headers@file,rate-limit@file",
+        "traefik.http.routers.assistant-api.service=assistant-api",
+        "traefik.http.routers.assistant-api-health.rule=Host(`assistant.${var.domain}`) && (Path(`/api/actuator/health`) || PathPrefix(`/api/actuator/health/`) || Path(`/api/v1/health`))",
+        "traefik.http.routers.assistant-api-health.entrypoints=websecure",
+        "traefik.http.routers.assistant-api-health.tls=true",
+        "traefik.http.routers.assistant-api-health.middlewares=security-headers@file,rate-limit@file",
+        "traefik.http.routers.assistant-api-health.priority=100",
+        "traefik.http.routers.assistant-api-health.service=assistant-api",
       ]
 
       check {

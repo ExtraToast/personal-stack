@@ -11,7 +11,7 @@ import org.junit.jupiter.params.provider.MethodSource
 import java.util.stream.Stream
 
 /**
- * System tests that verify auth-api health check endpoints are publicly
+ * System tests that verify API health check endpoints are publicly
  * accessible through Traefik (no authentication required).
  *
  * These tests use virtual-host URLs to go through Traefik routing,
@@ -24,7 +24,10 @@ class TraefikHealthCheckSystemTest {
     companion object {
         @JvmStatic
         fun publicActuatorEndpoints(): Stream<Arguments> =
-            Stream.of(Arguments.of("auth-api /actuator/health", "https://auth.jorisjonkers.test", "/api/actuator/health"))
+            Stream.of(
+                Arguments.of("auth-api /actuator/health", "https://auth.jorisjonkers.test", "/api/actuator/health"),
+                Arguments.of("assistant-api /actuator/health", "https://assistant.jorisjonkers.test", "/api/actuator/health"),
+            )
 
         @JvmStatic
         fun livenessEndpoints(): Stream<Arguments> =
@@ -34,12 +37,18 @@ class TraefikHealthCheckSystemTest {
                     "https://auth.jorisjonkers.test",
                     "/api/actuator/health/liveness",
                 ),
+                Arguments.of(
+                    "assistant-api /actuator/health/liveness",
+                    "https://assistant.jorisjonkers.test",
+                    "/api/actuator/health/liveness",
+                ),
             )
 
         @JvmStatic
         fun v1HealthEndpoints(): Stream<Arguments> =
             Stream.of(
                 Arguments.of("auth-api /v1/health", "https://auth.jorisjonkers.test", "/api/v1/health", "auth-api"),
+                Arguments.of("assistant-api /v1/health", "https://assistant.jorisjonkers.test", "/api/v1/health", "assistant-api"),
             )
 
         @JvmStatic

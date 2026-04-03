@@ -48,7 +48,7 @@ http:
 
     # ── Assistant API ───────────────────────────────────────────
     assistant-api:
-      rule: 'Host(`assistant.jorisjonkers.dev`) && PathPrefix(`/api/`) && !PathPrefix(`/api/actuator/prometheus`) && !PathPrefix(`/api/actuator/metrics`)'
+      rule: 'Host(`assistant.jorisjonkers.dev`) && PathPrefix(`/api/`) && !PathPrefix(`/api/actuator/health`) && !Path(`/api/v1/health`) && !PathPrefix(`/api/actuator/prometheus`) && !PathPrefix(`/api/actuator/metrics`)'
       entryPoints:
         - websecure
       service: assistant-api
@@ -58,6 +58,18 @@ http:
         - rate-limit
       tls:
         certResolver: cloudflare
+
+    assistant-api-health:
+      rule: 'Host(`assistant.jorisjonkers.dev`) && (Path(`/api/actuator/health`) || PathPrefix(`/api/actuator/health/`) || Path(`/api/v1/health`))'
+      entryPoints:
+        - websecure
+      service: assistant-api
+      middlewares:
+        - security-headers
+        - rate-limit
+      tls:
+        certResolver: cloudflare
+      priority: 100
 
     # ── Assistant UI ────────────────────────────────────────────
     assistant-ui:
