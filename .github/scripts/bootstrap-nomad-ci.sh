@@ -96,6 +96,19 @@ deploy_platform_phase() {
   submit_nomad_job "${ROOT_DIR}/infra/nomad/jobs/mail/stalwart.nomad.hcl" \
     -var "domain=${DOMAIN}"
   wait_for_nomad_jobs grafana 300 n8n 300 stalwart 300
+
+  echo "==> Seeding stalwart mail account for auth-api"
+  local stalwart_addr
+  stalwart_addr="$(nomad service info -json stalwart | jq -r '.[0].Address + ":" + (.[] | .Port | tostring)')"
+  curl -sf -u "admin:${STALWART_ADMIN_PASSWORD}" \
+    "http://${stalwart_addr}/api/principal" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "type": "individual",
+      "name": "auth",
+      "secrets": ["'"${STALWART_MAIL_PASSWORD}"'"],
+      "emails": ["auth@'"${DOMAIN}"'"]
+    }' || echo "Warning: failed to seed stalwart account (may already exist)"
 }
 
 echo "==> Writing CI bootstrap secrets"
@@ -115,6 +128,7 @@ GRAFANA_ADMIN_USER=admin
 GRAFANA_ADMIN_PASSWORD=ci_grafana_pass
 STALWART_ADMIN_USER=admin
 STALWART_ADMIN_PASSWORD=ci_stalwart_pass
+STALWART_MAIL_PASSWORD=ci_stalwart_mail_pass
 N8N_OAUTH_CLIENT_SECRET=ci_n8n_oauth_secret
 GRAFANA_OAUTH_CLIENT_SECRET=ci_grafana_oauth_secret
 VAULT_OIDC_CLIENT_SECRET=ci_vault_oidc_secret

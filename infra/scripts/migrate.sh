@@ -201,6 +201,9 @@ sync_secrets_command() {
   stalwart_admin_user="$(read_secret_or_default stalwart /run/secrets/stalwart_admin_user admin)"
   stalwart_admin_password="$(read_secret_or_default stalwart /run/secrets/stalwart_admin_password)"
   [[ -n "${stalwart_admin_password}" ]] || stalwart_admin_password="$(random_secret)"
+  local stalwart_mail_password
+  stalwart_mail_password="$(vault_field_or_default secret/auth-api "mail.password")"
+  [[ -n "${stalwart_mail_password}" ]] || stalwart_mail_password="$(random_secret)"
 
   # Export for write_all_secrets_to_vault (sourced from setup.sh pattern)
   POSTGRES_USER="${postgres_user}"
@@ -221,12 +224,14 @@ sync_secrets_command() {
   VAULT_OIDC_CLIENT_SECRET="${vault_oauth_secret}"
   STALWART_ADMIN_USER="${stalwart_admin_user}"
   STALWART_ADMIN_PASSWORD="${stalwart_admin_password}"
+  STALWART_MAIL_PASSWORD="${stalwart_mail_password}"
 
   # Persist to bootstrap env
   for var in POSTGRES_USER POSTGRES_PASSWORD AUTH_DB_USER AUTH_DB_PASSWORD \
     ASSISTANT_DB_USER ASSISTANT_DB_PASSWORD N8N_DB_USER N8N_DB_PASSWORD \
     RABBITMQ_USER RABBITMQ_PASSWORD CF_DNS_API_TOKEN \
     GRAFANA_ADMIN_USER GRAFANA_ADMIN_PASSWORD STALWART_ADMIN_USER STALWART_ADMIN_PASSWORD \
+    STALWART_MAIL_PASSWORD \
     N8N_OAUTH_CLIENT_SECRET GRAFANA_OAUTH_CLIENT_SECRET VAULT_OIDC_CLIENT_SECRET; do
     ensure_bootstrap_env_line "${var}" "${!var}"
   done
@@ -235,7 +240,9 @@ sync_secrets_command() {
   upsert_kv secret/auth-api \
     "auth.clients.grafana.secret=${GRAFANA_OAUTH_CLIENT_SECRET}" \
     "auth.clients.n8n.secret=${N8N_OAUTH_CLIENT_SECRET}" \
-    "auth.clients.vault.secret=${VAULT_OIDC_CLIENT_SECRET}"
+    "auth.clients.vault.secret=${VAULT_OIDC_CLIENT_SECRET}" \
+    "mail.username=auth" \
+    "mail.password=${STALWART_MAIL_PASSWORD}"
 
   vault kv put secret/platform/postgres \
     "postgres.user=${POSTGRES_USER}" "postgres.password=${POSTGRES_PASSWORD}" \

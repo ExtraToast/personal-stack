@@ -488,6 +488,7 @@ persist_bootstrap_secrets() {
   ensure_bootstrap_env_line GRAFANA_ADMIN_PASSWORD "${GRAFANA_ADMIN_PASSWORD}"
   ensure_bootstrap_env_line STALWART_ADMIN_USER "${STALWART_ADMIN_USER}"
   ensure_bootstrap_env_line STALWART_ADMIN_PASSWORD "${STALWART_ADMIN_PASSWORD}"
+  ensure_bootstrap_env_line STALWART_MAIL_PASSWORD "${STALWART_MAIL_PASSWORD}"
   ensure_bootstrap_env_line N8N_OAUTH_CLIENT_SECRET "${N8N_OAUTH_CLIENT_SECRET}"
   ensure_bootstrap_env_line GRAFANA_OAUTH_CLIENT_SECRET "${GRAFANA_OAUTH_CLIENT_SECRET}"
   ensure_bootstrap_env_line VAULT_OIDC_CLIENT_SECRET "${VAULT_OIDC_CLIENT_SECRET}"
@@ -497,7 +498,9 @@ write_all_secrets_to_vault() {
   upsert_kv secret/auth-api \
     "auth.clients.grafana.secret=${GRAFANA_OAUTH_CLIENT_SECRET}" \
     "auth.clients.n8n.secret=${N8N_OAUTH_CLIENT_SECRET}" \
-    "auth.clients.vault.secret=${VAULT_OIDC_CLIENT_SECRET}"
+    "auth.clients.vault.secret=${VAULT_OIDC_CLIENT_SECRET}" \
+    "mail.username=auth" \
+    "mail.password=${STALWART_MAIL_PASSWORD}"
 
   vault kv put secret/platform/postgres \
     "postgres.user=${POSTGRES_USER}" \
@@ -555,6 +558,7 @@ seed_secrets_command() {
   [[ -n "${N8N_OAUTH_CLIENT_SECRET:-}" ]]      || { N8N_OAUTH_CLIENT_SECRET="$(random_secret)";      ensure_bootstrap_env_line N8N_OAUTH_CLIENT_SECRET "${N8N_OAUTH_CLIENT_SECRET}"; }
   [[ -n "${GRAFANA_OAUTH_CLIENT_SECRET:-}" ]]   || { GRAFANA_OAUTH_CLIENT_SECRET="$(random_secret)";   ensure_bootstrap_env_line GRAFANA_OAUTH_CLIENT_SECRET "${GRAFANA_OAUTH_CLIENT_SECRET}"; }
   [[ -n "${VAULT_OIDC_CLIENT_SECRET:-}" ]]      || { VAULT_OIDC_CLIENT_SECRET="$(random_secret)";      ensure_bootstrap_env_line VAULT_OIDC_CLIENT_SECRET "${VAULT_OIDC_CLIENT_SECRET}"; }
+  [[ -n "${STALWART_MAIL_PASSWORD:-}" ]]       || { STALWART_MAIL_PASSWORD="$(random_secret)";       ensure_bootstrap_env_line STALWART_MAIL_PASSWORD "${STALWART_MAIL_PASSWORD}"; }
 
   if [[ "${MODE}" == "dry-run" ]]; then
     echo "+ seed Vault KV from ${BOOTSTRAP_ENV_FILE}"; return
