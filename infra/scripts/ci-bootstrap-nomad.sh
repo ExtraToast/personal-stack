@@ -85,9 +85,9 @@ ensure_vault_unsealed() {
   fi
 
   local sealed
-  sealed="$(printf '%s' "${status}" | jq -r '.sealed // "unknown"')"
+  sealed="$(printf '%s' "${status}" | jq -r 'if has("sealed") then .sealed else "unknown" end')"
   local initialized
-  initialized="$(printf '%s' "${status}" | jq -r '.initialized // "unknown"')"
+  initialized="$(printf '%s' "${status}" | jq -r 'if has("initialized") then .initialized else "unknown" end')"
 
   echo "  Vault status: initialized=${initialized} sealed=${sealed}"
 
