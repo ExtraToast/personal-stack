@@ -106,7 +106,8 @@ jobs:
       - name: Set up dev DNS
         run: sudo bash infra/scripts/setup-dev-dns.sh
       - name: Bootstrap Nomad stack
-        run: sudo bash infra/scripts/ci-bootstrap-nomad.sh
+        timeout-minutes: 12
+        run: sudo bash .github/scripts/bootstrap-nomad-ci.sh
         env:
           STACK_DIR: ${{ github.workspace }}
       - name: Save HashiCorp binaries to cache
@@ -116,31 +117,9 @@ jobs:
           cp /usr/bin/consul /usr/bin/nomad /usr/bin/vault /tmp/hashicorp-cache/
           cp /opt/cni/bin/* /tmp/hashicorp-cache/cni/
       - name: Wait for Traefik routes to stabilize
-        run: |
-          echo "Waiting for Traefik routes to become reachable..."
-          check_route() {
-            local route="$1" url="$2"
-            echo -n "  $route ($url): "
-            for i in $(seq 1 60); do
-              if curl -sfk --max-time 2 -o /dev/null "$url" 2>/dev/null; then
-                echo "reachable"
-                return 0
-              fi
-              sleep 2
-            done
-            echo "TIMEOUT"
-            return 1
-          }
-          check_route auth-api       "https://auth.jorisjonkers.test/api/actuator/health"
-          check_route assistant-api  "https://assistant.jorisjonkers.test/api/actuator/health"
-          check_route app-ui         "https://jorisjonkers.test/"
-          check_route auth-ui        "https://auth.jorisjonkers.test/"
-          check_route assistant-ui   "https://assistant.jorisjonkers.test/"
+        run: bash .github/scripts/wait-for-system-test-routes.sh
       - name: Verify database migrations ran
-        run: |
-          PGPASSWORD=ci_auth_pass psql -h 127.0.0.1 -U auth_user -d auth_db -c '\dt' | grep -q app_user || { echo "auth_db migrations missing"; exit 1; }
-          PGPASSWORD=ci_assistant_pass psql -h 127.0.0.1 -U assistant_user -d assistant_db -c '\dt' | grep -q conversation || { echo "assistant_db migrations missing"; exit 1; }
-          echo "==> Database migrations verified"
+        run: bash .github/scripts/verify-system-test-migrations.sh
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
       - name: Run system tests
@@ -152,18 +131,7 @@ jobs:
           -Dtest.assistant-api.url=https://assistant.jorisjonkers.test
           -Dtest.db.password=ci_auth_pass
       - name: Dump Nomad job status and logs on failure
-        if: failure() || steps.run-tests.outcome == 'failure'
-        run: |
-          source "${{ github.workspace }}/.nomad-keys" 2>/dev/null || true
-          export NOMAD_TOKEN="${NOMAD_BOOTSTRAP_TOKEN:-}"
-          echo "==> Nomad job status:"
-          nomad status || true
-          echo ""
-          for job in postgres valkey rabbitmq traefik auth-api assistant-api auth-ui assistant-ui app-ui n8n grafana stalwart; do
-            echo "========== $job =========="
-            nomad job status "$job" 2>/dev/null | tail -20 || true
-            alloc=$(nomad job allocs -json "$job" 2>/dev/null | jq -r '.[0].ID // empty' 2>/dev/null)
-            if [ -n "$alloc" ]; then
-              nomad alloc logs "$alloc" 2>/dev/null | tail -60 || true
-            fi
-          done
+        if: always() && (failure() || cancelled() || steps.run-tests.outcome == 'failure')
+        run: sudo bash .github/scripts/dump-nomad-ci-diagnostics.sh
+        env:
+          STACK_DIR: ${{ github.workspace }}
