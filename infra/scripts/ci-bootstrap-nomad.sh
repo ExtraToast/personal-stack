@@ -111,11 +111,20 @@ bash "${SCRIPT_DIR}/setup.sh" configure
 echo "==> Disabling UFW (not needed in CI)"
 ufw disable 2>/dev/null || true
 
-# Consul fails with systemd timeout because the bind_addr is the runner's
-# private IP and Consul's notify-based readiness check doesn't complete in time.
-# Override to 127.0.0.1 — all CI traffic is on localhost with host networking.
+# Consul bind_addr: use 127.0.0.1 — all CI traffic is on localhost.
 echo "==> Overriding Consul bind_addr to 127.0.0.1 for CI"
 sed -i 's/bind_addr.*/bind_addr = "127.0.0.1"/' /etc/consul.d/consul.hcl
+
+# Consul's systemd unit uses Type=notify, but the sd_notify readiness signal
+# never arrives in newer versions, causing systemd to kill the process after
+# its timeout. Override to Type=simple so systemd doesn't wait for a signal.
+echo "==> Overriding Consul systemd service type to simple"
+mkdir -p /etc/systemd/system/consul.service.d
+cat > /etc/systemd/system/consul.service.d/ci-override.conf <<'UNIT'
+[Service]
+Type=simple
+UNIT
+systemctl daemon-reload
 
 # Restart all services now that UFW is disabled and Consul bind is fixed
 echo "==> Restarting services..."
