@@ -71,8 +71,12 @@ load_nomad_context() {
   fi
 }
 
+vault_is_unsealed() {
+  curl -fsS "${VAULT_ADDR}/v1/sys/seal-status" | jq -e '.sealed == false' >/dev/null 2>&1
+}
+
 ensure_vault_unsealed() {
-  if ! vault status -format=json 2>/dev/null | jq -e '.sealed == false' >/dev/null 2>&1; then
+  if ! vault_is_unsealed; then
     if [[ -z "${VAULT_UNSEAL_KEY:-}" && -f "${VAULT_KEYS_FILE}" ]]; then
       source "${VAULT_KEYS_FILE}"
     fi

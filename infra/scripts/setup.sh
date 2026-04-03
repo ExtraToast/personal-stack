@@ -92,8 +92,21 @@ load_nomad_context() {
   fi
 }
 
+read_vault_seal_status() {
+  load_vault_context
+  curl -fsS "${VAULT_ADDR}/v1/sys/seal-status"
+}
+
+vault_is_initialized() {
+  read_vault_seal_status | jq -e '.initialized == true' >/dev/null 2>&1
+}
+
+vault_is_unsealed() {
+  read_vault_seal_status | jq -e '.sealed == false' >/dev/null 2>&1
+}
+
 ensure_vault_unsealed() {
-  if ! vault status -format=json 2>/dev/null | jq -e '.sealed == false' >/dev/null 2>&1; then
+  if ! vault_is_unsealed; then
     if [[ -z "${VAULT_UNSEAL_KEY:-}" && -f "${VAULT_KEYS_FILE}" ]]; then
       source "${VAULT_KEYS_FILE}"
     fi
@@ -388,7 +401,7 @@ init_vault_command() {
   wait_for_http "${VAULT_ADDR}/v1/sys/health" "Vault API" 90
 
   if [[ ! -f "${VAULT_KEYS_FILE}" ]]; then
-    if vault status -format=json 2>/dev/null | jq -e '.initialized == true' >/dev/null 2>&1; then
+    if vault_is_initialized; then
       echo "Vault is already initialized but ${VAULT_KEYS_FILE} is missing." >&2; exit 1
     fi
 
@@ -410,7 +423,7 @@ EOF
   source "${VAULT_KEYS_FILE}"
   export VAULT_TOKEN="${VAULT_ROOT_TOKEN}"
 
-  if vault status -format=json 2>/dev/null | jq -e '.sealed == true' >/dev/null 2>&1; then
+  if ! vault_is_unsealed; then
     echo "+ vault operator unseal"
     [[ "${MODE}" == "apply" ]] && vault operator unseal "${VAULT_UNSEAL_KEY}" >/dev/null
   fi

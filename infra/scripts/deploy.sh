@@ -68,8 +68,12 @@ load_context() {
   export NOMAD_ADDR="${NOMAD_ADDR:-http://127.0.0.1:4646}"
 }
 
+vault_is_unsealed() {
+  curl -fsS "${VAULT_ADDR}/v1/sys/seal-status" | jq -e '.sealed == false' >/dev/null 2>&1
+}
+
 ensure_vault_unsealed() {
-  if ! vault status -format=json 2>/dev/null | jq -e '.sealed == false' >/dev/null 2>&1; then
+  if ! vault_is_unsealed; then
     if [[ -n "${VAULT_UNSEAL_KEY:-}" ]]; then
       echo "+ vault operator unseal"
       vault operator unseal "${VAULT_UNSEAL_KEY}" >/dev/null

@@ -46,10 +46,18 @@ wait_for_http_endpoint() {
 }
 
 read_vault_status_json() {
-  local status
-  status="$(vault status -format=json 2>/dev/null || true)"
-  [[ -n "${status}" ]] || return 1
-  printf '%s' "${status}"
+  curl -fsS "${VAULT_ADDR}/v1/sys/seal-status"
+}
+
+handoff_ci_state_files() {
+  local owner="${SUDO_USER:-}"
+  local file
+  [[ -n "${owner}" ]] || return 0
+  for file in "$@"; do
+    [[ -f "${file}" ]] || continue
+    chown "${owner}" "${file}" 2>/dev/null || true
+    chmod 0600 "${file}" 2>/dev/null || true
+  done
 }
 
 # ── Helper: ensure Vault is unsealed ──────────────────────────────────────
@@ -121,6 +129,7 @@ GRAFANA_OAUTH_CLIENT_SECRET=ci_grafana_oauth_secret
 VAULT_OIDC_CLIENT_SECRET=ci_vault_oidc_secret
 STALWART_OAUTH_CLIENT_SECRET=ci_stalwart_oauth_secret
 ENVFILE
+handoff_ci_state_files "${BOOTSTRAP_ENV_FILE}"
 
 # ── Install HashiCorp tools and create data directories ───────────────────
 
@@ -216,6 +225,7 @@ done
 
 echo "==> Initializing Vault"
 bash "${SCRIPT_DIR}/setup.sh" init-vault
+handoff_ci_state_files "${VAULT_KEYS_FILE}"
 
 # Verify unseal worked
 echo "==> Verifying Vault is unsealed after init"
@@ -225,6 +235,7 @@ ensure_vault_unsealed
 
 echo "==> Initializing Nomad ACL"
 bash "${SCRIPT_DIR}/setup.sh" init-nomad
+handoff_ci_state_files "${NOMAD_KEYS_FILE}"
 
 # ── Seed secrets into Vault KV ────────────────────────────────────────────
 
