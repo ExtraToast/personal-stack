@@ -6,11 +6,7 @@ path "secret/data/auth-api/*" {
   capabilities = ["read"]
 }
 
-path "secret/data/application" {
-  capabilities = ["read"]
-}
-
-path "secret/data/application/*" {
+path "rabbitmq/creds/app-consumer" {
   capabilities = ["read"]
 }
 

@@ -131,6 +131,7 @@ async function exchangeCodeForTokens(code, discovery) {
   })
 
   if (response.statusCode !== 200) {
+    console.error(`[OIDC Hook] Token exchange failed: ${response.statusCode} ${response.body}`)
     throw new Error(`Token exchange failed: ${response.statusCode}`)
   }
 
@@ -145,6 +146,7 @@ async function fetchUserInfo(accessToken, discovery) {
   })
 
   if (response.statusCode !== 200) {
+    console.error(`[OIDC Hook] UserInfo fetch failed: ${response.statusCode} ${response.body}`)
     throw new Error(`UserInfo fetch failed: ${response.statusCode}`)
   }
 

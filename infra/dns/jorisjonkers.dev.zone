@@ -40,12 +40,11 @@ jorisjonkers.dev.    1    IN    MX    10 mail.jorisjonkers.dev.
 
 ;; SPF — only the MX server may send mail for this domain
 jorisjonkers.dev.    1    IN    TXT    "v=spf1 mx -all"
+mail.jorisjonkers.dev.    1    IN    TXT    "v=spf1 a -all"
 
-;; DMARC — start with p=none to collect reports, upgrade to p=reject later
-_dmarc.jorisjonkers.dev.    1    IN    TXT    "v=DMARC1; p=none; rua=mailto:postmaster@jorisjonkers.dev; fo=1"
+;; DMARC — quarantine policy; upgrade to p=reject after one clean week
+_dmarc.jorisjonkers.dev.    1    IN    TXT    "v=DMARC1; p=quarantine; rua=mailto:postmaster@jorisjonkers.dev; fo=1"
 
-;; DKIM — add after Stalwart generates the key:
-;;   1. Open https://mail.jorisjonkers.dev → Management → Directory → Domains
-;;   2. Click "DNS Records" on jorisjonkers.dev
-;;   3. Copy the DKIM public key and uncomment/update the line below
-;; default._domainkey.jorisjonkers.dev.    1    IN    TXT    "v=DKIM1; k=rsa; p=<YOUR_PUBLIC_KEY_HERE>"
+;; DKIM — ed25519 + RSA dual signing
+202604e._domainkey.jorisjonkers.dev.    1    IN    TXT    "v=DKIM1; k=ed25519; h=sha256; p=4Ki5wXjYI1M33WGOHV6DKY2MMlX953wP4MH6hn+ek8w="
+202604r._domainkey.jorisjonkers.dev.    1    IN    TXT    "v=DKIM1; k=rsa; h=sha256; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5MpU2CwsMJC0VHQye39BdgdceOKbTYxSQbenbVIEjTw0aJGJ5+gd7Z+g7It6eJeMFO2hmKleQ+n4nPvXKd0+6OdvU7At54GniMzahiO3HF/lqWEFqd+YjBPDvPUePpB1sEo+hjQkTFMu6RQi6gacY5f7EtINKBr4AEuXr6fIpSFOkGtlu0bGmIit89/9Bc85BIRG7mQcFqSdxHR+qJbphWoyfbF6oSRvv5ybVflBYSk0SuqzPXO5z0hOdPpl05AyhT5fb1CYdOfBkzJEj3VGQhc7duiwGBE9ePDLGaqzmQ4AkzmlJNeXpQVWZ0yKYDj+/RXT4m2962LhHzpBosawbwIDAQAB"

@@ -8,12 +8,24 @@ entryPoints:
           scheme: https
   websecure:
     address: ':443'
+{{ if eq (env "TLS_MODE") "file" }}
+    forwardedHeaders:
+      trustedIPs:
+        - '127.0.0.1/32'
+        - '::1/128'
+{{ end }}
+{{ if eq (env "TLS_MODE") "file" }}
+    http:
+      tls: {}
+{{ else }}
     http:
       tls:
         certResolver: cloudflare
+{{ end }}
   traefik:
     address: ':8088'
 
+{{ if ne (env "TLS_MODE") "file" }}
 certificatesResolvers:
   cloudflare:
     acme:
@@ -24,6 +36,7 @@ certificatesResolvers:
         resolvers:
           - '1.1.1.1:53'
           - '1.0.0.1:53'
+{{ end }}
 
 providers:
   file:

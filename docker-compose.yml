@@ -433,7 +433,6 @@ services:
       - stalwart-data:/opt/stalwart
       - ./infra/stalwart/config.toml:/opt/stalwart/etc/config.toml
     environment:
-      OIDC_USERINFO_URL: http://auth-api:8081/api/userinfo
       STALWART_ADMIN_USER: admin
       STALWART_ADMIN_SECRET: stalwart-dev-admin
       STALWART_HOSTNAME: stalwart.jorisjonkers.test
@@ -480,7 +479,6 @@ services:
       AUTH_CLIENTS_GRAFANA_SECRET: grafana-secret
       AUTH_CLIENTS_N8N_SECRET: n8n-secret
       AUTH_CLIENTS_VAULT_SECRET: vault-secret
-      AUTH_CLIENTS_STALWART_SECRET: stalwart-secret
       SESSION_COOKIE_DOMAIN: jorisjonkers.test
       SESSION_COOKIE_SECURE: 'true'
       SESSION_COOKIE_SAME_SITE: Lax
@@ -603,10 +601,17 @@ services:
       start_period: 30s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.assistant-api.rule=Host(`assistant.jorisjonkers.test`) && PathPrefix(`/api/`)'
+      - 'traefik.http.routers.assistant-api.rule=Host(`assistant.jorisjonkers.test`) && PathPrefix(`/api/`) && !PathPrefix(`/api/actuator/health`) && !Path(`/api/v1/health`)'
       - 'traefik.http.routers.assistant-api.entrypoints=websecure'
       - 'traefik.http.routers.assistant-api.tls=true'
       - 'traefik.http.routers.assistant-api.middlewares=forward-auth@docker,security-headers@file'
+      - 'traefik.http.routers.assistant-api.service=assistant-api'
+      - 'traefik.http.routers.assistant-api-health.rule=Host(`assistant.jorisjonkers.test`) && (Path(`/api/actuator/health`) || PathPrefix(`/api/actuator/health/`) || Path(`/api/v1/health`))'
+      - 'traefik.http.routers.assistant-api-health.entrypoints=websecure'
+      - 'traefik.http.routers.assistant-api-health.tls=true'
+      - 'traefik.http.routers.assistant-api-health.middlewares=security-headers@file'
+      - 'traefik.http.routers.assistant-api-health.priority=100'
+      - 'traefik.http.routers.assistant-api-health.service=assistant-api'
       - 'traefik.http.services.assistant-api.loadbalancer.server.port=8082'
 
   # ── Frontend Services ───────────────────────────────────────────

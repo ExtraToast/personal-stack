@@ -72,7 +72,7 @@ storage.data = "rocksdb"
 storage.fts = "rocksdb"
 storage.blob = "rocksdb"
 storage.lookup = "rocksdb"
-storage.directory = "auth-api"
+storage.directory = "internal"
 
 store.rocksdb.type = "rocksdb"
 store.rocksdb.path = "/opt/stalwart/data"
@@ -80,20 +80,7 @@ store.rocksdb.compression = "lz4"
 
 # ── Directories ──────────────────────────────────────────────────
 
-# OIDC directory: validates bearer tokens from mail clients via the
-# auth-api UserInfo endpoint. Enables OAUTHBEARER SASL authentication.
-directory.auth-api.type = "oidc"
-directory.auth-api.endpoint.url = "%{env:OIDC_USERINFO_URL}%"
-directory.auth-api.endpoint.method = "userinfo"
-directory.auth-api.timeout = "15s"
-directory.auth-api.fields.email = "email"
-directory.auth-api.fields.username = "preferred_username"
-directory.auth-api.fields.full-name = "name"
-directory.auth-api.cache.size = 1048576
-directory.auth-api.cache.ttl.positive = "1h"
-directory.auth-api.cache.ttl.negative = "10m"
-
-# Internal directory kept for fallback and local data storage.
+# Internal directory for local account management.
 directory.internal.type = "internal"
 directory.internal.store = "rocksdb"
 

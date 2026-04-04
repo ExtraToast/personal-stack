@@ -8,6 +8,11 @@ variable "repo_dir" {
   default = "/opt/personal-stack"
 }
 
+variable "oidc_ca_cert_path" {
+  type    = string
+  default = ""
+}
+
 job "n8n" {
   datacenters = ["dc1"]
   type        = "service"
@@ -65,6 +70,17 @@ job "n8n" {
         data        = file("infra/nomad/templates/n8n.env.tpl")
       }
 
+      template {
+        destination = "secrets/n8n-oidc.env"
+        env         = true
+        change_mode = "restart"
+        data        = <<-EOF
+{{- if env "OIDC_CA_CERT_PATH" }}
+NODE_EXTRA_CA_CERTS=/etc/ssl/certs/personal-stack-issuer.pem
+{{- end }}
+EOF
+      }
+
       driver = "docker"
 
       env {
@@ -82,6 +98,7 @@ job "n8n" {
         N8N_ADDITIONAL_NON_UI_ROUTES = "auth"
         OIDC_ISSUER_URL              = "https://auth.${var.domain}"
         OIDC_CLIENT_ID               = "n8n"
+        OIDC_CA_CERT_PATH            = var.oidc_ca_cert_path
         OIDC_REDIRECT_URI            = "https://n8n.${var.domain}/auth/oidc/callback"
         OIDC_SCOPES                  = "openid email profile"
       }
@@ -89,9 +106,14 @@ job "n8n" {
       config {
         image        = "n8nio/n8n:2.13.4"
         network_mode = "host"
-        volumes = [
-          "${var.repo_dir}/infra/n8n/hooks.js:/data/n8n/hooks.js:ro",
-        ]
+        volumes = concat(
+          [
+            "${var.repo_dir}/infra/n8n/hooks.js:/data/n8n/hooks.js:ro",
+          ],
+          var.oidc_ca_cert_path != "" ? [
+            "${var.oidc_ca_cert_path}:/etc/ssl/certs/personal-stack-issuer.pem:ro",
+          ] : [],
+        )
       }
 
       volume_mount {

@@ -1,4 +1,10 @@
-{{ $domain := env "DOMAIN" }}http:
+{{ $domain := env "DOMAIN" }}{{ if eq (env "TLS_MODE") "file" }}
+tls:
+  certificates:
+    - certFile: /certs/wildcard.crt
+      keyFile: /certs/wildcard.key
+{{ end }}
+http:
   routers:
     vault:
       rule: 'Host(`vault.{{ $domain }}`)'
@@ -8,8 +14,12 @@
       middlewares:
         - rate-limit
         - security-headers
+{{ if ne (env "TLS_MODE") "file" }}
       tls:
         certResolver: cloudflare
+{{ else }}
+      tls: {}
+{{ end }}
 
     traefik-dashboard:
       rule: 'Host(`traefik.{{ $domain }}`)'
@@ -20,14 +30,38 @@
         - forward-auth
         - rate-limit
         - security-headers
+{{ if ne (env "TLS_MODE") "file" }}
       tls:
         certResolver: cloudflare
+{{ else }}
+      tls: {}
+{{ end }}
+
+    nomad:
+      rule: 'Host(`nomad.{{ $domain }}`)'
+      entryPoints:
+        - websecure
+      service: nomad
+      middlewares:
+        - forward-auth
+        - rate-limit
+        - security-headers
+{{ if ne (env "TLS_MODE") "file" }}
+      tls:
+        certResolver: cloudflare
+{{ else }}
+      tls: {}
+{{ end }}
 
   middlewares:
     forward-auth:
       forwardAuth:
         address: 'https://auth.{{ $domain }}/api/v1/auth/verify'
         trustForwardHeader: true
+{{ if eq (env "TLS_MODE") "file" }}
+        tls:
+          ca: /certs/wildcard.crt
+{{ end }}
         authResponseHeaders:
           - 'X-User-Id'
           - 'X-User-Email'
@@ -58,7 +92,7 @@
     n8n-security-headers:
       headers:
         <<: *base-headers
-        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn-rs.n8n.io; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.{{ $domain }} https://*.jorisjonkers.test; font-src 'self'; connect-src 'self' https://*.{{ $domain }} https://*.jorisjonkers.test https://api.n8n.io https://ph.n8n.io; frame-ancestors 'none'"
+        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn-rs.n8n.io; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.{{ $domain }} https://*.jorisjonkers.test https://gravatar.com; font-src 'self' data:; connect-src 'self' https://*.{{ $domain }} https://*.jorisjonkers.test https://api.n8n.io https://ph.n8n.io https://api.github.com; frame-ancestors 'none'"
 
     grafana-security-headers:
       headers:
@@ -70,3 +104,8 @@
       loadBalancer:
         servers:
           - url: 'http://127.0.0.1:8200'
+
+    nomad:
+      loadBalancer:
+        servers:
+          - url: 'http://127.0.0.1:4646'

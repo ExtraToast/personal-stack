@@ -41,21 +41,11 @@ jobs:
       - run: pnpm --filter @personal-stack/auth-ui stryker run || true
 
   system-tests:
-    name: System / Coherence Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: ${{ env.JAVA_VERSION }}
-      - uses: gradle/actions/setup-gradle@v6
-      - run: docker compose up -d
-      - name: Wait for services
-        run: sleep 30
-      - run: npx playwright install --with-deps chromium
-      - run: ./gradlew :services:system-tests:test || true
-      - run: docker compose down
+    name: System Tests
+    uses: ./.github/workflows/system-tests.yml
+    with:
+      java-version: '21'
+      fail-fast: false
 
   security-advanced:
     name: Advanced Security Scan

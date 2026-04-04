@@ -13,7 +13,7 @@
 #   init-nomad       Bootstrap Nomad ACL
 #   seed-secrets     Seed Vault KV from .nomad-bootstrap.env
 #   prepare-vault    Configure JWT auth, policies, roles, transit, database engine, OIDC
-#   rotate-secrets   Rotate PostgreSQL and RabbitMQ passwords
+#   rotate-secrets   (removed — Vault dynamic engines handle rotation)
 #   full             Run the complete bootstrap sequence including deploy
 set -euo pipefail
 
@@ -45,8 +45,7 @@ Commands:
   init-vault       Initialize and unseal Vault, enable KV engine
   init-nomad       Bootstrap Nomad ACL
   seed-secrets     Seed Vault KV from .nomad-bootstrap.env
-  prepare-vault    Configure JWT auth, policies, roles, transit, database engine, OIDC
-  rotate-secrets   Rotate PostgreSQL and RabbitMQ passwords
+  prepare-vault    Configure JWT auth, policies, roles, transit, database, rabbitmq engine, OIDC
   full             Run the complete bootstrap sequence including deploy
 EOF
 }
@@ -93,8 +92,21 @@ load_nomad_context() {
   fi
 }
 
+read_vault_seal_status() {
+  load_vault_context
+  curl -fsS "${VAULT_ADDR}/v1/sys/seal-status"
+}
+
+vault_is_initialized() {
+  read_vault_seal_status | jq -e '.initialized == true' >/dev/null 2>&1
+}
+
+vault_is_unsealed() {
+  read_vault_seal_status | jq -e '.sealed == false' >/dev/null 2>&1
+}
+
 ensure_vault_unsealed() {
-  if ! vault status -format=json 2>/dev/null | jq -e '.sealed == false' >/dev/null 2>&1; then
+  if ! vault_is_unsealed; then
     if [[ -z "${VAULT_UNSEAL_KEY:-}" && -f "${VAULT_KEYS_FILE}" ]]; then
       source "${VAULT_KEYS_FILE}"
     fi
@@ -389,7 +401,7 @@ init_vault_command() {
   wait_for_http "${VAULT_ADDR}/v1/sys/health" "Vault API" 90
 
   if [[ ! -f "${VAULT_KEYS_FILE}" ]]; then
-    if vault status -format=json 2>/dev/null | jq -e '.initialized == true' >/dev/null 2>&1; then
+    if vault_is_initialized; then
       echo "Vault is already initialized but ${VAULT_KEYS_FILE} is missing." >&2; exit 1
     fi
 
@@ -411,7 +423,7 @@ EOF
   source "${VAULT_KEYS_FILE}"
   export VAULT_TOKEN="${VAULT_ROOT_TOKEN}"
 
-  if vault status -format=json 2>/dev/null | jq -e '.sealed == true' >/dev/null 2>&1; then
+  if ! vault_is_unsealed; then
     echo "+ vault operator unseal"
     [[ "${MODE}" == "apply" ]] && vault operator unseal "${VAULT_UNSEAL_KEY}" >/dev/null
   fi
@@ -476,28 +488,19 @@ persist_bootstrap_secrets() {
   ensure_bootstrap_env_line GRAFANA_ADMIN_PASSWORD "${GRAFANA_ADMIN_PASSWORD}"
   ensure_bootstrap_env_line STALWART_ADMIN_USER "${STALWART_ADMIN_USER}"
   ensure_bootstrap_env_line STALWART_ADMIN_PASSWORD "${STALWART_ADMIN_PASSWORD}"
+  ensure_bootstrap_env_line STALWART_MAIL_PASSWORD "${STALWART_MAIL_PASSWORD}"
   ensure_bootstrap_env_line N8N_OAUTH_CLIENT_SECRET "${N8N_OAUTH_CLIENT_SECRET}"
   ensure_bootstrap_env_line GRAFANA_OAUTH_CLIENT_SECRET "${GRAFANA_OAUTH_CLIENT_SECRET}"
   ensure_bootstrap_env_line VAULT_OIDC_CLIENT_SECRET "${VAULT_OIDC_CLIENT_SECRET}"
-  ensure_bootstrap_env_line STALWART_OAUTH_CLIENT_SECRET "${STALWART_OAUTH_CLIENT_SECRET}"
 }
 
 write_all_secrets_to_vault() {
   upsert_kv secret/auth-api \
-    "spring.datasource.username=${AUTH_DB_USER}" \
-    "spring.datasource.password=${AUTH_DB_PASSWORD}" \
-    "spring.rabbitmq.username=${RABBITMQ_USER}" \
-    "spring.rabbitmq.password=${RABBITMQ_PASSWORD}" \
     "auth.clients.grafana.secret=${GRAFANA_OAUTH_CLIENT_SECRET}" \
     "auth.clients.n8n.secret=${N8N_OAUTH_CLIENT_SECRET}" \
     "auth.clients.vault.secret=${VAULT_OIDC_CLIENT_SECRET}" \
-    "auth.clients.stalwart.secret=${STALWART_OAUTH_CLIENT_SECRET}"
-
-  upsert_kv secret/assistant-api \
-    "spring.datasource.username=${ASSISTANT_DB_USER}" \
-    "spring.datasource.password=${ASSISTANT_DB_PASSWORD}" \
-    "spring.rabbitmq.username=${RABBITMQ_USER}" \
-    "spring.rabbitmq.password=${RABBITMQ_PASSWORD}"
+    "mail.username=auth" \
+    "mail.password=${STALWART_MAIL_PASSWORD}"
 
   vault kv put secret/platform/postgres \
     "postgres.user=${POSTGRES_USER}" \
@@ -517,8 +520,6 @@ write_all_secrets_to_vault() {
     "cloudflare.dns_api_token=${CF_DNS_API_TOKEN}" >/dev/null
 
   vault kv put secret/platform/automation \
-    "n8n.db_user=${N8N_DB_USER}" \
-    "n8n.db_password=${N8N_DB_PASSWORD}" \
     "n8n.oauth_client_secret=${N8N_OAUTH_CLIENT_SECRET}" >/dev/null
 
   vault kv put secret/platform/observability \
@@ -528,8 +529,7 @@ write_all_secrets_to_vault() {
 
   vault kv put secret/platform/mail \
     "stalwart.admin_user=${STALWART_ADMIN_USER}" \
-    "stalwart.admin_password=${STALWART_ADMIN_PASSWORD}" \
-    "stalwart.oauth_client_secret=${STALWART_OAUTH_CLIENT_SECRET}" >/dev/null
+    "stalwart.admin_password=${STALWART_ADMIN_PASSWORD}" >/dev/null
 }
 
 seed_secrets_command() {
@@ -558,7 +558,7 @@ seed_secrets_command() {
   [[ -n "${N8N_OAUTH_CLIENT_SECRET:-}" ]]      || { N8N_OAUTH_CLIENT_SECRET="$(random_secret)";      ensure_bootstrap_env_line N8N_OAUTH_CLIENT_SECRET "${N8N_OAUTH_CLIENT_SECRET}"; }
   [[ -n "${GRAFANA_OAUTH_CLIENT_SECRET:-}" ]]   || { GRAFANA_OAUTH_CLIENT_SECRET="$(random_secret)";   ensure_bootstrap_env_line GRAFANA_OAUTH_CLIENT_SECRET "${GRAFANA_OAUTH_CLIENT_SECRET}"; }
   [[ -n "${VAULT_OIDC_CLIENT_SECRET:-}" ]]      || { VAULT_OIDC_CLIENT_SECRET="$(random_secret)";      ensure_bootstrap_env_line VAULT_OIDC_CLIENT_SECRET "${VAULT_OIDC_CLIENT_SECRET}"; }
-  [[ -n "${STALWART_OAUTH_CLIENT_SECRET:-}" ]]  || { STALWART_OAUTH_CLIENT_SECRET="$(random_secret)";  ensure_bootstrap_env_line STALWART_OAUTH_CLIENT_SECRET "${STALWART_OAUTH_CLIENT_SECRET}"; }
+  [[ -n "${STALWART_MAIL_PASSWORD:-}" ]]       || { STALWART_MAIL_PASSWORD="$(random_secret)";       ensure_bootstrap_env_line STALWART_MAIL_PASSWORD "${STALWART_MAIL_PASSWORD}"; }
 
   if [[ "${MODE}" == "dry-run" ]]; then
     echo "+ seed Vault KV from ${BOOTSTRAP_ENV_FILE}"; return
@@ -572,11 +572,12 @@ seed_secrets_command() {
 # ── prepare-vault command ──────────────────────────────────────────────────
 
 configure_database_engine() {
-  local postgres_user postgres_password auth_db_user assistant_db_user
+  local postgres_user postgres_password auth_db_user assistant_db_user n8n_db_user
 
   if vault read database/config/postgres >/dev/null 2>&1 &&
     vault read database/roles/auth-api >/dev/null 2>&1 &&
-    vault read database/roles/assistant-api >/dev/null 2>&1; then
+    vault read database/roles/assistant-api >/dev/null 2>&1 &&
+    vault read database/roles/n8n >/dev/null 2>&1; then
     echo "Vault database engine already configured."; return
   fi
 
@@ -584,6 +585,7 @@ configure_database_engine() {
   postgres_password="$(vault kv get -field=postgres.password secret/platform/postgres 2>/dev/null || true)"
   auth_db_user="$(vault kv get -field=auth.user secret/platform/postgres 2>/dev/null || true)"
   assistant_db_user="$(vault kv get -field=assistant.user secret/platform/postgres 2>/dev/null || true)"
+  n8n_db_user="$(vault kv get -field=n8n.user secret/platform/postgres 2>/dev/null || true)"
 
   if [[ -z "${postgres_user}" || -z "${postgres_password}" ]]; then
     echo "Skipping database engine: secret/platform/postgres not populated yet."; return
@@ -591,6 +593,7 @@ configure_database_engine() {
 
   : "${auth_db_user:=auth_user}"
   : "${assistant_db_user:=assistant_user}"
+  : "${n8n_db_user:=n8n_user}"
 
   if command -v pg_isready >/dev/null 2>&1; then
     if ! pg_isready -h "${DB_ENGINE_HOST}" -p "${DB_ENGINE_PORT}" -U "${postgres_user}" >/dev/null 2>&1; then
@@ -602,7 +605,7 @@ configure_database_engine() {
   if ! vault write database/config/postgres \
     plugin_name=postgresql-database-plugin \
     "connection_url=postgresql://{{username}}:{{password}}@${DB_ENGINE_HOST}:${DB_ENGINE_PORT}/postgres?sslmode=disable" \
-    allowed_roles="auth-api,assistant-api" \
+    allowed_roles="auth-api,assistant-api,n8n" \
     "username=${postgres_user}" \
     "password=${postgres_password}" >/dev/null; then
     echo "Skipping database engine: could not configure connection."; return
@@ -643,6 +646,58 @@ configure_database_engine() {
       DROP OWNED BY \"{{name}}\";
       DROP ROLE IF EXISTS \"{{name}}\";" \
     default_ttl=1h max_ttl=24h >/dev/null
+
+  echo "+ vault write database/roles/n8n"
+  vault write database/roles/n8n \
+    db_name=postgres \
+    creation_statements="
+      CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}';
+      GRANT CONNECT ON DATABASE n8n_db TO \"{{name}}\";
+      GRANT USAGE, CREATE ON SCHEMA public TO \"{{name}}\";
+      GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"{{name}}\";
+      GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO \"{{name}}\";
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO \"{{name}}\";
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO \"{{name}}\";
+      ALTER SCHEMA public OWNER TO \"{{name}}\";" \
+    revocation_statements="
+      ALTER SCHEMA public OWNER TO ${n8n_db_user};
+      REASSIGN OWNED BY \"{{name}}\" TO ${n8n_db_user};
+      DROP OWNED BY \"{{name}}\";
+      DROP ROLE IF EXISTS \"{{name}}\";" \
+    default_ttl=12h max_ttl=24h >/dev/null
+}
+
+configure_rabbitmq_engine() {
+  if vault read rabbitmq/config/connection >/dev/null 2>&1 &&
+    vault read rabbitmq/roles/app-consumer >/dev/null 2>&1; then
+    echo "Vault RabbitMQ engine already configured."; return
+  fi
+
+  local rmq_user rmq_password
+  rmq_user="$(vault kv get -field=rabbitmq.user secret/platform/rabbitmq 2>/dev/null || true)"
+  rmq_password="$(vault kv get -field=rabbitmq.password secret/platform/rabbitmq 2>/dev/null || true)"
+
+  if [[ -z "${rmq_user}" || -z "${rmq_password}" ]]; then
+    echo "Skipping RabbitMQ engine: secret/platform/rabbitmq not populated yet."; return
+  fi
+
+  if ! curl -sf -u "${rmq_user}:${rmq_password}" "http://127.0.0.1:15672/api/overview" >/dev/null 2>&1; then
+    echo "Skipping RabbitMQ engine: RabbitMQ management API not reachable yet."; return
+  fi
+
+  echo "+ vault write rabbitmq/config/connection"
+  if ! vault write rabbitmq/config/connection \
+    connection_uri="http://127.0.0.1:15672" \
+    username="${rmq_user}" \
+    password="${rmq_password}" >/dev/null; then
+    echo "Skipping RabbitMQ engine: could not configure connection."; return
+  fi
+
+  echo "+ vault write rabbitmq/roles/app-consumer"
+  vault write rabbitmq/roles/app-consumer \
+    vhosts='{"/":{"configure":".*","write":".*","read":".*"}}' \
+    tags="" \
+    default_ttl=12h max_ttl=24h >/dev/null
 }
 
 configure_vault_oidc_auth() {
@@ -688,7 +743,7 @@ prepare_vault_command() {
   : "${VAULT_TOKEN:?Set VAULT_TOKEN}"
 
   if [[ "${MODE}" == "dry-run" ]]; then
-    echo "+ enable engines, write policies/roles, configure transit, database, OIDC"; return
+    echo "+ enable engines, write policies/roles, configure transit, database, rabbitmq, OIDC"; return
   fi
 
   export VAULT_ADDR VAULT_TOKEN
@@ -698,6 +753,7 @@ prepare_vault_command() {
   vault auth enable -path=jwt-nomad jwt 2>/dev/null || true
   vault secrets enable database 2>/dev/null || true
   vault secrets enable transit 2>/dev/null || true
+  vault secrets enable rabbitmq 2>/dev/null || true
 
   # JWT auth for Nomad workload identity
   echo "+ vault write auth/jwt-nomad/config"
@@ -727,71 +783,12 @@ EOF
 
   # Runtime configuration (requires running services)
   configure_database_engine
+  configure_rabbitmq_engine
   configure_vault_oidc_auth
 
   echo "Vault configuration complete."
 }
 
-# ── rotate-secrets command ─────────────────────────────────────────────────
-
-rotate_secrets_command() {
-  require_command vault
-  require_command openssl
-  load_vault_context
-  ensure_vault_unsealed
-  : "${VAULT_ADDR:?Set VAULT_ADDR}"
-  : "${VAULT_TOKEN:?Set VAULT_TOKEN}"
-  export VAULT_ADDR VAULT_TOKEN
-
-  local pg_host="${DB_ENGINE_HOST}" pg_port="${DB_ENGINE_PORT}" errors=0
-  local postgres_user rabbitmq_user
-  postgres_user="$(vault kv get -field=postgres.user secret/platform/postgres 2>/dev/null || echo postgres)"
-  rabbitmq_user="$(vault kv get -field=rabbitmq.user secret/platform/rabbitmq 2>/dev/null || echo appuser)"
-
-  echo "=== Rotating PostgreSQL service passwords ==="
-  local n8n_new_pass
-  n8n_new_pass="$(random_secret)"
-  if [[ "${MODE}" == "apply" ]]; then
-    if PGPASSWORD="$(vault kv get -field=postgres.password secret/platform/postgres 2>/dev/null)" \
-       psql -h "${pg_host}" -p "${pg_port}" -U "${postgres_user}" -d postgres \
-       -c "ALTER USER n8n_user WITH PASSWORD '${n8n_new_pass}';" >/dev/null 2>&1; then
-      vault kv patch secret/platform/postgres "n8n.password=${n8n_new_pass}" >/dev/null
-      vault kv patch secret/platform/automation "n8n.db_password=${n8n_new_pass}" >/dev/null
-      echo "  n8n DB password rotated."
-    else
-      echo "  WARNING: Failed to rotate n8n DB password." >&2
-      errors=$((errors + 1))
-    fi
-  fi
-
-  echo "=== Rotating RabbitMQ password ==="
-  local rmq_new_pass
-  rmq_new_pass="$(random_secret)"
-  if [[ "${MODE}" == "apply" ]]; then
-    local rmq_old_pass
-    rmq_old_pass="$(vault kv get -field=rabbitmq.password secret/platform/rabbitmq 2>/dev/null)"
-    if curl -sf -u "${rabbitmq_user}:${rmq_old_pass}" \
-       -X PUT "http://127.0.0.1:15672/api/users/${rabbitmq_user}" \
-       -H 'content-type: application/json' \
-       -d "{\"password\":\"${rmq_new_pass}\",\"tags\":\"administrator\"}" >/dev/null; then
-      vault kv put secret/platform/rabbitmq \
-        "rabbitmq.user=${rabbitmq_user}" "rabbitmq.password=${rmq_new_pass}" >/dev/null
-      upsert_kv secret/auth-api \
-        "spring.rabbitmq.username=${rabbitmq_user}" "spring.rabbitmq.password=${rmq_new_pass}"
-      upsert_kv secret/assistant-api \
-        "spring.rabbitmq.username=${rabbitmq_user}" "spring.rabbitmq.password=${rmq_new_pass}"
-      echo "  RabbitMQ password rotated."
-    else
-      echo "  WARNING: Failed to rotate RabbitMQ password." >&2
-      errors=$((errors + 1))
-    fi
-  fi
-
-  if [[ "${errors}" -gt 0 ]]; then
-    echo "Rotation completed with ${errors} error(s)." >&2; exit 1
-  fi
-  echo "Secret rotation complete."
-}
 
 # ── full command ───────────────────────────────────────────────────────────
 
@@ -852,7 +849,7 @@ main() {
     init-nomad)     init_nomad_command ;;
     seed-secrets)   seed_secrets_command ;;
     prepare-vault)  prepare_vault_command ;;
-    rotate-secrets) rotate_secrets_command ;;
+    rotate-secrets) echo "rotate-secrets is removed. Vault dynamic secret engines handle rotation automatically."; exit 0 ;;
     full)           full_command ;;
     *)              echo "Unknown command: ${command}" >&2; usage; exit 1 ;;
   esac

@@ -71,8 +71,12 @@ load_nomad_context() {
   fi
 }
 
+vault_is_unsealed() {
+  curl -fsS "${VAULT_ADDR}/v1/sys/seal-status" | jq -e '.sealed == false' >/dev/null 2>&1
+}
+
 ensure_vault_unsealed() {
-  if ! vault status -format=json 2>/dev/null | jq -e '.sealed == false' >/dev/null 2>&1; then
+  if ! vault_is_unsealed; then
     if [[ -z "${VAULT_UNSEAL_KEY:-}" && -f "${VAULT_KEYS_FILE}" ]]; then
       source "${VAULT_KEYS_FILE}"
     fi
@@ -170,7 +174,7 @@ sync_secrets_command() {
   local assistant_db_user assistant_db_password n8n_db_user n8n_db_password
   local grafana_admin_user grafana_admin_password rabbitmq_user rabbitmq_password
   local cf_dns_api_token stalwart_admin_user stalwart_admin_password
-  local n8n_oauth_secret grafana_oauth_secret vault_oauth_secret stalwart_oauth_secret
+  local n8n_oauth_secret grafana_oauth_secret vault_oauth_secret
 
   postgres_user="$(read_secret_or_default postgres /run/secrets/postgres_user postgres)"
   postgres_password="$(read_secret_or_default postgres /run/secrets/postgres_password)"
@@ -194,12 +198,12 @@ sync_secrets_command() {
   [[ -n "${grafana_oauth_secret}" ]] || grafana_oauth_secret="$(random_secret)"
   vault_oauth_secret="$(vault_field_or_default secret/auth-api "auth.clients.vault.secret")"
   [[ -n "${vault_oauth_secret}" ]] || vault_oauth_secret="$(random_secret)"
-  stalwart_oauth_secret="$(vault_field_or_default secret/auth-api "auth.clients.stalwart.secret")"
-  [[ -n "${stalwart_oauth_secret}" ]] || stalwart_oauth_secret="$(random_secret)"
-
   stalwart_admin_user="$(read_secret_or_default stalwart /run/secrets/stalwart_admin_user admin)"
   stalwart_admin_password="$(read_secret_or_default stalwart /run/secrets/stalwart_admin_password)"
   [[ -n "${stalwart_admin_password}" ]] || stalwart_admin_password="$(random_secret)"
+  local stalwart_mail_password
+  stalwart_mail_password="$(vault_field_or_default secret/auth-api "mail.password")"
+  [[ -n "${stalwart_mail_password}" ]] || stalwart_mail_password="$(random_secret)"
 
   # Export for write_all_secrets_to_vault (sourced from setup.sh pattern)
   POSTGRES_USER="${postgres_user}"
@@ -218,31 +222,27 @@ sync_secrets_command() {
   GRAFANA_ADMIN_USER="${grafana_admin_user}"
   GRAFANA_ADMIN_PASSWORD="${grafana_admin_password}"
   VAULT_OIDC_CLIENT_SECRET="${vault_oauth_secret}"
-  STALWART_OAUTH_CLIENT_SECRET="${stalwart_oauth_secret}"
   STALWART_ADMIN_USER="${stalwart_admin_user}"
   STALWART_ADMIN_PASSWORD="${stalwart_admin_password}"
+  STALWART_MAIL_PASSWORD="${stalwart_mail_password}"
 
   # Persist to bootstrap env
   for var in POSTGRES_USER POSTGRES_PASSWORD AUTH_DB_USER AUTH_DB_PASSWORD \
     ASSISTANT_DB_USER ASSISTANT_DB_PASSWORD N8N_DB_USER N8N_DB_PASSWORD \
     RABBITMQ_USER RABBITMQ_PASSWORD CF_DNS_API_TOKEN \
     GRAFANA_ADMIN_USER GRAFANA_ADMIN_PASSWORD STALWART_ADMIN_USER STALWART_ADMIN_PASSWORD \
-    N8N_OAUTH_CLIENT_SECRET GRAFANA_OAUTH_CLIENT_SECRET VAULT_OIDC_CLIENT_SECRET STALWART_OAUTH_CLIENT_SECRET; do
+    STALWART_MAIL_PASSWORD \
+    N8N_OAUTH_CLIENT_SECRET GRAFANA_OAUTH_CLIENT_SECRET VAULT_OIDC_CLIENT_SECRET; do
     ensure_bootstrap_env_line "${var}" "${!var}"
   done
 
   # Write to Vault KV
   upsert_kv secret/auth-api \
-    "spring.rabbitmq.username=${RABBITMQ_USER}" \
-    "spring.rabbitmq.password=${RABBITMQ_PASSWORD}" \
     "auth.clients.grafana.secret=${GRAFANA_OAUTH_CLIENT_SECRET}" \
     "auth.clients.n8n.secret=${N8N_OAUTH_CLIENT_SECRET}" \
     "auth.clients.vault.secret=${VAULT_OIDC_CLIENT_SECRET}" \
-    "auth.clients.stalwart.secret=${STALWART_OAUTH_CLIENT_SECRET}"
-
-  upsert_kv secret/assistant-api \
-    "spring.rabbitmq.username=${RABBITMQ_USER}" \
-    "spring.rabbitmq.password=${RABBITMQ_PASSWORD}"
+    "mail.username=auth" \
+    "mail.password=${STALWART_MAIL_PASSWORD}"
 
   vault kv put secret/platform/postgres \
     "postgres.user=${POSTGRES_USER}" "postgres.password=${POSTGRES_PASSWORD}" \
@@ -257,7 +257,6 @@ sync_secrets_command() {
     "cloudflare.dns_api_token=${CF_DNS_API_TOKEN}" >/dev/null
 
   vault kv put secret/platform/automation \
-    "n8n.db_user=${N8N_DB_USER}" "n8n.db_password=${N8N_DB_PASSWORD}" \
     "n8n.oauth_client_secret=${N8N_OAUTH_CLIENT_SECRET}" >/dev/null
 
   vault kv put secret/platform/observability \
@@ -265,8 +264,7 @@ sync_secrets_command() {
     "grafana.oauth_client_secret=${GRAFANA_OAUTH_CLIENT_SECRET}" >/dev/null
 
   vault kv put secret/platform/mail \
-    "stalwart.admin_user=${STALWART_ADMIN_USER}" "stalwart.admin_password=${STALWART_ADMIN_PASSWORD}" \
-    "stalwart.oauth_client_secret=${STALWART_OAUTH_CLIENT_SECRET}" >/dev/null
+    "stalwart.admin_user=${STALWART_ADMIN_USER}" "stalwart.admin_password=${STALWART_ADMIN_PASSWORD}" >/dev/null
 
   echo "Swarm secrets synced into Vault KV."
 }
@@ -354,7 +352,7 @@ rollback_command() {
   echo "Stopping all Nomad jobs..."
   for job in traefik stalwart app-ui auth-ui assistant-ui auth-api assistant-api \
              postgres valkey rabbitmq \
-             grafana prometheus loki tempo promtail n8n uptime-kuma rotate-secrets; do
+             grafana prometheus loki tempo promtail n8n uptime-kuma; do
     nomad job stop -purge "${job}" 2>/dev/null || true
   done
 

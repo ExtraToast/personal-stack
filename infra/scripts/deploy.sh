@@ -19,6 +19,8 @@ VAULT_KEYS_FILE="${VAULT_KEYS_FILE:-${STACK_DIR}/.vault-keys}"
 NOMAD_KEYS_FILE="${NOMAD_KEYS_FILE:-${STACK_DIR}/.nomad-keys}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 IMAGE_REPO="${IMAGE_REPO:-ghcr.io/extratoast/personal-stack}"
+DOMAIN="${DOMAIN:-jorisjonkers.dev}"
+REPO_DIR_VAR="${REPO_DIR:-/opt/personal-stack}"
 
 MODE="apply"
 PHASE="all"
@@ -66,8 +68,12 @@ load_context() {
   export NOMAD_ADDR="${NOMAD_ADDR:-http://127.0.0.1:4646}"
 }
 
+vault_is_unsealed() {
+  curl -fsS "${VAULT_ADDR}/v1/sys/seal-status" | jq -e '.sealed == false' >/dev/null 2>&1
+}
+
 ensure_vault_unsealed() {
-  if ! vault status -format=json 2>/dev/null | jq -e '.sealed == false' >/dev/null 2>&1; then
+  if ! vault_is_unsealed; then
     if [[ -n "${VAULT_UNSEAL_KEY:-}" ]]; then
       echo "+ vault operator unseal"
       vault operator unseal "${VAULT_UNSEAL_KEY}" >/dev/null
@@ -119,36 +125,67 @@ load_context
 ensure_vault_unsealed
 
 JOBS_DIR="${ROOT_DIR}/infra/nomad/jobs"
+DOMAIN_VAR=(-var "domain=${DOMAIN}")
+REPO_VAR=(-var "repo_dir=${REPO_DIR_VAR}")
 APP_VARS=(-var "image_tag=${IMAGE_TAG}" -var "image_repo=${IMAGE_REPO}")
+EXTRA_VARS=()  # additional vars passed via NOMAD_EXTRA_VARS env (e.g. "-var count=1 -var tls_mode=file")
+if [[ -n "${NOMAD_EXTRA_VARS:-}" ]]; then
+  read -ra EXTRA_VARS <<< "${NOMAD_EXTRA_VARS}"
+fi
 
 deploy_data() {
-  submit_job "${JOBS_DIR}/data/postgres.nomad.hcl"
+  submit_job "${JOBS_DIR}/data/postgres.nomad.hcl"  "${REPO_VAR[@]}"
   submit_job "${JOBS_DIR}/data/valkey.nomad.hcl"
-  submit_job "${JOBS_DIR}/data/rabbitmq.nomad.hcl"
+  submit_job "${JOBS_DIR}/data/rabbitmq.nomad.hcl"  "${DOMAIN_VAR[@]}" "${REPO_VAR[@]}"
+}
+
+seed_stalwart_mail_account() {
+  local stalwart_addr password="${STALWART_MAIL_PASSWORD:-}"
+  [[ -n "${password}" ]] || { echo "STALWART_MAIL_PASSWORD not set, skipping mail account seed."; return 0; }
+
+  echo "+ Waiting for stalwart to be ready"
+  wait_for_job_running stalwart 120
+
+  stalwart_addr="$(nomad service info -json stalwart 2>/dev/null | jq -r '.[0] | .Address + ":" + (.Port | tostring)')" || true
+  [[ -n "${stalwart_addr}" && "${stalwart_addr}" != "null:null" ]] || { echo "Could not resolve stalwart address, skipping account seed."; return 0; }
+
+  local admin_user="${STALWART_ADMIN_USER:-admin}"
+  local admin_pass="${STALWART_ADMIN_PASSWORD:-}"
+
+  echo "+ Seeding stalwart mail account 'auth'"
+  curl -sf -u "${admin_user}:${admin_pass}" \
+    "http://${stalwart_addr}/api/principal" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "type": "individual",
+      "name": "auth",
+      "secrets": ["'"${password}"'"],
+      "emails": ["auth@'"${DOMAIN}"'"]
+    }' && echo " done" || echo " (may already exist)"
 }
 
 deploy_infra() {
-  submit_job "${JOBS_DIR}/observability/loki.nomad.hcl"
+  submit_job "${JOBS_DIR}/observability/loki.nomad.hcl"      "${REPO_VAR[@]}"
   submit_job "${JOBS_DIR}/observability/tempo.nomad.hcl"
   submit_job "${JOBS_DIR}/observability/prometheus.nomad.hcl"
   submit_job "${JOBS_DIR}/observability/promtail.nomad.hcl"
-  submit_job "${JOBS_DIR}/observability/grafana.nomad.hcl"
-  submit_job "${JOBS_DIR}/platform/n8n.nomad.hcl"
-  submit_job "${JOBS_DIR}/platform/uptime-kuma.nomad.hcl"
-  submit_job "${JOBS_DIR}/mail/stalwart.nomad.hcl"
-  submit_job "${JOBS_DIR}/core/rotate-secrets.nomad.hcl"
+  submit_job "${JOBS_DIR}/observability/grafana.nomad.hcl"   "${DOMAIN_VAR[@]}" "${REPO_VAR[@]}"
+  submit_job "${JOBS_DIR}/platform/n8n.nomad.hcl"            "${DOMAIN_VAR[@]}" "${REPO_VAR[@]}"
+  submit_job "${JOBS_DIR}/platform/uptime-kuma.nomad.hcl"    "${DOMAIN_VAR[@]}"
+  submit_job "${JOBS_DIR}/mail/stalwart.nomad.hcl"           "${DOMAIN_VAR[@]}"
+  seed_stalwart_mail_account
 }
 
 deploy_edge() {
-  submit_job "${JOBS_DIR}/edge/traefik.nomad.hcl"
+  submit_job "${JOBS_DIR}/edge/traefik.nomad.hcl" "${DOMAIN_VAR[@]}" "${EXTRA_VARS[@]}"
 }
 
 deploy_apps() {
-  submit_job "${JOBS_DIR}/apps/auth-api.nomad.hcl"     "${APP_VARS[@]}"
-  submit_job "${JOBS_DIR}/apps/assistant-api.nomad.hcl" "${APP_VARS[@]}"
-  submit_job "${JOBS_DIR}/apps/auth-ui.nomad.hcl"       "${APP_VARS[@]}"
-  submit_job "${JOBS_DIR}/apps/assistant-ui.nomad.hcl"   "${APP_VARS[@]}"
-  submit_job "${JOBS_DIR}/apps/app-ui.nomad.hcl"         "${APP_VARS[@]}"
+  submit_job "${JOBS_DIR}/apps/auth-api.nomad.hcl"     "${DOMAIN_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
+  submit_job "${JOBS_DIR}/apps/assistant-api.nomad.hcl" "${DOMAIN_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
+  submit_job "${JOBS_DIR}/apps/auth-ui.nomad.hcl"       "${DOMAIN_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
+  submit_job "${JOBS_DIR}/apps/assistant-ui.nomad.hcl"   "${DOMAIN_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
+  submit_job "${JOBS_DIR}/apps/app-ui.nomad.hcl"         "${DOMAIN_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
 }
 
 case "${PHASE}" in

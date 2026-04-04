@@ -74,3 +74,4 @@ CLAUDE.md
 tmp/
 tmp.txt
 *.bak
+/infra/n8n/worfklows/.rental-scraper.env

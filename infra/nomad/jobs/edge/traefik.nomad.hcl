@@ -3,6 +3,16 @@ variable "domain" {
   default = "jorisjonkers.dev"
 }
 
+variable "tls_mode" {
+  type    = string
+  default = "acme"
+}
+
+variable "tls_cert_dir" {
+  type    = string
+  default = "/srv/nomad/traefik/certs"
+}
+
 job "traefik" {
   datacenters = ["dc1"]
   type        = "service"
@@ -66,7 +76,8 @@ job "traefik" {
       }
 
       env {
-        DOMAIN = var.domain
+        DOMAIN   = var.domain
+        TLS_MODE = var.tls_mode
       }
 
       driver = "docker"
@@ -74,7 +85,8 @@ job "traefik" {
       config {
         image        = "traefik:v3.6"
         network_mode = "host"
-        args = ["--configFile=/local/traefik-static.yml"]
+        args         = ["--configFile=/local/traefik-static.yml"]
+        volumes      = ["${var.tls_cert_dir}:/certs:ro"]
       }
 
       volume_mount {
@@ -84,7 +96,7 @@ job "traefik" {
 
       resources {
         cpu    = 400
-        memory = 256
+        memory = 384
       }
     }
   }
