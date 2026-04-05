@@ -43,6 +43,7 @@ http:
         - websecure
       service: nomad
       middlewares:
+        - nomad-proxy-headers
         - forward-auth
         - rate-limit
         - security-headers
@@ -68,6 +69,14 @@ http:
           - 'X-User-Id'
           - 'X-User-Email'
           - 'X-User-Roles'
+
+    nomad-proxy-headers:
+      headers:
+        # Nomad validates the Origin header for some UI-initiated upgraded and
+        # exchange requests when running behind a reverse proxy. Rewrite it to
+        # the backend API address so the external host does not get rejected.
+        customRequestHeaders:
+          Origin: 'http://127.0.0.1:4646'
 
     rate-limit:
       rateLimit:
