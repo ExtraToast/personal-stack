@@ -108,4 +108,4 @@ jobs:
             export NOMAD_TOKEN
             : "${NOMAD_TOKEN:?NOMAD_TOKEN secret is required}"
             echo "Deploying ${IMAGE_REPO} at ${IMAGE_TAG}"
-            bash infra/scripts/deploy.sh --phase apps --wait
+            bash infra/scripts/deploy.sh --phase all --wait
