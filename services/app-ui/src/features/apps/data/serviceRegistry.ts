@@ -64,6 +64,13 @@ export const SERVICE_REGISTRY: ServiceEntry[] = [
     description: 'AI assistant',
   },
   {
+    permission: 'NOMAD',
+    label: 'Nomad',
+    url: buildServiceUrl('nomad'),
+    iconUrl: '/icons/nomad.svg',
+    description: 'Cluster orchestration',
+  },
+  {
     permission: 'TRAEFIK_DASHBOARD',
     label: 'Traefik',
     url: buildServiceUrl('traefik'),
