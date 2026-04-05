@@ -71,6 +71,13 @@ export const SERVICE_REGISTRY: ServiceEntry[] = [
     description: 'Cluster orchestration',
   },
   {
+    permission: 'RABBITMQ',
+    label: 'RabbitMQ',
+    url: buildServiceUrl('rabbitmq'),
+    iconUrl: '/icons/rabbitmq.svg',
+    description: 'Message broker',
+  },
+  {
     permission: 'TRAEFIK_DASHBOARD',
     label: 'Traefik',
     url: buildServiceUrl('traefik'),
