@@ -38,6 +38,7 @@ class ServicePermissionsUiTest : PlaywrightTestBase() {
         val user = registerAndConfirm()
         TestHelper.grantServicePermission(user.username, "GRAFANA")
         TestHelper.grantServicePermission(user.username, "VAULT")
+        TestHelper.grantServicePermission(user.username, "NOMAD")
         loginViaApi(user)
 
         page.navigate("$APP_UI_URL/apps")
