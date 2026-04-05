@@ -13,6 +13,7 @@
 #   init-nomad       Bootstrap Nomad ACL
 #   seed-secrets     Seed Vault KV from the bootstrap env file or current shell
 #   prepare-vault    Configure JWT auth, policies, roles, transit, database engine, OIDC
+#   prepare-nomad-oidc  Configure Nomad ACL OIDC against the auth service
 #   prepare-pure-vault  One-time prep for pure Vault-backed runtime secrets without persisting bootstrap env files
 #   rotate-secrets   (removed — Vault dynamic engines handle rotation)
 #   full             Run the complete bootstrap sequence including deploy
@@ -34,6 +35,10 @@ VAULT_PUBLIC_ADDR="${VAULT_PUBLIC_ADDR:-https://vault.jorisjonkers.dev}"
 AUTH_ISSUER="${AUTH_ISSUER:-https://auth.jorisjonkers.dev}"
 DB_ENGINE_HOST="${DB_ENGINE_HOST:-127.0.0.1}"
 DB_ENGINE_PORT="${DB_ENGINE_PORT:-5432}"
+NOMAD_PUBLIC_ADDR="${NOMAD_PUBLIC_ADDR:-https://nomad.jorisjonkers.dev}"
+NOMAD_TEST_PUBLIC_ADDR="${NOMAD_TEST_PUBLIC_ADDR:-https://nomad.jorisjonkers.test}"
+NOMAD_OIDC_AUTH_METHOD_NAME="${NOMAD_OIDC_AUTH_METHOD_NAME:-nomad}"
+NOMAD_OIDC_MAX_TOKEN_TTL="${NOMAD_OIDC_MAX_TOKEN_TTL:-8h}"
 
 # ── Usage ──────────────────────────────────────────────────────────────────
 
@@ -48,6 +53,8 @@ Commands:
   init-nomad       Bootstrap Nomad ACL
   seed-secrets     Seed Vault KV from the bootstrap env file or current shell env
   prepare-vault    Configure JWT auth, policies, roles, transit, database, rabbitmq engine, OIDC
+  prepare-nomad-oidc
+                 Configure Nomad ACL OIDC auth method against the auth service
   prepare-pure-vault
                    One-time switch to env-driven Vault bootstrap without persisting bootstrap env files
   full             Run the complete bootstrap sequence including deploy
@@ -783,6 +790,114 @@ configure_vault_oidc_auth() {
 EOF
 }
 
+configure_nomad_oidc_auth_method() {
+  local nomad_oauth_secret auth_method_name token_name_format
+  auth_method_name="${NOMAD_OIDC_AUTH_METHOD_NAME}"
+  token_name_format='${auth_method_name}-${value.preferred_username}'
+  nomad_oauth_secret="$(vault kv get -field="auth.clients.nomad.secret" secret/auth-api 2>/dev/null || true)"
+  [[ -n "${nomad_oauth_secret}" ]] || {
+    echo "Skipping Nomad OIDC: auth.clients.nomad.secret not available yet."; return
+  }
+
+  if ! curl -sf --max-time 5 "${AUTH_ISSUER}/.well-known/openid-configuration" >/dev/null 2>&1; then
+    echo "Skipping Nomad OIDC: ${AUTH_ISSUER} discovery endpoint not reachable yet."; return
+  fi
+
+  if nomad acl auth-method info "${auth_method_name}" >/dev/null 2>&1; then
+    echo "+ nomad acl auth-method update ${auth_method_name}"
+    nomad acl auth-method update \
+      -type "OIDC" \
+      -description "OIDC login via ${AUTH_ISSUER}" \
+      -token-locality "global" \
+      -max-token-ttl "${NOMAD_OIDC_MAX_TOKEN_TTL}" \
+      -token-name-format "${token_name_format}" \
+      -default=true \
+      -config=- \
+      "${auth_method_name}" <<EOF >/dev/null
+{
+  "OIDCDiscoveryURL": "${AUTH_ISSUER}",
+  "OIDCClientID": "nomad",
+  "OIDCClientSecret": "${nomad_oauth_secret}",
+  "BoundAudiences": ["nomad"],
+  "AllowedRedirectURIs": [
+    "${NOMAD_PUBLIC_ADDR}/ui/settings/tokens",
+    "${NOMAD_TEST_PUBLIC_ADDR}/ui/settings/tokens",
+    "http://localhost:4649/oidc/callback",
+    "http://127.0.0.1:4649/oidc/callback"
+  ],
+  "OIDCScopes": ["openid", "profile", "email"],
+  "ClaimMappings": {
+    "preferred_username": "preferred_username",
+    "email": "email"
+  },
+  "ListClaimMappings": {
+    "roles": "roles"
+  }
+}
+EOF
+    return
+  fi
+
+  echo "+ nomad acl auth-method create -name ${auth_method_name}"
+  nomad acl auth-method create \
+    -name "${auth_method_name}" \
+    -type "OIDC" \
+    -description "OIDC login via ${AUTH_ISSUER}" \
+    -token-locality "global" \
+    -max-token-ttl "${NOMAD_OIDC_MAX_TOKEN_TTL}" \
+    -token-name-format "${token_name_format}" \
+    -default=true \
+    -config=- <<EOF >/dev/null
+{
+  "OIDCDiscoveryURL": "${AUTH_ISSUER}",
+  "OIDCClientID": "nomad",
+  "OIDCClientSecret": "${nomad_oauth_secret}",
+  "BoundAudiences": ["nomad"],
+  "AllowedRedirectURIs": [
+    "${NOMAD_PUBLIC_ADDR}/ui/settings/tokens",
+    "${NOMAD_TEST_PUBLIC_ADDR}/ui/settings/tokens",
+    "http://localhost:4649/oidc/callback",
+    "http://127.0.0.1:4649/oidc/callback"
+  ],
+  "OIDCScopes": ["openid", "profile", "email"],
+  "ClaimMappings": {
+    "preferred_username": "preferred_username",
+    "email": "email"
+  },
+  "ListClaimMappings": {
+    "roles": "roles"
+  }
+}
+EOF
+}
+
+prepare_nomad_oidc_command() {
+  require_command curl
+  require_command jq
+  require_command nomad
+  require_command vault
+
+  load_bootstrap_env
+  load_vault_context
+  load_nomad_context
+  ensure_vault_unsealed
+  : "${VAULT_ADDR:?Set VAULT_ADDR}"
+  : "${VAULT_TOKEN:?Set VAULT_TOKEN}"
+  : "${NOMAD_ADDR:?Set NOMAD_ADDR}"
+  : "${NOMAD_TOKEN:?Set NOMAD_TOKEN}"
+
+  if [[ "${MODE}" == "dry-run" ]]; then
+    echo "+ reconcile Nomad OIDC auth method ${NOMAD_OIDC_AUTH_METHOD_NAME}"; return
+  fi
+
+  export VAULT_ADDR VAULT_TOKEN NOMAD_ADDR NOMAD_TOKEN
+
+  wait_for_nomad_api
+  configure_nomad_oidc_auth_method
+
+  echo "Nomad OIDC auth method configuration complete."
+}
+
 prepare_vault_command() {
   load_bootstrap_env
   load_vault_context
@@ -906,6 +1021,7 @@ full_command() {
 
   # Deploy everything
   bash "${deploy_script}" --phase all --wait
+  prepare_nomad_oidc_command
 
   echo "Full server bootstrap complete."
   echo "Credentials written to:"
@@ -936,6 +1052,7 @@ main() {
     init-nomad)     init_nomad_command ;;
     seed-secrets)   seed_secrets_command ;;
     prepare-vault)  prepare_vault_command ;;
+    prepare-nomad-oidc) prepare_nomad_oidc_command ;;
     prepare-pure-vault) prepare_pure_vault_command ;;
     rotate-secrets) echo "rotate-secrets is removed. Vault dynamic secret engines handle rotation automatically."; exit 0 ;;
     full)           full_command ;;
