@@ -89,12 +89,15 @@ jobs:
       - uses: actions/checkout@v6
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
+        env:
+          NOMAD_TOKEN: ${{ secrets.NOMAD_TOKEN }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: 2222
           command_timeout: 20m
+          envs: NOMAD_TOKEN
           script: |
             set -euo pipefail
             cd /opt/personal-stack
@@ -102,5 +105,7 @@ jobs:
             git reset --hard '${{ github.sha }}'
             export IMAGE_TAG='${{ github.sha }}'
             export IMAGE_REPO="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+            export NOMAD_TOKEN
+            : "${NOMAD_TOKEN:?NOMAD_TOKEN secret is required}"
             echo "Deploying ${IMAGE_REPO} at ${IMAGE_TAG}"
             bash infra/scripts/deploy.sh --phase apps --wait
