@@ -621,13 +621,6 @@ seed_secrets_command() {
 configure_database_engine() {
   local postgres_user postgres_password auth_db_user assistant_db_user n8n_db_user
 
-  if vault read database/config/postgres >/dev/null 2>&1 &&
-    vault read database/roles/auth-api >/dev/null 2>&1 &&
-    vault read database/roles/assistant-api >/dev/null 2>&1 &&
-    vault read database/roles/n8n >/dev/null 2>&1; then
-    echo "Vault database engine already configured."; return
-  fi
-
   postgres_user="$(vault kv get -field=postgres.user secret/platform/postgres 2>/dev/null || true)"
   postgres_password="$(vault kv get -field=postgres.password secret/platform/postgres 2>/dev/null || true)"
   auth_db_user="$(vault kv get -field=auth.user secret/platform/postgres 2>/dev/null || true)"
@@ -660,18 +653,17 @@ configure_database_engine() {
 
   vault write -force database/rotate-root/postgres >/dev/null 2>&1 || true
 
+  # The Vault connection targets the postgres database, so cross-database access
+  # is safest via inheriting each app's base owner role instead of schema grants.
   echo "+ vault write database/roles/auth-api"
   vault write database/roles/auth-api \
     db_name=postgres \
     creation_statements="
       CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}';
       GRANT CONNECT ON DATABASE auth_db TO \"{{name}}\";
-      GRANT USAGE ON SCHEMA public TO \"{{name}}\";
-      GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"{{name}}\";
-      GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO \"{{name}}\";
-      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO \"{{name}}\";
-      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO \"{{name}}\";" \
+      GRANT ${auth_db_user} TO \"{{name}}\";" \
     revocation_statements="
+      REVOKE ${auth_db_user} FROM \"{{name}}\";
       REASSIGN OWNED BY \"{{name}}\" TO ${auth_db_user};
       DROP OWNED BY \"{{name}}\";
       DROP ROLE IF EXISTS \"{{name}}\";" \
@@ -683,12 +675,9 @@ configure_database_engine() {
     creation_statements="
       CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}';
       GRANT CONNECT ON DATABASE assistant_db TO \"{{name}}\";
-      GRANT USAGE ON SCHEMA public TO \"{{name}}\";
-      GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"{{name}}\";
-      GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO \"{{name}}\";
-      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO \"{{name}}\";
-      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO \"{{name}}\";" \
+      GRANT ${assistant_db_user} TO \"{{name}}\";" \
     revocation_statements="
+      REVOKE ${assistant_db_user} FROM \"{{name}}\";
       REASSIGN OWNED BY \"{{name}}\" TO ${assistant_db_user};
       DROP OWNED BY \"{{name}}\";
       DROP ROLE IF EXISTS \"{{name}}\";" \
@@ -700,14 +689,9 @@ configure_database_engine() {
     creation_statements="
       CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}';
       GRANT CONNECT ON DATABASE n8n_db TO \"{{name}}\";
-      GRANT USAGE, CREATE ON SCHEMA public TO \"{{name}}\";
-      GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"{{name}}\";
-      GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO \"{{name}}\";
-      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO \"{{name}}\";
-      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO \"{{name}}\";
-      ALTER SCHEMA public OWNER TO \"{{name}}\";" \
+      GRANT ${n8n_db_user} TO \"{{name}}\";" \
     revocation_statements="
-      ALTER SCHEMA public OWNER TO ${n8n_db_user};
+      REVOKE ${n8n_db_user} FROM \"{{name}}\";
       REASSIGN OWNED BY \"{{name}}\" TO ${n8n_db_user};
       DROP OWNED BY \"{{name}}\";
       DROP ROLE IF EXISTS \"{{name}}\";" \
