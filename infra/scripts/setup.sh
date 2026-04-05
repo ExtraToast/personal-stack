@@ -536,6 +536,7 @@ persist_bootstrap_secrets() {
   ensure_bootstrap_env_line STALWART_MAIL_PASSWORD "${STALWART_MAIL_PASSWORD}"
   ensure_bootstrap_env_line N8N_OAUTH_CLIENT_SECRET "${N8N_OAUTH_CLIENT_SECRET}"
   ensure_bootstrap_env_line GRAFANA_OAUTH_CLIENT_SECRET "${GRAFANA_OAUTH_CLIENT_SECRET}"
+  ensure_bootstrap_env_line NOMAD_OIDC_CLIENT_SECRET "${NOMAD_OIDC_CLIENT_SECRET}"
   ensure_bootstrap_env_line VAULT_OIDC_CLIENT_SECRET "${VAULT_OIDC_CLIENT_SECRET}"
 }
 
@@ -543,6 +544,7 @@ write_all_secrets_to_vault() {
   upsert_kv secret/auth-api \
     "auth.clients.grafana.secret=${GRAFANA_OAUTH_CLIENT_SECRET}" \
     "auth.clients.n8n.secret=${N8N_OAUTH_CLIENT_SECRET}" \
+    "auth.clients.nomad.secret=${NOMAD_OIDC_CLIENT_SECRET}" \
     "auth.clients.vault.secret=${VAULT_OIDC_CLIENT_SECRET}" \
     "mail.username=auth" \
     "mail.password=${STALWART_MAIL_PASSWORD}"
@@ -602,6 +604,7 @@ seed_secrets_command() {
 
   [[ -n "${N8N_OAUTH_CLIENT_SECRET:-}" ]]     || N8N_OAUTH_CLIENT_SECRET="$(random_secret)"
   [[ -n "${GRAFANA_OAUTH_CLIENT_SECRET:-}" ]] || GRAFANA_OAUTH_CLIENT_SECRET="$(random_secret)"
+  [[ -n "${NOMAD_OIDC_CLIENT_SECRET:-}" ]]    || NOMAD_OIDC_CLIENT_SECRET="$(random_secret)"
   [[ -n "${VAULT_OIDC_CLIENT_SECRET:-}" ]]    || VAULT_OIDC_CLIENT_SECRET="$(random_secret)"
   [[ -n "${STALWART_MAIL_PASSWORD:-}" ]]      || STALWART_MAIL_PASSWORD="$(random_secret)"
 
