@@ -29,7 +29,7 @@ on a single VPS, resource efficiency matters.
 
 - **Prometheus + Grafana**
 - Spring Boot Actuator exposes /actuator/prometheus endpoint
-- Prometheus scrapes all services on the Swarm overlay network
+- Prometheus scrapes services exposed by the Nomad deployment
 - Traefik exposes Prometheus metrics natively
 - Node Exporter for host-level metrics (CPU, memory, disk, network)
 - Grafana dashboards for: service health, JVM metrics, HTTP latency, error rates

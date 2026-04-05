@@ -85,8 +85,8 @@ export default {
       {
         title: 'Personal Stack',
         description:
-          'A self-hosted infrastructure platform running on Docker Swarm with Traefik, Vault, and observability tooling. Includes an auth service (Spring Authorization Server + TOTP MFA), an AI assistant service, and Vue.js frontends — all built with hexagonal architecture and enforced by ArchUnit.',
-        technologies: ['Kotlin', 'Spring Boot', 'Vue.js', 'Docker Swarm', 'Traefik', 'Vault', 'PostgreSQL'],
+          'A self-hosted infrastructure platform running on Nomad with Consul, Traefik, Vault, and observability tooling. Includes an auth service (Spring Authorization Server + TOTP MFA), an AI assistant service, and Vue.js frontends — all built with hexagonal architecture and enforced by ArchUnit.',
+        technologies: ['Kotlin', 'Spring Boot', 'Vue.js', 'Nomad', 'Consul', 'Traefik', 'Vault', 'PostgreSQL'],
         githubUrl: 'https://github.com/ExtraToast/personal-stack',
       },
       {

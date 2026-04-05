@@ -22,7 +22,7 @@ const frameworks = [
   { name: 'Nomad', years: '<1' },
 ]
 
-const tools = ['GitHub Actions', 'Docker Swarm', 'JSON:API', 'Traefik', 'React Native', 'PostgreSQL', 'Vault']
+const tools = ['GitHub Actions', 'Consul', 'JSON:API', 'Traefik', 'React Native', 'PostgreSQL', 'Vault']
 
 const softSkills = ['Project Management', 'Public Relations', 'Communication', 'Critical Thinking']
 

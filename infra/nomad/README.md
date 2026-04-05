@@ -1,7 +1,7 @@
 # Nomad Deployment Layout
 
-This directory contains the production Nomad deployment assets for migrating
-`personal-stack` from Docker Swarm to Nomad + Consul + Vault workload identity.
+This directory contains the production Nomad deployment assets for
+`personal-stack`.
 
 Local development stays on the existing [docker-compose.yml](/Users/j.w.jonkers/IDEAProjects/private-stack/docker-compose.yml).
 Nomad is the production deployment target only.
@@ -26,10 +26,8 @@ infra/nomad/
 
 - Treat these files as the canonical production deployment definitions.
 - Keep Nomad, Consul, and Vault themselves as system services on the host.
-- Run `infra/scripts/setup.sh prepare-pure-vault` once on the server when switching to the env-driven Vault bootstrap flow. This is the one-time prep step, not a recurring CI job.
+- Run `infra/scripts/setup.sh prepare-pure-vault` on a fresh server when seeding Vault from shell-provided bootstrap secrets without persisting a bootstrap env file.
 - After that, use `infra/scripts/deploy.sh` for normal deploys. Pass `NOMAD_TOKEN` plus the image/domain inputs from CI or your shell; steady-state deploys should not depend on `.nomad-bootstrap.env`, `.vault-keys`, or `.nomad-keys`.
 - App jobs default to `APP_COUNT=1` so single-node servers keep enough headroom for rolling placements. Set `APP_COUNT=2` when the cluster has capacity for two steady-state replicas.
 - Use Vault workload identity and per-job JWT roles instead of AppRole.
 - Keep only the bootstrap/control-plane secret set in Vault KV; app runtime secrets should come from Vault secret engines.
-
-See [NOMAD_VAULT_MIGRATION.md](/Users/j.w.jonkers/IDEAProjects/private-stack/docs/architecture/NOMAD_VAULT_MIGRATION.md) for the implementation roadmap.

@@ -6,17 +6,17 @@ Self-hosted infrastructure for [jorisjonkers.dev](https://jorisjonkers.dev) — 
 
 | Layer         | Technology                                                            |
 | ------------- | --------------------------------------------------------------------- |
-| Orchestration | Docker Swarm (single-node, expandable)                                |
+| Orchestration | Nomad + Consul (single-node, expandable)                              |
 | Edge Router   | Traefik with wildcard TLS via Cloudflare DNS-01                       |
 | Auth          | Custom OAuth2/OIDC server (Kotlin + Spring Authorization Server)      |
 | Backend       | Kotlin 2.1, Spring Boot 4.0, Java 21, Spring WebMVC + virtual threads |
 | Frontend      | Vue 3, TypeScript (strict), PrimeVue, Tailwind CSS, Vite              |
 | Database      | PostgreSQL 17 (jOOQ + Flyway), Valkey (cache/sessions)                |
 | Messaging     | RabbitMQ                                                              |
-| Secrets       | HashiCorp Vault (Raft storage, AppRole auth)                          |
+| Secrets       | HashiCorp Vault (Raft storage, Nomad workload identity)               |
 | Automation    | n8n                                                                   |
 | Observability | Grafana, Prometheus, Loki, Tempo, Uptime Kuma                         |
-| CI/CD         | GitHub Actions, ghcr.io, rolling Swarm deploys                        |
+| CI/CD         | GitHub Actions, ghcr.io, Nomad job deploys                            |
 
 ## Services
 
@@ -38,9 +38,10 @@ personal-stack/
 │   └── adr/                # Architecture Decision Records (ADR-001–020)
 ├── infra/
 │   ├── cloud-init/         # Server provisioning
-│   ├── docker/             # Swarm stack files, Dockerfiles
-│   ├── traefik/            # Traefik config
-│   └── vault/              # Vault policies
+│   ├── docker/             # Local container assets and DB init scripts
+│   ├── nomad/              # Production Nomad jobs, templates, Vault roles
+│   ├── scripts/            # Deploy/bootstrap helpers
+│   └── traefik/            # Shared Traefik config
 ├── services/
 │   ├── auth-api/           # OAuth2/OIDC auth server
 │   ├── auth-ui/            # Login/register/MFA frontend

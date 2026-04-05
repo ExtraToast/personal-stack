@@ -2,8 +2,9 @@
 
 ## Overview
 
-Self-hosted private stack for jorisjonkers.dev on Contabo. Docker Swarm orchestration, Traefik edge router, HashiCorp
-Vault for secrets, custom auth, multiple Vue + Kotlin services, n8n automation, full Grafana observability stack.
+Self-hosted private stack for jorisjonkers.dev on Contabo. Nomad orchestration with Consul service discovery, Traefik
+edge routing, HashiCorp Vault for secrets, custom auth, multiple Vue + Kotlin services, n8n automation, and a full
+Grafana observability stack.
 
 ## Domain: jorisjonkers.dev
 
@@ -17,7 +18,7 @@ Vault for secrets, custom auth, multiple Vue + Kotlin services, n8n automation, 
 
 - Contabo Cloud VPS 20 (6 vCPU, 12 GB RAM, 400 GB SSD)
 - Ubuntu 24.04 LTS
-- Single-node Docker Swarm (expandable)
+- Single-node Nomad cluster with Consul (expandable)
 - Cloud-init for provisioning + Contabo API automation (no Terraform)
 
 ## Network Security
@@ -71,7 +72,7 @@ Vault for secrets, custom auth, multiple Vue + Kotlin services, n8n automation, 
 
 - Raft integrated storage
 - Manual unseal with Shamir keys (pending confirmation -- may switch to auto-unseal)
-- AppRole auth for services
+- Nomad-issued Vault tokens via workload identity for services
 - Manages: DB creds (dynamic), JWT signing keys, TLS certs (PKI), API keys, Docker registry creds, encryption keys, SSH
   CA
 
@@ -185,7 +186,7 @@ Three stages:
 
 ## Inter-service Communication
 
-- Synchronous: REST over Docker Swarm overlay network
+- Synchronous: REST over Nomad networking with Consul-backed service discovery
 - Asynchronous: RabbitMQ for decoupled flows (notifications, background jobs)
 - Cross-domain: Spring Modulith domain events (within service), RabbitMQ (between services)
 
@@ -265,8 +266,8 @@ Dedicated Kotlin service that tests all apps together:
 
 - GitHub Actions
 - GitHub Container Registry (ghcr.io)
-- Deploy: CI pushes image -> SSH into Swarm manager -> docker stack deploy
-- Rolling updates (Swarm default)
+- Deploy: CI pushes image -> authenticated Nomad deploy via `infra/scripts/deploy.sh`
+- Rolling updates handled per job through Nomad `update` stanzas when capacity allows
 - Source: GitHub private repo
 
 ## Monitoring & Observability
@@ -293,8 +294,13 @@ personal-stack/
   infra/
     cloud-init/
     docker/
+    nomad/
+      jobs/
+      templates/
+      vault/
+    observability/
+    scripts/
     traefik/
-    vault/
   services/
     auth-api/
     auth-ui/
