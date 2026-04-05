@@ -187,6 +187,15 @@ wait_for_nomad_api() {
   wait_for_http "${NOMAD_ADDR}/v1/status/leader" "Nomad API" 90
 }
 
+stop_nomad_job_if_present() {
+  local job="$1"
+  load_nomad_context
+  if nomad job status "${job}" >/dev/null 2>&1; then
+    echo "+ nomad job stop -purge ${job}"
+    nomad job stop -purge "${job}" >/dev/null
+  fi
+}
+
 wait_for_postgres() {
   load_bootstrap_env
   local postgres_user="${POSTGRES_USER:-postgres}" timeout="${1:-120}" elapsed=0
@@ -846,6 +855,10 @@ prepare_pure_vault_command() {
   bash "${deploy_script}" --phase data --wait
   wait_for_postgres 240
   prepare_vault_command
+  # n8n previously used static DB credentials. Stop it before redeploying so a
+  # fresh allocation gets a new dynamic lease instead of waiting on a rolling update.
+  vault lease revoke -prefix database/creds/n8n >/dev/null 2>&1 || true
+  stop_nomad_job_if_present n8n
   bash "${deploy_script}" --phase infra --wait
   seed_stalwart_mail_account
 
