@@ -207,6 +207,7 @@ deploy_infra() {
   submit_job "${JOBS_DIR}/observability/promtail.nomad.hcl"
   submit_job "${JOBS_DIR}/observability/grafana.nomad.hcl"   "${DOMAIN_VAR[@]}" "${REPO_VAR[@]}"
   submit_job "${JOBS_DIR}/platform/n8n.nomad.hcl"            "${DOMAIN_VAR[@]}" "${REPO_VAR[@]}"
+  submit_job "${JOBS_DIR}/platform/flaresolverr.nomad.hcl"
   submit_job "${JOBS_DIR}/platform/uptime-kuma.nomad.hcl"    "${DOMAIN_VAR[@]}"
   submit_job "${JOBS_DIR}/mail/stalwart.nomad.hcl"           "${DOMAIN_VAR[@]}"
 }
@@ -243,6 +244,7 @@ if [[ "${WAIT}" == true && "${MODE}" == "apply" ]]; then
     infra)
       wait_for_job_ready grafana 300
       wait_for_job_ready n8n 300
+      wait_for_job_ready flaresolverr 180
       wait_for_job_ready stalwart 300
       wait_for_job_ready uptime-kuma 240
       ;;
@@ -262,6 +264,7 @@ if [[ "${WAIT}" == true && "${MODE}" == "apply" ]]; then
       wait_for_job_ready rabbitmq 180
       wait_for_job_ready grafana 300
       wait_for_job_ready n8n 300
+      wait_for_job_ready flaresolverr 180
       wait_for_job_ready stalwart 300
       wait_for_job_ready uptime-kuma 240
       wait_for_job_ready auth-api 300

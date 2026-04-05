@@ -16,7 +16,7 @@
       "name": "Dagelijks 08:00",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [20960, 3504]
+      "position": [200, 3400]
     },
     {
       "parameters": {},
@@ -24,17 +24,17 @@
       "name": "Handmatig Testen",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [20960, 3680]
+      "position": [200, 3600]
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: {\n  emailTo: 'house-search@jorisjonkers.dev',\n  geminiApiKey: 'KEYHERE',\n  woninghurenBody: JSON.stringify({\n    limit: 25, page: 0, locale: 'nl_NL',\n    filters: { '$and': [\n      {'municipality.name': {'$eq': 'Enschede'}},\n      {'totalRent': {'$gte': 1000}},\n      {'totalRent': {'$lte': 1500}},\n      {'sleepingRoom.amountOfRooms': {'$gte': 3}},\n      {'dwellingType.categorie': {'$ne': 'parkeerplaats'}},\n      {'dwellingType.categorie': {'$ne': 'garage'}},\n      {'dwellingType.categorie': {'$ne': 'berging'}}\n    ]}\n  }),\n  parariusBody: JSON.stringify({cmd: 'request.get', url: 'https://www.pararius.nl/huurwoningen/enschede/1000-1500/3-slaapkamers', maxTimeout: 120000}),\n  huurwoningenBody: JSON.stringify({cmd: 'request.get', url: 'https://www.huurwoningen.nl/in/enschede/?price=1000-1500&bedrooms=3', maxTimeout: 120000})\n}}];"
+        "jsCode": "return [{ json: {\n  emailTo: 'house-search@jorisjonkers.dev',\n  geminiApiKey: process.env.GEMINI_API_KEY || '',\n  woninghurenBody: JSON.stringify({\n    limit: 25, page: 0, locale: 'nl_NL',\n    filters: { '$and': [\n      {'municipality.name': {'$eq': 'Enschede'}},\n      {'totalRent': {'$gte': 1000}},\n      {'totalRent': {'$lte': 1500}},\n      {'sleepingRoom.amountOfRooms': {'$gte': 3}},\n      {'dwellingType.categorie': {'$ne': 'parkeerplaats'}},\n      {'dwellingType.categorie': {'$ne': 'garage'}},\n      {'dwellingType.categorie': {'$ne': 'berging'}}\n    ]}\n  }),\n  parariusBody: JSON.stringify({cmd: 'request.get', url: 'https://www.pararius.nl/huurwoningen/enschede/1000-1500/3-slaapkamers', maxTimeout: 120000}),\n  huurwoningenBody: JSON.stringify({cmd: 'request.get', url: 'https://www.huurwoningen.nl/in/enschede/?price=1000-1500&bedrooms=3', maxTimeout: 120000})\n}}];"
       },
       "id": "3fc53cc3-8b95-4c07-9cd4-b298754941af",
       "name": "Config",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [21216, 3584]
+      "position": [480, 3500]
     },
     {
       "parameters": {
@@ -43,22 +43,36 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Accept", "value": "application/json" },
-            { "name": "Origin", "value": "https://www.woninghuren.nl" },
-            { "name": "Referer", "value": "https://www.woninghuren.nl/" }
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Origin",
+              "value": "https://www.woninghuren.nl"
+            },
+            {
+              "name": "Referer",
+              "value": "https://www.woninghuren.nl/"
+            }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ $json.woninghurenBody }}",
-        "options": { "timeout": 30000 }
+        "options": {
+          "timeout": 30000
+        }
       },
       "id": "87da2020-730c-4d37-8ae7-066f5c3d802e",
       "name": "Woninghuren API",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [21504, 3392],
+      "position": [760, 3300],
       "onError": "continueRegularOutput"
     },
     {
@@ -68,13 +82,15 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ $json.parariusBody }}",
-        "options": { "timeout": 180000 }
+        "options": {
+          "timeout": 180000
+        }
       },
       "id": "874f266c-cb1b-4f69-a391-b4eb06dba9c3",
       "name": "Fetch Pararius",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [21504, 3584],
+      "position": [760, 3500],
       "onError": "continueRegularOutput"
     },
     {
@@ -84,24 +100,26 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ $('Config').first().json.huurwoningenBody }}",
-        "options": { "timeout": 180000 }
+        "options": {
+          "timeout": 180000
+        }
       },
       "id": "2663fbe2-8b5b-43f5-a0c6-685637db0573",
       "name": "Fetch Huurwoningen",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [21504, 3792],
+      "position": [760, 3700],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "// Extract listings from FlareSolverr HTML responses\n// Strategy: 1) Try JSON-LD structured data (Pararius has this), 2) Fall back to Gemini\nconst configs = $('Config').all();\nconst geminiApiKey = configs[0]?.json?.geminiApiKey || '';\nconst results = [];\n\nconst sources = [\n  { node: 'Fetch Pararius', naam: 'Pararius', url: 'https://www.pararius.nl/huurwoningen/enschede/1000-1500/3-slaapkamers' },\n  { node: 'Fetch Huurwoningen', naam: 'Huurwoningen.nl', url: 'https://www.huurwoningen.nl/in/enschede/?price=1000-1500&bedrooms=3' }\n];\n\nfor (const src of sources) {\n  try {\n    const resp = $(src.node).first().json;\n    const html = resp?.solution?.response || resp?.data || '';\n\n    if (!html || html.length < 500) {\n      results.push({ json: { naam: src.naam, sourceUrl: src.url, isError: true, fout: 'Geen HTML ontvangen van FlareSolverr' } });\n      continue;\n    }\n\n    const domain = src.url.match(/https?:\\/\\/[^/]+/)?.[0] || '';\n    let directListings = [];\n\n    // --- Strategy 1: Parse JSON-LD structured data (Pararius embeds this) ---\n    const jsonLdMatches = html.match(/<script[^>]*type=\"application\\/ld\\+json\"[^>]*>([\\s\\S]*?)<\\/script>/gi);\n    if (jsonLdMatches) {\n      for (const m of jsonLdMatches) {\n        try {\n          const jsonStr = m.replace(/<script[^>]*>/i, '').replace(/<\\/script>/i, '');\n          const ld = JSON.parse(jsonStr);\n          // Find ItemList with ListItems (Pararius format)\n          const graph = ld['@graph'] || [ld];\n          for (const node of graph) {\n            const itemList = node.mainEntity?.itemListElement || node.itemListElement;\n            if (!itemList) continue;\n            for (const entry of itemList) {\n              const item = entry.item || entry;\n              const name = item.name || '';\n              const url = item.url || item['@id'] || '';\n              const price = item.offers?.price || 0;\n              const img = item.image || null;\n              if (name && url) {\n                directListings.push({\n                  titel: name,\n                  prijs: parseInt(price) || 0,\n                  kamers: null,\n                  oppervlakte: null,\n                  url: url.startsWith('http') ? url : domain + url,\n                  afbeelding: img\n                });\n              }\n            }\n          }\n        } catch (e) { /* JSON-LD parse failed, continue */ }\n      }\n    }\n\n    // --- Strategy 2: Parse listing cards from HTML directly ---\n    if (directListings.length === 0) {\n      // Look for listing-search-item sections (Pararius/Huurwoningen pattern)\n      const listingBlocks = html.split(/(?=<section[^>]*listing-search-item[^>]*>)/i);\n      for (const block of listingBlocks) {\n        if (block.length < 200 || block.length > 50000) continue;\n        const titleMatch = block.match(/listing-search-item__link--title[^>]*href=\"([^\"]+)\"[^>]*>[\\s\\S]*?([^<]+)<\\/a>/i)\n          || block.match(/listing-search-item__title[^>]*>[\\s\\S]*?<a[^>]*href=\"([^\"]+)\"[^>]*>([^<]+)/i);\n        const priceMatch = block.match(/listing-search-item__price[^>]*>[\\s\\S]*?(?:€|&euro;)\\s*(?:&nbsp;)?([\\d.,]+)/i)\n          || block.match(/price-main[^>]*>[\\s\\S]*?(?:€|&euro;)\\s*(?:&nbsp;)?([\\d.,]+)/i);\n        const areaMatch = block.match(/(\\d+)\\s*m[²2]/i);\n        const roomsMatch = block.match(/(\\d+)\\s*(?:kamer|room)/i);\n        const imgMatch = block.match(/picture__image[^>]*src=\"([^\"]+)\"/i)\n          || block.match(/<img[^>]*src=\"(https:\\/\\/casco-media[^\"]+)\"/i);\n        if (titleMatch) {\n          const url = titleMatch[1];\n          const title = titleMatch[2].trim();\n          const price = priceMatch ? parseInt(priceMatch[1].replace(/\\./g, '').replace(',', '.')) : 0;\n          directListings.push({\n            titel: title,\n            prijs: price,\n            kamers: roomsMatch ? parseInt(roomsMatch[1]) : null,\n            oppervlakte: areaMatch ? parseInt(areaMatch[1]) : null,\n            url: url.startsWith('http') ? url : domain + url,\n            afbeelding: imgMatch ? imgMatch[1] : null\n          });\n        }\n      }\n    }\n\n    // If we got listings directly, skip Gemini entirely\n    if (directListings.length > 0) {\n      results.push({ json: {\n        naam: src.naam, sourceUrl: src.url, isError: false,\n        directListings: directListings,\n        needsGemini: false,\n        geminiUrl: '', requestBody: '{}'\n      }});\n      continue;\n    }\n\n    // --- Strategy 3: Fall back to Gemini ---\n    if (!geminiApiKey || geminiApiKey.length < 10) {\n      results.push({ json: { naam: src.naam, sourceUrl: src.url, isError: true, fout: 'Geen listings gevonden en geen Gemini key' } });\n      continue;\n    }\n\n    let cleaned = html\n      .replace(/<script[\\s\\S]*?<\\/script>/gi, '')\n      .replace(/<style[\\s\\S]*?<\\/style>/gi, '')\n      .replace(/<noscript[\\s\\S]*?<\\/noscript>/gi, '')\n      .replace(/<svg[\\s\\S]*?<\\/svg>/gi, '')\n      .replace(/<header[\\s\\S]*?<\\/header>/gi, '')\n      .replace(/<footer[\\s\\S]*?<\\/footer>/gi, '')\n      .replace(/<nav[\\s\\S]*?<\\/nav>/gi, '')\n      .replace(/<!--[\\s\\S]*?-->/g, '');\n    const mainMatch = cleaned.match(/<main[\\s\\S]*<\\/main>/i);\n    if (mainMatch && mainMatch[0].length > 500) cleaned = mainMatch[0];\n    cleaned = cleaned.substring(0, 200000);\n\n    const prompt = `Extract ALL rental property listings from this HTML from ${src.naam}.\\nReturn ONLY a JSON array: [{\"titel\": \"address\", \"prijs\": rent_number, \"kamers\": bedrooms_or_null, \"oppervlakte\": area_m2_or_null, \"url\": \"absolute_url\", \"afbeelding\": \"img_url_or_null\"}]\\nBase domain: ${domain}\\nSkip navigation, cookies, ads. Only real property listings. Return [] if none found.\\n\\nHTML:\\n${cleaned}`;\n\n    results.push({ json: {\n      naam: src.naam, sourceUrl: src.url, isError: false,\n      needsGemini: true,\n      geminiUrl: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,\n      requestBody: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 4000, temperature: 0.1 } })\n    }});\n  } catch (e) {\n    results.push({ json: { naam: src.naam, sourceUrl: src.url, isError: true, fout: 'Error: ' + e.message } });\n  }\n}\n\nreturn results;"
+        "jsCode": "// Extract listings from FlareSolverr HTML responses\n// Strategy: 1) Try JSON-LD structured data (Pararius has this), 2) Fall back to Gemini\nconst configs = $('Config').all();\nconst geminiApiKey = configs[0]?.json?.geminiApiKey || '';\nconst results = [];\n\nconst sources = [\n  { node: 'Fetch Pararius', naam: 'Pararius', url: 'https://www.pararius.nl/huurwoningen/enschede/1000-1500/3-slaapkamers' },\n  { node: 'Fetch Huurwoningen', naam: 'Huurwoningen.nl', url: 'https://www.huurwoningen.nl/in/enschede/?price=1000-1500&bedrooms=3' }\n];\n\nfor (const src of sources) {\n  try {\n    const resp = $(src.node).first().json;\n    const html = resp?.solution?.response || resp?.data || '';\n\n    if (!html || html.length < 500) {\n      results.push({ json: { naam: src.naam, sourceUrl: src.url, isError: true, fout: 'Geen HTML ontvangen van FlareSolverr' } });\n      continue;\n    }\n\n    const domain = src.url.match(/https?:\\/\\/[^/]+/)?.[0] || '';\n    let directListings = [];\n\n    // --- Strategy 1: Parse JSON-LD structured data (Pararius embeds this) ---\n    const jsonLdMatches = html.match(/<script[^>]*type=\"application\\/ld\\+json\"[^>]*>([\\s\\S]*?)<\\/script>/gi);\n    if (jsonLdMatches) {\n      for (const m of jsonLdMatches) {\n        try {\n          const jsonStr = m.replace(/<script[^>]*>/i, '').replace(/<\\/script>/i, '');\n          const ld = JSON.parse(jsonStr);\n          // Find ItemList with ListItems (Pararius format)\n          const graph = ld['@graph'] || [ld];\n          for (const node of graph) {\n            const itemList = node.mainEntity?.itemListElement || node.itemListElement;\n            if (!itemList) continue;\n            for (const entry of itemList) {\n              const item = entry.item || entry;\n              const name = item.name || '';\n              const url = item.url || item['@id'] || '';\n              const price = item.offers?.price || 0;\n              const img = item.image || null;\n              if (name && url) {\n                // Try to find rooms/area from the HTML listing card for this listing\n                const fullUrl = url.startsWith('http') ? url : domain + url;\n                const cardIdx = html.indexOf(url.replace(domain, ''));\n                let kamers = null, opp = null;\n                if (cardIdx > -1) {\n                  const cardHtml = html.substring(cardIdx, cardIdx + 3000);\n                  const roomM = cardHtml.match(/(\\d+)\\s*(?:kamer|room)/i);\n                  const areaM = cardHtml.match(/(\\d+)\\s*m[²2]/i);\n                  if (roomM) kamers = parseInt(roomM[1]);\n                  if (areaM) opp = parseInt(areaM[1]);\n                }\n                directListings.push({\n                  titel: name,\n                  prijs: parseInt(price) || 0,\n                  kamers: kamers,\n                  oppervlakte: opp,\n                  url: fullUrl,\n                  afbeelding: img\n                });\n              }\n            }\n          }\n        } catch (e) { /* JSON-LD parse failed, continue */ }\n      }\n    }\n\n    // --- Strategy 2: Parse listing cards from HTML directly ---\n    if (directListings.length === 0) {\n      // Look for listing-search-item sections (Pararius/Huurwoningen pattern)\n      const listingBlocks = html.split(/(?=<section[^>]*listing-search-item[^>]*>)/i);\n      for (const block of listingBlocks) {\n        if (block.length < 200 || block.length > 50000) continue;\n        const titleMatch = block.match(/listing-search-item__link--title[^>]*href=\"([^\"]+)\"[^>]*>[\\s\\S]*?([^<]+)<\\/a>/i)\n          || block.match(/listing-search-item__title[^>]*>[\\s\\S]*?<a[^>]*href=\"([^\"]+)\"[^>]*>([^<]+)/i);\n        const priceMatch = block.match(/listing-search-item__price[^>]*>[\\s\\S]*?(?:€|&euro;)\\s*(?:&nbsp;)?([\\d.,]+)/i)\n          || block.match(/price-main[^>]*>[\\s\\S]*?(?:€|&euro;)\\s*(?:&nbsp;)?([\\d.,]+)/i);\n        const areaMatch = block.match(/(?:surface-area|oppervlakte)[^>]*>[\\s\\S]*?(\\d+)\\s*m/i) || block.match(/(\\d+)\\s*m[²2]/i);\n        const roomsMatch = block.match(/(?:number-of-rooms|kamers|slaapkamer)[^>]*>[\\s\\S]*?(\\d+)/i) || block.match(/(\\d+)\\s*(?:kamer|room|slaapkamer)/i);\n        const imgMatch = block.match(/picture__image[^>]*src=\"([^\"]+)\"/i)\n          || block.match(/<img[^>]*src=\"(https:\\/\\/casco-media[^\"]+)\"/i);\n        if (titleMatch) {\n          const url = titleMatch[1];\n          const title = titleMatch[2].trim();\n          const price = priceMatch ? parseInt(priceMatch[1].replace(/\\./g, '').replace(',', '.')) : 0;\n          directListings.push({\n            titel: title,\n            prijs: price,\n            kamers: roomsMatch ? parseInt(roomsMatch[1]) : null,\n            oppervlakte: areaMatch ? parseInt(areaMatch[1]) : null,\n            url: url.startsWith('http') ? url : domain + url,\n            afbeelding: imgMatch ? imgMatch[1] : null\n          });\n        }\n      }\n    }\n\n    // If we got listings directly, skip Gemini entirely\n    if (directListings.length > 0) {\n      results.push({ json: {\n        naam: src.naam, sourceUrl: src.url, isError: false,\n        directListings: directListings,\n        needsGemini: false,\n        geminiUrl: '', requestBody: '{}'\n      }});\n      continue;\n    }\n\n    // --- Strategy 3: Fall back to Gemini ---\n    if (!geminiApiKey || geminiApiKey.length < 10) {\n      results.push({ json: { naam: src.naam, sourceUrl: src.url, isError: true, fout: 'Geen listings gevonden en geen Gemini key' } });\n      continue;\n    }\n\n    let cleaned = html\n      .replace(/<script[\\s\\S]*?<\\/script>/gi, '')\n      .replace(/<style[\\s\\S]*?<\\/style>/gi, '')\n      .replace(/<noscript[\\s\\S]*?<\\/noscript>/gi, '')\n      .replace(/<svg[\\s\\S]*?<\\/svg>/gi, '')\n      .replace(/<header[\\s\\S]*?<\\/header>/gi, '')\n      .replace(/<footer[\\s\\S]*?<\\/footer>/gi, '')\n      .replace(/<nav[\\s\\S]*?<\\/nav>/gi, '')\n      .replace(/<!--[\\s\\S]*?-->/g, '');\n    const mainMatch = cleaned.match(/<main[\\s\\S]*<\\/main>/i);\n    if (mainMatch && mainMatch[0].length > 500) cleaned = mainMatch[0];\n    cleaned = cleaned.substring(0, 200000);\n\n    const prompt = `Extract ALL rental property listings from this HTML from ${src.naam}.\\nReturn ONLY a JSON array: [{\"titel\": \"address\", \"prijs\": rent_number, \"kamers\": bedrooms_or_null, \"oppervlakte\": area_m2_or_null, \"url\": \"absolute_url\", \"afbeelding\": \"img_url_or_null\"}]\\nBase domain: ${domain}\\nSkip navigation, cookies, ads. Only real property listings. Return [] if none found.\\n\\nHTML:\\n${cleaned}`;\n\n    results.push({ json: {\n      naam: src.naam, sourceUrl: src.url, isError: false,\n      needsGemini: true,\n      geminiUrl: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,\n      requestBody: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 4000, temperature: 0.1 } })\n    }});\n  } catch (e) {\n    results.push({ json: { naam: src.naam, sourceUrl: src.url, isError: true, fout: 'Error: ' + e.message } });\n  }\n}\n\nreturn results;"
       },
       "id": "159cab78-c591-45da-a87b-fea68474aa7d",
       "name": "Prepare Gemini Extract",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [21984, 3600]
+      "position": [1320, 3600]
     },
     {
       "parameters": {
@@ -109,15 +127,33 @@
         "url": "={{ $json.isError ? 'https://httpbin.org/status/200' : $json.geminiUrl }}",
         "sendHeaders": true,
         "headerParameters": {
-          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
         },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ $json.isError ? '{}' : $json.requestBody }}",
         "options": {
-          "batching": { "batch": { "batchSize": 1, "batchInterval": 15000 } },
-          "retry": { "enabled": true, "maxRetries": 2, "retryInterval": 10000 },
-          "response": { "response": { "responseFormat": "text" } },
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 15000
+            }
+          },
+          "retry": {
+            "enabled": true,
+            "maxRetries": 2,
+            "retryInterval": 10000
+          },
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
           "timeout": 60000
         }
       },
@@ -125,18 +161,62 @@
       "name": "Gemini Extract",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [22176, 3600],
+      "position": [1600, 3600],
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "// Combine Woninghuren API results + Gemini-extracted Pararius/Huurwoningen results\nconst SKIP = ['parking','parkeerplaats','garage','berging','storage','garagebox','opslagruimte'];\nconst results = [];\n\n// --- Woninghuren.nl (direct API) ---\ntry {\n  const items = $('Woninghuren API').all();\n  for (const item of items) {\n    const d = item.json;\n    const listings = Array.isArray(d) ? d : (d.result || d.data || (d.street ? [d] : []));\n    if (!Array.isArray(listings)) continue;\n    for (const l of listings) {\n      if (!l.street) continue;\n      const type = (l.dwellingType?.localizedName || l.dwellingType?.categorie || '').toLowerCase();\n      if (SKIP.some(s => type.includes(s))) continue;\n      const rooms = l.sleepingRoom?.amountOfRooms || 0;\n      if (rooms < 3) continue;\n      const addr = [l.street, l.houseNumber, l.houseNumberAddition].filter(Boolean).join(' ');\n      const img = l.pictures?.[0]?.uri;\n      results.push({ json: {\n        bron: 'Woninghuren.nl',\n        titel: addr + (l.postalcode ? ', ' + l.postalcode : '') + ' Enschede',\n        prijs: '€ ' + (l.totalRent || 0),\n        prijsNumeriek: l.totalRent || 0,\n        kamers: rooms,\n        oppervlakte: l.areaDwelling ? l.areaDwelling + ' m²' : null,\n        url: 'https://www.woninghuren.nl/aanbod/te-huur/details/' + (l.urlKey || l.id || ''),\n        afbeelding: img ? (img.startsWith('http') ? img : 'https://www.woninghuren.nl' + img) : null,\n        scraped: new Date().toISOString()\n      }});\n    }\n  }\n} catch (e) {\n  results.push({ json: { bron: 'Woninghuren.nl', fout: 'Error: ' + e.message, url: 'https://www.woninghuren.nl/aanbod/te-huur', scraped: new Date().toISOString() } });\n}\n\n// --- Pararius + Huurwoningen ---\nlet geminiResponses = [];\nlet prepItems = [];\ntry { geminiResponses = $('Gemini Extract').all(); } catch (e) { /* branch not executed */ }\ntry { prepItems = $('Prepare Gemini Extract').all(); } catch (e) { /* branch not executed */ }\n\nfor (let i = 0; i < prepItems.length; i++) {\n  const prep = prepItems[i]?.json || {};\n  if (prep.isError) {\n    results.push({ json: { bron: prep.naam, fout: prep.fout, url: prep.sourceUrl, scraped: new Date().toISOString() } });\n    continue;\n  }\n\n  let listings = [];\n\n  // Check if we have direct listings (parsed from HTML/JSON-LD without Gemini)\n  if (prep.directListings && prep.directListings.length > 0) {\n    listings = prep.directListings;\n  } else if (prep.needsGemini) {\n    // Parse Gemini response\n    try {\n      const raw = geminiResponses[i]?.json?.data || JSON.stringify(geminiResponses[i]?.json) || '';\n      let text = raw;\n      try {\n        const parsed = JSON.parse(raw);\n        if (parsed.candidates) text = parsed.candidates[0]?.content?.parts?.[0]?.text || '[]';\n      } catch (e) {}\n      const cleaned = text.replace(/^```(?:json)?\\s*/m, '').replace(/```\\s*$/m, '').trim();\n      const m = cleaned.match(/\\[[\\s\\S]*\\]/);\n      listings = m ? JSON.parse(m[0]) : [];\n    } catch (e) {\n      results.push({ json: { bron: prep.naam, fout: 'Gemini parse error: ' + e.message, url: prep.sourceUrl, scraped: new Date().toISOString() } });\n      continue;\n    }\n  }\n\n  if (listings.length === 0) {\n    results.push({ json: { bron: prep.naam, fout: 'Geen woningen gevonden', url: prep.sourceUrl, scraped: new Date().toISOString() } });\n    continue;\n  }\n\n  for (const l of listings) {\n    const title = (l.titel || '').toLowerCase();\n    if (SKIP.some(s => title.includes(s))) continue;\n    if (l.kamers && l.kamers < 3) continue;\n    const priceNum = parseInt(l.prijs) || 0;\n    if (priceNum > 0 && (priceNum < 800 || priceNum > 1600)) continue;\n    results.push({ json: {\n      bron: prep.naam,\n      titel: l.titel || 'Zie link',\n      prijs: priceNum ? '€ ' + priceNum : 'Onbekend',\n      prijsNumeriek: priceNum,\n      kamers: l.kamers || null,\n      oppervlakte: l.oppervlakte ? l.oppervlakte + (String(l.oppervlakte).includes('m') ? '' : ' m²') : null,\n      url: l.url || prep.sourceUrl,\n      afbeelding: l.afbeelding || null,\n      scraped: new Date().toISOString()\n    }});\n  }\n}\n\nreturn results.length > 0 ? results : [{ json: { bron: 'Systeem', fout: 'Geen resultaten', scraped: new Date().toISOString() } }];"
+        "jsCode": "// Combine Woninghuren API results + Gemini-extracted Pararius/Huurwoningen results\nconst SKIP = ['parking','parkeerplaats','garage','berging','storage','garagebox','opslagruimte'];\nconst results = [];\n\n// --- Woninghuren.nl (direct API) ---\ntry {\n  const items = $('Woninghuren API').all();\n  for (const item of items) {\n    const d = item.json;\n    const listings = Array.isArray(d) ? d : (d.result || d.data || (d.street ? [d] : []));\n    if (!Array.isArray(listings)) continue;\n    for (const l of listings) {\n      if (!l.street) continue;\n      const type = (l.dwellingType?.localizedName || l.dwellingType?.categorie || '').toLowerCase();\n      if (SKIP.some(s => type.includes(s))) continue;\n      const rooms = l.sleepingRoom?.amountOfRooms || 0;\n      if (rooms < 3) continue;\n      const addr = [l.street, l.houseNumber, l.houseNumberAddition].filter(Boolean).join(' ');\n      const img = l.pictures?.[0]?.uri;\n      results.push({ json: {\n        bron: 'Woninghuren.nl',\n        titel: addr + (l.postalcode ? ', ' + l.postalcode : '') + ' Enschede',\n        prijs: '€ ' + (l.totalRent || 0),\n        prijsNumeriek: l.totalRent || 0,\n        kamers: rooms,\n        oppervlakte: l.areaDwelling ? l.areaDwelling + ' m²' : null,\n        url: 'https://www.woninghuren.nl/aanbod/te-huur/details/' + (l.urlKey || l.id || ''),\n        afbeelding: img ? (img.startsWith('http') ? img : 'https://www.woninghuren.nl' + img) : null,\n        scraped: new Date().toISOString()\n      }});\n    }\n  }\n} catch (e) {\n  results.push({ json: { bron: 'Woninghuren.nl', fout: 'Error: ' + e.message, url: 'https://www.woninghuren.nl/aanbod/te-huur', scraped: new Date().toISOString() } });\n}\n\n// --- Pararius + Huurwoningen ---\nlet geminiResponses = [];\nlet prepItems = [];\ntry { geminiResponses = $('Gemini Extract').all(); } catch (e) { /* branch not executed */ }\ntry { prepItems = $('Prepare Gemini Extract').all(); } catch (e) { /* branch not executed */ }\n\nfor (let i = 0; i < prepItems.length; i++) {\n  const prep = prepItems[i]?.json || {};\n  if (prep.isError) {\n    results.push({ json: { bron: prep.naam, fout: prep.fout, url: prep.sourceUrl, scraped: new Date().toISOString() } });\n    continue;\n  }\n\n  let listings = [];\n\n  // Check if we have direct listings (parsed from HTML/JSON-LD without Gemini)\n  if (prep.directListings && prep.directListings.length > 0) {\n    listings = prep.directListings;\n  } else if (prep.needsGemini) {\n    // Parse Gemini response\n    try {\n      const raw = geminiResponses[i]?.json?.data || JSON.stringify(geminiResponses[i]?.json) || '';\n      let text = raw;\n      try {\n        const parsed = JSON.parse(raw);\n        if (parsed.candidates) text = parsed.candidates[0]?.content?.parts?.[0]?.text || '[]';\n      } catch (e) {}\n      const cleaned = text.replace(/^```(?:json)?\\s*/m, '').replace(/```\\s*$/m, '').trim();\n      const m = cleaned.match(/\\[[\\s\\S]*\\]/);\n      listings = m ? JSON.parse(m[0]) : [];\n    } catch (e) {\n      results.push({ json: { bron: prep.naam, fout: 'Gemini parse error: ' + e.message, url: prep.sourceUrl, scraped: new Date().toISOString() } });\n      continue;\n    }\n  }\n\n  if (listings.length === 0) {\n    results.push({ json: { bron: prep.naam, fout: 'Geen woningen gevonden', url: prep.sourceUrl, scraped: new Date().toISOString() } });\n    continue;\n  }\n\n  for (const l of listings) {\n    const title = (l.titel || '').toLowerCase().trim();\n    if (SKIP.some(s => title.includes(s))) continue;\n    if (l.kamers && l.kamers < 3) continue;\n    const priceNum = parseInt(l.prijs) || 0;\n    if (!priceNum) continue;\n    if (priceNum < 800 || priceNum > 1600) continue;\n    results.push({ json: {\n      bron: prep.naam,\n      titel: l.titel || 'Zie link',\n      prijs: priceNum ? '€ ' + priceNum : 'Onbekend',\n      prijsNumeriek: priceNum,\n      kamers: l.kamers || null,\n      oppervlakte: l.oppervlakte ? l.oppervlakte + (String(l.oppervlakte).includes('m') ? '' : ' m²') : null,\n      url: l.url || prep.sourceUrl,\n      afbeelding: l.afbeelding || null,\n      scraped: new Date().toISOString()\n    }});\n  }\n}\n\nreturn results.length > 0 ? results : [{ json: { bron: 'Systeem', fout: 'Geen resultaten', scraped: new Date().toISOString() } }];"
       },
       "id": "e5e33787-e517-45cb-adb0-be6596ceff29",
       "name": "Parse All",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [22544, 3504]
+      "position": [2160, 3450]
+    },
+    {
+      "parameters": {
+        "jsCode": "// For listings missing rooms/area from Pararius/Huurwoningen, prepare FlareSolverr detail page fetch\nconst items = $input.all();\nconst results = [];\nfor (const item of items) {\n  const d = item.json;\n  if (d.fout) { results.push({ json: { ...d, skipDetail: true } }); continue; }\n  if ((d.bron === 'Pararius' || d.bron === 'Huurwoningen.nl') && (!d.kamers || !d.oppervlakte) && d.url && d.url.startsWith('http')) {\n    results.push({ json: {\n      ...d,\n      skipDetail: false,\n      detailBody: JSON.stringify({cmd: 'request.get', url: d.url, maxTimeout: 120000})\n    }});\n  } else {\n    results.push({ json: { ...d, skipDetail: true } });\n  }\n}\nreturn results;"
+      },
+      "id": "enrich-0001",
+      "name": "Prepare Detail Fetch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2440, 3450]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.skipDetail ? 'https://httpbin.org/status/200' : 'http://127.0.0.1:8191/v1' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.skipDetail ? '{}' : $json.detailBody }}",
+        "options": {
+          "timeout": 180000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 10000
+            }
+          }
+        }
+      },
+      "id": "enrich-0002",
+      "name": "Fetch Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2720, 3450],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse detail pages and enrich listings with rooms/area\nconst responses = $input.all();\nconst origItems = $('Prepare Detail Fetch').all();\nconst results = [];\n\nfor (let i = 0; i < origItems.length; i++) {\n  const orig = origItems[i].json;\n  const { skipDetail, detailBody, ...clean } = orig;\n\n  if (skipDetail || orig.fout) {\n    results.push({ json: clean });\n    continue;\n  }\n\n  // Parse detail page\n  const resp = responses[i]?.json;\n  const html = resp?.solution?.response || resp?.data || '';\n  let kamers = clean.kamers;\n  let opp = clean.oppervlakte;\n  let afbeelding = clean.afbeelding;\n\n  if (html && html.length > 500) {\n    // Extract rooms\n    if (!kamers) {\n      const rm = html.match(/(\\d+)\\s*slaapkamer/i)\n        || html.match(/slaapkamers[^>]*>[\\s\\S]*?(\\d+)/i)\n        || html.match(/bedroom[^>]*>[\\s\\S]*?(\\d+)/i)\n        || html.match(/(\\d+)\\s*kamer/i);\n      if (rm) kamers = parseInt(rm[1]);\n    }\n    // Extract area\n    if (!opp) {\n      const am = html.match(/(\\d+)\\s*m[²2]/i)\n        || html.match(/woonoppervlakte[^>]*>[\\s\\S]*?(\\d+)/i)\n        || html.match(/living.?area[^>]*>[\\s\\S]*?(\\d+)/i);\n      if (am) opp = parseInt(am[1]) + ' m²';\n    }\n    // Extract image if missing\n    if (!afbeelding) {\n      const imgM = html.match(/og:image[^>]*content=\"([^\"]+)\"/i)\n        || html.match(/picture__image[^>]*src=\"([^\"]+)\"/i);\n      if (imgM) afbeelding = imgM[1];\n    }\n  }\n\n  results.push({ json: { ...clean, kamers, oppervlakte: opp, afbeelding } });\n}\n\nreturn results;"
+      },
+      "id": "enrich-0003",
+      "name": "Parse Details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3000, 3450]
     },
     {
       "parameters": {
@@ -146,7 +226,7 @@
       "name": "Vergelijk & Bewaar",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [22720, 3504]
+      "position": [3280, 3450]
     },
     {
       "parameters": {
@@ -156,7 +236,7 @@
       "name": "Prepare Eval",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [22880, 3504]
+      "position": [3560, 3450]
     },
     {
       "parameters": {
@@ -164,14 +244,28 @@
         "url": "={{ $json.geminiUrl || 'https://httpbin.org/status/200' }}",
         "sendHeaders": true,
         "headerParameters": {
-          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
         },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ $json.requestBody || '{}' }}",
         "options": {
-          "batching": { "batch": { "batchSize": 1, "batchInterval": 10000 } },
-          "response": { "response": { "responseFormat": "text" } },
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 10000
+            }
+          },
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
           "timeout": 60000
         }
       },
@@ -179,7 +273,7 @@
       "name": "Gemini Evaluate",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [23104, 3504],
+      "position": [3840, 3450],
       "onError": "continueRegularOutput"
     },
     {
@@ -190,18 +284,26 @@
       "name": "Bouw Email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [23360, 3504]
+      "position": [4120, 3450]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1 },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
           "conditions": [
             {
               "id": "has-news",
               "leftValue": "={{ $json.aantalNieuw }}",
               "rightValue": 0,
-              "operator": { "type": "number", "operation": "gt" }
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
             }
           ],
           "combinator": "and"
@@ -212,7 +314,7 @@
       "name": "Heeft Nieuws?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [23616, 3504]
+      "position": [4400, 3450]
     },
     {
       "parameters": {
@@ -226,7 +328,7 @@
       "name": "Stuur Email",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [23888, 3504],
+      "position": [4680, 3450],
       "webhookId": "6ce0e81b-9260-4a5b-916a-9c755088f80e"
     },
     {
@@ -235,7 +337,7 @@
       "name": "Wacht op FlareSolverr",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
-      "position": [21792, 3600]
+      "position": [1040, 3600]
     },
     {
       "parameters": {},
@@ -243,7 +345,7 @@
       "name": "Wacht op Alle Bronnen",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
-      "position": [22352, 3504]
+      "position": [1880, 3450]
     },
     {
       "parameters": {
@@ -255,44 +357,236 @@
       "name": "Instructies",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [20752, 3040]
+      "position": [0, 3050]
     }
   ],
   "pinData": {},
   "connections": {
-    "Dagelijks 08:00": { "main": [[{ "node": "Config", "type": "main", "index": 0 }]] },
-    "Handmatig Testen": { "main": [[{ "node": "Config", "type": "main", "index": 0 }]] },
+    "Dagelijks 08:00": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handmatig Testen": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Config": {
       "main": [
         [
-          { "node": "Woninghuren API", "type": "main", "index": 0 },
-          { "node": "Fetch Pararius", "type": "main", "index": 0 }
+          {
+            "node": "Woninghuren API",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Pararius",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Fetch Pararius": {
       "main": [
         [
-          { "node": "Wacht op FlareSolverr", "type": "main", "index": 0 },
-          { "node": "Fetch Huurwoningen", "type": "main", "index": 0 }
+          {
+            "node": "Wacht op FlareSolverr",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Huurwoningen",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
-    "Fetch Huurwoningen": { "main": [[{ "node": "Wacht op FlareSolverr", "type": "main", "index": 1 }]] },
-    "Wacht op FlareSolverr": { "main": [[{ "node": "Prepare Gemini Extract", "type": "main", "index": 0 }]] },
-    "Prepare Gemini Extract": { "main": [[{ "node": "Gemini Extract", "type": "main", "index": 0 }]] },
-    "Gemini Extract": { "main": [[{ "node": "Wacht op Alle Bronnen", "type": "main", "index": 1 }]] },
-    "Woninghuren API": { "main": [[{ "node": "Wacht op Alle Bronnen", "type": "main", "index": 0 }]] },
-    "Wacht op Alle Bronnen": { "main": [[{ "node": "Parse All", "type": "main", "index": 0 }]] },
-    "Parse All": { "main": [[{ "node": "Vergelijk & Bewaar", "type": "main", "index": 0 }]] },
-    "Vergelijk & Bewaar": { "main": [[{ "node": "Prepare Eval", "type": "main", "index": 0 }]] },
-    "Prepare Eval": { "main": [[{ "node": "Gemini Evaluate", "type": "main", "index": 0 }]] },
-    "Gemini Evaluate": { "main": [[{ "node": "Bouw Email", "type": "main", "index": 0 }]] },
-    "Bouw Email": { "main": [[{ "node": "Heeft Nieuws?", "type": "main", "index": 0 }]] },
-    "Heeft Nieuws?": { "main": [[{ "node": "Stuur Email", "type": "main", "index": 0 }]] }
+    "Fetch Huurwoningen": {
+      "main": [
+        [
+          {
+            "node": "Wacht op FlareSolverr",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Wacht op FlareSolverr": {
+      "main": [
+        [
+          {
+            "node": "Prepare Gemini Extract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Gemini Extract": {
+      "main": [
+        [
+          {
+            "node": "Gemini Extract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Extract": {
+      "main": [
+        [
+          {
+            "node": "Wacht op Alle Bronnen",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Woninghuren API": {
+      "main": [
+        [
+          {
+            "node": "Wacht op Alle Bronnen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wacht op Alle Bronnen": {
+      "main": [
+        [
+          {
+            "node": "Parse All",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse All": {
+      "main": [
+        [
+          {
+            "node": "Prepare Detail Fetch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Detail Fetch": {
+      "main": [
+        [
+          {
+            "node": "Fetch Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Details": {
+      "main": [
+        [
+          {
+            "node": "Parse Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Details": {
+      "main": [
+        [
+          {
+            "node": "Vergelijk & Bewaar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vergelijk & Bewaar": {
+      "main": [
+        [
+          {
+            "node": "Prepare Eval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Eval": {
+      "main": [
+        [
+          {
+            "node": "Gemini Evaluate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Evaluate": {
+      "main": [
+        [
+          {
+            "node": "Bouw Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bouw Email": {
+      "main": [
+        [
+          {
+            "node": "Heeft Nieuws?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Heeft Nieuws?": {
+      "main": [
+        [
+          {
+            "node": "Stuur Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": false,
-  "settings": { "executionOrder": "v1", "binaryMode": "separate" },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
   "versionId": "d000bd4d-8478-4ae9-985d-a1047ce319f0",
   "meta": {
     "templateCredsSetupCompleted": true,
