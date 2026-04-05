@@ -934,6 +934,44 @@ configure_nomad_operator_role() {
     -policy "${NOMAD_OPERATOR_POLICY_NAME}" >/dev/null
 }
 
+configure_nomad_operator_binding_rule() {
+  local binding_rule_id selector
+  selector='"SERVICE_NOMAD" in list.roles'
+  binding_rule_id="$(
+    nomad acl binding-rule list -json 2>/dev/null \
+      | jq -r '
+          .[]
+          | select(
+              .AuthMethod == "'"${NOMAD_OIDC_AUTH_METHOD_NAME}"'"
+              and .BindType == "role"
+              and .BindName == "'"${NOMAD_OPERATOR_ROLE_NAME}"'"
+            )
+          | .ID
+        ' \
+      | head -n1
+  )"
+
+  if [[ -n "${binding_rule_id}" ]]; then
+    echo "+ nomad acl binding-rule update ${binding_rule_id}"
+    nomad acl binding-rule update \
+      -description "Grant ${NOMAD_OPERATOR_ROLE_NAME} to users with SERVICE_NOMAD" \
+      -selector "${selector}" \
+      -bind-type "role" \
+      -bind-name "${NOMAD_OPERATOR_ROLE_NAME}" \
+      "${binding_rule_id}" >/dev/null
+    return
+  fi
+
+  # Start with a scoped operator role rather than a management token binding.
+  echo "+ nomad acl binding-rule create -auth-method ${NOMAD_OIDC_AUTH_METHOD_NAME}"
+  nomad acl binding-rule create \
+    -description "Grant ${NOMAD_OPERATOR_ROLE_NAME} to users with SERVICE_NOMAD" \
+    -auth-method "${NOMAD_OIDC_AUTH_METHOD_NAME}" \
+    -selector "${selector}" \
+    -bind-type "role" \
+    -bind-name "${NOMAD_OPERATOR_ROLE_NAME}" >/dev/null
+}
+
 prepare_nomad_oidc_command() {
   require_command curl
   require_command jq
@@ -959,6 +997,7 @@ prepare_nomad_oidc_command() {
   configure_nomad_oidc_auth_method
   configure_nomad_operator_policy
   configure_nomad_operator_role
+  configure_nomad_operator_binding_rule
 
   echo "Nomad OIDC auth method configuration complete."
 }
