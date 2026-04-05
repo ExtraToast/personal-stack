@@ -7,7 +7,7 @@
 # Phases:
 #   data   PostgreSQL, Valkey, RabbitMQ
 #   infra  Observability, platform, mail, core jobs (no Traefik)
-#   edge   Traefik only — run after cutover so Swarm no longer holds ports 80/443
+#   edge   Traefik only
 #   apps   auth-api, assistant-api, auth-ui, assistant-ui, app-ui
 #   all    Everything (default)
 set -euo pipefail

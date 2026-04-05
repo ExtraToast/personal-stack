@@ -7,10 +7,10 @@ USERNAME="${1:-ExtraToast}"
 EMAIL="${2:-joriswouterjonkers@gmail.com}"
 DB="auth_db"
 
-# Works for both docker-compose (static name) and Docker Swarm (dynamic suffix)
-CONTAINER=$(docker ps --filter "name=personal-stack_postgres" --filter "status=running" --format "{{.ID}}" | head -1)
+# Works for local docker-compose and Nomad-managed Postgres containers.
+CONTAINER=$(docker ps --format "{{.Names}}" | rg '^(personal-stack-postgres|postgres-)' | head -1)
 if [[ -z "${CONTAINER}" ]]; then
-  echo "Error: no running postgres container found (tried filter 'personal-stack_postgres')" >&2
+  echo "Error: no running postgres container found (tried local compose and Nomad names)" >&2
   exit 1
 fi
 

@@ -11,10 +11,7 @@ spring:
     vault:
       enabled: ${VAULT_ENABLED:false}
       uri: ${VAULT_ADDR:http://localhost:8200}
-      authentication: ${VAULT_AUTHENTICATION:APPROLE}
-      app-role:
-        role-id: ${VAULT_ROLE_ID:}
-        secret-id: ${VAULT_SECRET_ID:}
+      authentication: ${VAULT_AUTHENTICATION:TOKEN}
       config:
         lifecycle:
           enabled: true
