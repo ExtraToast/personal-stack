@@ -747,6 +747,11 @@ configure_vault_oidc_auth() {
     echo "Skipping OIDC: auth.clients.vault.secret not available yet."; return
   }
 
+  # Vault validates the discovery URL during write; skip if unreachable.
+  if ! curl -sf --max-time 5 "${AUTH_ISSUER}/.well-known/openid-configuration" >/dev/null 2>&1; then
+    echo "Skipping OIDC: ${AUTH_ISSUER} discovery endpoint not reachable yet."; return
+  fi
+
   vault auth enable oidc >/dev/null 2>&1 || true
 
   echo "+ vault write auth/oidc/config"
