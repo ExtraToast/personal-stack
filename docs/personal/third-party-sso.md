@@ -8,9 +8,9 @@ reuse the existing auth session and complete login without a separate password p
 ## Supported patterns
 
 - Grafana: native OIDC client. Exposed directly through Traefik and configured in `docker-compose.yml`
-  and `docker-compose.prod.yml`.
-- Vault: native OIDC client. Production bootstrap is configured in `infra/vault/scripts/init-vault.sh`,
-  and existing instances are repaired through `infra/repair-server.sh`.
+  for local dev and the Nomad observability job for production.
+- Vault: native OIDC client. Production OIDC is configured by
+  `infra/scripts/setup.sh prepare-vault` and `infra/scripts/setup.sh prepare-pure-vault`.
 - RabbitMQ management: native OAuth/OIDC resource server and management UI integration, exposed directly
   instead of being pre-gated by forward-auth.
 - Stalwart: uses internal directory for account management (no OIDC integration).

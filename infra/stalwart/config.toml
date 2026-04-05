@@ -1,14 +1,14 @@
 # Stalwart Mail Server Configuration
 #
 # This config uses environment variable substitution (%{env:VAR}%) for
-# environment-specific values. See docker-compose.yml / docker-compose.prod.yml
-# for the actual values.
+# environment-specific values. Local development uses docker-compose.yml.
+# Production Nomad renders infra/nomad/templates/stalwart-config.toml.tpl from
+# Vault-backed secrets instead of using this file directly.
 #
 # Admin credentials for the webadmin UI:
 #   Dev:  admin / stalwart-dev-admin  (hardcoded in docker-compose.yml)
-#   Prod: admin / <generated>         (Docker Swarm secrets: stalwart_admin_user,
-#                                      stalwart_admin_password — created by
-#                                      provision.sh, ensured by repair-server.sh)
+#   Prod: values stored in Vault KV at secret/platform/mail and rendered by
+#         the Nomad Stalwart template
 #
 # The webadmin does NOT support SSO redirect. Access is gated by Traefik
 # forward-auth, so only authenticated users reach the login page.

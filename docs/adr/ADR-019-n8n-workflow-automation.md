@@ -17,7 +17,7 @@ a self-hosted, visual workflow builder with a large connector ecosystem.
 
 ### Deployment
 
-- n8n runs as a Docker Swarm service
+- n8n runs as a single-instance Nomad service
 - Accessible at n8n.jorisjonkers.dev
 - Behind Traefik with centralized auth (forward-auth middleware)
 

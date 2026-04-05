@@ -18,7 +18,7 @@ certificates, etc. We need centralized, auditable secrets management with rotati
 - **Tool:** HashiCorp Vault
 - **Storage Backend:** Raft integrated storage (built-in HA consensus, no external dependency)
 - **Unseal Strategy:** Manual unseal with Shamir keys (pending — may switch to auto-unseal)
-- **Service Auth:** AppRole (per-service role ID + secret ID)
+- **Service Auth:** Nomad-issued Vault tokens via workload identity
 - **UI Access:** Behind Traefik with centralized auth (vault.jorisjonkers.dev)
 
 ### Secrets Managed from Day One
@@ -31,20 +31,20 @@ certificates, etc. We need centralized, auditable secrets management with rotati
 - Encryption keys for application data (Transit engine)
 - SSH CA (Vault signs SSH keys)
 
-### AppRole Configuration
+### Workload Identity Configuration
 
 Each service gets:
 
-- A unique AppRole with scoped policies
-- role_id baked into service config
-- secret_id delivered via Docker Swarm secret or environment
+- A unique Vault role with scoped policies
+- A Nomad `vault` block that mints a short-lived service token at allocation time
+- No static `role_id` / `secret_id` distribution in application config
 - Short-lived tokens (TTL aligned with service needs)
 
 ## Consequences
 
 - Manual unseal means downtime after server restart until operator unseals — mitigated by server stability and snapshots
-- AppRole requires each service to implement Vault client login + token renewal
-- Shared Kotlin library (libs/kotlin-common) should include Vault client wrapper
-- Vault policies must be versioned in infra/vault/
+- Removes static secret distribution for Vault auth at runtime
+- Services rely on Nomad/Vault integration for token issuance and renewal
+- Vault policies must be versioned in `infra/nomad/vault/`
 - Raft storage needs periodic snapshots for backup
 - Auto-unseal may be added later (cloud KMS or transit)

@@ -10,8 +10,8 @@ Accepted
 
 ## Context
 
-We need automated build, test, and deployment pipelines that enforce quality gates and deploy to the Contabo Docker
-Swarm.
+We need automated build, test, and deployment pipelines that enforce quality gates and deploy to the Contabo Nomad
+host.
 
 ## Decision
 
@@ -65,9 +65,9 @@ Target: < 30 minutes
 
 ### Deployment
 
-- **Strategy:** CI pushes image to ghcr.io → SSH into Swarm manager → `docker stack deploy`
-- **Zero-downtime:** Rolling updates (Docker Swarm default)
-- Update config: parallelism=1, delay=10s, failure-action=rollback
+- **Strategy:** CI pushes images to ghcr.io → authenticated deploy step runs `infra/scripts/deploy.sh` against Nomad
+- **Rollouts:** Per-job Nomad `update` stanzas handle rolling replacements when the cluster has spare capacity
+- **Singletons:** Single-instance platform jobs may use brief restart-style deploys on small single-node hosts
 - Health checks determine readiness before routing traffic
 
 ### Deployment Flow
@@ -75,11 +75,11 @@ Target: < 30 minutes
 1. PR merged to main
 2. Full pipeline runs and passes
 3. Docker images built and pushed to ghcr.io with SHA tag + `latest`
-4. SSH to Swarm manager (deploy key, port 2222)
-5. Pull new images, run `docker stack deploy`
-6. Swarm performs rolling update
+4. Authenticate the deploy step against Nomad
+5. Run `infra/scripts/deploy.sh` with the target phase/image inputs
+6. Nomad applies job updates and rolls allocations according to each job's `update` stanza
 7. Post-deploy system tests run
-8. On failure: Swarm auto-rollback + alert via Discord/Email
+8. On failure: Nomad `auto_revert` or the deploy step fails fast and leaves the previous healthy allocs in place
 
 ### Security
 
@@ -91,6 +91,6 @@ Target: < 30 minutes
 
 - GitHub Actions free tier: 2000 minutes/month for private repos — monitor usage
 - Full pipeline at 30 minutes means fast developer feedback on PRs
-- Docker stack deploy is atomic — all services update or rollback together
+- Deploys are per-job rather than one atomic stack apply
 - Post-deploy tests provide confidence but add time to deploy cycle
 - Nightly mutation testing catches weak tests without slowing PR pipeline

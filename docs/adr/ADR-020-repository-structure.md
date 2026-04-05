@@ -28,9 +28,10 @@ personal-stack/
 │   └── adr/                   # Architecture Decision Records (this directory)
 ├── infra/
 │   ├── cloud-init/            # Server provisioning scripts
-│   ├── docker/                # Swarm stack files, shared Dockerfiles
-│   ├── traefik/               # Traefik static + dynamic config
-│   └── vault/                 # Vault config, policies, AppRole definitions
+│   ├── docker/                # Local container assets, shared Dockerfiles
+│   ├── nomad/                 # Production Nomad jobs, templates, Vault roles
+│   ├── scripts/               # Deploy/bootstrap helpers
+│   └── traefik/               # Traefik dev + shared dynamic config
 ├── services/
 │   ├── auth-api/              # Kotlin Spring Boot — OAuth2/OIDC auth server
 │   ├── auth-ui/               # Vue — login/register/MFA frontend
@@ -46,7 +47,6 @@ personal-stack/
 ├── .editorconfig              # Editor configuration
 ├── .gitignore
 ├── docker-compose.yml         # Local development stack
-├── docker-compose.prod.yml    # Production Swarm stack
 ├── settings.gradle.kts        # Gradle composite build root
 └── pnpm-workspace.yaml        # Frontend workspace configuration
 ```
