@@ -94,10 +94,13 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: 2222
+          command_timeout: 20m
           script: |
+            set -euo pipefail
             cd /opt/personal-stack
             git fetch origin main
-            git reset --hard origin/main
-            export IMAGE_TAG=$(git rev-parse HEAD)
-            export IMAGE_REPO=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')
+            git reset --hard '${{ github.sha }}'
+            export IMAGE_TAG='${{ github.sha }}'
+            export IMAGE_REPO="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+            echo "Deploying ${IMAGE_REPO} at ${IMAGE_TAG}"
             bash infra/scripts/deploy.sh --phase apps --wait

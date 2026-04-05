@@ -17,10 +17,14 @@ STACK_DIR="${STACK_DIR:-/opt/personal-stack}"
 BOOTSTRAP_ENV_FILE="${BOOTSTRAP_ENV_FILE:-${STACK_DIR}/.nomad-bootstrap.env}"
 VAULT_KEYS_FILE="${VAULT_KEYS_FILE:-${STACK_DIR}/.vault-keys}"
 NOMAD_KEYS_FILE="${NOMAD_KEYS_FILE:-${STACK_DIR}/.nomad-keys}"
-IMAGE_TAG="${IMAGE_TAG:-latest}"
-IMAGE_REPO="${IMAGE_REPO:-ghcr.io/extratoast/personal-stack}"
-DOMAIN="${DOMAIN:-jorisjonkers.dev}"
-REPO_DIR_VAR="${REPO_DIR:-/opt/personal-stack}"
+IMAGE_TAG_OVERRIDE="${IMAGE_TAG-}"
+IMAGE_REPO_OVERRIDE="${IMAGE_REPO-}"
+DOMAIN_OVERRIDE="${DOMAIN-}"
+REPO_DIR_OVERRIDE="${REPO_DIR-}"
+IMAGE_TAG="${IMAGE_TAG_OVERRIDE:-latest}"
+IMAGE_REPO="${IMAGE_REPO_OVERRIDE:-ghcr.io/extratoast/personal-stack}"
+DOMAIN="${DOMAIN_OVERRIDE:-jorisjonkers.dev}"
+REPO_DIR_VAR="${REPO_DIR_OVERRIDE:-/opt/personal-stack}"
 
 MODE="apply"
 PHASE="all"
@@ -49,10 +53,27 @@ run() {
   [[ "${MODE}" == "apply" ]] && "$@"
 }
 
+restore_deploy_overrides() {
+  if [[ -n "${IMAGE_TAG_OVERRIDE:-}" ]]; then
+    export IMAGE_TAG="${IMAGE_TAG_OVERRIDE}"
+  fi
+  if [[ -n "${IMAGE_REPO_OVERRIDE:-}" ]]; then
+    export IMAGE_REPO="${IMAGE_REPO_OVERRIDE}"
+  fi
+  if [[ -n "${DOMAIN_OVERRIDE:-}" ]]; then
+    export DOMAIN="${DOMAIN_OVERRIDE}"
+  fi
+  if [[ -n "${REPO_DIR_OVERRIDE:-}" ]]; then
+    export REPO_DIR="${REPO_DIR_OVERRIDE}"
+    REPO_DIR_VAR="${REPO_DIR_OVERRIDE}"
+  fi
+}
+
 load_context() {
   if [[ -f "${BOOTSTRAP_ENV_FILE}" ]]; then
     set -a; source "${BOOTSTRAP_ENV_FILE}"; set +a
   fi
+  restore_deploy_overrides
 
   if [[ -f "${NOMAD_KEYS_FILE}" ]]; then
     source "${NOMAD_KEYS_FILE}"
@@ -89,6 +110,26 @@ submit_job() {
   run nomad job run "$@" "${file}"
 }
 
+dump_job_diagnostics() {
+  local job="$1" alloc task
+
+  nomad job status "${job}" || true
+
+  alloc="$(nomad job allocs -json "${job}" 2>/dev/null | jq -r 'sort_by(.CreateTime) | reverse | .[0].ID // empty')" || true
+  [[ -n "${alloc}" ]] || return 0
+
+  echo "+ nomad alloc status ${alloc}"
+  nomad alloc status "${alloc}" || true
+
+  task="$(nomad alloc status -json "${alloc}" 2>/dev/null | jq -r '.TaskStates | keys[0] // empty')" || true
+  [[ -n "${task}" ]] || return 0
+
+  echo "+ nomad alloc logs -stderr ${alloc} ${task}"
+  nomad alloc logs -stderr "${alloc}" "${task}" || true
+  echo "+ nomad alloc logs ${alloc} ${task}"
+  nomad alloc logs "${alloc}" "${task}" || true
+}
+
 wait_for_job_running() {
   local job="$1" timeout="${2:-240}" elapsed=0
   while (( elapsed < timeout )); do
@@ -99,7 +140,7 @@ wait_for_job_running() {
     sleep 3; elapsed=$((elapsed + 3))
   done
   echo "Timed out waiting for job ${job}." >&2
-  nomad job status "${job}" || true
+  dump_job_diagnostics "${job}"
   exit 1
 }
 
@@ -123,6 +164,8 @@ cd "${ROOT_DIR}"
 
 load_context
 ensure_vault_unsealed
+
+echo "+ deploy context: phase=${PHASE} domain=${DOMAIN} image_repo=${IMAGE_REPO} image_tag=${IMAGE_TAG}"
 
 JOBS_DIR="${ROOT_DIR}/infra/nomad/jobs"
 DOMAIN_VAR=(-var "domain=${DOMAIN}")
