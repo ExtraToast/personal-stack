@@ -28,6 +28,7 @@ infra/nomad/
 - Keep Nomad, Consul, and Vault themselves as system services on the host.
 - Run `infra/scripts/setup.sh prepare-pure-vault` once on the server when switching to the env-driven Vault bootstrap flow. This is the one-time prep step, not a recurring CI job.
 - After that, use `infra/scripts/deploy.sh` for normal deploys. Pass `NOMAD_TOKEN` plus the image/domain inputs from CI or your shell; steady-state deploys should not depend on `.nomad-bootstrap.env`, `.vault-keys`, or `.nomad-keys`.
+- App jobs default to `APP_COUNT=1` so single-node servers keep enough headroom for rolling placements. Set `APP_COUNT=2` when the cluster has capacity for two steady-state replicas.
 - Use Vault workload identity and per-job JWT roles instead of AppRole.
 - Keep only the bootstrap/control-plane secret set in Vault KV; app runtime secrets should come from Vault secret engines.
 

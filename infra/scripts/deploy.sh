@@ -17,10 +17,12 @@ IMAGE_TAG_OVERRIDE="${IMAGE_TAG-}"
 IMAGE_REPO_OVERRIDE="${IMAGE_REPO-}"
 DOMAIN_OVERRIDE="${DOMAIN-}"
 REPO_DIR_OVERRIDE="${REPO_DIR-}"
+APP_COUNT_OVERRIDE="${APP_COUNT-}"
 IMAGE_TAG="${IMAGE_TAG_OVERRIDE:-latest}"
 IMAGE_REPO="${IMAGE_REPO_OVERRIDE:-ghcr.io/extratoast/personal-stack}"
 DOMAIN="${DOMAIN_OVERRIDE:-jorisjonkers.dev}"
 REPO_DIR_VAR="${REPO_DIR_OVERRIDE:-/opt/personal-stack}"
+APP_COUNT="${APP_COUNT_OVERRIDE:-1}"
 
 MODE="apply"
 PHASE="all"
@@ -50,6 +52,7 @@ Environment:
   IMAGE_REPO   Optional, defaults to ghcr.io/extratoast/personal-stack
   IMAGE_TAG    Optional, defaults to latest
   REPO_DIR     Optional, defaults to /opt/personal-stack
+  APP_COUNT    Optional, defaults to 1 for single-node capacity
 EOF
 }
 
@@ -71,6 +74,9 @@ restore_deploy_overrides() {
   if [[ -n "${REPO_DIR_OVERRIDE:-}" ]]; then
     export REPO_DIR="${REPO_DIR_OVERRIDE}"
     REPO_DIR_VAR="${REPO_DIR_OVERRIDE}"
+  fi
+  if [[ -n "${APP_COUNT_OVERRIDE:-}" ]]; then
+    export APP_COUNT="${APP_COUNT_OVERRIDE}"
   fi
 }
 
@@ -183,7 +189,7 @@ cd "${ROOT_DIR}"
 
 load_context
 
-echo "+ deploy context: phase=${PHASE} domain=${DOMAIN} image_repo=${IMAGE_REPO} image_tag=${IMAGE_TAG}"
+echo "+ deploy context: phase=${PHASE} domain=${DOMAIN} image_repo=${IMAGE_REPO} image_tag=${IMAGE_TAG} app_count=${APP_COUNT}"
 
 JOBS_DIR="${ROOT_DIR}/infra/nomad/jobs"
 DOMAIN_VAR=(-var "domain=${DOMAIN}")
@@ -193,6 +199,13 @@ EXTRA_VARS=()  # additional vars passed via NOMAD_EXTRA_VARS env (e.g. "-var cou
 if [[ -n "${NOMAD_EXTRA_VARS:-}" ]]; then
   read -ra EXTRA_VARS <<< "${NOMAD_EXTRA_VARS}"
 fi
+APP_COUNT_VAR=(-var "count=${APP_COUNT}")
+for token in "${EXTRA_VARS[@]}"; do
+  if [[ "${token}" == count=* ]]; then
+    APP_COUNT_VAR=()
+    break
+  fi
+done
 
 deploy_data() {
   submit_job "${JOBS_DIR}/data/postgres.nomad.hcl"  "${REPO_VAR[@]}"
@@ -217,11 +230,11 @@ deploy_edge() {
 }
 
 deploy_apps() {
-  submit_job "${JOBS_DIR}/apps/auth-api.nomad.hcl"     "${DOMAIN_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
-  submit_job "${JOBS_DIR}/apps/assistant-api.nomad.hcl" "${DOMAIN_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
-  submit_job "${JOBS_DIR}/apps/auth-ui.nomad.hcl"       "${DOMAIN_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
-  submit_job "${JOBS_DIR}/apps/assistant-ui.nomad.hcl"   "${DOMAIN_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
-  submit_job "${JOBS_DIR}/apps/app-ui.nomad.hcl"         "${DOMAIN_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
+  submit_job "${JOBS_DIR}/apps/auth-api.nomad.hcl"      "${DOMAIN_VAR[@]}" "${APP_COUNT_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
+  submit_job "${JOBS_DIR}/apps/assistant-api.nomad.hcl" "${DOMAIN_VAR[@]}" "${APP_COUNT_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
+  submit_job "${JOBS_DIR}/apps/auth-ui.nomad.hcl"       "${DOMAIN_VAR[@]}" "${APP_COUNT_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
+  submit_job "${JOBS_DIR}/apps/assistant-ui.nomad.hcl"  "${DOMAIN_VAR[@]}" "${APP_COUNT_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
+  submit_job "${JOBS_DIR}/apps/app-ui.nomad.hcl"        "${DOMAIN_VAR[@]}" "${APP_COUNT_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
 }
 
 case "${PHASE}" in
