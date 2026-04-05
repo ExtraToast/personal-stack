@@ -15,6 +15,7 @@ enum class ServicePermission(
     MAIL("stalwart"),
     N8N("n8n"),
     GRAFANA("grafana"),
+    NOMAD("nomad"),
     RABBITMQ("rabbitmq"),
     ASSISTANT("assistant"),
     TRAEFIK_DASHBOARD("traefik"),
@@ -31,7 +32,7 @@ enum class ServicePermission(
 
         /**
          * Resolves a [ServicePermission] from a hostname such as "vault.jorisjonkers.dev",
-         * "mail.jorisjonkers.dev", or "stalwart.jorisjonkers.test". Returns null when the host is
+         * "nomad.jorisjonkers.dev", or "stalwart.jorisjonkers.test". Returns null when the host is
          * blank or unrecognised.
          */
         fun fromHost(host: String?): ServicePermission? {
