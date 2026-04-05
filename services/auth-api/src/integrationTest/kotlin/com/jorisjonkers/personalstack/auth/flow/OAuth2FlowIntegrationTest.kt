@@ -80,6 +80,9 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
         private const val GRAFANA_CLIENT_SECRET = "grafana-secret"
         private const val N8N_REDIRECT_URI = "https://n8n.jorisjonkers.test/auth/oidc/callback"
         private const val N8N_CLIENT_SECRET = "n8n-secret"
+        private const val NOMAD_CLIENT_ID = "nomad"
+        private const val NOMAD_REDIRECT_URI = "https://nomad.jorisjonkers.test/ui/settings/tokens"
+        private const val NOMAD_CLIENT_SECRET = "nomad-secret"
         private const val RABBITMQ_REDIRECT_URI = "https://rabbitmq.jorisjonkers.test/js/oidc-oauth/login-callback.html"
         private const val VAULT_CLIENT_ID = "vault"
         private const val VAULT_REDIRECT_URI = "https://vault.jorisjonkers.test/ui/vault/auth/oidc/oidc/callback"
@@ -472,6 +475,7 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
     fun `downstream OIDC clients are registered with expected redirect URIs and auth modes`() {
         val grafanaClient = registeredClientRepository.findByClientId("grafana")
         val n8nClient = registeredClientRepository.findByClientId("n8n")
+        val nomadClient = registeredClientRepository.findByClientId(NOMAD_CLIENT_ID)
         val rabbitMqClient = registeredClientRepository.findByClientId("rabbitmq")
         val vaultClient = registeredClientRepository.findByClientId(VAULT_CLIENT_ID)
 
@@ -483,6 +487,11 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
         assertThat(n8nClient).isNotNull()
         assertThat(n8nClient!!.redirectUris).contains(N8N_REDIRECT_URI)
         assertThat(n8nClient.clientAuthenticationMethods).contains(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+
+        assertThat(nomadClient).isNotNull()
+        assertThat(nomadClient!!.redirectUris).contains(NOMAD_REDIRECT_URI)
+        assertThat(nomadClient.redirectUris).contains("http://localhost:4649/oidc/callback")
+        assertThat(nomadClient.clientAuthenticationMethods).contains(ClientAuthenticationMethod.CLIENT_SECRET_POST)
 
         assertThat(rabbitMqClient).isNotNull()
         assertThat(rabbitMqClient!!.redirectUris).contains(RABBITMQ_REDIRECT_URI)
@@ -510,6 +519,7 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
                 Triple("grafana", GRAFANA_REDIRECT_URI, "openid profile email"),
                 Triple(VAULT_CLIENT_ID, VAULT_REDIRECT_URI, "openid profile email"),
                 Triple("n8n", N8N_REDIRECT_URI, "openid profile email"),
+                Triple(NOMAD_CLIENT_ID, NOMAD_REDIRECT_URI, "openid profile email"),
                 Triple("rabbitmq", RABBITMQ_REDIRECT_URI, "openid profile email rabbitmq.tag:administrator"),
             )
 
@@ -553,6 +563,7 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
                 OidcClientRequest("grafana", GRAFANA_REDIRECT_URI, "openid profile email", false),
                 OidcClientRequest(VAULT_CLIENT_ID, VAULT_REDIRECT_URI, "openid profile email", false),
                 OidcClientRequest("n8n", N8N_REDIRECT_URI, "openid profile email", false),
+                OidcClientRequest(NOMAD_CLIENT_ID, NOMAD_REDIRECT_URI, "openid profile email", false),
                 OidcClientRequest(
                     "rabbitmq",
                     RABBITMQ_REDIRECT_URI,
@@ -613,6 +624,12 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
                     N8N_REDIRECT_URI,
                     "openid profile email",
                     N8N_CLIENT_SECRET,
+                ),
+                ConfidentialClientRequest(
+                    NOMAD_CLIENT_ID,
+                    NOMAD_REDIRECT_URI,
+                    "openid profile email",
+                    NOMAD_CLIENT_SECRET,
                 ),
             )
 

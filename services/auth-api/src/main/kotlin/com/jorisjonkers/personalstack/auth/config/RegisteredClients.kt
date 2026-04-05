@@ -156,3 +156,23 @@ fun buildVaultClient(secret: String): RegisteredClient =
         .clientSettings(noConsentSettings(requirePkce = false))
         .tokenSettings(defaultTokenSettings())
         .build()
+
+fun buildNomadClient(secret: String): RegisteredClient =
+    RegisteredClient
+        .withId(deterministicId("nomad"))
+        .clientId("nomad")
+        .clientSecret("{noop}$secret")
+        .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+        .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
+        .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+        .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+        .redirectUri("https://nomad.jorisjonkers.dev/ui/settings/tokens")
+        .redirectUri("https://nomad.jorisjonkers.test/ui/settings/tokens")
+        .redirectUri("http://localhost:4649/oidc/callback")
+        .redirectUri("http://127.0.0.1:4649/oidc/callback")
+        .scope(OidcScopes.OPENID)
+        .scope(OidcScopes.PROFILE)
+        .scope(OidcScopes.EMAIL)
+        .clientSettings(noConsentSettings(requirePkce = false))
+        .tokenSettings(defaultTokenSettings())
+        .build()

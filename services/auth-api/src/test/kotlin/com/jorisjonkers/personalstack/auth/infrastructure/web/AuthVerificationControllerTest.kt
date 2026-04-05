@@ -46,7 +46,16 @@ class AuthVerificationControllerTest {
     fun `verify returns 200 for ADMIN regardless of service`() {
         val user = buildUserWithUuid(roles = listOf("ROLE_ADMIN"))
 
-        val response = controller.verify(user, "vault.jorisjonkers.dev")
+        val response = controller.verify(user, "nomad.jorisjonkers.dev")
+
+        assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
+    }
+
+    @Test
+    fun `verify returns 200 when USER has nomad service permission`() {
+        val user = buildUserWithUuid(roles = listOf("ROLE_USER", "SERVICE_NOMAD"))
+
+        val response = controller.verify(user, "nomad.jorisjonkers.dev")
 
         assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
     }

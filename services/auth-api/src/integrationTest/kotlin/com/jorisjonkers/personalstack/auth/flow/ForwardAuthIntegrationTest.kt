@@ -119,6 +119,25 @@ class ForwardAuthIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
+    fun `USER with SERVICE_NOMAD claim is allowed through nomad forward-auth`() {
+        mockMvc
+            .get("/api/v1/auth/verify") {
+                with(
+                    user(
+                        AuthenticatedUser.of(
+                            userId = UserId(UUID.randomUUID()),
+                            username = "user-nomad",
+                            roles = listOf("ROLE_USER", "SERVICE_NOMAD"),
+                        ),
+                    ),
+                )
+                header("X-Forwarded-Host", "nomad.jorisjonkers.dev")
+            }.andExpect {
+                status { isOk() }
+            }
+    }
+
+    @Test
     fun `USER without vault permission is denied access to vault`() {
         mockMvc
             .get("/api/v1/auth/verify") {
@@ -157,7 +176,7 @@ class ForwardAuthIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `USER with no service permissions is denied access to all protected services`() {
-        listOf("vault", "stalwart", "n8n", "grafana", "traefik").forEach { subdomain ->
+        listOf("vault", "stalwart", "n8n", "grafana", "nomad", "traefik").forEach { subdomain ->
             mockMvc
                 .get("/api/v1/auth/verify") {
                     with(

@@ -14,6 +14,8 @@ class ServicePermissionTest {
         "stalwart.jorisjonkers.test, MAIL",
         "n8n.jorisjonkers.dev, N8N",
         "grafana.jorisjonkers.dev, GRAFANA",
+        "nomad.jorisjonkers.dev, NOMAD",
+        "nomad.jorisjonkers.test, NOMAD",
         "assistant.jorisjonkers.dev, ASSISTANT",
         "traefik.jorisjonkers.dev, TRAEFIK_DASHBOARD",
         "status.jorisjonkers.dev, STATUS",

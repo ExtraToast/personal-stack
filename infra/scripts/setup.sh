@@ -13,6 +13,7 @@
 #   init-nomad       Bootstrap Nomad ACL
 #   seed-secrets     Seed Vault KV from the bootstrap env file or current shell
 #   prepare-vault    Configure JWT auth, policies, roles, transit, database engine, OIDC
+#   prepare-nomad-oidc  Configure Nomad ACL OIDC against the auth service
 #   prepare-pure-vault  One-time prep for pure Vault-backed runtime secrets without persisting bootstrap env files
 #   rotate-secrets   (removed — Vault dynamic engines handle rotation)
 #   full             Run the complete bootstrap sequence including deploy
@@ -34,6 +35,12 @@ VAULT_PUBLIC_ADDR="${VAULT_PUBLIC_ADDR:-https://vault.jorisjonkers.dev}"
 AUTH_ISSUER="${AUTH_ISSUER:-https://auth.jorisjonkers.dev}"
 DB_ENGINE_HOST="${DB_ENGINE_HOST:-127.0.0.1}"
 DB_ENGINE_PORT="${DB_ENGINE_PORT:-5432}"
+NOMAD_PUBLIC_ADDR="${NOMAD_PUBLIC_ADDR:-https://nomad.jorisjonkers.dev}"
+NOMAD_TEST_PUBLIC_ADDR="${NOMAD_TEST_PUBLIC_ADDR:-https://nomad.jorisjonkers.test}"
+NOMAD_OIDC_AUTH_METHOD_NAME="${NOMAD_OIDC_AUTH_METHOD_NAME:-nomad}"
+NOMAD_OIDC_MAX_TOKEN_TTL="${NOMAD_OIDC_MAX_TOKEN_TTL:-8h}"
+NOMAD_OPERATOR_POLICY_NAME="${NOMAD_OPERATOR_POLICY_NAME:-nomad-operator}"
+NOMAD_OPERATOR_ROLE_NAME="${NOMAD_OPERATOR_ROLE_NAME:-nomad-operator}"
 
 # ── Usage ──────────────────────────────────────────────────────────────────
 
@@ -48,6 +55,8 @@ Commands:
   init-nomad       Bootstrap Nomad ACL
   seed-secrets     Seed Vault KV from the bootstrap env file or current shell env
   prepare-vault    Configure JWT auth, policies, roles, transit, database, rabbitmq engine, OIDC
+  prepare-nomad-oidc
+                 Configure Nomad ACL OIDC auth method against the auth service
   prepare-pure-vault
                    One-time switch to env-driven Vault bootstrap without persisting bootstrap env files
   full             Run the complete bootstrap sequence including deploy
@@ -536,6 +545,7 @@ persist_bootstrap_secrets() {
   ensure_bootstrap_env_line STALWART_MAIL_PASSWORD "${STALWART_MAIL_PASSWORD}"
   ensure_bootstrap_env_line N8N_OAUTH_CLIENT_SECRET "${N8N_OAUTH_CLIENT_SECRET}"
   ensure_bootstrap_env_line GRAFANA_OAUTH_CLIENT_SECRET "${GRAFANA_OAUTH_CLIENT_SECRET}"
+  ensure_bootstrap_env_line NOMAD_OIDC_CLIENT_SECRET "${NOMAD_OIDC_CLIENT_SECRET}"
   ensure_bootstrap_env_line VAULT_OIDC_CLIENT_SECRET "${VAULT_OIDC_CLIENT_SECRET}"
 }
 
@@ -543,6 +553,7 @@ write_all_secrets_to_vault() {
   upsert_kv secret/auth-api \
     "auth.clients.grafana.secret=${GRAFANA_OAUTH_CLIENT_SECRET}" \
     "auth.clients.n8n.secret=${N8N_OAUTH_CLIENT_SECRET}" \
+    "auth.clients.nomad.secret=${NOMAD_OIDC_CLIENT_SECRET}" \
     "auth.clients.vault.secret=${VAULT_OIDC_CLIENT_SECRET}" \
     "mail.username=auth" \
     "mail.password=${STALWART_MAIL_PASSWORD}"
@@ -602,6 +613,7 @@ seed_secrets_command() {
 
   [[ -n "${N8N_OAUTH_CLIENT_SECRET:-}" ]]     || N8N_OAUTH_CLIENT_SECRET="$(random_secret)"
   [[ -n "${GRAFANA_OAUTH_CLIENT_SECRET:-}" ]] || GRAFANA_OAUTH_CLIENT_SECRET="$(random_secret)"
+  [[ -n "${NOMAD_OIDC_CLIENT_SECRET:-}" ]]    || NOMAD_OIDC_CLIENT_SECRET="$(random_secret)"
   [[ -n "${VAULT_OIDC_CLIENT_SECRET:-}" ]]    || VAULT_OIDC_CLIENT_SECRET="$(random_secret)"
   [[ -n "${STALWART_MAIL_PASSWORD:-}" ]]      || STALWART_MAIL_PASSWORD="$(random_secret)"
 
@@ -780,6 +792,216 @@ configure_vault_oidc_auth() {
 EOF
 }
 
+configure_nomad_oidc_auth_method() {
+  local nomad_oauth_secret auth_method_name token_name_format
+  auth_method_name="${NOMAD_OIDC_AUTH_METHOD_NAME}"
+  token_name_format='${auth_method_name}-${value.preferred_username}'
+  nomad_oauth_secret="$(vault kv get -field="auth.clients.nomad.secret" secret/auth-api 2>/dev/null || true)"
+  [[ -n "${nomad_oauth_secret}" ]] || {
+    echo "Skipping Nomad OIDC: auth.clients.nomad.secret not available yet."; return
+  }
+
+  if ! curl -sf --max-time 5 "${AUTH_ISSUER}/.well-known/openid-configuration" >/dev/null 2>&1; then
+    echo "Skipping Nomad OIDC: ${AUTH_ISSUER} discovery endpoint not reachable yet."; return
+  fi
+
+  if nomad acl auth-method info "${auth_method_name}" >/dev/null 2>&1; then
+    echo "+ nomad acl auth-method update ${auth_method_name}"
+    nomad acl auth-method update \
+      -type "OIDC" \
+      -description "OIDC login via ${AUTH_ISSUER}" \
+      -token-locality "global" \
+      -max-token-ttl "${NOMAD_OIDC_MAX_TOKEN_TTL}" \
+      -token-name-format "${token_name_format}" \
+      -default=true \
+      -config=- \
+      "${auth_method_name}" <<EOF >/dev/null
+{
+  "OIDCDiscoveryURL": "${AUTH_ISSUER}",
+  "OIDCClientID": "nomad",
+  "OIDCClientSecret": "${nomad_oauth_secret}",
+  "BoundAudiences": ["nomad"],
+  "AllowedRedirectURIs": [
+    "${NOMAD_PUBLIC_ADDR}/ui/settings/tokens",
+    "${NOMAD_TEST_PUBLIC_ADDR}/ui/settings/tokens",
+    "http://localhost:4649/oidc/callback",
+    "http://127.0.0.1:4649/oidc/callback"
+  ],
+  "OIDCScopes": ["openid", "profile", "email"],
+  "ClaimMappings": {
+    "preferred_username": "preferred_username",
+    "email": "email"
+  },
+  "ListClaimMappings": {
+    "roles": "roles"
+  }
+}
+EOF
+    return
+  fi
+
+  echo "+ nomad acl auth-method create -name ${auth_method_name}"
+  nomad acl auth-method create \
+    -name "${auth_method_name}" \
+    -type "OIDC" \
+    -description "OIDC login via ${AUTH_ISSUER}" \
+    -token-locality "global" \
+    -max-token-ttl "${NOMAD_OIDC_MAX_TOKEN_TTL}" \
+    -token-name-format "${token_name_format}" \
+    -default=true \
+    -config=- <<EOF >/dev/null
+{
+  "OIDCDiscoveryURL": "${AUTH_ISSUER}",
+  "OIDCClientID": "nomad",
+  "OIDCClientSecret": "${nomad_oauth_secret}",
+  "BoundAudiences": ["nomad"],
+  "AllowedRedirectURIs": [
+    "${NOMAD_PUBLIC_ADDR}/ui/settings/tokens",
+    "${NOMAD_TEST_PUBLIC_ADDR}/ui/settings/tokens",
+    "http://localhost:4649/oidc/callback",
+    "http://127.0.0.1:4649/oidc/callback"
+  ],
+  "OIDCScopes": ["openid", "profile", "email"],
+  "ClaimMappings": {
+    "preferred_username": "preferred_username",
+    "email": "email"
+  },
+  "ListClaimMappings": {
+    "roles": "roles"
+  }
+}
+EOF
+}
+
+configure_nomad_operator_policy() {
+  echo "+ nomad acl policy apply ${NOMAD_OPERATOR_POLICY_NAME}"
+  nomad acl policy apply \
+    -description "Operator access for Nomad UI and CLI" \
+    "${NOMAD_OPERATOR_POLICY_NAME}" - <<'EOF' >/dev/null
+namespace "*" {
+  policy = "read"
+  capabilities = ["read-fs", "alloc-exec", "alloc-node-exec"]
+}
+
+node {
+  policy = "read"
+}
+
+agent {
+  policy = "read"
+}
+
+operator {
+  policy = "read"
+}
+
+quota {
+  policy = "read"
+}
+
+host_volume "*" {
+  policy = "read"
+}
+
+plugin {
+  policy = "read"
+}
+EOF
+}
+
+configure_nomad_operator_role() {
+  local role_id
+  role_id="$(
+    nomad acl role list -json 2>/dev/null \
+      | jq -r '.[] | select(.Name == "'"${NOMAD_OPERATOR_ROLE_NAME}"'") | .ID' \
+      | head -n1
+  )"
+
+  if [[ -n "${role_id}" ]]; then
+    echo "+ nomad acl role update ${role_id}"
+    nomad acl role update \
+      -name "${NOMAD_OPERATOR_ROLE_NAME}" \
+      -description "OIDC role for Nomad operators" \
+      -policy "${NOMAD_OPERATOR_POLICY_NAME}" \
+      "${role_id}" >/dev/null
+    return
+  fi
+
+  echo "+ nomad acl role create -name ${NOMAD_OPERATOR_ROLE_NAME}"
+  nomad acl role create \
+    -name "${NOMAD_OPERATOR_ROLE_NAME}" \
+    -description "OIDC role for Nomad operators" \
+    -policy "${NOMAD_OPERATOR_POLICY_NAME}" >/dev/null
+}
+
+configure_nomad_operator_binding_rule() {
+  local binding_rule_id selector
+  selector='"SERVICE_NOMAD" in list.roles'
+  binding_rule_id="$(
+    nomad acl binding-rule list -json 2>/dev/null \
+      | jq -r '
+          .[]
+          | select(
+              .AuthMethod == "'"${NOMAD_OIDC_AUTH_METHOD_NAME}"'"
+              and .BindType == "role"
+              and .BindName == "'"${NOMAD_OPERATOR_ROLE_NAME}"'"
+            )
+          | .ID
+        ' \
+      | head -n1
+  )"
+
+  if [[ -n "${binding_rule_id}" ]]; then
+    echo "+ nomad acl binding-rule update ${binding_rule_id}"
+    nomad acl binding-rule update \
+      -description "Grant ${NOMAD_OPERATOR_ROLE_NAME} to users with SERVICE_NOMAD" \
+      -selector "${selector}" \
+      -bind-type "role" \
+      -bind-name "${NOMAD_OPERATOR_ROLE_NAME}" \
+      "${binding_rule_id}" >/dev/null
+    return
+  fi
+
+  # Start with a scoped operator role rather than a management token binding.
+  echo "+ nomad acl binding-rule create -auth-method ${NOMAD_OIDC_AUTH_METHOD_NAME}"
+  nomad acl binding-rule create \
+    -description "Grant ${NOMAD_OPERATOR_ROLE_NAME} to users with SERVICE_NOMAD" \
+    -auth-method "${NOMAD_OIDC_AUTH_METHOD_NAME}" \
+    -selector "${selector}" \
+    -bind-type "role" \
+    -bind-name "${NOMAD_OPERATOR_ROLE_NAME}" >/dev/null
+}
+
+prepare_nomad_oidc_command() {
+  require_command curl
+  require_command jq
+  require_command nomad
+  require_command vault
+
+  load_bootstrap_env
+  load_vault_context
+  load_nomad_context
+  ensure_vault_unsealed
+  : "${VAULT_ADDR:?Set VAULT_ADDR}"
+  : "${VAULT_TOKEN:?Set VAULT_TOKEN}"
+  : "${NOMAD_ADDR:?Set NOMAD_ADDR}"
+  : "${NOMAD_TOKEN:?Set NOMAD_TOKEN}"
+
+  if [[ "${MODE}" == "dry-run" ]]; then
+    echo "+ reconcile Nomad OIDC auth method ${NOMAD_OIDC_AUTH_METHOD_NAME}"; return
+  fi
+
+  export VAULT_ADDR VAULT_TOKEN NOMAD_ADDR NOMAD_TOKEN
+
+  wait_for_nomad_api
+  configure_nomad_oidc_auth_method
+  configure_nomad_operator_policy
+  configure_nomad_operator_role
+  configure_nomad_operator_binding_rule
+
+  echo "Nomad OIDC auth method configuration complete."
+}
+
 prepare_vault_command() {
   load_bootstrap_env
   load_vault_context
@@ -903,6 +1125,7 @@ full_command() {
 
   # Deploy everything
   bash "${deploy_script}" --phase all --wait
+  prepare_nomad_oidc_command
 
   echo "Full server bootstrap complete."
   echo "Credentials written to:"
@@ -933,6 +1156,7 @@ main() {
     init-nomad)     init_nomad_command ;;
     seed-secrets)   seed_secrets_command ;;
     prepare-vault)  prepare_vault_command ;;
+    prepare-nomad-oidc) prepare_nomad_oidc_command ;;
     prepare-pure-vault) prepare_pure_vault_command ;;
     rotate-secrets) echo "rotate-secrets is removed. Vault dynamic secret engines handle rotation automatically."; exit 0 ;;
     full)           full_command ;;
