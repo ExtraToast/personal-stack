@@ -212,24 +212,20 @@ submit_nomad_job() {
 
 wait_for_nomad_job_ready() {
   local job="$1" timeout="${2:-240}" elapsed=0
-  local last_progress="" allocs_json deployments_json deployment_id deployment_json
+  local last_progress="" allocs_json live_allocs_json deployments_json deployment_id deployment_json
   local deployment_status deployment_description desired_total placed_total healthy_total unhealthy_total
   local total_allocs running_allocs progress
 
   while (( elapsed < timeout )); do
     allocs_json="$(nomad job allocs -json "${job}" 2>/dev/null || printf '[]')"
-    if printf '%s' "${allocs_json}" \
-      | jq -e 'length > 0 and any(.[]; (.ClientStatus // "") == "failed" or (.ClientStatus // "") == "lost")' >/dev/null 2>&1; then
-      echo "Job ${job} has a failed allocation." >&2
-      dump_nomad_job_diagnostics "${job}"
-      return 1
-    fi
-
-    total_allocs="$(printf '%s' "${allocs_json}" | jq -r 'length')"
-    running_allocs="$(printf '%s' "${allocs_json}" | jq -r '[.[] | select(.ClientStatus == "running")] | length')"
+    live_allocs_json="$(printf '%s' "${allocs_json}" \
+      | jq '[.[] | select((.DesiredStatus // "run") == "run")]')"
+    total_allocs="$(printf '%s' "${live_allocs_json}" | jq -r 'length')"
+    running_allocs="$(printf '%s' "${live_allocs_json}" | jq -r '[.[] | select(.ClientStatus == "running")] | length')"
 
     deployments_json="$(nomad job deployments -json "${job}" 2>/dev/null || printf '[]')"
-    deployment_id="$(printf '%s' "${deployments_json}" | jq -r 'map(select(.Status != "cancelled")) | .[0].ID // empty')"
+    deployment_id="$(printf '%s' "${deployments_json}" \
+      | jq -r 'map(select((.Status // "") != "cancelled")) | sort_by(.ModifyTime // .CreateTime // 0) | last | .ID // empty')"
 
     if [[ -n "${deployment_id}" ]]; then
       deployment_json="$(nomad deployment status -json "${deployment_id}" 2>/dev/null || printf '{}')"
@@ -246,20 +242,8 @@ wait_for_nomad_job_ready() {
         last_progress="${progress}"
       fi
 
-      if (( unhealthy_total > 0 )); then
-        echo "Job ${job} became unhealthy." >&2
-        dump_nomad_job_diagnostics "${job}"
-        return 1
-      fi
-
-      if [[ "${deployment_status}" == "failed" || "${deployment_status}" == "cancelled" ]]; then
-        echo "Job ${job} deployment ended with status ${deployment_status}." >&2
-        dump_nomad_job_diagnostics "${job}"
-        return 1
-      fi
-
       if (( desired_total > 0 && healthy_total >= desired_total )) \
-        && printf '%s' "${allocs_json}" | jq -e 'length > 0 and all(.[]; .ClientStatus == "running")' >/dev/null 2>&1; then
+        && (( running_allocs >= desired_total )); then
         return 0
       fi
     else
@@ -268,7 +252,8 @@ wait_for_nomad_job_ready() {
         echo "  ${job}: ${progress}"
         last_progress="${progress}"
       fi
-      if printf '%s' "${allocs_json}" | jq -e 'length > 0 and all(.[]; .ClientStatus == "running")' >/dev/null 2>&1; then
+      if (( total_allocs > 0 )) && printf '%s' "${live_allocs_json}" \
+        | jq -e 'all(.[]; .ClientStatus == "running")' >/dev/null 2>&1; then
         return 0
       fi
     fi

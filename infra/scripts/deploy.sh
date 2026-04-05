@@ -13,18 +13,16 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-STACK_DIR="${STACK_DIR:-/opt/personal-stack}"
-BOOTSTRAP_ENV_FILE="${BOOTSTRAP_ENV_FILE:-${STACK_DIR}/.nomad-bootstrap.env}"
-VAULT_KEYS_FILE="${VAULT_KEYS_FILE:-${STACK_DIR}/.vault-keys}"
-NOMAD_KEYS_FILE="${NOMAD_KEYS_FILE:-${STACK_DIR}/.nomad-keys}"
 IMAGE_TAG_OVERRIDE="${IMAGE_TAG-}"
 IMAGE_REPO_OVERRIDE="${IMAGE_REPO-}"
 DOMAIN_OVERRIDE="${DOMAIN-}"
 REPO_DIR_OVERRIDE="${REPO_DIR-}"
+APP_COUNT_OVERRIDE="${APP_COUNT-}"
 IMAGE_TAG="${IMAGE_TAG_OVERRIDE:-latest}"
 IMAGE_REPO="${IMAGE_REPO_OVERRIDE:-ghcr.io/extratoast/personal-stack}"
 DOMAIN="${DOMAIN_OVERRIDE:-jorisjonkers.dev}"
 REPO_DIR_VAR="${REPO_DIR_OVERRIDE:-/opt/personal-stack}"
+APP_COUNT="${APP_COUNT_OVERRIDE:-1}"
 
 MODE="apply"
 PHASE="all"
@@ -34,17 +32,27 @@ WAIT=false
 
 usage() {
   cat <<'EOF'
-Usage: deploy.sh [--phase data|infra|apps|all] [--wait] [--dry-run]
+Usage: deploy.sh [--phase data|infra|edge|apps|all] [--wait] [--dry-run]
 
 Phases:
   data   PostgreSQL, Valkey, RabbitMQ
-  infra  Observability, platform, mail, edge, core jobs
+  infra  Observability, platform, mail, core jobs
+  edge   Traefik only
   apps   auth-api, assistant-api, auth-ui, assistant-ui, app-ui
   all    Everything (default)
 
 Options:
   --wait      Block until critical jobs are running
   --dry-run   Print commands without executing
+
+Environment:
+  NOMAD_TOKEN  Required for apply mode
+  NOMAD_ADDR   Optional, defaults to http://127.0.0.1:4646
+  DOMAIN       Optional, defaults to jorisjonkers.dev
+  IMAGE_REPO   Optional, defaults to ghcr.io/extratoast/personal-stack
+  IMAGE_TAG    Optional, defaults to latest
+  REPO_DIR     Optional, defaults to /opt/personal-stack
+  APP_COUNT    Optional, defaults to 1 for single-node capacity
 EOF
 }
 
@@ -67,47 +75,22 @@ restore_deploy_overrides() {
     export REPO_DIR="${REPO_DIR_OVERRIDE}"
     REPO_DIR_VAR="${REPO_DIR_OVERRIDE}"
   fi
+  if [[ -n "${APP_COUNT_OVERRIDE:-}" ]]; then
+    export APP_COUNT="${APP_COUNT_OVERRIDE}"
+  fi
 }
 
 load_context() {
-  if [[ -f "${BOOTSTRAP_ENV_FILE}" ]]; then
-    set -a; source "${BOOTSTRAP_ENV_FILE}"; set +a
-  fi
   restore_deploy_overrides
-
-  if [[ -f "${NOMAD_KEYS_FILE}" ]]; then
-    source "${NOMAD_KEYS_FILE}"
-    export NOMAD_TOKEN="${NOMAD_TOKEN:-${NOMAD_BOOTSTRAP_TOKEN:-}}"
-  fi
-
-  if [[ -f "${VAULT_KEYS_FILE}" ]]; then
-    source "${VAULT_KEYS_FILE}"
-    export VAULT_TOKEN="${VAULT_TOKEN:-${VAULT_ROOT_TOKEN:-}}"
-  fi
-
-  export VAULT_ADDR="${VAULT_ADDR:-http://127.0.0.1:8200}"
   export NOMAD_ADDR="${NOMAD_ADDR:-http://127.0.0.1:4646}"
-}
-
-vault_is_unsealed() {
-  curl -fsS "${VAULT_ADDR}/v1/sys/seal-status" | jq -e '.sealed == false' >/dev/null 2>&1
-}
-
-ensure_vault_unsealed() {
-  if ! vault_is_unsealed; then
-    if [[ -n "${VAULT_UNSEAL_KEY:-}" ]]; then
-      echo "+ vault operator unseal"
-      vault operator unseal "${VAULT_UNSEAL_KEY}" >/dev/null
-    else
-      echo "Vault is sealed and no unseal key is available." >&2
-      exit 1
-    fi
+  if [[ "${MODE}" == "apply" ]]; then
+    : "${NOMAD_TOKEN:?Set NOMAD_TOKEN}"
   fi
 }
 
 submit_job() {
   local file="$1"; shift
-  run nomad job run "$@" "${file}"
+  run nomad job run -detach "$@" "${file}"
 }
 
 dump_job_diagnostics() {
@@ -130,13 +113,55 @@ dump_job_diagnostics() {
   nomad alloc logs "${alloc}" "${task}" || true
 }
 
-wait_for_job_running() {
+wait_for_job_ready() {
   local job="$1" timeout="${2:-240}" elapsed=0
+  local last_progress="" allocs_json live_allocs_json deployments_json deployment_id deployment_json
+  local deployment_status deployment_description desired_total placed_total healthy_total unhealthy_total
+  local total_allocs running_allocs progress
+
   while (( elapsed < timeout )); do
-    if nomad job allocs -json "${job}" 2>/dev/null \
-        | jq -e 'length > 0 and all(.[]; .ClientStatus == "running")' >/dev/null 2>&1; then
-      return 0
+    allocs_json="$(nomad job allocs -json "${job}" 2>/dev/null || printf '[]')"
+    live_allocs_json="$(printf '%s' "${allocs_json}" \
+      | jq '[.[] | select((.DesiredStatus // "run") == "run")]')"
+    total_allocs="$(printf '%s' "${live_allocs_json}" | jq -r 'length')"
+    running_allocs="$(printf '%s' "${live_allocs_json}" \
+      | jq -r '[.[] | select(.ClientStatus == "running")] | length')"
+
+    deployments_json="$(nomad job deployments -json "${job}" 2>/dev/null || printf '[]')"
+    deployment_id="$(printf '%s' "${deployments_json}" \
+      | jq -r 'map(select((.Status // "") != "cancelled")) | sort_by(.ModifyTime // .CreateTime // 0) | last | .ID // empty')"
+
+    if [[ -n "${deployment_id}" ]]; then
+      deployment_json="$(nomad deployment status -json "${deployment_id}" 2>/dev/null || printf '{}')"
+      deployment_status="$(printf '%s' "${deployment_json}" | jq -r '.Status // "unknown"')"
+      deployment_description="$(printf '%s' "${deployment_json}" | jq -r '.StatusDescription // empty')"
+      desired_total="$(printf '%s' "${deployment_json}" | jq -r '[.TaskGroups[]?.DesiredTotal // 0] | add // 0')"
+      placed_total="$(printf '%s' "${deployment_json}" | jq -r '[.TaskGroups[]?.PlacedAllocs // 0] | add // 0')"
+      healthy_total="$(printf '%s' "${deployment_json}" | jq -r '[.TaskGroups[]?.HealthyAllocs // 0] | add // 0')"
+      unhealthy_total="$(printf '%s' "${deployment_json}" | jq -r '[.TaskGroups[]?.UnhealthyAllocs // 0] | add // 0')"
+
+      progress="status=${deployment_status} placed=${placed_total} desired=${desired_total} healthy=${healthy_total} unhealthy=${unhealthy_total} allocs=${running_allocs}/${total_allocs}"
+      if [[ "${progress}" != "${last_progress}" ]]; then
+        echo "  ${job}: ${progress}${deployment_description:+ (${deployment_description})}"
+        last_progress="${progress}"
+      fi
+
+      if (( desired_total > 0 && healthy_total >= desired_total && running_allocs >= desired_total )); then
+        return 0
+      fi
+    else
+      progress="allocs=${running_allocs}/${total_allocs}"
+      if [[ "${progress}" != "${last_progress}" ]]; then
+        echo "  ${job}: ${progress}"
+        last_progress="${progress}"
+      fi
+
+      if (( total_allocs > 0 )) && printf '%s' "${live_allocs_json}" \
+        | jq -e 'all(.[]; .ClientStatus == "running")' >/dev/null 2>&1; then
+        return 0
+      fi
     fi
+
     sleep 3; elapsed=$((elapsed + 3))
   done
   echo "Timed out waiting for job ${job}." >&2
@@ -163,9 +188,8 @@ done
 cd "${ROOT_DIR}"
 
 load_context
-ensure_vault_unsealed
 
-echo "+ deploy context: phase=${PHASE} domain=${DOMAIN} image_repo=${IMAGE_REPO} image_tag=${IMAGE_TAG}"
+echo "+ deploy context: phase=${PHASE} domain=${DOMAIN} image_repo=${IMAGE_REPO} image_tag=${IMAGE_TAG} app_count=${APP_COUNT}"
 
 JOBS_DIR="${ROOT_DIR}/infra/nomad/jobs"
 DOMAIN_VAR=(-var "domain=${DOMAIN}")
@@ -175,36 +199,18 @@ EXTRA_VARS=()  # additional vars passed via NOMAD_EXTRA_VARS env (e.g. "-var cou
 if [[ -n "${NOMAD_EXTRA_VARS:-}" ]]; then
   read -ra EXTRA_VARS <<< "${NOMAD_EXTRA_VARS}"
 fi
+APP_COUNT_VAR=(-var "count=${APP_COUNT}")
+for token in "${EXTRA_VARS[@]}"; do
+  if [[ "${token}" == count=* ]]; then
+    APP_COUNT_VAR=()
+    break
+  fi
+done
 
 deploy_data() {
   submit_job "${JOBS_DIR}/data/postgres.nomad.hcl"  "${REPO_VAR[@]}"
   submit_job "${JOBS_DIR}/data/valkey.nomad.hcl"
   submit_job "${JOBS_DIR}/data/rabbitmq.nomad.hcl"  "${DOMAIN_VAR[@]}" "${REPO_VAR[@]}"
-}
-
-seed_stalwart_mail_account() {
-  local stalwart_addr password="${STALWART_MAIL_PASSWORD:-}"
-  [[ -n "${password}" ]] || { echo "STALWART_MAIL_PASSWORD not set, skipping mail account seed."; return 0; }
-
-  echo "+ Waiting for stalwart to be ready"
-  wait_for_job_running stalwart 120
-
-  stalwart_addr="$(nomad service info -json stalwart 2>/dev/null | jq -r '.[0] | .Address + ":" + (.Port | tostring)')" || true
-  [[ -n "${stalwart_addr}" && "${stalwart_addr}" != "null:null" ]] || { echo "Could not resolve stalwart address, skipping account seed."; return 0; }
-
-  local admin_user="${STALWART_ADMIN_USER:-admin}"
-  local admin_pass="${STALWART_ADMIN_PASSWORD:-}"
-
-  echo "+ Seeding stalwart mail account 'auth'"
-  curl -sf -u "${admin_user}:${admin_pass}" \
-    "http://${stalwart_addr}/api/principal" \
-    -H "Content-Type: application/json" \
-    -d '{
-      "type": "individual",
-      "name": "auth",
-      "secrets": ["'"${password}"'"],
-      "emails": ["auth@'"${DOMAIN}"'"]
-    }' && echo " done" || echo " (may already exist)"
 }
 
 deploy_infra() {
@@ -214,9 +220,9 @@ deploy_infra() {
   submit_job "${JOBS_DIR}/observability/promtail.nomad.hcl"
   submit_job "${JOBS_DIR}/observability/grafana.nomad.hcl"   "${DOMAIN_VAR[@]}" "${REPO_VAR[@]}"
   submit_job "${JOBS_DIR}/platform/n8n.nomad.hcl"            "${DOMAIN_VAR[@]}" "${REPO_VAR[@]}"
+  submit_job "${JOBS_DIR}/platform/flaresolverr.nomad.hcl"
   submit_job "${JOBS_DIR}/platform/uptime-kuma.nomad.hcl"    "${DOMAIN_VAR[@]}"
   submit_job "${JOBS_DIR}/mail/stalwart.nomad.hcl"           "${DOMAIN_VAR[@]}"
-  seed_stalwart_mail_account
 }
 
 deploy_edge() {
@@ -224,11 +230,11 @@ deploy_edge() {
 }
 
 deploy_apps() {
-  submit_job "${JOBS_DIR}/apps/auth-api.nomad.hcl"     "${DOMAIN_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
-  submit_job "${JOBS_DIR}/apps/assistant-api.nomad.hcl" "${DOMAIN_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
-  submit_job "${JOBS_DIR}/apps/auth-ui.nomad.hcl"       "${DOMAIN_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
-  submit_job "${JOBS_DIR}/apps/assistant-ui.nomad.hcl"   "${DOMAIN_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
-  submit_job "${JOBS_DIR}/apps/app-ui.nomad.hcl"         "${DOMAIN_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
+  submit_job "${JOBS_DIR}/apps/auth-api.nomad.hcl"      "${DOMAIN_VAR[@]}" "${APP_COUNT_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
+  submit_job "${JOBS_DIR}/apps/assistant-api.nomad.hcl" "${DOMAIN_VAR[@]}" "${APP_COUNT_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
+  submit_job "${JOBS_DIR}/apps/auth-ui.nomad.hcl"       "${DOMAIN_VAR[@]}" "${APP_COUNT_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
+  submit_job "${JOBS_DIR}/apps/assistant-ui.nomad.hcl"  "${DOMAIN_VAR[@]}" "${APP_COUNT_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
+  submit_job "${JOBS_DIR}/apps/app-ui.nomad.hcl"        "${DOMAIN_VAR[@]}" "${APP_COUNT_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
 }
 
 case "${PHASE}" in
@@ -244,16 +250,42 @@ if [[ "${WAIT}" == true && "${MODE}" == "apply" ]]; then
   echo "Waiting for critical jobs..."
   case "${PHASE}" in
     data)
-      wait_for_job_running postgres 240
-      wait_for_job_running rabbitmq 180
+      wait_for_job_ready postgres 240
+      wait_for_job_ready valkey 180
+      wait_for_job_ready rabbitmq 180
+      ;;
+    infra)
+      wait_for_job_ready grafana 300
+      wait_for_job_ready n8n 300
+      wait_for_job_ready flaresolverr 180
+      wait_for_job_ready stalwart 300
+      wait_for_job_ready uptime-kuma 240
+      ;;
+    edge)
+      wait_for_job_ready traefik 180
       ;;
     apps)
-      wait_for_job_running auth-api 300
-      wait_for_job_running assistant-api 300
+      wait_for_job_ready auth-api 300
+      wait_for_job_ready assistant-api 300
+      wait_for_job_ready auth-ui 240
+      wait_for_job_ready assistant-ui 240
+      wait_for_job_ready app-ui 240
       ;;
-    all|infra)
-      wait_for_job_running auth-api 300
-      wait_for_job_running assistant-api 300
+    all)
+      wait_for_job_ready postgres 240
+      wait_for_job_ready valkey 180
+      wait_for_job_ready rabbitmq 180
+      wait_for_job_ready grafana 300
+      wait_for_job_ready n8n 300
+      wait_for_job_ready flaresolverr 180
+      wait_for_job_ready stalwart 300
+      wait_for_job_ready uptime-kuma 240
+      wait_for_job_ready auth-api 300
+      wait_for_job_ready assistant-api 300
+      wait_for_job_ready auth-ui 240
+      wait_for_job_ready assistant-ui 240
+      wait_for_job_ready app-ui 240
+      wait_for_job_ready traefik 180
       ;;
   esac
   echo "All critical jobs running."

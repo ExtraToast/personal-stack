@@ -15,7 +15,7 @@ variable "image_repo" {
 
 variable "count" {
   type    = number
-  default = 2
+  default = 1
 }
 
 job "auth-ui" {

@@ -26,9 +26,10 @@ infra/nomad/
 
 - Treat these files as the canonical production deployment definitions.
 - Keep Nomad, Consul, and Vault themselves as system services on the host.
-- Use [migrate-to-nomad.sh](/Users/j.w.jonkers/IDEAProjects/private-stack/infra/scripts/migrate-to-nomad.sh) as the single operational entrypoint.
-- For a full staged migration, run `bootstrap`, `sync-secrets`, `prepare-vault`, `deploy`, `cutover`, and `rollback` through that script.
+- Run `infra/scripts/setup.sh prepare-pure-vault` once on the server when switching to the env-driven Vault bootstrap flow. This is the one-time prep step, not a recurring CI job.
+- After that, use `infra/scripts/deploy.sh` for normal deploys. Pass `NOMAD_TOKEN` plus the image/domain inputs from CI or your shell; steady-state deploys should not depend on `.nomad-bootstrap.env`, `.vault-keys`, or `.nomad-keys`.
+- App jobs default to `APP_COUNT=1` so single-node servers keep enough headroom for rolling placements. Set `APP_COUNT=2` when the cluster has capacity for two steady-state replicas.
 - Use Vault workload identity and per-job JWT roles instead of AppRole.
-- Keep only a small static secret set in Vault KV; local Compose does not need that.
+- Keep only the bootstrap/control-plane secret set in Vault KV; app runtime secrets should come from Vault secret engines.
 
 See [NOMAD_VAULT_MIGRATION.md](/Users/j.w.jonkers/IDEAProjects/private-stack/docs/architecture/NOMAD_VAULT_MIGRATION.md) for the implementation roadmap.

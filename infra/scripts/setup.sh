@@ -11,8 +11,9 @@
 #   configure        Write configs, create volumes, set UFW rules, enable services
 #   init-vault       Initialize and unseal Vault, enable KV engine
 #   init-nomad       Bootstrap Nomad ACL
-#   seed-secrets     Seed Vault KV from .nomad-bootstrap.env
+#   seed-secrets     Seed Vault KV from the bootstrap env file or current shell
 #   prepare-vault    Configure JWT auth, policies, roles, transit, database engine, OIDC
+#   prepare-pure-vault  One-time prep for pure Vault-backed runtime secrets without persisting bootstrap env files
 #   rotate-secrets   (removed — Vault dynamic engines handle rotation)
 #   full             Run the complete bootstrap sequence including deploy
 set -euo pipefail
@@ -25,6 +26,7 @@ MODE="apply"
 BOOTSTRAP_ENV_FILE="${BOOTSTRAP_ENV_FILE:-${STACK_DIR}/.nomad-bootstrap.env}"
 VAULT_KEYS_FILE="${VAULT_KEYS_FILE:-${STACK_DIR}/.vault-keys}"
 NOMAD_KEYS_FILE="${NOMAD_KEYS_FILE:-${STACK_DIR}/.nomad-keys}"
+PERSIST_BOOTSTRAP_ENV_FILE="${PERSIST_BOOTSTRAP_ENV_FILE:-true}"
 NOMAD_ADDR="${NOMAD_ADDR:-http://127.0.0.1:4646}"
 NOMAD_JWKS_URL="${NOMAD_JWKS_URL:-http://127.0.0.1:4646/.well-known/jwks.json}"
 VAULT_ADDR_DEFAULT="${VAULT_ADDR_DEFAULT:-http://127.0.0.1:8200}"
@@ -44,8 +46,10 @@ Commands:
   configure        Write configs, create volumes, set UFW rules, enable services
   init-vault       Initialize and unseal Vault, enable KV engine
   init-nomad       Bootstrap Nomad ACL
-  seed-secrets     Seed Vault KV from .nomad-bootstrap.env
+  seed-secrets     Seed Vault KV from the bootstrap env file or current shell env
   prepare-vault    Configure JWT auth, policies, roles, transit, database, rabbitmq engine, OIDC
+  prepare-pure-vault
+                   One-time switch to env-driven Vault bootstrap without persisting bootstrap env files
   full             Run the complete bootstrap sequence including deploy
 EOF
 }
@@ -69,7 +73,14 @@ shell_single_quote() {
   printf "'%s'" "${1//\'/\'\"\'\"\'}"
 }
 
+bootstrap_env_persistence_enabled() {
+  [[ "${PERSIST_BOOTSTRAP_ENV_FILE:-true}" == "true" ]]
+}
+
 load_bootstrap_env() {
+  if ! bootstrap_env_persistence_enabled; then
+    return
+  fi
   if [[ -f "${BOOTSTRAP_ENV_FILE}" ]]; then
     set -a; source "${BOOTSTRAP_ENV_FILE}"; set +a
   fi
@@ -78,10 +89,6 @@ load_bootstrap_env() {
 load_vault_context() {
   load_bootstrap_env
   export VAULT_ADDR="${VAULT_ADDR:-${VAULT_ADDR_DEFAULT}}"
-  if [[ -z "${VAULT_TOKEN:-}" && -f "${VAULT_KEYS_FILE}" ]]; then
-    source "${VAULT_KEYS_FILE}"
-    export VAULT_TOKEN="${VAULT_ROOT_TOKEN:-}"
-  fi
 }
 
 load_nomad_context() {
@@ -107,9 +114,6 @@ vault_is_unsealed() {
 
 ensure_vault_unsealed() {
   if ! vault_is_unsealed; then
-    if [[ -z "${VAULT_UNSEAL_KEY:-}" && -f "${VAULT_KEYS_FILE}" ]]; then
-      source "${VAULT_KEYS_FILE}"
-    fi
     if [[ -n "${VAULT_UNSEAL_KEY:-}" ]]; then
       echo "+ vault operator unseal"
       vault operator unseal "${VAULT_UNSEAL_KEY}" >/dev/null
@@ -132,6 +136,12 @@ write_text_file() {
 
 ensure_bootstrap_env_line() {
   local key="$1" value="$2" quoted
+  if ! bootstrap_env_persistence_enabled; then
+    if [[ "${MODE}" == "dry-run" ]]; then
+      echo "+ skip persisting ${key} to ${BOOTSTRAP_ENV_FILE} (env-only mode)"
+    fi
+    return 0
+  fi
   quoted="$(shell_single_quote "${value}")"
   if [[ "${MODE}" == "dry-run" ]]; then
     echo "+ upsert ${key} in ${BOOTSTRAP_ENV_FILE}"; return
@@ -177,6 +187,15 @@ wait_for_nomad_api() {
   wait_for_http "${NOMAD_ADDR}/v1/status/leader" "Nomad API" 90
 }
 
+stop_nomad_job_if_present() {
+  local job="$1"
+  load_nomad_context
+  if nomad job status "${job}" >/dev/null 2>&1; then
+    echo "+ nomad job stop -purge ${job}"
+    nomad job stop -purge "${job}" >/dev/null
+  fi
+}
+
 wait_for_postgres() {
   load_bootstrap_env
   local postgres_user="${POSTGRES_USER:-postgres}" timeout="${1:-120}" elapsed=0
@@ -192,16 +211,64 @@ wait_for_postgres() {
 
 wait_for_job_running() {
   local job="$1" timeout="${2:-180}" elapsed=0
+  local allocs_json live_allocs_json
   load_nomad_context
   while (( elapsed < timeout )); do
-    if nomad job allocs -json "${job}" 2>/dev/null \
-        | jq -e 'length > 0 and all(.[]; .ClientStatus == "running")' >/dev/null 2>&1; then
+    allocs_json="$(nomad job allocs -json "${job}" 2>/dev/null || printf '[]')"
+    live_allocs_json="$(printf '%s' "${allocs_json}" \
+      | jq '[.[] | select((.DesiredStatus // "run") == "run")]')"
+    if (( $(printf '%s' "${live_allocs_json}" | jq -r 'length') > 0 )) \
+      && printf '%s' "${live_allocs_json}" \
+        | jq -e 'all(.[]; .ClientStatus == "running")' >/dev/null 2>&1; then
       return 0
     fi
     sleep 3; elapsed=$((elapsed + 3))
   done
   nomad job status "${job}" || true
   echo "Timed out waiting for Nomad job ${job}." >&2; exit 1
+}
+
+seed_stalwart_mail_account() {
+  load_nomad_context
+  load_vault_context
+
+  local admin_user="${STALWART_ADMIN_USER:-}"
+  local admin_pass="${STALWART_ADMIN_PASSWORD:-}"
+  local mail_password="${STALWART_MAIL_PASSWORD:-}"
+  local stalwart_addr mail_domain
+
+  if [[ -z "${admin_user}" && -n "${VAULT_TOKEN:-}" ]]; then
+    admin_user="$(vault kv get -field=stalwart.admin_user secret/platform/mail 2>/dev/null || true)"
+  fi
+  if [[ -z "${admin_pass}" && -n "${VAULT_TOKEN:-}" ]]; then
+    admin_pass="$(vault kv get -field=stalwart.admin_password secret/platform/mail 2>/dev/null || true)"
+  fi
+  if [[ -z "${mail_password}" && -n "${VAULT_TOKEN:-}" ]]; then
+    mail_password="$(vault kv get -field=mail.password secret/auth-api 2>/dev/null || true)"
+  fi
+
+  : "${admin_user:=admin}"
+  [[ -n "${admin_pass}" ]] || { echo "Stalwart admin password not available, skipping mail account seed."; return 0; }
+  [[ -n "${mail_password}" ]] || { echo "Stalwart mail password not available, skipping mail account seed."; return 0; }
+
+  echo "+ Waiting for stalwart to be ready"
+  wait_for_job_running stalwart 180
+
+  stalwart_addr="$(nomad service info -json stalwart 2>/dev/null \
+    | jq -r '.[0]? | select(.Address != null and .Port != null) | .Address + ":" + (.Port | tostring)')" || true
+  [[ -n "${stalwart_addr}" && "${stalwart_addr}" != "null:null" ]] || stalwart_addr="127.0.0.1:8080"
+  mail_domain="${AUTH_ISSUER#https://auth.}"
+
+  echo "+ Seeding stalwart mail account 'auth'"
+  curl -sf -u "${admin_user}:${admin_pass}" \
+    "http://${stalwart_addr}/api/principal" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "type": "individual",
+      "name": "auth",
+      "secrets": ["'"${mail_password}"'"],
+      "emails": ["auth@'"${mail_domain}"'"]
+    }' && echo " done" || echo " (may already exist)"
 }
 
 detect_primary_ip() {
@@ -355,25 +422,6 @@ After=network-online.target docker.service consul.service vault.service
 Wants=network-online.target docker.service consul.service vault.service
 EOF
 
-  # Auto-unseal service: unseals Vault after boot/restart
-  cat <<'UNIT' | write_text_file /etc/systemd/system/vault-unseal.service 0644
-[Unit]
-Description=Unseal Vault after start
-After=vault.service
-Requires=vault.service
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-EnvironmentFile=/opt/personal-stack/.vault-keys
-Environment=VAULT_ADDR=http://127.0.0.1:8200
-ExecStartPre=/bin/bash -c 'for i in $(seq 1 30); do curl -sf http://127.0.0.1:8200/v1/sys/health > /dev/null 2>&1 && exit 0; sleep 2; done; exit 1'
-ExecStart=/usr/bin/vault operator unseal ${VAULT_UNSEAL_KEY}
-
-[Install]
-WantedBy=multi-user.target
-UNIT
-
   run systemctl daemon-reload
   run systemctl enable consul vault nomad
 
@@ -431,9 +479,6 @@ EOF
   if [[ "${MODE}" == "apply" ]]; then
     vault secrets enable -path=secret -version=2 kv 2>/dev/null || true
   fi
-
-  # Enable the auto-unseal service now that keys exist
-  run systemctl enable vault-unseal 2>/dev/null || true
 
   echo "Vault initialized and unsealed."
 }
@@ -555,31 +600,35 @@ seed_secrets_command() {
   require_bootstrap_var GRAFANA_ADMIN_PASSWORD
   require_bootstrap_var STALWART_ADMIN_PASSWORD
 
-  [[ -n "${N8N_OAUTH_CLIENT_SECRET:-}" ]]      || { N8N_OAUTH_CLIENT_SECRET="$(random_secret)";      ensure_bootstrap_env_line N8N_OAUTH_CLIENT_SECRET "${N8N_OAUTH_CLIENT_SECRET}"; }
-  [[ -n "${GRAFANA_OAUTH_CLIENT_SECRET:-}" ]]   || { GRAFANA_OAUTH_CLIENT_SECRET="$(random_secret)";   ensure_bootstrap_env_line GRAFANA_OAUTH_CLIENT_SECRET "${GRAFANA_OAUTH_CLIENT_SECRET}"; }
-  [[ -n "${VAULT_OIDC_CLIENT_SECRET:-}" ]]      || { VAULT_OIDC_CLIENT_SECRET="$(random_secret)";      ensure_bootstrap_env_line VAULT_OIDC_CLIENT_SECRET "${VAULT_OIDC_CLIENT_SECRET}"; }
-  [[ -n "${STALWART_MAIL_PASSWORD:-}" ]]       || { STALWART_MAIL_PASSWORD="$(random_secret)";       ensure_bootstrap_env_line STALWART_MAIL_PASSWORD "${STALWART_MAIL_PASSWORD}"; }
+  [[ -n "${N8N_OAUTH_CLIENT_SECRET:-}" ]]     || N8N_OAUTH_CLIENT_SECRET="$(random_secret)"
+  [[ -n "${GRAFANA_OAUTH_CLIENT_SECRET:-}" ]] || GRAFANA_OAUTH_CLIENT_SECRET="$(random_secret)"
+  [[ -n "${VAULT_OIDC_CLIENT_SECRET:-}" ]]    || VAULT_OIDC_CLIENT_SECRET="$(random_secret)"
+  [[ -n "${STALWART_MAIL_PASSWORD:-}" ]]      || STALWART_MAIL_PASSWORD="$(random_secret)"
 
   if [[ "${MODE}" == "dry-run" ]]; then
-    echo "+ seed Vault KV from ${BOOTSTRAP_ENV_FILE}"; return
+    if bootstrap_env_persistence_enabled; then
+      echo "+ seed Vault KV from ${BOOTSTRAP_ENV_FILE} and refresh bootstrap env file"
+    else
+      echo "+ seed Vault KV from current shell environment without writing ${BOOTSTRAP_ENV_FILE}"
+    fi
+    return
   fi
 
-  persist_bootstrap_secrets
+  if bootstrap_env_persistence_enabled; then
+    persist_bootstrap_secrets
+  fi
   write_all_secrets_to_vault
-  echo "Bootstrap secrets seeded into Vault KV."
+  if bootstrap_env_persistence_enabled; then
+    echo "Bootstrap secrets seeded into Vault KV and persisted to ${BOOTSTRAP_ENV_FILE}."
+  else
+    echo "Bootstrap secrets seeded into Vault KV from the current shell environment."
+  fi
 }
 
 # ── prepare-vault command ──────────────────────────────────────────────────
 
 configure_database_engine() {
   local postgres_user postgres_password auth_db_user assistant_db_user n8n_db_user
-
-  if vault read database/config/postgres >/dev/null 2>&1 &&
-    vault read database/roles/auth-api >/dev/null 2>&1 &&
-    vault read database/roles/assistant-api >/dev/null 2>&1 &&
-    vault read database/roles/n8n >/dev/null 2>&1; then
-    echo "Vault database engine already configured."; return
-  fi
 
   postgres_user="$(vault kv get -field=postgres.user secret/platform/postgres 2>/dev/null || true)"
   postgres_password="$(vault kv get -field=postgres.password secret/platform/postgres 2>/dev/null || true)"
@@ -613,18 +662,17 @@ configure_database_engine() {
 
   vault write -force database/rotate-root/postgres >/dev/null 2>&1 || true
 
+  # The Vault connection targets the postgres database, so cross-database access
+  # is safest via inheriting each app's base owner role instead of schema grants.
   echo "+ vault write database/roles/auth-api"
   vault write database/roles/auth-api \
     db_name=postgres \
     creation_statements="
       CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}';
       GRANT CONNECT ON DATABASE auth_db TO \"{{name}}\";
-      GRANT USAGE ON SCHEMA public TO \"{{name}}\";
-      GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"{{name}}\";
-      GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO \"{{name}}\";
-      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO \"{{name}}\";
-      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO \"{{name}}\";" \
+      GRANT ${auth_db_user} TO \"{{name}}\";" \
     revocation_statements="
+      REVOKE ${auth_db_user} FROM \"{{name}}\";
       REASSIGN OWNED BY \"{{name}}\" TO ${auth_db_user};
       DROP OWNED BY \"{{name}}\";
       DROP ROLE IF EXISTS \"{{name}}\";" \
@@ -636,12 +684,9 @@ configure_database_engine() {
     creation_statements="
       CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}';
       GRANT CONNECT ON DATABASE assistant_db TO \"{{name}}\";
-      GRANT USAGE ON SCHEMA public TO \"{{name}}\";
-      GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"{{name}}\";
-      GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO \"{{name}}\";
-      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO \"{{name}}\";
-      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO \"{{name}}\";" \
+      GRANT ${assistant_db_user} TO \"{{name}}\";" \
     revocation_statements="
+      REVOKE ${assistant_db_user} FROM \"{{name}}\";
       REASSIGN OWNED BY \"{{name}}\" TO ${assistant_db_user};
       DROP OWNED BY \"{{name}}\";
       DROP ROLE IF EXISTS \"{{name}}\";" \
@@ -653,14 +698,9 @@ configure_database_engine() {
     creation_statements="
       CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}';
       GRANT CONNECT ON DATABASE n8n_db TO \"{{name}}\";
-      GRANT USAGE, CREATE ON SCHEMA public TO \"{{name}}\";
-      GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"{{name}}\";
-      GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO \"{{name}}\";
-      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO \"{{name}}\";
-      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO \"{{name}}\";
-      ALTER SCHEMA public OWNER TO \"{{name}}\";" \
+      GRANT ${n8n_db_user} TO \"{{name}}\";" \
     revocation_statements="
-      ALTER SCHEMA public OWNER TO ${n8n_db_user};
+      REVOKE ${n8n_db_user} FROM \"{{name}}\";
       REASSIGN OWNED BY \"{{name}}\" TO ${n8n_db_user};
       DROP OWNED BY \"{{name}}\";
       DROP ROLE IF EXISTS \"{{name}}\";" \
@@ -789,6 +829,45 @@ EOF
   echo "Vault configuration complete."
 }
 
+prepare_pure_vault_command() {
+  local deploy_script previous_persist_mode
+  previous_persist_mode="${PERSIST_BOOTSTRAP_ENV_FILE:-true}"
+  export PERSIST_BOOTSTRAP_ENV_FILE=false
+
+  load_bootstrap_env
+  load_vault_context
+  load_nomad_context
+  ensure_vault_unsealed
+  : "${VAULT_ADDR:?Set VAULT_ADDR}"
+  : "${VAULT_TOKEN:?Set VAULT_TOKEN}"
+  : "${NOMAD_TOKEN:?Set NOMAD_TOKEN}"
+
+  if [[ "${MODE}" == "dry-run" ]]; then
+    echo "+ seed Vault KV from the current shell env, deploy data+infra prerequisites, configure Vault engines, and seed the stalwart auth mailbox"
+    export PERSIST_BOOTSTRAP_ENV_FILE="${previous_persist_mode}"
+    return
+  fi
+
+  export VAULT_ADDR VAULT_TOKEN NOMAD_ADDR NOMAD_TOKEN
+  deploy_script="${ROOT_DIR}/infra/scripts/deploy.sh"
+
+  seed_secrets_command
+  bash "${deploy_script}" --phase data --wait
+  wait_for_postgres 240
+  prepare_vault_command
+  # n8n previously used static DB credentials. Stop it before redeploying so a
+  # fresh allocation gets a new dynamic lease instead of waiting on a rolling update.
+  vault lease revoke -prefix database/creds/n8n >/dev/null 2>&1 || true
+  stop_nomad_job_if_present n8n
+  bash "${deploy_script}" --phase infra --wait
+  seed_stalwart_mail_account
+
+  export PERSIST_BOOTSTRAP_ENV_FILE="${previous_persist_mode}"
+
+  echo "Pure Vault preparation complete."
+  echo "Next step: run deploy.sh with NOMAD_TOKEN and your image inputs."
+}
+
 
 # ── full command ───────────────────────────────────────────────────────────
 
@@ -849,6 +928,7 @@ main() {
     init-nomad)     init_nomad_command ;;
     seed-secrets)   seed_secrets_command ;;
     prepare-vault)  prepare_vault_command ;;
+    prepare-pure-vault) prepare_pure_vault_command ;;
     rotate-secrets) echo "rotate-secrets is removed. Vault dynamic secret engines handle rotation automatically."; exit 0 ;;
     full)           full_command ;;
     *)              echo "Unknown command: ${command}" >&2; usage; exit 1 ;;

@@ -56,7 +56,9 @@ http:
   middlewares:
     forward-auth:
       forwardAuth:
-        address: 'https://auth.{{ $domain }}/api/v1/auth/verify'
+        # Call auth-api directly so the auth check keeps the original
+        # X-Forwarded-* context instead of re-entering Traefik as auth.<domain>.
+        address: '{{ with service "auth-api" }}{{ with index . 0 }}http://{{ .Address }}:{{ .Port }}/api/v1/auth/verify{{ end }}{{ else }}https://auth.{{ $domain }}/api/v1/auth/verify{{ end }}'
         trustForwardHeader: true
 {{ if eq (env "TLS_MODE") "file" }}
         tls:
@@ -93,6 +95,11 @@ http:
       headers:
         <<: *base-headers
         contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn-rs.n8n.io; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.{{ $domain }} https://*.jorisjonkers.test https://gravatar.com; font-src 'self' data:; connect-src 'self' https://*.{{ $domain }} https://*.jorisjonkers.test https://api.n8n.io https://ph.n8n.io https://api.github.com; frame-ancestors 'none'"
+
+    rabbitmq-security-headers:
+      headers:
+        <<: *base-headers
+        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.{{ $domain }} https://*.jorisjonkers.test; font-src 'self'; connect-src 'self' https://*.{{ $domain }} https://*.jorisjonkers.test; frame-ancestors 'none'"
 
     grafana-security-headers:
       headers:
