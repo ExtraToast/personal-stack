@@ -132,7 +132,6 @@ fun buildRabbitMqClient(): RegisteredClient =
         .scope(OidcScopes.OPENID)
         .scope(OidcScopes.PROFILE)
         .scope(OidcScopes.EMAIL)
-        .scope("rabbitmq.tag:administrator")
         .clientSettings(noConsentSettings(requirePkce = true))
         .tokenSettings(defaultTokenSettings())
         .build()
