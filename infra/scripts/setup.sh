@@ -39,6 +39,8 @@ NOMAD_PUBLIC_ADDR="${NOMAD_PUBLIC_ADDR:-https://nomad.jorisjonkers.dev}"
 NOMAD_TEST_PUBLIC_ADDR="${NOMAD_TEST_PUBLIC_ADDR:-https://nomad.jorisjonkers.test}"
 NOMAD_OIDC_AUTH_METHOD_NAME="${NOMAD_OIDC_AUTH_METHOD_NAME:-nomad}"
 NOMAD_OIDC_MAX_TOKEN_TTL="${NOMAD_OIDC_MAX_TOKEN_TTL:-8h}"
+NOMAD_OPERATOR_POLICY_NAME="${NOMAD_OPERATOR_POLICY_NAME:-nomad-operator}"
+NOMAD_OPERATOR_ROLE_NAME="${NOMAD_OPERATOR_ROLE_NAME:-nomad-operator}"
 
 # ── Usage ──────────────────────────────────────────────────────────────────
 
@@ -871,6 +873,67 @@ EOF
 EOF
 }
 
+configure_nomad_operator_policy() {
+  echo "+ nomad acl policy apply ${NOMAD_OPERATOR_POLICY_NAME}"
+  nomad acl policy apply \
+    -description "Operator access for Nomad UI and CLI" \
+    "${NOMAD_OPERATOR_POLICY_NAME}" - <<'EOF' >/dev/null
+namespace "*" {
+  policy = "read"
+  capabilities = ["read-fs", "alloc-exec", "alloc-node-exec"]
+}
+
+node {
+  policy = "read"
+}
+
+agent {
+  policy = "read"
+}
+
+operator {
+  policy = "read"
+}
+
+quota {
+  policy = "read"
+}
+
+host_volume "*" {
+  policy = "read"
+}
+
+plugin {
+  policy = "read"
+}
+EOF
+}
+
+configure_nomad_operator_role() {
+  local role_id
+  role_id="$(
+    nomad acl role list -json 2>/dev/null \
+      | jq -r '.[] | select(.Name == "'"${NOMAD_OPERATOR_ROLE_NAME}"'") | .ID' \
+      | head -n1
+  )"
+
+  if [[ -n "${role_id}" ]]; then
+    echo "+ nomad acl role update ${role_id}"
+    nomad acl role update \
+      -name "${NOMAD_OPERATOR_ROLE_NAME}" \
+      -description "OIDC role for Nomad operators" \
+      -policy "${NOMAD_OPERATOR_POLICY_NAME}" \
+      "${role_id}" >/dev/null
+    return
+  fi
+
+  echo "+ nomad acl role create -name ${NOMAD_OPERATOR_ROLE_NAME}"
+  nomad acl role create \
+    -name "${NOMAD_OPERATOR_ROLE_NAME}" \
+    -description "OIDC role for Nomad operators" \
+    -policy "${NOMAD_OPERATOR_POLICY_NAME}" >/dev/null
+}
+
 prepare_nomad_oidc_command() {
   require_command curl
   require_command jq
@@ -894,6 +957,8 @@ prepare_nomad_oidc_command() {
 
   wait_for_nomad_api
   configure_nomad_oidc_auth_method
+  configure_nomad_operator_policy
+  configure_nomad_operator_role
 
   echo "Nomad OIDC auth method configuration complete."
 }
