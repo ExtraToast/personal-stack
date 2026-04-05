@@ -68,7 +68,6 @@ jobs:
             infra:
               - 'infra/**'
               - 'docker-compose.yml'
-              - 'docker-compose.prod.yml'
       - name: Compute change flags
         id: compute
         env:
