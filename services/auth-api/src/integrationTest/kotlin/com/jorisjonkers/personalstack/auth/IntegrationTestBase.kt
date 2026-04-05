@@ -60,6 +60,7 @@ abstract class IntegrationTestBase {
                     "https://vault.jorisjonkers.test",
                     "https://n8n.jorisjonkers.test",
                     "https://grafana.jorisjonkers.test",
+                    "https://nomad.jorisjonkers.test",
                     "https://rabbitmq.jorisjonkers.test",
                     "https://mail.jorisjonkers.test",
                     "https://stalwart.jorisjonkers.test",

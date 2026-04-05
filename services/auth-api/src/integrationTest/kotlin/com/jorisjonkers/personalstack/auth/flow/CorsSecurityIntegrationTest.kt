@@ -80,6 +80,19 @@ class CorsSecurityIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
+    fun `nomad origin receives CORS headers on login endpoint`() {
+        mockMvc
+            .post("/api/v1/auth/login") {
+                header(HttpHeaders.ORIGIN, "https://nomad.jorisjonkers.test")
+                header(HttpHeaders.CONTENT_TYPE, "application/json")
+                content = """{"username":"nouser","password":"nopass"}"""
+            }.andExpect {
+                header { string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://nomad.jorisjonkers.test") }
+                header { string(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true") }
+            }
+    }
+
+    @Test
     fun `forward auth preflight allows downstream service origins`() {
         val response =
             mockMvc
@@ -90,6 +103,23 @@ class CorsSecurityIntegrationTest : IntegrationTestBase() {
                 }.andExpect {
                     status { isOk() }
                     header { string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://mail.jorisjonkers.test") }
+                    header { string(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true") }
+                }.andReturn()
+
+        assertThat(response.response.getHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS).orEmpty()).contains("GET")
+    }
+
+    @Test
+    fun `forward auth preflight allows nomad origin`() {
+        val response =
+            mockMvc
+                .options("/api/v1/auth/verify") {
+                    header(HttpHeaders.ORIGIN, "https://nomad.jorisjonkers.test")
+                    header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "GET")
+                    header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "Content-Type")
+                }.andExpect {
+                    status { isOk() }
+                    header { string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://nomad.jorisjonkers.test") }
                     header { string(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true") }
                 }.andReturn()
 

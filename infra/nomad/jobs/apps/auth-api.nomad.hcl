@@ -97,7 +97,7 @@ job "auth-api" {
         AUTH_ISSUER                 = "https://auth.${var.domain}"
         SESSION_COOKIE_DOMAIN       = "${var.domain}"
         SESSION_COOKIE_SECURE       = "true"
-        AUTH_CORS_ALLOWED_ORIGINS   = "https://${var.domain},https://auth.${var.domain},https://assistant.${var.domain},https://vault.${var.domain},https://n8n.${var.domain},https://grafana.${var.domain},https://rabbitmq.${var.domain},https://stalwart.${var.domain},https://traefik.${var.domain},https://status.${var.domain}"
+        AUTH_CORS_ALLOWED_ORIGINS   = "https://${var.domain},https://auth.${var.domain},https://assistant.${var.domain},https://vault.${var.domain},https://n8n.${var.domain},https://grafana.${var.domain},https://nomad.${var.domain},https://rabbitmq.${var.domain},https://stalwart.${var.domain},https://traefik.${var.domain},https://status.${var.domain}"
         OTEL_SERVICE_NAME           = "auth-api"
         OTEL_EXPORTER_OTLP_ENDPOINT = "http://127.0.0.1:4318"
         OTEL_EXPORTER_OTLP_PROTOCOL = "http/protobuf"
