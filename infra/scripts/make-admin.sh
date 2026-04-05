@@ -40,6 +40,7 @@ BEGIN
     (v_id, 'GRAFANA'),
     (v_id, 'ASSISTANT'),
     (v_id, 'NOMAD'),
+    (v_id, 'RABBITMQ'),
     (v_id, 'TRAEFIK_DASHBOARD'),
     (v_id, 'STATUS')
   ON CONFLICT DO NOTHING;

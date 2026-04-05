@@ -2,9 +2,11 @@ package com.jorisjonkers.personalstack.auth.flow
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.jorisjonkers.personalstack.auth.IntegrationTestBase
+import com.jorisjonkers.personalstack.auth.domain.model.ServicePermission
 import com.jorisjonkers.personalstack.auth.domain.service.TotpService
 import com.jorisjonkers.personalstack.auth.jooq.tables.AppUser.APP_USER
 import com.jorisjonkers.personalstack.auth.jooq.tables.EmailConfirmationToken.EMAIL_CONFIRMATION_TOKEN
+import com.jorisjonkers.personalstack.auth.jooq.tables.UserServicePermissions.USER_SERVICE_PERMISSIONS
 import dev.turingcomplete.kotlinonetimepassword.HmacAlgorithm
 import dev.turingcomplete.kotlinonetimepassword.TimeBasedOneTimePasswordConfig
 import dev.turingcomplete.kotlinonetimepassword.TimeBasedOneTimePasswordGenerator
@@ -18,6 +20,7 @@ import org.springframework.http.MediaType
 import org.springframework.mock.web.MockHttpSession
 import org.springframework.security.oauth2.core.AuthorizationGrantType
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod
+import org.springframework.security.oauth2.core.oidc.OidcScopes
 import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
@@ -146,6 +149,25 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
         registerUser(username, password)
         confirmEmail(username)
         return username
+    }
+
+    private fun grantServicePermission(
+        username: String,
+        permission: ServicePermission,
+    ) {
+        val userId =
+            dsl
+                .select(APP_USER.ID)
+                .from(APP_USER)
+                .where(APP_USER.USERNAME.eq(username))
+                .fetchOne(APP_USER.ID)!!
+
+        dsl
+            .insertInto(USER_SERVICE_PERMISSIONS)
+            .set(USER_SERVICE_PERMISSIONS.USER_ID, userId)
+            .set(USER_SERVICE_PERMISSIONS.SERVICE, permission.name)
+            .onConflictDoNothing()
+            .execute()
     }
 
     private fun doSessionLogin(
@@ -497,7 +519,8 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
         assertThat(rabbitMqClient!!.redirectUris).contains(RABBITMQ_REDIRECT_URI)
         assertThat(rabbitMqClient.clientAuthenticationMethods).contains(ClientAuthenticationMethod.NONE)
         assertThat(rabbitMqClient.clientSettings.isRequireProofKey).isTrue()
-        assertThat(rabbitMqClient.scopes).contains("rabbitmq.tag:administrator")
+        assertThat(rabbitMqClient.scopes).contains(OidcScopes.OPENID, OidcScopes.PROFILE, OidcScopes.EMAIL)
+        assertThat(rabbitMqClient.scopes).doesNotContain("rabbitmq.tag:administrator")
 
         assertThat(vaultClient).isNotNull()
         assertThat(vaultClient!!.redirectUris).contains(VAULT_REDIRECT_URI)
@@ -520,7 +543,7 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
                 Triple(VAULT_CLIENT_ID, VAULT_REDIRECT_URI, "openid profile email"),
                 Triple("n8n", N8N_REDIRECT_URI, "openid profile email"),
                 Triple(NOMAD_CLIENT_ID, NOMAD_REDIRECT_URI, "openid profile email"),
-                Triple("rabbitmq", RABBITMQ_REDIRECT_URI, "openid profile email rabbitmq.tag:administrator"),
+                Triple("rabbitmq", RABBITMQ_REDIRECT_URI, "openid profile email"),
             )
 
         requests.forEach { (clientId, redirectUri, scope) ->
@@ -541,6 +564,63 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
                 }.andExpect {
                     status { isForbidden() }
                 }
+        }
+    }
+
+    @Test
+    fun `users with rabbitmq service permission can authorize rabbitmq oidc client`() {
+        val username = uniqueUsername()
+        val password = "securepass123"
+        registerAndConfirmUser(username, password)
+        grantServicePermission(username, ServicePermission.RABBITMQ)
+
+        val loginResult = doSessionLogin(username, password)
+        val session = extractSession(loginResult)!!
+        val codeVerifier = generateCodeVerifier()
+        val codeChallenge = generateCodeChallenge(codeVerifier)
+
+        val authorizeResult =
+            mockMvc
+                .get("/api/oauth2/authorize") {
+                    param("response_type", "code")
+                    param("client_id", "rabbitmq")
+                    param("redirect_uri", RABBITMQ_REDIRECT_URI)
+                    param("scope", "openid profile email")
+                    param("code_challenge", codeChallenge)
+                    param("code_challenge_method", "S256")
+                    param("state", "allow-rabbitmq-service-user")
+                    accept = MediaType.TEXT_HTML
+                    this.session = session
+                }.andReturn()
+
+        val location = authorizeResult.response.getHeader("Location")
+        assertThat(authorizeResult.response.status)
+            .describedAs("rabbitmq client should be allowed for a SERVICE_RABBITMQ session")
+            .isIn(302, 400)
+
+        if (location != null && location.contains("code=")) {
+            assertThat(location).startsWith(RABBITMQ_REDIRECT_URI)
+            val code = location.substringAfter("code=").substringBefore("&")
+
+            val tokenResult =
+                mockMvc
+                    .post("/api/oauth2/token") {
+                        contentType = MediaType.APPLICATION_FORM_URLENCODED
+                        content =
+                            "grant_type=authorization_code" +
+                            "&code=${URLEncoder.encode(code, StandardCharsets.UTF_8)}" +
+                            "&redirect_uri=${URLEncoder.encode(RABBITMQ_REDIRECT_URI, StandardCharsets.UTF_8)}" +
+                            "&client_id=rabbitmq" +
+                            "&code_verifier=$codeVerifier"
+                    }.andExpect { status { isOk() } }
+                    .andReturn()
+
+            val tokenJson = objectMapper.readTree(tokenResult.response.contentAsString)
+            val accessToken = tokenJson["access_token"].asText()
+            val decodedAccessToken = jwtDecoder.decode(accessToken)
+
+            assertThat(decodedAccessToken.audience).contains("rabbitmq")
+            assertThat(decodedAccessToken.getClaimAsStringList("roles")).contains("ROLE_USER", "SERVICE_RABBITMQ")
         }
     }
 
@@ -567,7 +647,7 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
                 OidcClientRequest(
                     "rabbitmq",
                     RABBITMQ_REDIRECT_URI,
-                    "openid profile email rabbitmq.tag:administrator",
+                    "openid profile email",
                     true,
                 ),
             )
