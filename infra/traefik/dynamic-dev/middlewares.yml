@@ -9,6 +9,13 @@ http:
           - 'X-User-Email'
           - 'X-User-Roles'
 
+    nomad-proxy-headers:
+      headers:
+        # Keep the local file-provider config in sync with the Nomad Traefik
+        # template so Nomad UI requests are treated consistently across envs.
+        customRequestHeaders:
+          Origin: 'http://127.0.0.1:4646'
+
     rate-limit:
       rateLimit:
         average: 100
