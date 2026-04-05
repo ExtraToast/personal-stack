@@ -22,8 +22,10 @@ BOOTSTRAP_ENV_FILE="${BOOTSTRAP_ENV_FILE:-${STACK_DIR}/.nomad-bootstrap.env}"
 VAULT_KEYS_FILE="${VAULT_KEYS_FILE:-${STACK_DIR}/.vault-keys}"
 NOMAD_KEYS_FILE="${NOMAD_KEYS_FILE:-${STACK_DIR}/.nomad-keys}"
 BACKUP_DIR="${BACKUP_DIR:-${ROOT_DIR}/tmp/nomad-migration}"
-IMAGE_TAG="${IMAGE_TAG:-latest}"
-IMAGE_REPO="${IMAGE_REPO:-ghcr.io/extratoast/personal-stack}"
+IMAGE_TAG_OVERRIDE="${IMAGE_TAG-}"
+IMAGE_REPO_OVERRIDE="${IMAGE_REPO-}"
+IMAGE_TAG="${IMAGE_TAG_OVERRIDE:-latest}"
+IMAGE_REPO="${IMAGE_REPO_OVERRIDE:-ghcr.io/extratoast/personal-stack}"
 VAULT_ADDR_DEFAULT="${VAULT_ADDR_DEFAULT:-http://127.0.0.1:8200}"
 STACK_PREFIX="${STACK_PREFIX:-}"
 MODE="apply"
@@ -48,6 +50,15 @@ run() {
   [[ "${MODE}" == "apply" ]] && "$@"
 }
 
+restore_context_overrides() {
+  if [[ -n "${IMAGE_TAG_OVERRIDE:-}" ]]; then
+    export IMAGE_TAG="${IMAGE_TAG_OVERRIDE}"
+  fi
+  if [[ -n "${IMAGE_REPO_OVERRIDE:-}" ]]; then
+    export IMAGE_REPO="${IMAGE_REPO_OVERRIDE}"
+  fi
+}
+
 shell_single_quote() {
   printf "'%s'" "${1//\'/\'\"\'\"\'}"
 }
@@ -56,6 +67,7 @@ load_vault_context() {
   if [[ -f "${BOOTSTRAP_ENV_FILE}" ]]; then
     set -a; source "${BOOTSTRAP_ENV_FILE}"; set +a
   fi
+  restore_context_overrides
   export VAULT_ADDR="${VAULT_ADDR:-${VAULT_ADDR_DEFAULT}}"
   if [[ -z "${VAULT_TOKEN:-}" && -f "${VAULT_KEYS_FILE}" ]]; then
     source "${VAULT_KEYS_FILE}"
