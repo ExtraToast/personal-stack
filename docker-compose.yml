@@ -225,6 +225,22 @@ services:
       retries: 10
       start_period: 20s
 
+  alloy:
+    image: grafana/alloy:v1.12.1
+    container_name: personal-stack-alloy
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - --disable-reporting
+      - /etc/alloy/config.alloy
+    ports:
+      - '12345:12345'
+    volumes:
+      - alloy-data:/var/lib/alloy/data
+      - ./infra/observability/alloy/config.compose.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
   promtail:
     image: grafana/promtail:3.5.0
     container_name: personal-stack-promtail
@@ -683,6 +699,7 @@ services:
       - 'traefik.http.services.app-ui.loadbalancer.server.port=80'
 
 volumes:
+  alloy-data:
   postgres-data:
   valkey-data:
   rabbitmq-data:
