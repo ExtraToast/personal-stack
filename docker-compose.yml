@@ -177,7 +177,7 @@ services:
       GF_AUTH_GENERIC_OAUTH_TLS_SKIP_VERIFY_INSECURE: 'true'
     volumes:
       - grafana-data:/var/lib/grafana
-      - ./infra/observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./infra/observability/grafana/provisioning/datasources/datasources.compose.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
       - ./infra/observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ./infra/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
     healthcheck:

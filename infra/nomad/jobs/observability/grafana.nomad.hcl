@@ -95,7 +95,7 @@ job "grafana" {
         image        = "grafana/grafana:11.6.0"
         network_mode = "host"
         volumes = [
-          "${var.repo_dir}/infra/observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro",
+          "${var.repo_dir}/infra/observability/grafana/provisioning/datasources/datasources.nomad.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro",
           "${var.repo_dir}/infra/observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro",
           "${var.repo_dir}/infra/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro",
         ]
