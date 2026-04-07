@@ -24,16 +24,20 @@ class RabbitMqOidcPlaywrightTest : PlaywrightTestBase() {
             }
         }
 
+        // Forward-auth passes (user has session + RABBITMQ permission).
+        // RabbitMQ defaults to sp_initiated OIDC, so the SPA auto-redirects
+        // through auth-api and back to the callback page without user
+        // interaction. Allow enough time for the full redirect chain to
+        // settle before inspecting the page.
         page.navigate("https://rabbitmq.jorisjonkers.test/")
-        page.waitForLoadState()
-        page.waitForTimeout(2000.0)
 
-        // Forward-auth passes (user has session + RABBITMQ permission), then
-        // RabbitMQ shows its own login page. Click the OAuth login link to
-        // start the OIDC flow.
-        page.locator("text=/log in/i").first().click()
-        page.waitForLoadState()
-        page.waitForTimeout(5000.0)
+        // Wait for the OIDC redirect chain to complete and the management
+        // UI to render. The chain is: RabbitMQ SPA → auth-api authorize →
+        // callback.html → management UI.
+        page.waitForURL(
+            { url -> url.contains("rabbitmq.jorisjonkers.test") && !url.contains("login-callback.html") },
+            Page.WaitForURLOptions().setTimeout(30000.0),
+        )
         waitForServicePageToSettle(page)
         page.waitForFunction(
             """
@@ -43,7 +47,7 @@ class RabbitMqOidcPlaywrightTest : PlaywrightTestBase() {
             }
             """.trimIndent(),
             null,
-            Page.WaitForFunctionOptions().setTimeout(20000.0),
+            Page.WaitForFunctionOptions().setTimeout(30000.0),
         )
 
         val currentUrl = page.url()
