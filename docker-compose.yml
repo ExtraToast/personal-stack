@@ -503,7 +503,7 @@ services:
       OTEL_LOGS_EXPORTER: none
       OTEL_TRACES_EXPORTER: otlp
       OTEL_METRICS_EXPORTER: none
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
     depends_on:
       postgres:
@@ -600,7 +600,7 @@ services:
       OTEL_LOGS_EXPORTER: none
       OTEL_TRACES_EXPORTER: otlp
       OTEL_METRICS_EXPORTER: none
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
     depends_on:
       postgres:
