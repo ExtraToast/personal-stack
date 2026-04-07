@@ -76,8 +76,12 @@ job "traefik" {
       }
 
       env {
-        DOMAIN   = var.domain
-        TLS_MODE = var.tls_mode
+        DOMAIN                   = var.domain
+        TLS_MODE                 = var.tls_mode
+        DEPLOYMENT_ENVIRONMENT   = "production"
+        SERVICE_VERSION          = "3.6"
+        OTEL_SERVICE_NAME        = "traefik"
+        OTEL_RESOURCE_ATTRIBUTES = "deployment.environment=production,service.version=3.6"
       }
 
       driver = "docker"
