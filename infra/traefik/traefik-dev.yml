@@ -8,6 +8,8 @@ entryPoints:
           scheme: https
   websecure:
     address: ':443'
+    forwardedHeaders:
+      insecure: true
   traefik:
     address: ':8080'
 

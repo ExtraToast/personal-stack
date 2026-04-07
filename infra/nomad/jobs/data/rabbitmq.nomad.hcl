@@ -8,6 +8,11 @@ variable "repo_dir" {
   default = "/opt/personal-stack"
 }
 
+variable "oidc_tls_skip_verify" {
+  type    = bool
+  default = false
+}
+
 job "rabbitmq" {
   datacenters = ["dc1"]
   type        = "service"
@@ -34,7 +39,7 @@ job "rabbitmq" {
         "traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.${var.domain}`)",
         "traefik.http.routers.rabbitmq.entrypoints=websecure",
         "traefik.http.routers.rabbitmq.tls=true",
-        "traefik.http.routers.rabbitmq.middlewares=rabbitmq-security-headers@file",
+        "traefik.http.routers.rabbitmq.middlewares=forward-auth@file,rabbitmq-security-headers@file",
         "traefik.http.services.rabbitmq.loadbalancer.server.port=15672",
       ]
 
@@ -64,6 +69,18 @@ job "rabbitmq" {
       }
 
       template {
+        destination = "local/rabbitmq.conf"
+        change_mode = "restart"
+        data        = file("infra/nomad/templates/rabbitmq.conf.tpl")
+      }
+
+      template {
+        destination = "local/enabled_plugins"
+        change_mode = "restart"
+        data        = file("infra/rabbitmq/enabled_plugins")
+      }
+
+      template {
         destination = "secrets/rabbitmq.env"
         env         = true
         change_mode = "noop"
@@ -72,12 +89,17 @@ job "rabbitmq" {
 
       driver = "docker"
 
+      env {
+        DOMAIN                       = var.domain
+        RABBITMQ_OIDC_TLS_SKIP_VERIFY = var.oidc_tls_skip_verify ? "true" : "false"
+      }
+
       config {
         image        = "rabbitmq:4.2-management-alpine"
         network_mode = "host"
         volumes = [
-          "${var.repo_dir}/infra/rabbitmq/rabbitmq.prod.conf:/etc/rabbitmq/rabbitmq.conf:ro",
-          "${var.repo_dir}/infra/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro",
+          "local/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro",
+          "local/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro",
         ]
       }
 

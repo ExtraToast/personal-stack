@@ -48,6 +48,15 @@ http:
         customResponseHeaders:
           X-Frame-Options: 'DENY'
 
+    rabbitmq-security-headers:
+      headers:
+        frameDeny: true
+        contentTypeNosniff: true
+        referrerPolicy: 'strict-origin-when-cross-origin'
+        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.jorisjonkers.test https://*.jorisjonkers.dev; font-src 'self'; connect-src 'self' https://*.jorisjonkers.test https://jorisjonkers.test https://*.jorisjonkers.dev; frame-ancestors 'none'"
+        customResponseHeaders:
+          X-Frame-Options: 'DENY'
+
     grafana-security-headers:
       headers:
         frameDeny: true
