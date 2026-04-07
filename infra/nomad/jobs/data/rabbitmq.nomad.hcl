@@ -64,6 +64,18 @@ job "rabbitmq" {
       }
 
       template {
+        destination = "local/rabbitmq.conf"
+        change_mode = "restart"
+        data        = file("infra/rabbitmq/rabbitmq.prod.conf")
+      }
+
+      template {
+        destination = "local/enabled_plugins"
+        change_mode = "restart"
+        data        = file("infra/rabbitmq/enabled_plugins")
+      }
+
+      template {
         destination = "secrets/rabbitmq.env"
         env         = true
         change_mode = "noop"
@@ -76,8 +88,8 @@ job "rabbitmq" {
         image        = "rabbitmq:4.2-management-alpine"
         network_mode = "host"
         volumes = [
-          "${var.repo_dir}/infra/rabbitmq/rabbitmq.prod.conf:/etc/rabbitmq/rabbitmq.conf:ro",
-          "${var.repo_dir}/infra/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro",
+          "local/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro",
+          "local/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro",
         ]
       }
 

@@ -101,7 +101,7 @@ http:
         - websecure
       service: rabbitmq
       middlewares:
-        - security-headers
+        - rabbitmq-security-headers
       tls:
         certResolver: cloudflare
 
