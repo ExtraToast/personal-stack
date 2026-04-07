@@ -245,7 +245,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
   tempo:
-    image: grafana/tempo:2.7.2
+    image: grafana/tempo:2.10.3
     container_name: personal-stack-tempo
     volumes:
       - ./infra/observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro

@@ -40,7 +40,7 @@ job "tempo" {
       driver = "docker"
 
       config {
-        image        = "grafana/tempo:2.7.2"
+        image        = "grafana/tempo:2.10.3"
         network_mode = "host"
         args         = ["-config.file=/local/tempo.yml"]
       }

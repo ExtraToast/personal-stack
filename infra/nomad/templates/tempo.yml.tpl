@@ -17,6 +17,8 @@ distributor:
         http:
           endpoint: 0.0.0.0:4318
 
+# Keep Tempo metrics-generator enabled for service graphs and span metrics.
+# Application and infrastructure metrics stay in Prometheus' scrape path.
 metrics_generator:
   processor:
     service_graphs:

@@ -272,11 +272,12 @@ Dedicated Kotlin service that tests all apps together:
 
 ## Monitoring & Observability
 
-- Logging: Loki + Promtail + Grafana
-- Metrics: Prometheus + Grafana (Spring Boot Actuator)
-- Tracing: OpenTelemetry + Tempo + Grafana
+- Logging: Alloy + Loki + Grafana
+- Metrics: Prometheus + Grafana (Spring Boot Actuator plus Tempo trace-derived metrics where needed)
+- Tracing: OpenTelemetry + Alloy + Tempo + Grafana
 - Uptime: Uptime Kuma (self-hosted)
 - Alerting: Email + Discord
+- Detailed routing and platform defaults: `docs/architecture/OBSERVABILITY.md`
 
 ## n8n
 
