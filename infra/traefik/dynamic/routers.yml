@@ -159,6 +159,7 @@ http:
         - websecure
       service: nomad
       middlewares:
+        - nomad-proxy-headers
         - forward-auth
         - rate-limit
         - security-headers
