@@ -98,7 +98,7 @@ job "assistant-api" {
         SERVICE_VERSION             = var.image_tag
         OTEL_SERVICE_NAME           = "assistant-api"
         OTEL_RESOURCE_ATTRIBUTES    = "deployment.environment=production,service.version=${var.image_tag}"
-        OTEL_EXPORTER_OTLP_ENDPOINT = "http://127.0.0.1:4318"
+        OTEL_EXPORTER_OTLP_ENDPOINT = "http://127.0.0.1:4319"
         OTEL_EXPORTER_OTLP_PROTOCOL = "http/protobuf"
         OTEL_LOGS_EXPORTER          = "none"
         OTEL_METRICS_EXPORTER       = "none"
