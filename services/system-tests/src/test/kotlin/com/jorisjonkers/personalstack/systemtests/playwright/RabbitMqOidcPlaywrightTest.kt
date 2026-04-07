@@ -26,6 +26,13 @@ class RabbitMqOidcPlaywrightTest : PlaywrightTestBase() {
 
         page.navigate("https://rabbitmq.jorisjonkers.test/")
         page.waitForLoadState()
+        page.waitForTimeout(2000.0)
+
+        // Forward-auth passes (user has session + RABBITMQ permission), then
+        // RabbitMQ shows its own login page. Click the OAuth login link to
+        // start the OIDC flow.
+        page.locator("text=/log in/i").first().click()
+        page.waitForLoadState()
         page.waitForTimeout(5000.0)
         waitForServicePageToSettle(page)
         page.waitForFunction(
