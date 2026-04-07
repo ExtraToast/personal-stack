@@ -8,6 +8,11 @@ variable "repo_dir" {
   default = "/opt/personal-stack"
 }
 
+variable "oidc_tls_skip_verify" {
+  type    = bool
+  default = false
+}
+
 job "rabbitmq" {
   datacenters = ["dc1"]
   type        = "service"
@@ -66,7 +71,7 @@ job "rabbitmq" {
       template {
         destination = "local/rabbitmq.conf"
         change_mode = "restart"
-        data        = file("infra/rabbitmq/rabbitmq.prod.conf")
+        data        = file("infra/nomad/templates/rabbitmq.conf.tpl")
       }
 
       template {
@@ -83,6 +88,11 @@ job "rabbitmq" {
       }
 
       driver = "docker"
+
+      env {
+        DOMAIN                       = var.domain
+        RABBITMQ_OIDC_TLS_SKIP_VERIFY = var.oidc_tls_skip_verify ? "true" : "false"
+      }
 
       config {
         image        = "rabbitmq:4.2-management-alpine"

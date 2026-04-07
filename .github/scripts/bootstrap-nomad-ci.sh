@@ -39,7 +39,7 @@ deploy_data_phase() {
   ensure_vault_unsealed
   submit_nomad_job "${ROOT_DIR}/infra/nomad/jobs/data/postgres.nomad.hcl" -var "repo_dir=${ROOT_DIR}"
   submit_nomad_job "${ROOT_DIR}/infra/nomad/jobs/data/valkey.nomad.hcl"
-  submit_nomad_job "${ROOT_DIR}/infra/nomad/jobs/data/rabbitmq.nomad.hcl" -var "domain=${DOMAIN}" -var "repo_dir=${ROOT_DIR}"
+  submit_nomad_job "${ROOT_DIR}/infra/nomad/jobs/data/rabbitmq.nomad.hcl" -var "domain=${DOMAIN}" -var "repo_dir=${ROOT_DIR}" -var "oidc_tls_skip_verify=true"
   wait_for_nomad_jobs postgres 240 valkey 180 rabbitmq 180
 }
 

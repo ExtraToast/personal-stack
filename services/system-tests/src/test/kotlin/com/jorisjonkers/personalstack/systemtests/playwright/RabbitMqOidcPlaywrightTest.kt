@@ -3,7 +3,6 @@ package com.jorisjonkers.personalstack.systemtests.playwright
 import com.jorisjonkers.personalstack.systemtests.TestHelper
 import com.microsoft.playwright.Page
 import com.microsoft.playwright.PlaywrightException
-import com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import org.assertj.core.api.Assertions.assertThat as assertThatValue
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
@@ -25,30 +24,28 @@ class RabbitMqOidcPlaywrightTest : PlaywrightTestBase() {
         }
 
         // Forward-auth passes (user has session + RABBITMQ permission).
-        // RabbitMQ defaults to sp_initiated OIDC, so the SPA auto-redirects
-        // through auth-api and back to the callback page without user
-        // interaction. Allow enough time for the full redirect chain to
-        // settle before inspecting the page.
+        // RabbitMQ still renders its login page first, then exposes an OIDC
+        // link that starts the redirect chain through auth-api.
         page.navigate("https://rabbitmq.jorisjonkers.test/")
+        waitForServicePageToSettle(page)
+        page.locator("text=Click here to log in").click()
 
         // Wait for the OIDC redirect chain to complete and the management
         // UI to render. The chain is: RabbitMQ SPA → auth-api authorize →
         // callback.html → management UI.
-        page.waitForURL(
-            { url -> url.contains("rabbitmq.jorisjonkers.test") && !url.contains("login-callback.html") },
-            Page.WaitForURLOptions().setTimeout(30000.0),
-        )
-        waitForServicePageToSettle(page)
         page.waitForFunction(
             """
             () => {
               const text = document.body?.innerText?.toLowerCase() || '';
-              return text.includes('rabbitmq') && !text.includes('not authorized');
+              return text.includes('rabbitmq') &&
+                !text.includes('not authorized') &&
+                !text.includes('click here to log in');
             }
             """.trimIndent(),
             null,
             Page.WaitForFunctionOptions().setTimeout(30000.0),
         )
+        waitForServicePageToSettle(page)
 
         val currentUrl = page.url()
         assertThatValue(currentUrl)

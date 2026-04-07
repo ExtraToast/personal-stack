@@ -2,7 +2,7 @@ auth_backends.1 = rabbit_auth_backend_oauth2
 auth_backends.2 = internal
 
 auth_oauth2.resource_server_id = rabbitmq
-auth_oauth2.issuer = https://auth.jorisjonkers.test
+auth_oauth2.issuer = https://auth.{{ env "DOMAIN" }}
 auth_oauth2.scope_prefix = rabbitmq.
 auth_oauth2.additional_scopes_key = roles
 auth_oauth2.preferred_username_claims.1 = preferred_username
@@ -10,9 +10,10 @@ auth_oauth2.preferred_username_claims.2 = username
 auth_oauth2.preferred_username_claims.3 = email
 auth_oauth2.scope_aliases.SERVICE_RABBITMQ = rabbitmq.tag:management rabbitmq.configure:*/* rabbitmq.read:*/* rabbitmq.write:*/*
 auth_oauth2.scope_aliases.ROLE_ADMIN = rabbitmq.tag:administrator rabbitmq.configure:*/* rabbitmq.read:*/* rabbitmq.write:*/*
-auth_oauth2.https.cacertfile = /etc/rabbitmq/issuer-ca.pem
+{{ if eq (env "RABBITMQ_OIDC_TLS_SKIP_VERIFY") "true" }}
 auth_oauth2.https.peer_verification = verify_none
 auth_oauth2.https.hostname_verification = none
+{{ end }}
 
 management.oauth_enabled = true
 management.oauth_disable_basic_auth = false
