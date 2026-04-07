@@ -101,6 +101,7 @@ http:
         - websecure
       service: rabbitmq
       middlewares:
+        - forward-auth
         - rabbitmq-security-headers
       tls:
         certResolver: cloudflare
@@ -158,7 +159,6 @@ http:
         - websecure
       service: nomad
       middlewares:
-        - nomad-proxy-headers
         - forward-auth
         - rate-limit
         - security-headers

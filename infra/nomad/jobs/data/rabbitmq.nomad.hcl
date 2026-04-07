@@ -34,7 +34,7 @@ job "rabbitmq" {
         "traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.${var.domain}`)",
         "traefik.http.routers.rabbitmq.entrypoints=websecure",
         "traefik.http.routers.rabbitmq.tls=true",
-        "traefik.http.routers.rabbitmq.middlewares=rabbitmq-security-headers@file",
+        "traefik.http.routers.rabbitmq.middlewares=forward-auth@file,rabbitmq-security-headers@file",
         "traefik.http.services.rabbitmq.loadbalancer.server.port=15672",
       ]
 
