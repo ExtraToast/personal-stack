@@ -90,7 +90,7 @@ job "rabbitmq" {
       driver = "docker"
 
       env {
-        DOMAIN                       = var.domain
+        DOMAIN                        = var.domain
         RABBITMQ_OIDC_TLS_SKIP_VERIFY = var.oidc_tls_skip_verify ? "true" : "false"
       }
 

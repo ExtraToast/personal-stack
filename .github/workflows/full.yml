@@ -145,6 +145,31 @@ jobs:
           fi
           echo "verify-coverage=$COV_MATRIX" >> "$GITHUB_OUTPUT"
 
+  validate-nomad:
+    name: Validate Nomad Jobs
+    needs: detect-changes
+    if: needs.detect-changes.outputs.run-system-tests == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Nomad
+        run: |
+          curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
+            | sudo tee /etc/apt/sources.list.d/hashicorp.list > /dev/null
+          sudo apt-get update && sudo apt-get install -y nomad
+      - name: Validate HCL and JSON
+        run: |
+          find infra/nomad/jobs -name '*.hcl' -print0 | sort -z | while IFS= read -r -d '' f; do
+            echo "==> $f"
+            nomad fmt -check "$f"
+            nomad job validate "$f"
+          done
+          find infra/nomad/vault -name '*.json' -print0 | while IFS= read -r -d '' f; do
+            echo "==> $f"
+            python3 -m json.tool "$f" > /dev/null
+          done
+
   lint-kotlin:
     name: Lint Kotlin (${{ matrix.module }})
     needs: detect-changes
@@ -310,6 +335,7 @@ jobs:
     if: always()
     needs:
       - detect-changes
+      - validate-nomad
       - lint-kotlin
       - lint-frontend
       - test-kotlin-unit
