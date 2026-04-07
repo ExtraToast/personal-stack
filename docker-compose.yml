@@ -241,15 +241,6 @@ services:
       - ./infra/observability/alloy/config.compose.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
-  promtail:
-    image: grafana/promtail:3.5.0
-    container_name: personal-stack-promtail
-    volumes:
-      - ./infra/observability/promtail/promtail.yaml:/etc/promtail/config.yml:ro
-      - /var/log:/var/log:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    command: -config.file=/etc/promtail/config.yml
-
   tempo:
     image: grafana/tempo:2.7.2
     container_name: personal-stack-tempo
