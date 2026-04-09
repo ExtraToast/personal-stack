@@ -5,11 +5,11 @@ logging {
 
 otelcol.receiver.otlp "default" {
   grpc {
-    endpoint = "0.0.0.0:{{ env \"NOMAD_PORT_otlp_grpc\" }}"
+    endpoint = "0.0.0.0:{{ env "NOMAD_PORT_otlp_grpc" }}"
   }
 
   http {
-    endpoint = "0.0.0.0:{{ env \"NOMAD_PORT_otlp_http\" }}"
+    endpoint = "0.0.0.0:{{ env "NOMAD_PORT_otlp_http" }}"
   }
 
   output {
