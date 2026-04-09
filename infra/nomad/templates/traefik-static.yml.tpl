@@ -61,7 +61,7 @@ accessLog:
 tracing:
   otlp:
     http:
-      endpoint: http://127.0.0.1:4318/v1/traces
+      endpoint: http://127.0.0.1:4319/v1/traces
 
 ping:
   entryPoint: traefik

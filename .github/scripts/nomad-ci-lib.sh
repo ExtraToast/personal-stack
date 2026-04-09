@@ -6,6 +6,7 @@ CI_NOMAD_JOBS=(
   postgres
   valkey
   rabbitmq
+  alloy
   traefik
   auth-api
   assistant-api

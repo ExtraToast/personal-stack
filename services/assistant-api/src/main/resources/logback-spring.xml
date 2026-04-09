@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+  <property name="deploymentEnvironment" value="${DEPLOYMENT_ENVIRONMENT:-unknown}"/>
+  <property name="serviceVersion" value="${SERVICE_VERSION:-unknown}"/>
+
   <springProfile name="!local">
     <appender name="JSON_STDOUT" class="ch.qos.logback.core.ConsoleAppender">
       <encoder class="net.logstash.logback.encoder.LogstashEncoder">
         <includeMdcKeyName>traceId</includeMdcKeyName>
         <includeMdcKeyName>spanId</includeMdcKeyName>
-        <customFields>{"service":"assistant-api"}</customFields>
+        <customFields>{"service":"assistant-api","service.name":"assistant-api","service.version":"${serviceVersion}","deployment.environment":"${deploymentEnvironment}"}</customFields>
       </encoder>
     </appender>
     <root level="INFO">

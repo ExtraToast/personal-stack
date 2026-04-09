@@ -50,6 +50,11 @@ client {
     read_only = false
   }
 
+  host_volume "alloy_data" {
+    path      = "/srv/nomad/alloy"
+    read_only = false
+  }
+
   host_volume "loki_data" {
     path      = "/srv/nomad/loki"
     read_only = false

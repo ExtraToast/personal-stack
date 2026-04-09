@@ -38,7 +38,7 @@ accessLog:
 tracing:
   otlp:
     http:
-      endpoint: http://tempo:4318/v1/traces
+      endpoint: http://alloy:4318/v1/traces
 
 global:
   checkNewVersion: false

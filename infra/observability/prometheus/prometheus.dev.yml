@@ -2,6 +2,8 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+# Application and infrastructure metrics are scraped directly by Prometheus.
+# Tempo adds trace-derived service graphs and span metrics through remote_write.
 scrape_configs:
   - job_name: prometheus
     static_configs:
