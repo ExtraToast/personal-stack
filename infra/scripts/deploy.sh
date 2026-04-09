@@ -217,7 +217,7 @@ deploy_infra() {
   submit_job "${JOBS_DIR}/observability/loki.nomad.hcl"      "${REPO_VAR[@]}"
   submit_job "${JOBS_DIR}/observability/tempo.nomad.hcl"
   submit_job "${JOBS_DIR}/observability/prometheus.nomad.hcl"
-  submit_job "${JOBS_DIR}/observability/promtail.nomad.hcl"
+  submit_job "${JOBS_DIR}/observability/alloy.nomad.hcl"
   submit_job "${JOBS_DIR}/observability/grafana.nomad.hcl"   "${DOMAIN_VAR[@]}" "${REPO_VAR[@]}"
   submit_job "${JOBS_DIR}/platform/n8n.nomad.hcl"            "${DOMAIN_VAR[@]}" "${REPO_VAR[@]}"
   submit_job "${JOBS_DIR}/platform/flaresolverr.nomad.hcl"

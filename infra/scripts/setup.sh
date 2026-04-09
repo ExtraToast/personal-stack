@@ -354,7 +354,7 @@ install_command() {
   run mkdir -p /etc/consul.d /etc/nomad.d /etc/vault.d
   run mkdir -p /opt/consul /opt/nomad /opt/vault/data
   run mkdir -p /srv/nomad/postgres /srv/nomad/prometheus /srv/nomad/traefik /srv/nomad/valkey
-  run mkdir -p /srv/nomad/rabbitmq /srv/nomad/n8n /srv/nomad/grafana /srv/nomad/loki
+  run mkdir -p /srv/nomad/rabbitmq /srv/nomad/n8n /srv/nomad/grafana /srv/nomad/alloy /srv/nomad/loki
   run mkdir -p /srv/nomad/tempo /srv/nomad/uptime-kuma /srv/nomad/stalwart
 
   run chown -R consul:consul /opt/consul

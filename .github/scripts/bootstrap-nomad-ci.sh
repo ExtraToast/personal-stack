@@ -53,6 +53,13 @@ deploy_edge_phase() {
   wait_for_nomad_jobs traefik 180
 }
 
+deploy_observability_phase() {
+  echo "==> Deploying observability collector (Alloy)"
+  ensure_vault_unsealed
+  submit_nomad_job "${ROOT_DIR}/infra/nomad/jobs/observability/alloy.nomad.hcl"
+  wait_for_nomad_jobs alloy 180
+}
+
 deploy_apps_phase() {
   echo "==> Deploying apps (count=1)"
   ensure_vault_unsealed
@@ -237,6 +244,7 @@ echo "==> Preparing Vault (second pass: database + rabbitmq engines)"
 ensure_vault_unsealed
 bash "${ROOT_DIR}/infra/scripts/setup.sh" prepare-vault
 
+deploy_observability_phase
 deploy_edge_phase
 deploy_apps_phase
 
