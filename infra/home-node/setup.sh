@@ -222,12 +222,12 @@ configure_command() {
   install -m 0644 "${HOME_NODE_DIR}/systemd/home-node-update.service" /etc/systemd/system/home-node-update.service
   install -m 0644 "${HOME_NODE_DIR}/systemd/home-node-update.timer" /etc/systemd/system/home-node-update.timer
 
-  # Systemd ordering: Nomad starts after Docker and Consul
+  # Systemd ordering: Nomad starts after Docker, Consul, and Tailscale
   mkdir -p /etc/systemd/system/nomad.service.d
   cat <<'EOF' > /etc/systemd/system/nomad.service.d/override.conf
 [Unit]
-After=network-online.target docker.service consul.service
-Wants=network-online.target docker.service consul.service
+After=network-online.target docker.service consul.service tailscaled.service
+Wants=network-online.target docker.service consul.service tailscaled.service
 EOF
 
   # Firewall

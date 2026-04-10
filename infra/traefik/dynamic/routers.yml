@@ -166,6 +166,78 @@ http:
       tls:
         certResolver: cloudflare
 
+    # ── Jellyfin ────────────────────────────────────────────────
+    jellyfin:
+      rule: 'Host(`jellyfin.jorisjonkers.dev`)'
+      entryPoints:
+        - websecure
+      service: jellyfin
+      middlewares:
+        - forward-auth
+        - security-headers
+      tls:
+        certResolver: cloudflare
+
+    # ── Sonarr ──────────────────────────────────────────────────
+    sonarr:
+      rule: 'Host(`sonarr.jorisjonkers.dev`)'
+      entryPoints:
+        - websecure
+      service: sonarr
+      middlewares:
+        - forward-auth
+        - security-headers
+      tls:
+        certResolver: cloudflare
+
+    # ── Radarr ──────────────────────────────────────────────────
+    radarr:
+      rule: 'Host(`radarr.jorisjonkers.dev`)'
+      entryPoints:
+        - websecure
+      service: radarr
+      middlewares:
+        - forward-auth
+        - security-headers
+      tls:
+        certResolver: cloudflare
+
+    # ── Prowlarr ────────────────────────────────────────────────
+    prowlarr:
+      rule: 'Host(`prowlarr.jorisjonkers.dev`)'
+      entryPoints:
+        - websecure
+      service: prowlarr
+      middlewares:
+        - forward-auth
+        - security-headers
+      tls:
+        certResolver: cloudflare
+
+    # ── qBittorrent ─────────────────────────────────────────────
+    qbittorrent:
+      rule: 'Host(`qbittorrent.jorisjonkers.dev`)'
+      entryPoints:
+        - websecure
+      service: qbittorrent
+      middlewares:
+        - forward-auth
+        - security-headers
+      tls:
+        certResolver: cloudflare
+
+    # ── AdGuard Home ────────────────────────────────────────────
+    adguard:
+      rule: 'Host(`adguard.jorisjonkers.dev`)'
+      entryPoints:
+        - websecure
+      service: adguard
+      middlewares:
+        - forward-auth
+        - security-headers
+      tls:
+        certResolver: cloudflare
+
     # ── Traefik Dashboard ───────────────────────────────────────
     traefik-dashboard:
       rule: 'Host(`traefik.jorisjonkers.dev`)'
@@ -239,3 +311,33 @@ http:
       loadBalancer:
         servers:
           - url: 'http://127.0.0.1:4646'
+
+    jellyfin:
+      loadBalancer:
+        servers:
+          - url: 'http://100.64.0.2:8096'
+
+    sonarr:
+      loadBalancer:
+        servers:
+          - url: 'http://100.64.0.2:8989'
+
+    radarr:
+      loadBalancer:
+        servers:
+          - url: 'http://100.64.0.2:7878'
+
+    prowlarr:
+      loadBalancer:
+        servers:
+          - url: 'http://100.64.0.2:9696'
+
+    qbittorrent:
+      loadBalancer:
+        servers:
+          - url: 'http://100.64.0.2:8080'
+
+    adguard:
+      loadBalancer:
+        servers:
+          - url: 'http://100.64.0.2:3000'

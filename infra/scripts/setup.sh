@@ -423,9 +423,10 @@ configure_command() {
   fi
   advertise_ip="${advertise_ip:-${primary_ip}}"
 
-  # Template Consul config placeholders
+  # Template config placeholders
   sed -i "s/__ADVERTISE_ADDR__/${advertise_ip}/g" /etc/consul.d/consul.hcl
-  echo "Consul advertise_addr set to ${advertise_ip}"
+  sed -i "s/__ADVERTISE_ADDR__/${advertise_ip}/g" /etc/nomad.d/nomad.hcl
+  echo "Consul/Nomad advertise_addr set to ${advertise_ip}"
 
   if [[ -n "${CONSUL_ENCRYPT_KEY:-}" ]]; then
     sed -i "s/__CONSUL_ENCRYPT_KEY__/${CONSUL_ENCRYPT_KEY}/g" /etc/consul.d/consul.hcl
