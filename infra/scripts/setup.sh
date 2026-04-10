@@ -372,6 +372,13 @@ install_command() {
   run chown -R 1000:1000   /srv/nomad/n8n            # node
   run chown -R 1000:1000   /srv/nomad/uptime-kuma    # node
 
+  # Tailscale VPN
+  if ! command -v tailscale >/dev/null 2>&1; then
+    run curl -fsSL https://tailscale.com/install.sh -o /tmp/install-tailscale.sh
+    run sh /tmp/install-tailscale.sh
+    run rm -f /tmp/install-tailscale.sh
+  fi
+
   # GHCR login
   if [[ -n "${GHCR_USER:-}" && -n "${GHCR_TOKEN:-}" ]]; then
     echo "+ docker login ghcr.io"
@@ -400,9 +407,30 @@ configure_command() {
   install -m 0644 "${ROOT_DIR}/infra/nomad/configs/nomad.hcl"  /etc/nomad.d/nomad.hcl
   install -m 0644 "${ROOT_DIR}/infra/nomad/configs/vault.hcl"  /etc/vault.d/vault.hcl
 
-  # Consul needs the host IP for cluster advertisement
-  sed -i "s/__BIND_ADDR__/${primary_ip}/g" /etc/consul.d/consul.hcl
-  echo "Consul bind_addr set to ${primary_ip}"
+  # Tailscale: bring up VPN mesh
+  if command -v tailscale >/dev/null 2>&1 && [[ -n "${TAILSCALE_AUTH_KEY:-}" ]]; then
+    if ! tailscale status >/dev/null 2>&1; then
+      run tailscale up --authkey="${TAILSCALE_AUTH_KEY}" --hostname=personal-stack-vps
+    fi
+  fi
+
+  # Determine advertise address: prefer Tailscale IP, fall back to primary IP
+  local advertise_ip
+  if command -v tailscale >/dev/null 2>&1 && tailscale status >/dev/null 2>&1; then
+    advertise_ip="$(tailscale ip -4 2>/dev/null || true)"
+  fi
+  advertise_ip="${advertise_ip:-${primary_ip}}"
+
+  # Template Consul config placeholders
+  sed -i "s/__ADVERTISE_ADDR__/${advertise_ip}/g" /etc/consul.d/consul.hcl
+  echo "Consul advertise_addr set to ${advertise_ip}"
+
+  if [[ -n "${CONSUL_ENCRYPT_KEY:-}" ]]; then
+    sed -i "s/__CONSUL_ENCRYPT_KEY__/${CONSUL_ENCRYPT_KEY}/g" /etc/consul.d/consul.hcl
+    echo "Consul gossip encryption configured"
+  else
+    echo "WARNING: CONSUL_ENCRYPT_KEY not set — gossip encryption placeholder left in config" >&2
+  fi
 
   ensure_bootstrap_env_line HOST_IP "${primary_ip}"
 
@@ -421,6 +449,7 @@ configure_command() {
     run ufw allow 993/tcp   comment 'imaps'
     run ufw allow 995/tcp   comment 'pop3s'
     run ufw allow 4190/tcp  comment 'sieve'
+    run ufw allow in on tailscale0 comment 'tailscale mesh traffic'
     run ufw --force enable
   fi
 

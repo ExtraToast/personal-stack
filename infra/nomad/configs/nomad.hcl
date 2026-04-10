@@ -15,6 +15,10 @@ server {
 client {
   enabled = true
 
+  meta {
+    node_type = "cloud"
+  }
+
   host_volume "postgres_data" {
     path      = "/srv/nomad/postgres"
     read_only = false
