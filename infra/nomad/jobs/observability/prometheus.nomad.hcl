@@ -3,6 +3,11 @@ job "prometheus" {
   type        = "service"
 
   group "prometheus" {
+    constraint {
+      attribute = "${meta.node_type}"
+      value     = "cloud"
+    }
+
     network {
       mode = "host"
       port "http" { static = 9090 }

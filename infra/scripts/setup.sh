@@ -355,7 +355,7 @@ install_command() {
   run mkdir -p /opt/consul /opt/nomad /opt/vault/data
   run mkdir -p /srv/nomad/postgres /srv/nomad/prometheus /srv/nomad/traefik /srv/nomad/valkey
   run mkdir -p /srv/nomad/rabbitmq /srv/nomad/n8n /srv/nomad/grafana /srv/nomad/alloy /srv/nomad/loki
-  run mkdir -p /srv/nomad/tempo /srv/nomad/uptime-kuma /srv/nomad/stalwart
+  run mkdir -p /srv/nomad/tempo /srv/nomad/uptime-kuma /srv/nomad/stalwart /srv/nomad/headscale
 
   run chown -R consul:consul /opt/consul
   run chown -R nomad:nomad /opt/nomad
@@ -371,6 +371,13 @@ install_command() {
   run chown -R 10001:10001 /srv/nomad/tempo          # tempo
   run chown -R 1000:1000   /srv/nomad/n8n            # node
   run chown -R 1000:1000   /srv/nomad/uptime-kuma    # node
+
+  # Tailscale VPN
+  if ! command -v tailscale >/dev/null 2>&1; then
+    run curl -fsSL https://tailscale.com/install.sh -o /tmp/install-tailscale.sh
+    run sh /tmp/install-tailscale.sh
+    run rm -f /tmp/install-tailscale.sh
+  fi
 
   # GHCR login
   if [[ -n "${GHCR_USER:-}" && -n "${GHCR_TOKEN:-}" ]]; then
@@ -400,9 +407,33 @@ configure_command() {
   install -m 0644 "${ROOT_DIR}/infra/nomad/configs/nomad.hcl"  /etc/nomad.d/nomad.hcl
   install -m 0644 "${ROOT_DIR}/infra/nomad/configs/vault.hcl"  /etc/vault.d/vault.hcl
 
-  # Consul needs the host IP for cluster advertisement
-  sed -i "s/__BIND_ADDR__/${primary_ip}/g" /etc/consul.d/consul.hcl
-  echo "Consul bind_addr set to ${primary_ip}"
+  # Tailscale: bring up VPN mesh
+  if command -v tailscale >/dev/null 2>&1 && [[ -n "${TAILSCALE_AUTH_KEY:-}" ]]; then
+    if ! tailscale status >/dev/null 2>&1; then
+      local ts_args=(--authkey="${TAILSCALE_AUTH_KEY}" --hostname=personal-stack-vps)
+      [[ -n "${HEADSCALE_URL:-}" ]] && ts_args+=(--login-server="${HEADSCALE_URL}")
+      run tailscale up "${ts_args[@]}"
+    fi
+  fi
+
+  # Determine advertise address: prefer Tailscale IP, fall back to primary IP
+  local advertise_ip
+  if command -v tailscale >/dev/null 2>&1 && tailscale status >/dev/null 2>&1; then
+    advertise_ip="$(tailscale ip -4 2>/dev/null || true)"
+  fi
+  advertise_ip="${advertise_ip:-${primary_ip}}"
+
+  # Template Consul config placeholders
+  sed -i "s/__ADVERTISE_ADDR__/${advertise_ip}/g" /etc/consul.d/consul.hcl
+  echo "Consul advertise_addr set to ${advertise_ip}"
+
+  if [[ -n "${CONSUL_ENCRYPT_KEY:-}" ]]; then
+    sed -i "s/__CONSUL_ENCRYPT_KEY__/${CONSUL_ENCRYPT_KEY}/g" /etc/consul.d/consul.hcl
+    echo "Consul gossip encryption configured"
+  else
+    sed -i '/encrypt = "__CONSUL_ENCRYPT_KEY__"/d' /etc/consul.d/consul.hcl
+    echo "Consul gossip encryption disabled (CONSUL_ENCRYPT_KEY not set)"
+  fi
 
   ensure_bootstrap_env_line HOST_IP "${primary_ip}"
 
@@ -421,6 +452,7 @@ configure_command() {
     run ufw allow 993/tcp   comment 'imaps'
     run ufw allow 995/tcp   comment 'pop3s'
     run ufw allow 4190/tcp  comment 'sieve'
+    run ufw allow in on tailscale0 comment 'tailscale mesh traffic'
     run ufw --force enable
   fi
 

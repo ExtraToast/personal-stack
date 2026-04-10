@@ -50,7 +50,7 @@ otelcol.processor.attributes "loki_hints" {
 
 otelcol.exporter.otlphttp "tempo" {
   client {
-    endpoint = "http://127.0.0.1:4318"
+    endpoint = "http://{{ range service "tempo-otlp-http" }}{{ .Address }}:{{ .Port }}{{ end }}"
     tls {
       insecure             = true
       insecure_skip_verify = true
@@ -104,6 +104,6 @@ loki.source.docker "containers" {
 
 loki.write "default" {
   endpoint {
-    url = "http://127.0.0.1:3100/loki/api/v1/push"
+    url = "http://{{ range service "loki" }}{{ .Address }}:{{ .Port }}{{ end }}/loki/api/v1/push"
   }
 }

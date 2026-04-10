@@ -26,6 +26,11 @@ job "grafana" {
   }
 
   group "grafana" {
+    constraint {
+      attribute = "${meta.node_type}"
+      value     = "cloud"
+    }
+
     network {
       mode = "host"
       port "http" { static = 3000 }

@@ -15,6 +15,10 @@ server {
 client {
   enabled = true
 
+  meta {
+    node_type = "cloud"
+  }
+
   host_volume "postgres_data" {
     path      = "/srv/nomad/postgres"
     read_only = false
@@ -72,6 +76,11 @@ client {
 
   host_volume "stalwart_data" {
     path      = "/srv/nomad/stalwart"
+    read_only = false
+  }
+
+  host_volume "headscale_data" {
+    path      = "/srv/nomad/headscale"
     read_only = false
   }
 }

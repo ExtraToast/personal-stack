@@ -3,6 +3,11 @@ job "flaresolverr" {
   type        = "service"
 
   group "flaresolverr" {
+    constraint {
+      attribute = "${meta.node_type}"
+      value     = "cloud"
+    }
+
     network {
       mode = "host"
       port "http" { static = 8191 }

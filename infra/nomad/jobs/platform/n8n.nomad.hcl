@@ -26,6 +26,11 @@ job "n8n" {
   }
 
   group "n8n" {
+    constraint {
+      attribute = "${meta.node_type}"
+      value     = "cloud"
+    }
+
     network {
       mode = "host"
       port "http" { static = 5678 }

@@ -1,0 +1,12 @@
+[Unit]
+Description=Mount 6TB media HDD
+After=local-fs.target
+
+[Mount]
+What=/dev/disk/by-uuid/__MEDIA_DISK_UUID__
+Where=/mnt/media
+Type=__MEDIA_DISK_FS__
+Options=defaults,noatime,nofail
+
+[Install]
+WantedBy=multi-user.target
