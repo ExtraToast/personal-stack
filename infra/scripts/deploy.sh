@@ -214,6 +214,7 @@ deploy_data() {
 }
 
 deploy_infra() {
+  submit_job "${JOBS_DIR}/platform/headscale.nomad.hcl"      "${DOMAIN_VAR[@]}"
   submit_job "${JOBS_DIR}/observability/loki.nomad.hcl"      "${REPO_VAR[@]}"
   submit_job "${JOBS_DIR}/observability/tempo.nomad.hcl"
   submit_job "${JOBS_DIR}/observability/prometheus.nomad.hcl"
@@ -255,6 +256,7 @@ if [[ "${WAIT}" == true && "${MODE}" == "apply" ]]; then
       wait_for_job_ready rabbitmq 180
       ;;
     infra)
+      wait_for_job_ready headscale 180
       wait_for_job_ready grafana 300
       wait_for_job_ready n8n 300
       wait_for_job_ready flaresolverr 180
@@ -275,6 +277,7 @@ if [[ "${WAIT}" == true && "${MODE}" == "apply" ]]; then
       wait_for_job_ready postgres 240
       wait_for_job_ready valkey 180
       wait_for_job_ready rabbitmq 180
+      wait_for_job_ready headscale 180
       wait_for_job_ready grafana 300
       wait_for_job_ready n8n 300
       wait_for_job_ready flaresolverr 180

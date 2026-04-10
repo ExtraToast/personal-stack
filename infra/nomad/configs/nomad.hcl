@@ -78,6 +78,11 @@ client {
     path      = "/srv/nomad/stalwart"
     read_only = false
   }
+
+  host_volume "headscale_data" {
+    path      = "/srv/nomad/headscale"
+    read_only = false
+  }
 }
 
 plugin "docker" {

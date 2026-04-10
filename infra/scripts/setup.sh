@@ -355,7 +355,7 @@ install_command() {
   run mkdir -p /opt/consul /opt/nomad /opt/vault/data
   run mkdir -p /srv/nomad/postgres /srv/nomad/prometheus /srv/nomad/traefik /srv/nomad/valkey
   run mkdir -p /srv/nomad/rabbitmq /srv/nomad/n8n /srv/nomad/grafana /srv/nomad/alloy /srv/nomad/loki
-  run mkdir -p /srv/nomad/tempo /srv/nomad/uptime-kuma /srv/nomad/stalwart
+  run mkdir -p /srv/nomad/tempo /srv/nomad/uptime-kuma /srv/nomad/stalwart /srv/nomad/headscale
 
   run chown -R consul:consul /opt/consul
   run chown -R nomad:nomad /opt/nomad
@@ -410,7 +410,9 @@ configure_command() {
   # Tailscale: bring up VPN mesh
   if command -v tailscale >/dev/null 2>&1 && [[ -n "${TAILSCALE_AUTH_KEY:-}" ]]; then
     if ! tailscale status >/dev/null 2>&1; then
-      run tailscale up --authkey="${TAILSCALE_AUTH_KEY}" --hostname=personal-stack-vps
+      local ts_args=(--authkey="${TAILSCALE_AUTH_KEY}" --hostname=personal-stack-vps)
+      [[ -n "${HEADSCALE_URL:-}" ]] && ts_args+=(--login-server="${HEADSCALE_URL}")
+      run tailscale up "${ts_args[@]}"
     fi
   fi
 
