@@ -11,7 +11,7 @@ dns:
   upstream_dns:
     - https://dns.cloudflare.com/dns-query
     - https://dns.google/dns-query
-    - "[/consul/]127.0.0.1:8600"
+    - '[/consul/]127.0.0.1:8600'
   bootstrap_dns:
     - 1.1.1.1
     - 8.8.8.8
@@ -52,7 +52,7 @@ filters:
 user_rules: []
 
 log:
-  file: ""
+  file: ''
   max_backups: 0
   max_size: 100
   max_age: 3

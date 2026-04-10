@@ -431,7 +431,8 @@ configure_command() {
     sed -i "s/__CONSUL_ENCRYPT_KEY__/${CONSUL_ENCRYPT_KEY}/g" /etc/consul.d/consul.hcl
     echo "Consul gossip encryption configured"
   else
-    echo "WARNING: CONSUL_ENCRYPT_KEY not set — gossip encryption placeholder left in config" >&2
+    sed -i '/encrypt = "__CONSUL_ENCRYPT_KEY__"/d' /etc/consul.d/consul.hcl
+    echo "Consul gossip encryption disabled (CONSUL_ENCRYPT_KEY not set)"
   fi
 
   ensure_bootstrap_env_line HOST_IP "${primary_ip}"
