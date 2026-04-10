@@ -46,23 +46,23 @@ sudo bash /opt/personal-stack/infra/home-node/setup.sh full
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `setup.sh install` | Install Docker, Consul, Nomad, Tailscale, AdGuard Home, CNI plugins |
-| `setup.sh configure` | Template configs, start services, configure firewall |
-| `setup.sh full` | Run install + configure |
-| `setup.sh <cmd> --dry-run` | Print commands without executing |
+| Command                    | Description                                                         |
+| -------------------------- | ------------------------------------------------------------------- |
+| `setup.sh install`         | Install Docker, Consul, Nomad, Tailscale, AdGuard Home, CNI plugins |
+| `setup.sh configure`       | Template configs, start services, configure firewall                |
+| `setup.sh full`            | Run install + configure                                             |
+| `setup.sh <cmd> --dry-run` | Print commands without executing                                    |
 
 ## What Gets Installed
 
-| Component | Role |
-|-----------|------|
-| Docker | Container runtime for Nomad jobs |
-| Consul | Client-only, joins VPS server over Tailscale |
-| Nomad | Client-only, registers with `node_type=home` and `gpu=gtx960m` meta |
-| Tailscale | WireGuard mesh VPN, connects to self-hosted Headscale |
-| AdGuard Home | DNS server on port 53 with ad blocking and `.consul` forwarding |
-| Alloy | Deployed automatically by Nomad (system job), ships logs/traces to VPS |
+| Component    | Role                                                                   |
+| ------------ | ---------------------------------------------------------------------- |
+| Docker       | Container runtime for Nomad jobs                                       |
+| Consul       | Client-only, joins VPS server over Tailscale                           |
+| Nomad        | Client-only, registers with `node_type=home` and `gpu=gtx960m` meta    |
+| Tailscale    | WireGuard mesh VPN, connects to self-hosted Headscale                  |
+| AdGuard Home | DNS server on port 53 with ad blocking and `.consul` forwarding        |
+| Alloy        | Deployed automatically by Nomad (system job), ships logs/traces to VPS |
 
 ## Automatic Updates
 
@@ -77,11 +77,11 @@ sudo bash /opt/personal-stack/infra/home-node/update.sh
 
 ## Firewall Rules
 
-| Port | Protocol | Interface | Purpose |
-|------|----------|-----------|---------|
-| 22 | TCP | any | SSH |
-| 53 | TCP+UDP | any | DNS (AdGuard Home) |
-| all | all | tailscale0 | Cluster traffic (Consul, Nomad, Vault) |
+| Port | Protocol | Interface  | Purpose                                |
+| ---- | -------- | ---------- | -------------------------------------- |
+| 22   | TCP      | any        | SSH                                    |
+| 53   | TCP+UDP  | any        | DNS (AdGuard Home)                     |
+| all  | all      | tailscale0 | Cluster traffic (Consul, Nomad, Vault) |
 
 All other incoming traffic is denied by default.
 
