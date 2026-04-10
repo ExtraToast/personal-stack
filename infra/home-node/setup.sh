@@ -222,12 +222,19 @@ configure_command() {
   install -m 0644 "${HOME_NODE_DIR}/systemd/home-node-update.service" /etc/systemd/system/home-node-update.service
   install -m 0644 "${HOME_NODE_DIR}/systemd/home-node-update.timer" /etc/systemd/system/home-node-update.timer
 
-  # Systemd ordering: Nomad starts after Docker, Consul, and Tailscale
+  # Nomad advertise script: picks Tailscale IP if up, else primary outbound IP
+  install -m 0755 "${ROOT_DIR}/infra/scripts/nomad-advertise.sh" /usr/local/bin/nomad-advertise.sh
+
+  # Systemd ordering: Nomad starts after Docker, Consul, and Tailscale.
+  # ExecStartPre generates /etc/nomad.d/advertise.hcl dynamically.
   mkdir -p /etc/systemd/system/nomad.service.d
   cat <<'EOF' > /etc/systemd/system/nomad.service.d/override.conf
 [Unit]
 After=network-online.target docker.service consul.service tailscaled.service
 Wants=network-online.target docker.service consul.service tailscaled.service
+
+[Service]
+ExecStartPre=/usr/local/bin/nomad-advertise.sh
 EOF
 
   # Firewall

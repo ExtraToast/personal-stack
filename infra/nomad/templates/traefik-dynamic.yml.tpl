@@ -53,6 +53,21 @@ http:
       tls: {}
 {{ end }}
 
+    adguard:
+      rule: 'Host(`adguard.{{ $domain }}`)'
+      entryPoints:
+        - websecure
+      service: adguard
+      middlewares:
+        - forward-auth
+        - security-headers
+{{ if ne (env "TLS_MODE") "file" }}
+      tls:
+        certResolver: cloudflare
+{{ else }}
+      tls: {}
+{{ end }}
+
   middlewares:
     forward-auth:
       forwardAuth:
@@ -116,3 +131,8 @@ http:
       loadBalancer:
         servers:
           - url: 'http://127.0.0.1:4646'
+
+    adguard:
+      loadBalancer:
+        servers:
+          - url: 'http://100.64.0.2:3000'

@@ -3,12 +3,6 @@ data_dir   = "/opt/nomad"
 bind_addr  = "0.0.0.0"
 region     = "global"
 
-advertise {
-  http = "__ADVERTISE_ADDR__"
-  rpc  = "__ADVERTISE_ADDR__"
-  serf = "__ADVERTISE_ADDR__"
-}
-
 ui {
   enabled = true
 }

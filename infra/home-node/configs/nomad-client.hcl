@@ -8,8 +8,9 @@ server {
 }
 
 client {
-  enabled = true
-  servers = ["__VPS_TAILSCALE_IP__:4647"]
+  enabled           = true
+  servers           = ["__VPS_TAILSCALE_IP__:4647"]
+  network_interface = "tailscale0"
 
   meta {
     node_type = "home"

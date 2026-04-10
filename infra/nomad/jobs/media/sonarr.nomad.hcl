@@ -47,7 +47,6 @@ job "sonarr" {
         "traefik.http.routers.sonarr.entrypoints=websecure",
         "traefik.http.routers.sonarr.tls=true",
         "traefik.http.routers.sonarr.middlewares=forward-auth@file,security-headers@file",
-        "traefik.http.services.sonarr.loadbalancer.server.port=8989",
       ]
 
       check {

@@ -47,7 +47,6 @@ job "radarr" {
         "traefik.http.routers.radarr.entrypoints=websecure",
         "traefik.http.routers.radarr.tls=true",
         "traefik.http.routers.radarr.middlewares=forward-auth@file,security-headers@file",
-        "traefik.http.services.radarr.loadbalancer.server.port=7878",
       ]
 
       check {

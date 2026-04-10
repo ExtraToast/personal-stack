@@ -425,8 +425,11 @@ configure_command() {
 
   # Template config placeholders
   sed -i "s/__ADVERTISE_ADDR__/${advertise_ip}/g" /etc/consul.d/consul.hcl
-  sed -i "s/__ADVERTISE_ADDR__/${advertise_ip}/g" /etc/nomad.d/nomad.hcl
-  echo "Consul/Nomad advertise_addr set to ${advertise_ip}"
+  echo "Consul advertise_addr set to ${advertise_ip}"
+
+  # Nomad advertise address is handled dynamically via ExecStartPre
+  # (see nomad-advertise.sh) to cope with Tailscale not being up at boot.
+  install -m 0755 "${ROOT_DIR}/infra/scripts/nomad-advertise.sh" /usr/local/bin/nomad-advertise.sh
 
   if [[ -n "${CONSUL_ENCRYPT_KEY:-}" ]]; then
     sed -i "s/__CONSUL_ENCRYPT_KEY__/${CONSUL_ENCRYPT_KEY}/g" /etc/consul.d/consul.hcl
@@ -457,11 +460,16 @@ configure_command() {
     run ufw --force enable
   fi
 
-  # Systemd ordering: Nomad starts after Docker, Consul, and Vault
+  # Systemd ordering: Nomad starts after Docker, Consul, and Vault.
+  # ExecStartPre generates /etc/nomad.d/advertise.hcl with the best
+  # available IP (Tailscale if up, otherwise primary outbound IP).
   cat <<'EOF' | write_text_file /etc/systemd/system/nomad.service.d/override.conf 0644
 [Unit]
 After=network-online.target docker.service consul.service vault.service
 Wants=network-online.target docker.service consul.service vault.service
+
+[Service]
+ExecStartPre=/usr/local/bin/nomad-advertise.sh
 EOF
 
   run systemctl daemon-reload

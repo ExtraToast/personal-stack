@@ -60,7 +60,6 @@ job "downloads" {
         "traefik.http.routers.qbittorrent.entrypoints=websecure",
         "traefik.http.routers.qbittorrent.tls=true",
         "traefik.http.routers.qbittorrent.middlewares=forward-auth@file,security-headers@file",
-        "traefik.http.services.qbittorrent.loadbalancer.server.port=8080",
       ]
 
       check {
@@ -80,7 +79,6 @@ job "downloads" {
         "traefik.http.routers.prowlarr.entrypoints=websecure",
         "traefik.http.routers.prowlarr.tls=true",
         "traefik.http.routers.prowlarr.middlewares=forward-auth@file,security-headers@file",
-        "traefik.http.services.prowlarr.loadbalancer.server.port=9696",
       ]
 
       check {

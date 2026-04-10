@@ -47,7 +47,6 @@ job "jellyfin" {
         "traefik.http.routers.jellyfin.entrypoints=websecure",
         "traefik.http.routers.jellyfin.tls=true",
         "traefik.http.routers.jellyfin.middlewares=forward-auth@file,security-headers@file",
-        "traefik.http.services.jellyfin.loadbalancer.server.port=8096",
       ]
 
       check {
