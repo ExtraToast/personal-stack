@@ -8,6 +8,11 @@ job "uptime-kuma" {
   type        = "service"
 
   group "uptime-kuma" {
+    constraint {
+      attribute = "${meta.node_type}"
+      value     = "cloud"
+    }
+
     network {
       mode = "host"
       port "http" { static = 3001 }

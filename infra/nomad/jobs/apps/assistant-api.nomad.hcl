@@ -33,6 +33,11 @@ job "assistant-api" {
   group "assistant-api" {
     count = var.count
 
+    constraint {
+      attribute = "${meta.node_type}"
+      value     = "cloud"
+    }
+
     network {
       mode = "host"
       port "http" {}

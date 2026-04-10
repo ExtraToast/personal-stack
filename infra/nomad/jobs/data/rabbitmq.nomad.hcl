@@ -18,6 +18,11 @@ job "rabbitmq" {
   type        = "service"
 
   group "rabbitmq" {
+    constraint {
+      attribute = "${meta.node_type}"
+      value     = "cloud"
+    }
+
     network {
       mode = "host"
       port "amqp" { static = 5672 }

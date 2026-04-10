@@ -15,6 +15,11 @@ job "stalwart" {
   }
 
   group "stalwart" {
+    constraint {
+      attribute = "${meta.node_type}"
+      value     = "cloud"
+    }
+
     network {
       mode = "host"
       port "smtp" { static = 25 }

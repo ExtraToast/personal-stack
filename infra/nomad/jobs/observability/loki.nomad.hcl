@@ -8,6 +8,11 @@ job "loki" {
   type        = "service"
 
   group "loki" {
+    constraint {
+      attribute = "${meta.node_type}"
+      value     = "cloud"
+    }
+
     network {
       mode = "host"
       port "http" { static = 3100 }

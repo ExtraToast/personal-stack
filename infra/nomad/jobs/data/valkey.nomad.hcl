@@ -3,6 +3,11 @@ job "valkey" {
   type        = "service"
 
   group "valkey" {
+    constraint {
+      attribute = "${meta.node_type}"
+      value     = "cloud"
+    }
+
     network {
       mode = "host"
       port "db" { static = 6379 }

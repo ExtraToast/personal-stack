@@ -8,6 +8,11 @@ job "postgres" {
   type        = "service"
 
   group "postgres" {
+    constraint {
+      attribute = "${meta.node_type}"
+      value     = "cloud"
+    }
+
     network {
       mode = "host"
       port "db" { static = 5432 }
