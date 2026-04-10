@@ -250,9 +250,9 @@ EOF
   if [[ -n "${MEDIA_DISK_UUID:-}" ]]; then
     run systemctl enable mnt-media.mount
     run systemctl start mnt-media.mount || true
-    # Create media subdirectories (after mount)
-    run mkdir -p /mnt/media/downloads /mnt/media/tv /mnt/media/movies /mnt/media/timemachine
-    run chown -R 1000:1000 /mnt/media/downloads /mnt/media/tv /mnt/media/movies
+    # Ensure key media directories exist (preserves existing structure)
+    run mkdir -p /mnt/media/Completed /mnt/media/Downloading /mnt/media/Films /mnt/media/Series /mnt/media/Anime /mnt/media/TimeMachine
+    run chown -R 1000:1000 /mnt/media/Completed /mnt/media/Downloading /mnt/media/Films /mnt/media/Series /mnt/media/Anime
   fi
 
   # Start services

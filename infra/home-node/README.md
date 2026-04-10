@@ -22,10 +22,12 @@ LAN devices -> AdGuard DNS rewrite -> Home Node directly (no auth)     |
               +---------------------+------------------------------+   |
                                     |                                  |
                           /mnt/media (6TB HDD)                         |
-                          +-- downloads/                               |
-                          +-- tv/        ---- Samba [media] share      |
-                          +-- movies/                                  |
-                          +-- timemachine/ -- Samba [timemachine] 300GB |
+                          +-- Completed/     completed downloads       |
+                          +-- Downloading/   in-progress downloads     |
+                          +-- Films/         Samba [databeast]         |
+                          +-- Series/        share (read-only          |
+                          +-- Anime/         for guests)               |
+                          +-- TimeMachine/   Samba [timemachine] 300GB |
 ```
 
 ## Part 1: VPS Preparation
@@ -156,8 +158,8 @@ settings, with `1.1.1.1` as fallback.
 
 Open `http://<home-ip>:8080` (default login: admin / adminadmin).
 
-- Settings > Downloads > Default Save Path: `/media/downloads`
-- Settings > Downloads > Keep incomplete in: `/media/downloads/incomplete`
+- Settings > Downloads > Default Save Path: `/media/Completed`
+- Settings > Downloads > Keep incomplete in: `/media/Downloading`
 - Settings > WebUI > change the default password
 
 ### 3.2 Prowlarr
@@ -172,14 +174,15 @@ Open `http://<home-ip>:9696`.
 
 Open `http://<home-ip>:8989`.
 
-- Settings > Media Management > Root Folders > Add `/media/tv`
+- Settings > Media Management > Root Folders > Add `/media/Series`
+- Settings > Media Management > Root Folders > Add `/media/Anime` (if managing anime separately)
 - Settings > Download Clients > Add qBittorrent (host: `<home-ip>`, port: `8080`)
 
 ### 3.4 Radarr
 
 Open `http://<home-ip>:7878`.
 
-- Settings > Media Management > Root Folders > Add `/media/movies`
+- Settings > Media Management > Root Folders > Add `/media/Films`
 - Settings > Download Clients > Add qBittorrent (host: `<home-ip>`, port: `8080`)
 
 ### 3.5 Jellyfin
@@ -187,8 +190,10 @@ Open `http://<home-ip>:7878`.
 Open `http://<home-ip>:8096`.
 
 - Complete the setup wizard
-- Add library: Movies > `/media/movies`
-- Add library: TV Shows > `/media/tv`
+- Add library: Movies > `/media/Films`
+- Add library: TV Shows > `/media/Series`
+- Add library: Anime > `/media/Anime`
+- Add library: Music > `/media/Music` (optional)
 
 ### 3.6 Time Machine
 
@@ -197,6 +202,7 @@ On your Mac:
 ```bash
 # Or use System Settings > General > Time Machine > Add Backup Destination
 tmutil setdestination smb://media@<home-ip>/timemachine
+# Share name is "timemachine", data lives at /mnt/media/TimeMachine
 ```
 
 ## Migrating from Existing Installations
@@ -267,7 +273,7 @@ sudo chown 1000:1000 /srv/nomad/sonarr/sonarr.db /srv/nomad/radarr/radarr.db
 | Radarr       | `http://radarr.jorisjonkers.dev:7878`      | `https://radarr.jorisjonkers.dev`      |
 | Prowlarr     | `http://prowlarr.jorisjonkers.dev:9696`    | `https://prowlarr.jorisjonkers.dev`    |
 | qBittorrent  | `http://qbittorrent.jorisjonkers.dev:8080` | `https://qbittorrent.jorisjonkers.dev` |
-| Samba        | `smb://<home-ip>/media`                    | not exposed                            |
+| Samba        | `smb://<home-ip>/databeast`                | not exposed                            |
 | Time Machine | `smb://media@<home-ip>/timemachine`        | not exposed                            |
 | AdGuard      | `http://127.0.0.1:3000` (SSH tunnel)       | not exposed                            |
 
