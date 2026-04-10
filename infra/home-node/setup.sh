@@ -157,7 +157,9 @@ configure_command() {
 
   # Tailscale: bring up VPN mesh
   if ! tailscale status >/dev/null 2>&1; then
-    run tailscale up --authkey="${TAILSCALE_AUTH_KEY}" --hostname=personal-stack-home
+    local ts_args=(--authkey="${TAILSCALE_AUTH_KEY}" --hostname=personal-stack-home)
+    [[ -n "${HEADSCALE_URL:-}" ]] && ts_args+=(--login-server="${HEADSCALE_URL}")
+    run tailscale up "${ts_args[@]}"
   fi
 
   local tailscale_ip
