@@ -3,6 +3,11 @@ job "tempo" {
   type        = "service"
 
   group "tempo" {
+    constraint {
+      attribute = "${meta.node_type}"
+      value     = "cloud"
+    }
+
     network {
       mode = "host"
       port "http" { static = 3200 }
@@ -28,6 +33,11 @@ job "tempo" {
         interval = "15s"
         timeout  = "5s"
       }
+    }
+
+    service {
+      name = "tempo-otlp-http"
+      port = "otlp_http"
     }
 
     task "tempo" {
