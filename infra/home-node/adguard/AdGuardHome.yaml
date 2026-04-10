@@ -20,6 +20,17 @@ dns:
   cache_ttl_min: 300
   cache_ttl_max: 86400
   cache_optimistic: true
+  rewrites:
+    - domain: jellyfin.jorisjonkers.dev
+      answer: __HOME_LAN_IP__
+    - domain: sonarr.jorisjonkers.dev
+      answer: __HOME_LAN_IP__
+    - domain: radarr.jorisjonkers.dev
+      answer: __HOME_LAN_IP__
+    - domain: prowlarr.jorisjonkers.dev
+      answer: __HOME_LAN_IP__
+    - domain: qbittorrent.jorisjonkers.dev
+      answer: __HOME_LAN_IP__
 
 filtering:
   protection_enabled: true
