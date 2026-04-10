@@ -25,6 +25,36 @@ client {
     path      = "/srv/nomad/alloy"
     read_only = false
   }
+
+  host_volume "media_data" {
+    path      = "/mnt/media"
+    read_only = false
+  }
+
+  host_volume "qbittorrent_config" {
+    path      = "/srv/nomad/qbittorrent"
+    read_only = false
+  }
+
+  host_volume "prowlarr_config" {
+    path      = "/srv/nomad/prowlarr"
+    read_only = false
+  }
+
+  host_volume "sonarr_config" {
+    path      = "/srv/nomad/sonarr"
+    read_only = false
+  }
+
+  host_volume "radarr_config" {
+    path      = "/srv/nomad/radarr"
+    read_only = false
+  }
+
+  host_volume "jellyfin_config" {
+    path      = "/srv/nomad/jellyfin"
+    read_only = false
+  }
 }
 
 plugin "docker" {
@@ -33,6 +63,12 @@ plugin "docker" {
       enabled = true
     }
     allow_privileged = false
+    allow_caps = [
+      "audit_write", "chown", "dac_override", "fowner", "fsetid",
+      "kill", "mknod", "net_bind_service", "setfcap", "setgid",
+      "setpcap", "setuid", "sys_chroot",
+      "net_admin", "net_raw",
+    ]
   }
 }
 

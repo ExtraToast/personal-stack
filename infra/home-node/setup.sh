@@ -123,16 +123,30 @@ install_command() {
     run rm -rf /tmp/AdGuardHome /tmp/adguard-home.tar.gz
   fi
 
+  # Samba
+  if ! command -v smbd >/dev/null 2>&1; then
+    run apt-get install -y samba
+  fi
+
   # Data directories
   run mkdir -p /etc/consul.d /etc/nomad.d
   run mkdir -p /opt/consul /opt/nomad
   run mkdir -p /srv/nomad/lightrag /srv/nomad/alloy
+  run mkdir -p /srv/nomad/qbittorrent /srv/nomad/prowlarr /srv/nomad/sonarr /srv/nomad/radarr /srv/nomad/jellyfin
+  run mkdir -p /mnt/media
 
   run chown -R consul:consul /opt/consul
   run chown -R nomad:nomad /opt/nomad
 
-  # Volume ownership matching container UIDs
-  run chown -R 1000:1000 /srv/nomad/lightrag  # lightrag
+  # Volume ownership matching container UIDs (linuxserver.io convention: UID 1000)
+  run chown -R 1000:1000 /srv/nomad/lightrag
+  run chown -R 1000:1000 /srv/nomad/qbittorrent /srv/nomad/prowlarr /srv/nomad/sonarr /srv/nomad/radarr /srv/nomad/jellyfin
+
+  # Ensure tun module is available for gluetun VPN
+  run modprobe tun || true
+  if ! grep -q '^tun$' /etc/modules 2>/dev/null; then
+    echo "tun" >> /etc/modules
+  fi
 
   # GHCR login
   if [[ -n "${GHCR_USER:-}" && -n "${GHCR_TOKEN:-}" ]]; then
@@ -182,6 +196,26 @@ configure_command() {
 
   # AdGuard Home config
   install -m 0644 "${HOME_NODE_DIR}/adguard/AdGuardHome.yaml" /opt/adguard-home/AdGuardHome.yaml
+  if [[ -n "${HOME_LAN_IP:-}" ]]; then
+    sed -i "s/__HOME_LAN_IP__/${HOME_LAN_IP}/g" /opt/adguard-home/AdGuardHome.yaml
+    echo "AdGuard DNS rewrites configured for LAN IP ${HOME_LAN_IP}"
+  fi
+
+  # Media HDD mount unit
+  if [[ -n "${MEDIA_DISK_UUID:-}" ]]; then
+    install -m 0644 "${HOME_NODE_DIR}/systemd/mnt-media.mount" /etc/systemd/system/mnt-media.mount
+    sed -i "s/__MEDIA_DISK_UUID__/${MEDIA_DISK_UUID}/g" /etc/systemd/system/mnt-media.mount
+    sed -i "s/__MEDIA_DISK_FS__/${MEDIA_DISK_FS:-ext4}/g" /etc/systemd/system/mnt-media.mount
+    echo "Media HDD mount unit configured (UUID: ${MEDIA_DISK_UUID})"
+  fi
+
+  # Samba config
+  install -m 0644 "${HOME_NODE_DIR}/samba/smb.conf" /etc/samba/smb.conf
+  if [[ -n "${SAMBA_PASSWORD:-}" ]]; then
+    id media >/dev/null 2>&1 || useradd -r -s /usr/sbin/nologin media
+    (echo "${SAMBA_PASSWORD}"; echo "${SAMBA_PASSWORD}") | smbpasswd -a media -s 2>/dev/null || true
+    echo "Samba user 'media' configured"
+  fi
 
   # Systemd units
   install -m 0644 "${HOME_NODE_DIR}/systemd/adguard-home.service" /etc/systemd/system/adguard-home.service
@@ -200,15 +234,26 @@ EOF
   if command -v ufw >/dev/null 2>&1; then
     run ufw default deny incoming
     run ufw default allow outgoing
-    run ufw allow 22/tcp               comment 'ssh'
-    run ufw allow 53/tcp               comment 'dns'
-    run ufw allow 53/udp               comment 'dns'
-    run ufw allow in on tailscale0     comment 'tailscale mesh traffic'
+    run ufw allow 22/tcp                                              comment 'ssh'
+    run ufw allow 53/tcp                                              comment 'dns'
+    run ufw allow 53/udp                                              comment 'dns'
+    run ufw allow in on tailscale0                                    comment 'tailscale mesh traffic'
+    run ufw allow proto tcp from 192.168.0.0/16 to any port 445      comment 'samba'
+    run ufw allow proto tcp from 192.168.0.0/16 to any port 8096     comment 'jellyfin'
     run ufw --force enable
   fi
 
   run systemctl daemon-reload
-  run systemctl enable consul nomad adguard-home home-node-update.timer
+  run systemctl enable consul nomad adguard-home home-node-update.timer smbd
+
+  # Mount media HDD if configured
+  if [[ -n "${MEDIA_DISK_UUID:-}" ]]; then
+    run systemctl enable mnt-media.mount
+    run systemctl start mnt-media.mount || true
+    # Create media subdirectories (after mount)
+    run mkdir -p /mnt/media/downloads /mnt/media/tv /mnt/media/movies /mnt/media/timemachine
+    run chown -R 1000:1000 /mnt/media/downloads /mnt/media/tv /mnt/media/movies
+  fi
 
   # Start services
   run systemctl restart consul
