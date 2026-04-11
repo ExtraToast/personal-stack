@@ -34,13 +34,13 @@ job "flaresolverr" {
       }
 
       config {
-        image        = "ghcr.io/flaresolverr/flaresolverr:v3.3.21"
+        image        = "21hsmw/flaresolverr:nodriver"
         network_mode = "host"
       }
 
       resources {
         cpu    = 500
-        memory = 512
+        memory = 1024
       }
     }
   }

@@ -60,7 +60,7 @@ http:
       service: adguard
       middlewares:
         - forward-auth
-        - security-headers
+        - media-security-headers
 {{ if ne (env "TLS_MODE") "file" }}
       tls:
         certResolver: cloudflare
@@ -120,6 +120,12 @@ http:
       headers:
         <<: *base-headers
         contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.{{ $domain }} https://*.jorisjonkers.test; font-src 'self'; connect-src 'self' https://*.{{ $domain }} https://*.jorisjonkers.test; frame-ancestors 'none'"
+
+    media-security-headers:
+      headers:
+        <<: *base-headers
+        frameDeny: false
+        contentSecurityPolicy: "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: wss: https://*.{{ $domain }}; img-src 'self' data: blob: https:; font-src 'self' data:; frame-ancestors 'self'"
 
   services:
     vault:

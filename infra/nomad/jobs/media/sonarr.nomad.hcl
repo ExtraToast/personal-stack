@@ -46,7 +46,7 @@ job "sonarr" {
         "traefik.http.routers.sonarr.rule=Host(`sonarr.${var.domain}`)",
         "traefik.http.routers.sonarr.entrypoints=websecure",
         "traefik.http.routers.sonarr.tls=true",
-        "traefik.http.routers.sonarr.middlewares=forward-auth@file,security-headers@file",
+        "traefik.http.routers.sonarr.middlewares=forward-auth@file,media-security-headers@file",
       ]
 
       check {

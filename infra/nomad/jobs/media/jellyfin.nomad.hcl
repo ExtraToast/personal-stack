@@ -46,7 +46,7 @@ job "jellyfin" {
         "traefik.http.routers.jellyfin.rule=Host(`jellyfin.${var.domain}`)",
         "traefik.http.routers.jellyfin.entrypoints=websecure",
         "traefik.http.routers.jellyfin.tls=true",
-        "traefik.http.routers.jellyfin.middlewares=forward-auth@file,security-headers@file",
+        "traefik.http.routers.jellyfin.middlewares=forward-auth@file,media-security-headers@file",
       ]
 
       check {
@@ -69,6 +69,21 @@ job "jellyfin" {
       config {
         image        = "jellyfin/jellyfin:10.10.6"
         network_mode = "host"
+        runtime      = "nvidia"
+        devices = [
+          {
+            host_path      = "/dev/nvidia0"
+            container_path = "/dev/nvidia0"
+          },
+          {
+            host_path      = "/dev/nvidiactl"
+            container_path = "/dev/nvidiactl"
+          },
+          {
+            host_path      = "/dev/nvidia-uvm"
+            container_path = "/dev/nvidia-uvm"
+          },
+        ]
       }
 
       volume_mount {
@@ -84,7 +99,7 @@ job "jellyfin" {
 
       resources {
         cpu    = 2000
-        memory = 2048
+        memory = 6144
       }
     }
   }
