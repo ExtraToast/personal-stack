@@ -46,7 +46,7 @@ job "jellyfin" {
         "traefik.http.routers.jellyfin.rule=Host(`jellyfin.${var.domain}`)",
         "traefik.http.routers.jellyfin.entrypoints=websecure",
         "traefik.http.routers.jellyfin.tls=true",
-        "traefik.http.routers.jellyfin.middlewares=forward-auth@file,media-security-headers@file",
+        "traefik.http.routers.jellyfin.middlewares=media-security-headers@file",
       ]
 
       check {
