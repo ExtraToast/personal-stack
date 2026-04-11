@@ -10,8 +10,8 @@ job "jellyfin" {
   update {
     max_parallel      = 1
     min_healthy_time  = "10s"
-    healthy_deadline  = "5m"
-    progress_deadline = "10m"
+    healthy_deadline  = "15m"
+    progress_deadline = "20m"
     auto_revert       = true
   }
 
@@ -29,7 +29,7 @@ job "jellyfin" {
     volume "media_data" {
       type      = "host"
       source    = "media_data"
-      read_only = true
+      read_only = false
     }
 
     volume "jellyfin_config" {
@@ -89,7 +89,6 @@ job "jellyfin" {
       volume_mount {
         volume      = "media_data"
         destination = "/media"
-        read_only   = true
       }
 
       volume_mount {

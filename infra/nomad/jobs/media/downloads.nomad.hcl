@@ -125,8 +125,8 @@ job "downloads" {
       }
 
       resources {
-        cpu    = 100
-        memory = 128
+        cpu    = 200
+        memory = 512
       }
     }
 

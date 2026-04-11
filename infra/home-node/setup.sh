@@ -225,8 +225,20 @@ configure_command() {
   # Nomad advertise script: picks Tailscale IP if up, else primary outbound IP
   install -m 0755 "${ROOT_DIR}/infra/scripts/nomad-advertise.sh" /usr/local/bin/nomad-advertise.sh
 
-  # Systemd ordering: Nomad starts after Docker, Consul, and Tailscale.
-  # ExecStartPre generates /etc/nomad.d/advertise.hcl dynamically.
+  # Systemd ordering: ensure correct boot sequence
+  # AdGuard (DNS) → Tailscale → Consul → Nomad
+  mkdir -p /etc/systemd/system/consul.service.d
+  cat <<'EOF' > /etc/systemd/system/consul.service.d/override.conf
+[Unit]
+After=network-online.target tailscaled.service adguard-home.service
+Wants=network-online.target tailscaled.service adguard-home.service
+StartLimitIntervalSec=300
+StartLimitBurst=10
+
+[Service]
+ExecStartPre=/bin/bash -c 'for i in $(seq 1 30); do tailscale status >/dev/null 2>&1 && exit 0; sleep 2; done; echo "Warning: Tailscale not ready, starting Consul anyway"'
+EOF
+
   mkdir -p /etc/systemd/system/nomad.service.d
   cat <<'EOF' > /etc/systemd/system/nomad.service.d/override.conf
 [Unit]
@@ -282,6 +294,13 @@ EOF
     fi
     sleep 2
   done
+
+  # Disable systemd-resolved to free port 53 for AdGuard Home
+  if systemctl is-active --quiet systemd-resolved 2>/dev/null; then
+    run systemctl disable --now systemd-resolved
+    rm -f /etc/resolv.conf
+    echo "nameserver 127.0.0.1" > /etc/resolv.conf
+  fi
 
   run systemctl restart adguard-home
   run systemctl start home-node-update.timer
