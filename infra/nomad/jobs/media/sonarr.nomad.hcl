@@ -83,7 +83,8 @@ job "sonarr" {
 
       resources {
         cpu    = 500
-        memory = 1024
+        memory     = 1024
+        memory_max = 1280
       }
     }
   }

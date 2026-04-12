@@ -83,7 +83,8 @@ job "radarr" {
 
       resources {
         cpu    = 500
-        memory = 512
+        memory     = 512
+        memory_max = 640
       }
     }
   }

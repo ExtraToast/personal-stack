@@ -84,7 +84,8 @@ job "headscale" {
 
       resources {
         cpu    = 200
-        memory = 256
+        memory     = 256
+        memory_max = 384
       }
     }
   }

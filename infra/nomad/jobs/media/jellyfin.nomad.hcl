@@ -98,7 +98,8 @@ job "jellyfin" {
 
       resources {
         cpu    = 2000
-        memory = 6144
+        memory     = 6144
+        memory_max = 7168
       }
     }
   }
