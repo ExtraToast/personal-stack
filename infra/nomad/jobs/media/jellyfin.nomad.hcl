@@ -67,7 +67,7 @@ job "jellyfin" {
       }
 
       config {
-        image        = "jellyfin/jellyfin:10.10.6"
+        image        = "jellyfin/jellyfin:10.11.8"
         network_mode = "host"
         runtime      = "nvidia"
         devices = [
