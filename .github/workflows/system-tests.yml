@@ -70,7 +70,7 @@ jobs:
           retention-days: 1
 
   test-system:
-    name: System Tests (Nomad)
+    name: System Tests (Docker Compose)
     concurrency:
       group: system-tests-run-${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
@@ -90,36 +90,17 @@ jobs:
       - name: Load images
         run: |
           for tar in /tmp/images/image-*/*.tar; do docker load -i "$tar"; done
-      - name: Cache HashiCorp binaries and CNI plugins
-        id: cache-hashicorp
-        uses: actions/cache@v4
-        with:
-          path: /tmp/hashicorp-cache
-          key: hashicorp-nomad-stack-v1
-      - name: Pre-install cached binaries
-        if: steps.cache-hashicorp.outputs.cache-hit == 'true'
-        run: |
-          echo "Restoring cached HashiCorp binaries..."
-          sudo cp /tmp/hashicorp-cache/consul /tmp/hashicorp-cache/nomad /tmp/hashicorp-cache/vault /usr/bin/
-          sudo mkdir -p /opt/cni/bin
-          sudo cp /tmp/hashicorp-cache/cni/* /opt/cni/bin/
       - name: Set up dev DNS
         run: sudo bash infra/scripts/setup-dev-dns.sh
-      - name: Bootstrap Nomad stack
-        timeout-minutes: 12
-        run: sudo bash .github/scripts/bootstrap-nomad-ci.sh
-        env:
-          STACK_DIR: ${{ github.workspace }}
-      - name: Save HashiCorp binaries to cache
-        if: steps.cache-hashicorp.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p /tmp/hashicorp-cache/cni
-          cp /usr/bin/consul /usr/bin/nomad /usr/bin/vault /tmp/hashicorp-cache/
-          cp /opt/cni/bin/* /tmp/hashicorp-cache/cni/
-      - name: Wait for Traefik routes to stabilize
-        run: bash .github/scripts/wait-for-system-test-routes.sh
+      - name: Start Docker Compose stack
+        timeout-minutes: 6
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --wait --timeout 300
+      - name: Seed stalwart mail account
+        run: bash .github/scripts/seed-stalwart-ci.sh
       - name: Verify database migrations ran
         run: bash .github/scripts/verify-system-test-migrations.sh
+      - name: Wait for Traefik routes to stabilize
+        run: bash .github/scripts/wait-for-system-test-routes.sh
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
       - name: Run system tests
@@ -130,8 +111,6 @@ jobs:
           -Dtest.auth-api.url=https://auth.jorisjonkers.test
           -Dtest.assistant-api.url=https://assistant.jorisjonkers.test
           -Dtest.db.password=ci_auth_pass
-      - name: Dump Nomad job status and logs on failure
+      - name: Dump diagnostics on failure
         if: always() && (failure() || cancelled() || steps.run-tests.outcome == 'failure')
-        run: sudo bash .github/scripts/dump-nomad-ci-diagnostics.sh
-        env:
-          STACK_DIR: ${{ github.workspace }}
+        run: bash .github/scripts/dump-compose-ci-diagnostics.sh

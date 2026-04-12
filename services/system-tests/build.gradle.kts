@@ -23,5 +23,4 @@ tasks.test {
         includeTags("system")
     }
     outputs.upToDateWhen { false }
-    maxHeapSize = "512m"
 }
