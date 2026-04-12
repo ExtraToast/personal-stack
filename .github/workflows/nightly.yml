@@ -47,6 +47,12 @@ jobs:
       java-version: '21'
       fail-fast: false
 
+  nomad-health:
+    name: Nomad Health
+    uses: ./.github/workflows/nomad-health.yml
+    with:
+      java-version: '21'
+
   security-advanced:
     name: Advanced Security Scan
     runs-on: ubuntu-latest
