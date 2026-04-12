@@ -125,7 +125,7 @@ http:
       headers:
         <<: *base-headers
         frameDeny: false
-        contentSecurityPolicy: "default-src 'self' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' wss: https://*.{{ $domain }} https://*.jorisjonkers.test https://api.github.com; frame-ancestors 'self'"
+        contentSecurityPolicy: "default-src 'self' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' wss: https://*.{{ $domain }} https://*.jorisjonkers.test https://api.github.com https://raw.githubusercontent.com; frame-ancestors 'self'"
 
   services:
     vault:
