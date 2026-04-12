@@ -102,7 +102,7 @@ job "auth-api" {
         AUTH_ISSUER                 = "https://auth.${var.domain}"
         SESSION_COOKIE_DOMAIN       = "${var.domain}"
         SESSION_COOKIE_SECURE       = "true"
-        AUTH_CORS_ALLOWED_ORIGINS   = "https://${var.domain},https://auth.${var.domain},https://assistant.${var.domain},https://vault.${var.domain},https://n8n.${var.domain},https://grafana.${var.domain},https://nomad.${var.domain},https://rabbitmq.${var.domain},https://stalwart.${var.domain},https://traefik.${var.domain},https://status.${var.domain}"
+        AUTH_CORS_ALLOWED_ORIGINS   = "https://${var.domain},https://auth.${var.domain},https://assistant.${var.domain},https://vault.${var.domain},https://n8n.${var.domain},https://grafana.${var.domain},https://nomad.${var.domain},https://rabbitmq.${var.domain},https://stalwart.${var.domain},https://traefik.${var.domain},https://status.${var.domain},https://jellyfin.${var.domain},https://sonarr.${var.domain},https://radarr.${var.domain},https://prowlarr.${var.domain},https://qbittorrent.${var.domain},https://adguard.${var.domain},https://headscale.${var.domain}"
         DEPLOYMENT_ENVIRONMENT      = "production"
         SERVICE_VERSION             = var.image_tag
         OTEL_SERVICE_NAME           = "auth-api"

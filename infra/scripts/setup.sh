@@ -423,9 +423,13 @@ configure_command() {
   fi
   advertise_ip="${advertise_ip:-${primary_ip}}"
 
-  # Template Consul config placeholders
+  # Template config placeholders
   sed -i "s/__ADVERTISE_ADDR__/${advertise_ip}/g" /etc/consul.d/consul.hcl
   echo "Consul advertise_addr set to ${advertise_ip}"
+
+  # Nomad advertise address is handled dynamically via ExecStartPre
+  # (see nomad-advertise.sh) to cope with Tailscale not being up at boot.
+  install -m 0755 "${ROOT_DIR}/infra/scripts/nomad-advertise.sh" /usr/local/bin/nomad-advertise.sh
 
   if [[ -n "${CONSUL_ENCRYPT_KEY:-}" ]]; then
     sed -i "s/__CONSUL_ENCRYPT_KEY__/${CONSUL_ENCRYPT_KEY}/g" /etc/consul.d/consul.hcl
@@ -456,11 +460,16 @@ configure_command() {
     run ufw --force enable
   fi
 
-  # Systemd ordering: Nomad starts after Docker, Consul, and Vault
+  # Systemd ordering: Nomad starts after Docker, Consul, and Vault.
+  # ExecStartPre generates /etc/nomad.d/advertise.hcl with the best
+  # available IP (Tailscale if up, otherwise primary outbound IP).
   cat <<'EOF' | write_text_file /etc/systemd/system/nomad.service.d/override.conf 0644
 [Unit]
 After=network-online.target docker.service consul.service vault.service
 Wants=network-online.target docker.service consul.service vault.service
+
+[Service]
+ExecStartPre=/usr/local/bin/nomad-advertise.sh
 EOF
 
   run systemctl daemon-reload
@@ -841,7 +850,6 @@ configure_nomad_oidc_auth_method() {
     echo "+ nomad acl auth-method update ${auth_method_name}"
     nomad acl auth-method update \
       -type "OIDC" \
-      -description "OIDC login via ${AUTH_ISSUER}" \
       -token-locality "global" \
       -max-token-ttl "${NOMAD_OIDC_MAX_TOKEN_TTL}" \
       -token-name-format "${token_name_format}" \
@@ -876,7 +884,6 @@ EOF
   nomad acl auth-method create \
     -name "${auth_method_name}" \
     -type "OIDC" \
-    -description "OIDC login via ${AUTH_ISSUER}" \
     -token-locality "global" \
     -max-token-ttl "${NOMAD_OIDC_MAX_TOKEN_TTL}" \
     -token-name-format "${token_name_format}" \
@@ -908,7 +915,6 @@ EOF
 configure_nomad_operator_policy() {
   echo "+ nomad acl policy apply ${NOMAD_OPERATOR_POLICY_NAME}"
   nomad acl policy apply \
-    -description "Operator access for Nomad UI and CLI" \
     "${NOMAD_OPERATOR_POLICY_NAME}" - <<'EOF' >/dev/null
 namespace "*" {
   policy = "read"
@@ -953,7 +959,6 @@ configure_nomad_operator_role() {
     echo "+ nomad acl role update ${role_id}"
     nomad acl role update \
       -name "${NOMAD_OPERATOR_ROLE_NAME}" \
-      -description "OIDC role for Nomad operators" \
       -policy "${NOMAD_OPERATOR_POLICY_NAME}" \
       "${role_id}" >/dev/null
     return
@@ -962,7 +967,6 @@ configure_nomad_operator_role() {
   echo "+ nomad acl role create -name ${NOMAD_OPERATOR_ROLE_NAME}"
   nomad acl role create \
     -name "${NOMAD_OPERATOR_ROLE_NAME}" \
-    -description "OIDC role for Nomad operators" \
     -policy "${NOMAD_OPERATOR_POLICY_NAME}" >/dev/null
 }
 
@@ -986,7 +990,6 @@ configure_nomad_operator_binding_rule() {
   if [[ -n "${binding_rule_id}" ]]; then
     echo "+ nomad acl binding-rule update ${binding_rule_id}"
     nomad acl binding-rule update \
-      -description "Grant ${NOMAD_OPERATOR_ROLE_NAME} to users with SERVICE_NOMAD" \
       -selector "${selector}" \
       -bind-type "role" \
       -bind-name "${NOMAD_OPERATOR_ROLE_NAME}" \
@@ -997,7 +1000,6 @@ configure_nomad_operator_binding_rule() {
   # Start with a scoped operator role rather than a management token binding.
   echo "+ nomad acl binding-rule create -auth-method ${NOMAD_OIDC_AUTH_METHOD_NAME}"
   nomad acl binding-rule create \
-    -description "Grant ${NOMAD_OPERATOR_ROLE_NAME} to users with SERVICE_NOMAD" \
     -auth-method "${NOMAD_OIDC_AUTH_METHOD_NAME}" \
     -selector "${selector}" \
     -bind-type "role" \

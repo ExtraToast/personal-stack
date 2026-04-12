@@ -49,7 +49,7 @@ After merging this branch and the CI deploys to VPS:
 ssh -p 2222 your-vps
 
 # Verify Headscale is running
-curl -I https://headscale.jorisjonkers.dev/health
+curl -I https://headscale.jorisjonkers.dev/key
 
 # Create user and auth keys
 ALLOC=$(nomad job allocs -json headscale | jq -r '.[0].ID')
@@ -67,9 +67,13 @@ CONSUL_ENCRYPT_KEY=<key from 1.1>
 TAILSCALE_AUTH_KEY=<key from 1.2>
 HEADSCALE_URL=https://headscale.jorisjonkers.dev
 
-# Re-run configure
+# Re-run configure (pass env vars through sudo)
 sudo tailscale logout  # if already connected to Tailscale SaaS
-sudo bash infra/scripts/setup.sh configure
+source /opt/personal-stack/.nomad-bootstrap.env && \
+  sudo CONSUL_ENCRYPT_KEY="$CONSUL_ENCRYPT_KEY" \
+       TAILSCALE_AUTH_KEY="$TAILSCALE_AUTH_KEY" \
+       HEADSCALE_URL="$HEADSCALE_URL" \
+  bash /opt/personal-stack/infra/scripts/setup.sh configure
 
 # Note the Tailscale IP - the home node needs it
 tailscale ip -4
@@ -78,17 +82,20 @@ tailscale ip -4
 ### 1.4 Seed PIA VPN credentials in Vault
 
 ```bash
-export VAULT_ADDR=http://127.0.0.1:8200
-export VAULT_TOKEN=<your-root-token>
-
-vault kv put secret/platform/media \
-  "pia.username=<PIA_USERNAME>" \
-  "pia.password=<PIA_PASSWORD>" \
-  "pia.wireguard_private_key=<PIA_WG_PRIVATE_KEY>" \
-  "pia.server_regions=Netherlands"
+source /opt/personal-stack/.nomad-bootstrap.env && \
+  VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN="$VAULT_ROOT_TOKEN" \
+  vault kv put secret/platform/media \
+    "pia.username=$PIA_USERNAME" \
+    "pia.password=$PIA_PASSWORD" \
+    "pia.server_regions=Netherlands"
+# Optional: if you have a WireGuard private key, add:
+#   "pia.wireguard_private_key=<KEY>"
+# Gluetun auto-negotiates with PIA when omitted.
 
 # Register the new Vault policy and role
-bash infra/scripts/setup.sh prepare-vault
+source /opt/personal-stack/.nomad-bootstrap.env && \
+  VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN="$VAULT_ROOT_TOKEN" \
+  bash /opt/personal-stack/infra/scripts/setup.sh prepare-vault
 ```
 
 ## Part 2: Home Node Setup

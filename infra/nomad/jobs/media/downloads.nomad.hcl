@@ -59,8 +59,7 @@ job "downloads" {
         "traefik.http.routers.qbittorrent.rule=Host(`qbittorrent.${var.domain}`)",
         "traefik.http.routers.qbittorrent.entrypoints=websecure",
         "traefik.http.routers.qbittorrent.tls=true",
-        "traefik.http.routers.qbittorrent.middlewares=forward-auth@file,security-headers@file",
-        "traefik.http.services.qbittorrent.loadbalancer.server.port=8080",
+        "traefik.http.routers.qbittorrent.middlewares=forward-auth@file,media-security-headers@file",
       ]
 
       check {
@@ -79,8 +78,7 @@ job "downloads" {
         "traefik.http.routers.prowlarr.rule=Host(`prowlarr.${var.domain}`)",
         "traefik.http.routers.prowlarr.entrypoints=websecure",
         "traefik.http.routers.prowlarr.tls=true",
-        "traefik.http.routers.prowlarr.middlewares=forward-auth@file,security-headers@file",
-        "traefik.http.services.prowlarr.loadbalancer.server.port=9696",
+        "traefik.http.routers.prowlarr.middlewares=forward-auth@file,media-security-headers@file",
       ]
 
       check {
@@ -127,8 +125,8 @@ job "downloads" {
       }
 
       resources {
-        cpu    = 100
-        memory = 128
+        cpu    = 200
+        memory = 512
       }
     }
 

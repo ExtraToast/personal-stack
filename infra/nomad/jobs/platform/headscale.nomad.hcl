@@ -44,7 +44,7 @@ job "headscale" {
 
       check {
         type     = "http"
-        path     = "/health"
+        path     = "/key"
         interval = "15s"
         timeout  = "5s"
       }

@@ -46,8 +46,7 @@ job "sonarr" {
         "traefik.http.routers.sonarr.rule=Host(`sonarr.${var.domain}`)",
         "traefik.http.routers.sonarr.entrypoints=websecure",
         "traefik.http.routers.sonarr.tls=true",
-        "traefik.http.routers.sonarr.middlewares=forward-auth@file,security-headers@file",
-        "traefik.http.services.sonarr.loadbalancer.server.port=8989",
+        "traefik.http.routers.sonarr.middlewares=forward-auth@file,media-security-headers@file",
       ]
 
       check {
@@ -84,7 +83,7 @@ job "sonarr" {
 
       resources {
         cpu    = 500
-        memory = 512
+        memory = 1024
       }
     }
   }

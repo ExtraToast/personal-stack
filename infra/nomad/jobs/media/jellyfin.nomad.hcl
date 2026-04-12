@@ -10,8 +10,8 @@ job "jellyfin" {
   update {
     max_parallel      = 1
     min_healthy_time  = "10s"
-    healthy_deadline  = "5m"
-    progress_deadline = "10m"
+    healthy_deadline  = "15m"
+    progress_deadline = "20m"
     auto_revert       = true
   }
 
@@ -29,7 +29,7 @@ job "jellyfin" {
     volume "media_data" {
       type      = "host"
       source    = "media_data"
-      read_only = true
+      read_only = false
     }
 
     volume "jellyfin_config" {
@@ -46,8 +46,7 @@ job "jellyfin" {
         "traefik.http.routers.jellyfin.rule=Host(`jellyfin.${var.domain}`)",
         "traefik.http.routers.jellyfin.entrypoints=websecure",
         "traefik.http.routers.jellyfin.tls=true",
-        "traefik.http.routers.jellyfin.middlewares=forward-auth@file,security-headers@file",
-        "traefik.http.services.jellyfin.loadbalancer.server.port=8096",
+        "traefik.http.routers.jellyfin.middlewares=media-security-headers@file",
       ]
 
       check {
@@ -68,14 +67,28 @@ job "jellyfin" {
       }
 
       config {
-        image        = "jellyfin/jellyfin:10.10.6"
+        image        = "jellyfin/jellyfin:10.11.8"
         network_mode = "host"
+        runtime      = "nvidia"
+        devices = [
+          {
+            host_path      = "/dev/nvidia0"
+            container_path = "/dev/nvidia0"
+          },
+          {
+            host_path      = "/dev/nvidiactl"
+            container_path = "/dev/nvidiactl"
+          },
+          {
+            host_path      = "/dev/nvidia-uvm"
+            container_path = "/dev/nvidia-uvm"
+          },
+        ]
       }
 
       volume_mount {
         volume      = "media_data"
         destination = "/media"
-        read_only   = true
       }
 
       volume_mount {
@@ -85,7 +98,7 @@ job "jellyfin" {
 
       resources {
         cpu    = 2000
-        memory = 2048
+        memory = 6144
       }
     }
   }

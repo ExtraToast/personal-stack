@@ -2,13 +2,14 @@
 # deploy.sh — Submit Nomad jobs for zero-downtime rolling updates.
 #
 # Usage:
-#   deploy.sh [--phase data|infra|edge|apps|all] [--wait] [--dry-run]
+#   deploy.sh [--phase data|infra|edge|apps|media|all] [--wait] [--dry-run]
 #
 # Phases:
 #   data   PostgreSQL, Valkey, RabbitMQ
 #   infra  Observability, platform, mail, core jobs (no Traefik)
 #   edge   Traefik only
 #   apps   auth-api, assistant-api, auth-ui, assistant-ui, app-ui
+#   media  downloads (gluetun+qBittorrent+Prowlarr), Sonarr, Radarr, Jellyfin
 #   all    Everything (default)
 set -euo pipefail
 
@@ -32,13 +33,14 @@ WAIT=false
 
 usage() {
   cat <<'EOF'
-Usage: deploy.sh [--phase data|infra|edge|apps|all] [--wait] [--dry-run]
+Usage: deploy.sh [--phase data|infra|edge|apps|media|all] [--wait] [--dry-run]
 
 Phases:
   data   PostgreSQL, Valkey, RabbitMQ
   infra  Observability, platform, mail, core jobs
   edge   Traefik only
   apps   auth-api, assistant-api, auth-ui, assistant-ui, app-ui
+  media  downloads (gluetun+qBittorrent+Prowlarr), Sonarr, Radarr, Jellyfin
   all    Everything (default)
 
 Options:
@@ -238,12 +240,20 @@ deploy_apps() {
   submit_job "${JOBS_DIR}/apps/app-ui.nomad.hcl"        "${DOMAIN_VAR[@]}" "${APP_COUNT_VAR[@]}" "${APP_VARS[@]}" "${EXTRA_VARS[@]}"
 }
 
+deploy_media() {
+  submit_job "${JOBS_DIR}/media/downloads.nomad.hcl"
+  submit_job "${JOBS_DIR}/media/sonarr.nomad.hcl"
+  submit_job "${JOBS_DIR}/media/radarr.nomad.hcl"
+  submit_job "${JOBS_DIR}/media/jellyfin.nomad.hcl"
+}
+
 case "${PHASE}" in
   data)  deploy_data ;;
   infra) deploy_infra ;;
   edge)  deploy_edge ;;
   apps)  deploy_apps ;;
-  all)   deploy_data; deploy_infra; deploy_apps; deploy_edge ;;
+  media) deploy_media ;;
+  all)   deploy_data; deploy_infra; deploy_apps; deploy_edge; deploy_media ;;
   *)     echo "Unknown phase: ${PHASE}" >&2; exit 1 ;;
 esac
 
@@ -273,6 +283,12 @@ if [[ "${WAIT}" == true && "${MODE}" == "apply" ]]; then
       wait_for_job_ready assistant-ui 240
       wait_for_job_ready app-ui 240
       ;;
+    media)
+      wait_for_job_ready downloads 300
+      wait_for_job_ready sonarr 180
+      wait_for_job_ready radarr 180
+      wait_for_job_ready jellyfin 240
+      ;;
     all)
       wait_for_job_ready postgres 240
       wait_for_job_ready valkey 180
@@ -289,6 +305,9 @@ if [[ "${WAIT}" == true && "${MODE}" == "apply" ]]; then
       wait_for_job_ready assistant-ui 240
       wait_for_job_ready app-ui 240
       wait_for_job_ready traefik 180
+      wait_for_job_ready sonarr 180
+      wait_for_job_ready radarr 180
+      wait_for_job_ready jellyfin 240
       ;;
   esac
   echo "All critical jobs running."
