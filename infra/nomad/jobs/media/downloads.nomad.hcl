@@ -131,6 +131,31 @@ job "downloads" {
       }
     }
 
+    task "tailscale-local-route" {
+      lifecycle {
+        hook = "poststart"
+      }
+
+      driver = "docker"
+
+      config {
+        image   = "busybox:1.37"
+        command = "sh"
+        args = [
+          "-ec",
+          "gw=$(ip route | awk '$1 == \"default\" && $5 == \"eth0\" { print $3; exit }'); [ -n \"$gw\" ]; ip route replace 100.64.0.0/10 via \"$gw\" dev eth0; ip route | grep '^100\\.64\\.0\\.0/10 '",
+        ]
+        cap_add = [
+          "NET_ADMIN",
+        ]
+      }
+
+      resources {
+        cpu    = 50
+        memory = 32
+      }
+    }
+
     task "qbittorrent" {
       driver = "docker"
 
