@@ -38,10 +38,10 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.time.Duration
 import java.util.Base64
 import java.util.UUID
 import java.util.concurrent.TimeUnit
-import java.time.Duration
 
 class OAuth2FlowIntegrationTest : IntegrationTestBase() {
     @Autowired

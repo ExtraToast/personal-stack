@@ -7,9 +7,13 @@ import LoginForm from '../components/LoginForm.vue'
 
 const mockLogin = vi.fn().mockResolvedValue(undefined)
 
-const mockStoreState = reactive({
+const mockStoreState: {
+  isLoading: boolean
+  error: string | null
+  totpRequired: boolean
+} = reactive({
   isLoading: false,
-  error: null as string | null,
+  error: null,
   totpRequired: false,
 })
 
@@ -66,6 +70,14 @@ function mountComponent(query: Record<string, string> = {}) {
   return mount(LoginForm, {
     global: { plugins: [pinia, router] },
   })
+}
+
+function getTotpInputElement(wrapper: ReturnType<typeof mount>) {
+  const element = wrapper.find('#totp-code').element
+  if (!(element instanceof HTMLInputElement)) {
+    throw new TypeError('Expected #totp-code to resolve to an HTMLInputElement')
+  }
+  return element
 }
 
 describe('loginForm', () => {
@@ -280,7 +292,7 @@ describe('loginForm', () => {
     })
 
     await vi.waitFor(() => {
-      expect(wrapper.find('#totp-code').element as HTMLInputElement).toBe(document.activeElement)
+      expect(getTotpInputElement(wrapper)).toBe(document.activeElement)
     })
 
     wrapper.unmount()
@@ -304,7 +316,7 @@ describe('loginForm', () => {
     await wrapper.find('form').trigger('submit')
 
     await vi.waitFor(() => {
-      expect(wrapper.find('#totp-code').element as HTMLInputElement).toBe(document.activeElement)
+      expect(getTotpInputElement(wrapper)).toBe(document.activeElement)
     })
 
     wrapper.unmount()

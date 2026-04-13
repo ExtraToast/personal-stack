@@ -1,9 +1,9 @@
 package com.jorisjonkers.personalstack.auth.config
 
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.autoconfigure.session.SessionRepositoryCustomizer
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.session.config.SessionRepositoryCustomizer
 import org.springframework.session.data.redis.RedisIndexedSessionRepository
 import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisHttpSession
 import org.springframework.session.web.http.CookieHttpSessionIdResolver
