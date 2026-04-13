@@ -917,32 +917,32 @@ configure_nomad_operator_policy() {
   nomad acl policy apply \
     "${NOMAD_OPERATOR_POLICY_NAME}" - <<'EOF' >/dev/null
 namespace "*" {
-  policy = "read"
-  capabilities = ["read-fs", "alloc-exec", "alloc-node-exec"]
+  policy = "write"
+  capabilities = ["alloc-node-exec"]
 }
 
 node {
-  policy = "read"
+  policy = "write"
 }
 
 agent {
-  policy = "read"
+  policy = "write"
 }
 
 operator {
-  policy = "read"
+  policy = "write"
 }
 
 quota {
-  policy = "read"
+  policy = "write"
 }
 
 host_volume "*" {
-  policy = "read"
+  policy = "write"
 }
 
 plugin {
-  policy = "read"
+  policy = "write"
 }
 EOF
 }

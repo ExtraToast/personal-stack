@@ -8,7 +8,7 @@ job "jellyfin" {
   type        = "service"
 
   update {
-    max_parallel      = 1
+    max_parallel      = 0
     min_healthy_time  = "10s"
     healthy_deadline  = "15m"
     progress_deadline = "20m"
@@ -98,8 +98,8 @@ job "jellyfin" {
 
       resources {
         cpu        = 12000
-        memory     = 9728
-        memory_max = 12288
+        memory     = 6144
+        memory_max = 8192
       }
     }
   }
