@@ -19,9 +19,11 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.extension.ExtendWith
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
+@ExtendWith(PlaywrightShardCondition::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class PlaywrightTestBase {
     companion object {
