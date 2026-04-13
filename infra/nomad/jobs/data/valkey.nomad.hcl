@@ -44,9 +44,9 @@ job "valkey" {
       }
 
       resources {
-        cpu        = 300
-        memory     = 384
-        memory_max = 448
+        cpu        = 500
+        memory     = 512
+        memory_max = 768
       }
     }
   }

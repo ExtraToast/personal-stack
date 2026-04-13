@@ -104,9 +104,9 @@ job "traefik" {
       }
 
       resources {
-        cpu        = 400
-        memory     = 384
-        memory_max = 512
+        cpu        = 800
+        memory     = 768
+        memory_max = 1024
       }
     }
   }
