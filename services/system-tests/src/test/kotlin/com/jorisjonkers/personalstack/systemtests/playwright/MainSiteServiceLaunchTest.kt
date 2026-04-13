@@ -36,7 +36,7 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
             waitForServicePageToSettle(servicePage)
             servicePage.locator("select").selectOption("oidc")
             servicePage.locator("button:has-text('Sign in with OIDC Provider')").click()
-            servicePage.waitForTimeout(8000.0)
+            servicePage.waitForTimeout(MAX_PLAYWRIGHT_TIMEOUT_MS)
             waitForServicePageToSettle(servicePage)
 
             val currentUrl = servicePage.url()
@@ -127,14 +127,14 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
 
         val servicePage = context.waitForPage(card::click)
         servicePage.waitForLoadState()
-        servicePage.waitForTimeout(10000.0)
+        servicePage.waitForTimeout(MAX_PLAYWRIGHT_TIMEOUT_MS)
         try {
             waitForServicePageToSettle(servicePage)
 
             servicePage.waitForFunction(
                 "() => !!document.querySelector('#oidc-sso-button') || !window.location.pathname.startsWith('/signin')",
                 null,
-                Page.WaitForFunctionOptions().setTimeout(15000.0),
+                Page.WaitForFunctionOptions().setTimeout(MAX_PLAYWRIGHT_TIMEOUT_MS),
             )
 
             if (servicePage.url().contains("/signin")) {
@@ -145,7 +145,7 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
                 }.lowercase()
                 assertThatValue(signInPageText).contains("sign in with sso")
                 servicePage.locator("#oidc-sso-button").click()
-                servicePage.waitForTimeout(10000.0)
+                servicePage.waitForTimeout(MAX_PLAYWRIGHT_TIMEOUT_MS)
                 waitForServicePageToSettle(servicePage)
             }
 
@@ -207,7 +207,7 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
             servicePage.waitForFunction(
                 "() => Boolean(window.grafanaBootData && window.grafanaBootData.user)",
                 null,
-                Page.WaitForFunctionOptions().setTimeout(15000.0),
+                Page.WaitForFunctionOptions().setTimeout(MAX_PLAYWRIGHT_TIMEOUT_MS),
             )
 
             val currentUrl = servicePage.url()
@@ -406,7 +406,7 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
         page.locator("button:has-text('Login')").click()
         page.waitForURL(
             { it.contains("auth.jorisjonkers.test/login") },
-            Page.WaitForURLOptions().setTimeout(20000.0),
+            Page.WaitForURLOptions().setTimeout(MAX_PLAYWRIGHT_TIMEOUT_MS),
         )
 
         page.locator("#username").fill(user.username)
@@ -415,9 +415,9 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
 
         page.waitForURL(
             { it.contains("/totp-setup") },
-            Page.WaitForURLOptions().setTimeout(30000.0),
+            Page.WaitForURLOptions().setTimeout(MAX_PLAYWRIGHT_TIMEOUT_MS),
         )
-        page.waitForSelector("canvas", Page.WaitForSelectorOptions().setTimeout(15000.0))
+        page.waitForSelector("canvas", Page.WaitForSelectorOptions().setTimeout(MAX_PLAYWRIGHT_TIMEOUT_MS))
         page.locator("details summary").click()
         val secret = page.locator("code").textContent().trim()
         submitTotpCode(secret)
@@ -436,14 +436,14 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
         page.locator("button:has-text('Login')").click()
         page.waitForURL(
             { it.contains("auth.jorisjonkers.test/login") },
-            Page.WaitForURLOptions().setTimeout(20000.0),
+            Page.WaitForURLOptions().setTimeout(MAX_PLAYWRIGHT_TIMEOUT_MS),
         )
 
         page.locator("#username").fill(user.username)
         page.locator("#password").fill(user.password)
         page.locator("button[type='submit']").click()
 
-        page.waitForSelector("#totp-code", Page.WaitForSelectorOptions().setTimeout(15000.0))
+        page.waitForSelector("#totp-code", Page.WaitForSelectorOptions().setTimeout(MAX_PLAYWRIGHT_TIMEOUT_MS))
         submitTotpCode(totpSecret)
 
         waitForMainSite()
@@ -469,7 +469,7 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
     private fun waitForMainSite() {
         page.waitForURL(
             { it.startsWith(APP_UI_URL) && !it.contains("/login") && !it.contains("/totp") },
-            Page.WaitForURLOptions().setTimeout(30000.0),
+            Page.WaitForURLOptions().setTimeout(MAX_PLAYWRIGHT_TIMEOUT_MS),
         )
         page.waitForLoadState()
         page.waitForTimeout(2000.0)

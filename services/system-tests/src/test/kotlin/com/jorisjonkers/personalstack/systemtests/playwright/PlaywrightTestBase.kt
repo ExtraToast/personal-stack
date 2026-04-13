@@ -23,6 +23,8 @@ import org.junit.jupiter.api.extension.ExtendWith
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
+internal const val MAX_PLAYWRIGHT_TIMEOUT_MS = 5_000.0
+
 @ExtendWith(PlaywrightShardCondition::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class PlaywrightTestBase {
@@ -61,7 +63,11 @@ abstract class PlaywrightTestBase {
             browser.newContext(
                 Browser.NewContextOptions().setIgnoreHTTPSErrors(true),
             )
+        context.setDefaultTimeout(MAX_PLAYWRIGHT_TIMEOUT_MS)
+        context.setDefaultNavigationTimeout(MAX_PLAYWRIGHT_TIMEOUT_MS)
         page = context.newPage()
+        page.setDefaultTimeout(MAX_PLAYWRIGHT_TIMEOUT_MS)
+        page.setDefaultNavigationTimeout(MAX_PLAYWRIGHT_TIMEOUT_MS)
     }
 
     @AfterEach
