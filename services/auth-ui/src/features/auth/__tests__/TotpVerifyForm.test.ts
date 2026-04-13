@@ -6,7 +6,24 @@ function mountComponent() {
   return mount(TotpVerifyForm)
 }
 
+function getTotpInputElement(wrapper: ReturnType<typeof mount>) {
+  const element = wrapper.find('#totp-code').element
+  if (!(element instanceof HTMLInputElement)) {
+    throw new TypeError('Expected #totp-code to resolve to an HTMLInputElement')
+  }
+  return element
+}
+
 describe('totpVerifyForm', () => {
+  it('focuses the code input on mount', async () => {
+    const wrapper = mount(TotpVerifyForm, { attachTo: document.body })
+
+    await wrapper.vm.$nextTick()
+
+    expect(getTotpInputElement(wrapper)).toBe(document.activeElement)
+    wrapper.unmount()
+  })
+
   it('input accepts numeric characters', () => {
     const wrapper = mountComponent()
     const input = wrapper.find('#totp-code')

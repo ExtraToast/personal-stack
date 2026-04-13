@@ -138,11 +138,9 @@ jobs:
         include: ${{ fromJson(needs.detect-changes.outputs.lint-kotlin-matrix) }}
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-java@v5
+      - uses: ./.github/actions/setup-java-gradle
         with:
-          distribution: temurin
           java-version: 21
-      - uses: gradle/actions/setup-gradle@v6
       - run: bash infra/scripts/run-strict-command.sh ./gradlew ${{ matrix.gradle-path }}:detekt ${{ matrix.gradle-path }}:ktlintCheck
 
   lint-frontend:
@@ -152,12 +150,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v6
+      - uses: ./.github/actions/setup-node-pnpm
         with:
           node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
       - run: pnpm -r lint --max-warnings 0
       - run: pnpm format:check
 
@@ -168,12 +163,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v6
+      - uses: ./.github/actions/setup-node-pnpm
         with:
           node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
       - run: pnpm -r typecheck
 
   test-kotlin-unit:
@@ -186,11 +178,9 @@ jobs:
         include: ${{ fromJson(needs.detect-changes.outputs.test-kotlin-unit-matrix) }}
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-java@v5
+      - uses: ./.github/actions/setup-java-gradle
         with:
-          distribution: temurin
           java-version: 21
-      - uses: gradle/actions/setup-gradle@v6
       - run: bash infra/scripts/run-strict-command.sh ./gradlew ${{ matrix.gradle-path }}:test
 
   test-frontend-unit:
@@ -200,12 +190,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v6
+      - uses: ./.github/actions/setup-node-pnpm
         with:
           node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
       - run: pnpm -r test
 
   build-verify:
@@ -215,16 +202,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-java@v5
+      - uses: ./.github/actions/setup-java-gradle
         with:
-          distribution: temurin
           java-version: 21
-      - uses: gradle/actions/setup-gradle@v6
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v6
+      - uses: ./.github/actions/setup-node-pnpm
         with:
           node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
       - run: bash infra/scripts/run-strict-command.sh ./gradlew assemble
       - run: pnpm -r build

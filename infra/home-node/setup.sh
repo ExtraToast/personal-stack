@@ -250,6 +250,11 @@ ExecStartPre=/usr/local/bin/nomad-advertise.sh
 EOF
 
   # Firewall
+  # Nomad bridge allocations use the default host-local subnet 172.26.64.0/20.
+  # Allow only that internal subnet to reach host-network Arr services so the
+  # downloads group (Prowlarr via Gluetun) can call Sonarr/Radarr directly
+  # without exposing those ports to the LAN.
+  local nomad_bridge_subnet="172.26.64.0/20"
   if command -v ufw >/dev/null 2>&1; then
     run ufw default deny incoming
     run ufw default allow outgoing
@@ -259,6 +264,8 @@ EOF
     run ufw allow in on tailscale0                                    comment 'tailscale mesh traffic'
     run ufw allow proto tcp from 192.168.0.0/16 to any port 445      comment 'samba'
     run ufw allow proto tcp from 192.168.0.0/16 to any port 8096     comment 'jellyfin'
+    run ufw allow proto tcp from "${nomad_bridge_subnet}" to any port 8989 comment 'sonarr from nomad bridge'
+    run ufw allow proto tcp from "${nomad_bridge_subnet}" to any port 7878 comment 'radarr from nomad bridge'
     run ufw --force enable
   fi
 

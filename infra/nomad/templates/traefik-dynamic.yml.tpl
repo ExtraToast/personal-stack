@@ -125,7 +125,7 @@ http:
       headers:
         <<: *base-headers
         frameDeny: false
-        contentSecurityPolicy: "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: wss: https://*.{{ $domain }}; img-src 'self' data: blob: https:; font-src 'self' data:; frame-ancestors 'self'"
+        contentSecurityPolicy: "default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' https: wss:; media-src 'self' data: blob: https:; frame-src 'self' https:; child-src 'self' blob: https:; worker-src 'self' blob:; manifest-src 'self' https:; frame-ancestors 'self'"
 
   services:
     vault:

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { LoginFormData } from '../schemas/loginSchema'
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { loginSchema } from '../schemas/loginSchema'
@@ -12,6 +12,7 @@ const authStore = useAuthStore()
 
 const form = ref<LoginFormData>({ username: '', password: '' })
 const totpCode = ref('')
+const totpInput = ref<HTMLInputElement | null>(null)
 const fieldErrors = ref<Partial<Record<keyof LoginFormData, string>>>({})
 
 const resendEmail = ref('')
@@ -67,6 +68,22 @@ const pendingRedirect = computed(() => {
   const redirect = route.query.redirect
   return typeof redirect === 'string' ? redirect : undefined
 })
+
+async function focusTotpInput(): Promise<void> {
+  await nextTick()
+  totpInput.value?.focus()
+  totpInput.value?.select()
+}
+
+watch(
+  () => authStore.totpRequired,
+  (totpRequired) => {
+    if (totpRequired) {
+      void focusTotpInput()
+    }
+  },
+  { immediate: true },
+)
 
 function redirectAfterLogin(destination: 'totp-setup' | 'app' = 'totp-setup'): void {
   if (destination === 'app' && pendingRedirect.value) {
@@ -174,6 +191,7 @@ async function onTotpSubmit(): Promise<void> {
         <label class="block font-mono text-xs font-medium text-gray-400" for="totp-code"> Code </label>
         <input
           id="totp-code"
+          ref="totpInput"
           v-model="totpCode"
           autocomplete="one-time-code"
           class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 text-center font-mono text-lg tracking-widest text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"

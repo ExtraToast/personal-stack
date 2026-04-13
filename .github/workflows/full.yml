@@ -35,6 +35,7 @@ jobs:
           filters: |
             workflow:
               - '.github/workflows/full.yml'
+              - '.github/workflows/system-tests.yml'
             auth-api:
               - 'services/auth-api/**'
             assistant-api:
@@ -188,11 +189,9 @@ jobs:
         include: ${{ fromJson(needs.detect-changes.outputs.lint-kotlin-matrix) }}
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-java@v5
+      - uses: ./.github/actions/setup-java-gradle
         with:
-          distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
-      - uses: gradle/actions/setup-gradle@v6
       - run: bash infra/scripts/run-strict-command.sh ./gradlew ${{ matrix.gradle-path }}:detekt ${{ matrix.gradle-path }}:ktlintCheck
 
   lint-frontend:
@@ -202,12 +201,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v6
+      - uses: ./.github/actions/setup-node-pnpm
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
       - run: pnpm -r lint --max-warnings 0
       - run: pnpm format:check
 
@@ -221,11 +217,9 @@ jobs:
         include: ${{ fromJson(needs.detect-changes.outputs.test-kotlin-unit-matrix) }}
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-java@v5
+      - uses: ./.github/actions/setup-java-gradle
         with:
-          distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
-      - uses: gradle/actions/setup-gradle@v6
       - run: bash infra/scripts/run-strict-command.sh ./gradlew ${{ matrix.gradle-path }}:test
 
   test-frontend-unit:
@@ -235,12 +229,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v6
+      - uses: ./.github/actions/setup-node-pnpm
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
       - run: pnpm -r test -- --coverage
 
   test-kotlin-integration:
@@ -253,11 +244,9 @@ jobs:
         include: ${{ fromJson(needs.detect-changes.outputs.test-kotlin-integration-matrix) }}
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-java@v5
+      - uses: ./.github/actions/setup-java-gradle
         with:
-          distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
-      - uses: gradle/actions/setup-gradle@v6
       - run: bash infra/scripts/run-strict-command.sh ./gradlew ${{ matrix.gradle-path }}:integrationTest
 
   verify-coverage:
@@ -270,11 +259,9 @@ jobs:
         include: ${{ fromJson(needs.detect-changes.outputs.verify-coverage-matrix) }}
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-java@v5
+      - uses: ./.github/actions/setup-java-gradle
         with:
-          distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
-      - uses: gradle/actions/setup-gradle@v6
       - name: Run tests and verify coverage (80%)
         if: matrix.has-integration
         run: bash infra/scripts/run-strict-command.sh ./gradlew ${{ matrix.gradle-path }}:test ${{ matrix.gradle-path }}:integrationTest ${{ matrix.gradle-path }}:jacocoTestCoverageVerification
@@ -289,17 +276,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-java@v5
+      - uses: ./.github/actions/setup-java-gradle
         with:
-          distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
-      - uses: gradle/actions/setup-gradle@v6
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v6
+      - uses: ./.github/actions/setup-node-pnpm
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
       - run: bash infra/scripts/run-strict-command.sh ./gradlew :services:auth-api:test :services:assistant-api:test --tests "*ArchitectureTest*"
       - run: pnpm -r depcruise
 
@@ -326,12 +308,9 @@ jobs:
           scan-type: fs
           scan-ref: .
           severity: CRITICAL,HIGH
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v6
+      - uses: ./.github/actions/setup-node-pnpm
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
       - run: pnpm audit --audit-level=high || true
       - name: Gitleaks
         uses: gitleaks/gitleaks-action@v2

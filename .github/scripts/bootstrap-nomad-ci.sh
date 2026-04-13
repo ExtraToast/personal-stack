@@ -19,6 +19,7 @@ DOMAIN="jorisjonkers.test"
 IMAGE_REPO="personal-stack"
 IMAGE_TAG="ci"
 CERT_DIR="/srv/nomad/traefik/certs"
+VALIDATION_GROUP="${NOMAD_VALIDATION_GROUP:-full}"
 BOOTSTRAP_DIAGNOSTICS_RAN=false
 
 bootstrap_error() {
@@ -58,6 +59,74 @@ deploy_observability_phase() {
   ensure_vault_unsealed
   submit_nomad_job "${ROOT_DIR}/infra/nomad/jobs/observability/alloy.nomad.hcl"
   wait_for_nomad_jobs alloy 180
+}
+
+prepare_vault_second_pass() {
+  echo "==> Preparing Vault (second pass: database + rabbitmq engines)"
+  ensure_vault_unsealed
+  bash "${ROOT_DIR}/infra/scripts/setup.sh" prepare-vault
+}
+
+prepare_vault_third_pass() {
+  echo "==> Preparing Vault (third pass: OIDC configuration)"
+  ensure_vault_unsealed
+  VAULT_PUBLIC_ADDR="https://vault.${DOMAIN}" \
+  AUTH_ISSUER="https://auth.${DOMAIN}" \
+    bash "${ROOT_DIR}/infra/scripts/setup.sh" prepare-vault
+}
+
+deploy_shared_core_phase() {
+  deploy_data_phase
+  prepare_vault_second_pass
+  deploy_observability_phase
+  deploy_edge_phase
+}
+
+submit_auth_api_job() {
+  ensure_vault_unsealed
+  submit_nomad_job "${ROOT_DIR}/infra/nomad/jobs/apps/auth-api.nomad.hcl" \
+    -var "domain=${DOMAIN}" \
+    -var "image_tag=${IMAGE_TAG}" \
+    -var "image_repo=${IMAGE_REPO}" \
+    -var "count=1"
+}
+
+deploy_auth_validation_phase() {
+  echo "==> Deploying auth validation slice"
+  submit_auth_api_job
+  submit_nomad_job "${ROOT_DIR}/infra/nomad/jobs/apps/auth-ui.nomad.hcl" \
+    -var "domain=${DOMAIN}" \
+    -var "image_tag=${IMAGE_TAG}" \
+    -var "image_repo=${IMAGE_REPO}" \
+    -var "count=1"
+  wait_for_nomad_jobs auth-api 300 auth-ui 240
+}
+
+deploy_assistant_validation_phase() {
+  echo "==> Deploying assistant validation slice"
+  submit_auth_api_job
+  submit_nomad_job "${ROOT_DIR}/infra/nomad/jobs/apps/assistant-api.nomad.hcl" \
+    -var "domain=${DOMAIN}" \
+    -var "image_tag=${IMAGE_TAG}" \
+    -var "image_repo=${IMAGE_REPO}" \
+    -var "count=1"
+  submit_nomad_job "${ROOT_DIR}/infra/nomad/jobs/apps/assistant-ui.nomad.hcl" \
+    -var "domain=${DOMAIN}" \
+    -var "image_tag=${IMAGE_TAG}" \
+    -var "image_repo=${IMAGE_REPO}" \
+    -var "count=1"
+  wait_for_nomad_jobs auth-api 300 assistant-api 300 assistant-ui 240
+}
+
+deploy_app_validation_phase() {
+  echo "==> Deploying app validation slice"
+  submit_auth_api_job
+  submit_nomad_job "${ROOT_DIR}/infra/nomad/jobs/apps/app-ui.nomad.hcl" \
+    -var "domain=${DOMAIN}" \
+    -var "image_tag=${IMAGE_TAG}" \
+    -var "image_repo=${IMAGE_REPO}" \
+    -var "count=1"
+  wait_for_nomad_jobs auth-api 300 app-ui 240
 }
 
 deploy_apps_phase() {
@@ -130,6 +199,78 @@ deploy_platform_phase() {
       "secrets": ["'"${mail_password}"'"],
       "emails": ["auth@'"${DOMAIN}"'"]
     }' || echo "Warning: failed to seed stalwart account (may already exist)"
+}
+
+deploy_platform_validation_phase() {
+  echo "==> Deploying platform validation slice"
+  submit_auth_api_job
+  prepare_vault_third_pass
+  ensure_vault_unsealed
+  submit_nomad_job "${ROOT_DIR}/infra/nomad/jobs/observability/grafana.nomad.hcl" \
+    -var "domain=${DOMAIN}" \
+    -var "repo_dir=${ROOT_DIR}" \
+    -var "oidc_tls_skip_verify=true"
+  submit_nomad_job "${ROOT_DIR}/infra/nomad/jobs/platform/n8n.nomad.hcl" \
+    -var "domain=${DOMAIN}" \
+    -var "repo_dir=${ROOT_DIR}" \
+    -var "oidc_ca_cert_path=${CERT_DIR}/wildcard.crt"
+  submit_nomad_job "${ROOT_DIR}/infra/nomad/jobs/mail/stalwart.nomad.hcl" \
+    -var "domain=${DOMAIN}"
+  wait_for_nomad_jobs auth-api 300 grafana 300 n8n 300 stalwart 300
+
+  echo "==> Seeding stalwart mail account for auth-api"
+  local admin_user="${STALWART_ADMIN_USER:-admin}"
+  local admin_pass="${STALWART_ADMIN_PASSWORD:-}"
+  local mail_password="${STALWART_MAIL_PASSWORD:-}"
+  [[ -n "${mail_password}" ]] || {
+    echo "  STALWART_MAIL_PASSWORD not set, skipping stalwart account seed"
+    return 0
+  }
+
+  local stalwart_addr
+  stalwart_addr="$(resolve_nomad_service_address stalwart 10 2 || true)"
+  if [[ -z "${stalwart_addr}" || "${stalwart_addr}" == "null:null" ]]; then
+    echo "  Stalwart is healthy but not yet in Nomad service discovery; falling back to 127.0.0.1:8080"
+    stalwart_addr="127.0.0.1:8080"
+  fi
+  curl -sf -u "${admin_user}:${admin_pass}" \
+    "http://${stalwart_addr}/api/principal" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "type": "individual",
+      "name": "auth",
+      "secrets": ["'"${mail_password}"'"],
+      "emails": ["auth@'"${DOMAIN}"'"]
+    }' || echo "Warning: failed to seed stalwart account (may already exist)"
+}
+
+deploy_validation_group() {
+  echo "==> Validation group: ${VALIDATION_GROUP}"
+  deploy_shared_core_phase
+
+  case "${VALIDATION_GROUP}" in
+    auth)
+      deploy_auth_validation_phase
+      ;;
+    assistant)
+      deploy_assistant_validation_phase
+      ;;
+    app)
+      deploy_app_validation_phase
+      ;;
+    platform)
+      deploy_platform_validation_phase
+      ;;
+    full|all)
+      deploy_apps_phase
+      prepare_vault_third_pass
+      deploy_platform_phase
+      ;;
+    *)
+      echo "Unknown NOMAD_VALIDATION_GROUP: ${VALIDATION_GROUP}" >&2
+      exit 1
+      ;;
+  esac
 }
 
 echo "==> Writing CI bootstrap secrets"
@@ -238,23 +379,7 @@ systemctl restart vault
 sleep 2
 ensure_vault_unsealed
 
-deploy_data_phase
-
-echo "==> Preparing Vault (second pass: database + rabbitmq engines)"
-ensure_vault_unsealed
-bash "${ROOT_DIR}/infra/scripts/setup.sh" prepare-vault
-
-deploy_observability_phase
-deploy_edge_phase
-deploy_apps_phase
-
-echo "==> Preparing Vault (third pass: OIDC configuration)"
-ensure_vault_unsealed
-VAULT_PUBLIC_ADDR="https://vault.${DOMAIN}" \
-AUTH_ISSUER="https://auth.${DOMAIN}" \
-  bash "${ROOT_DIR}/infra/scripts/setup.sh" prepare-vault
-
-deploy_platform_phase
+deploy_validation_group
 
 trap - ERR
 echo "==> Nomad CI stack bootstrap complete"

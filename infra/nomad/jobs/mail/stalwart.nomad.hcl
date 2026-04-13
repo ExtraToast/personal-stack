@@ -93,8 +93,9 @@ job "stalwart" {
       }
 
       resources {
-        cpu    = 600
-        memory = 1024
+        cpu        = 1000
+        memory     = 1536
+        memory_max = 2048
       }
     }
   }

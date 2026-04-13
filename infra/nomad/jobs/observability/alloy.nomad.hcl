@@ -58,8 +58,9 @@ job "alloy" {
       }
 
       resources {
-        cpu    = 300
-        memory = 256
+        cpu        = 300
+        memory     = 256
+        memory_max = 384
       }
     }
   }

@@ -120,8 +120,9 @@ job "auth-api" {
       }
 
       resources {
-        cpu    = 800
-        memory = 1280
+        cpu        = 1500
+        memory     = 2048
+        memory_max = 3072
       }
     }
   }

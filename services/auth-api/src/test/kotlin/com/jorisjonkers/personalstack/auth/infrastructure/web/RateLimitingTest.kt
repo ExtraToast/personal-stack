@@ -20,6 +20,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.post
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
+import java.time.Duration
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -62,7 +63,7 @@ class RateLimitingTest {
         sessionLoginMockMvc =
             MockMvcBuilders
                 .standaloneSetup(
-                    SessionLoginController(userRepository, passwordEncoder, totpService),
+                    SessionLoginController(userRepository, passwordEncoder, totpService, Duration.ofDays(30)),
                 ).setControllerAdvice(GlobalExceptionHandler())
                 .build()
     }

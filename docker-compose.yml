@@ -162,6 +162,8 @@ services:
     container_name: personal-stack-grafana
     environment:
       GF_SERVER_ROOT_URL: https://grafana.jorisjonkers.test
+      GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: 'false'
       GF_AUTH_GENERIC_OAUTH_ENABLED: 'true'
       GF_AUTH_GENERIC_OAUTH_NAME: personal-stack
       GF_AUTH_GENERIC_OAUTH_CLIENT_ID: grafana
@@ -178,6 +180,7 @@ services:
       GF_AUTH_GENERIC_OAUTH_AUTO_LOGIN: 'true'
       GF_AUTH_GENERIC_OAUTH_USE_PKCE: 'true'
       GF_AUTH_GENERIC_OAUTH_TLS_SKIP_VERIFY_INSECURE: 'true'
+      GF_PLUGINS_PREINSTALL_DISABLED: 'true'
     volumes:
       - grafana-data:/var/lib/grafana
       - ./infra/observability/grafana/provisioning/datasources/datasources.compose.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
@@ -543,14 +546,13 @@ services:
       VAULT_TOKEN: dev-root-token
       AUTH_ISSUER: https://auth.jorisjonkers.test
       VAULT_OIDC_CLIENT_SECRET: vault-secret
+    volumes:
+      - ./infra/traefik/dynamic-dev/certs/jorisjonkers.test.crt:/tmp/auth.jorisjonkers.test.pem:ro
     entrypoint:
       - sh
       - -ec
       - |
-        apk add --no-cache openssl >/dev/null
         until vault status >/dev/null 2>&1; do sleep 2; done
-        openssl s_client -showcerts -servername auth.jorisjonkers.test -connect auth.jorisjonkers.test:443 </dev/null 2>/dev/null \
-          | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ { print }' > /tmp/auth.jorisjonkers.test.pem
         cat >/tmp/vault-oidc-role.json <<'EOF'
         {
           "bound_audiences": "vault",

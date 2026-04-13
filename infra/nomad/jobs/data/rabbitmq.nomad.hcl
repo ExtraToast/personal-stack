@@ -114,8 +114,9 @@ job "rabbitmq" {
       }
 
       resources {
-        cpu    = 500
-        memory = 384
+        cpu        = 800
+        memory     = 768
+        memory_max = 1024
       }
     }
   }

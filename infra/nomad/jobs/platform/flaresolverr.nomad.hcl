@@ -39,8 +39,9 @@ job "flaresolverr" {
       }
 
       resources {
-        cpu    = 500
-        memory = 1024
+        cpu        = 1000
+        memory     = 1536
+        memory_max = 2048
       }
     }
   }

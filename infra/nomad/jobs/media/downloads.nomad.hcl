@@ -125,8 +125,34 @@ job "downloads" {
       }
 
       resources {
-        cpu    = 200
-        memory = 512
+        cpu        = 400
+        memory     = 768
+        memory_max = 1024
+      }
+    }
+
+    task "tailscale-local-route" {
+      lifecycle {
+        hook = "poststart"
+      }
+
+      driver = "docker"
+
+      config {
+        image   = "busybox:1.37"
+        command = "sh"
+        args = [
+          "-ec",
+          "gw=$(ip route | awk '$1 == \"default\" && $5 == \"eth0\" { print $3; exit }'); [ -n \"$gw\" ]; ip route replace 100.64.0.0/10 via \"$gw\" dev eth0; ip route | grep '^100\\.64\\.0\\.0/10 '",
+        ]
+        cap_add = [
+          "NET_ADMIN",
+        ]
+      }
+
+      resources {
+        cpu    = 100
+        memory = 64
       }
     }
 
@@ -155,8 +181,9 @@ job "downloads" {
       }
 
       resources {
-        cpu    = 500
-        memory = 512
+        cpu        = 1500
+        memory     = 1536
+        memory_max = 2048
       }
     }
 
@@ -179,8 +206,9 @@ job "downloads" {
       }
 
       resources {
-        cpu    = 200
-        memory = 256
+        cpu        = 500
+        memory     = 768
+        memory_max = 1024
       }
     }
   }

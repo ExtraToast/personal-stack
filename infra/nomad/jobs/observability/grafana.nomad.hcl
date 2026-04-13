@@ -79,6 +79,8 @@ job "grafana" {
 
       env {
         GF_SERVER_ROOT_URL                               = "https://grafana.${var.domain}"
+        GF_ANALYTICS_CHECK_FOR_UPDATES                   = "false"
+        GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES            = "false"
         GF_AUTH_GENERIC_OAUTH_ENABLED                    = "true"
         GF_AUTH_GENERIC_OAUTH_NAME                       = "personal-stack"
         GF_AUTH_GENERIC_OAUTH_CLIENT_ID                  = "grafana"
@@ -94,6 +96,7 @@ job "grafana" {
         GF_AUTH_GENERIC_OAUTH_AUTO_LOGIN                 = "true"
         GF_AUTH_GENERIC_OAUTH_USE_PKCE                   = "true"
         GF_AUTH_GENERIC_OAUTH_TLS_SKIP_VERIFY_INSECURE   = var.oidc_tls_skip_verify ? "true" : "false"
+        GF_PLUGINS_PREINSTALL_DISABLED                   = "true"
       }
 
       config {
@@ -112,8 +115,9 @@ job "grafana" {
       }
 
       resources {
-        cpu    = 500
-        memory = 384
+        cpu        = 700
+        memory     = 512
+        memory_max = 768
       }
     }
   }

@@ -12,12 +12,15 @@ import com.jorisjonkers.personalstack.auth.infrastructure.web.dto.SessionLoginRe
 import com.jorisjonkers.personalstack.common.web.GlobalExceptionHandler
 import io.mockk.every
 import io.mockk.mockk
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.http.MediaType
+import org.springframework.mock.web.MockHttpSession
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.post
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
+import java.time.Duration
 import java.util.UUID
 
 class SessionLoginControllerTest {
@@ -45,7 +48,7 @@ class SessionLoginControllerTest {
         mockMvc =
             MockMvcBuilders
                 .standaloneSetup(
-                    SessionLoginController(userRepository, passwordEncoder, totpService),
+                    SessionLoginController(userRepository, passwordEncoder, totpService, Duration.ofDays(30)),
                 ).setControllerAdvice(GlobalExceptionHandler())
                 .build()
     }
@@ -57,15 +60,37 @@ class SessionLoginControllerTest {
 
         val request = SessionLoginRequest(username = "alice", password = "securepass123")
 
-        mockMvc
-            .post("/api/v1/auth/session-login") {
-                contentType = MediaType.APPLICATION_JSON
-                content = objectMapper.writeValueAsString(request)
-            }.andExpect {
-                status { isOk() }
-                jsonPath("$.success") { value(true) }
-                jsonPath("$.totpRequired") { value(false) }
-            }
+        val result =
+            mockMvc
+                .post("/api/v1/auth/session-login") {
+                    contentType = MediaType.APPLICATION_JSON
+                    content = objectMapper.writeValueAsString(request)
+                }.andExpect {
+                    status { isOk() }
+                    jsonPath("$.success") { value(true) }
+                    jsonPath("$.totpRequired") { value(false) }
+                }.andReturn()
+
+        val session = result.request.getSession(false) as MockHttpSession
+        assertThat(session.maxInactiveInterval).isEqualTo(Duration.ofDays(30).seconds.toInt())
+    }
+
+    @Test
+    fun `session login sets session timeout`() {
+        every { userRepository.findCredentialsByUsername("alice") } returns credentials
+        every { passwordEncoder.matches("securepass123", "hashed-password") } returns true
+
+        val request = SessionLoginRequest(username = "alice", password = "securepass123")
+
+        val result =
+            mockMvc
+                .post("/api/v1/auth/session-login") {
+                    contentType = MediaType.APPLICATION_JSON
+                    content = objectMapper.writeValueAsString(request)
+                }.andReturn()
+
+        val session = result.request.getSession(false) as MockHttpSession
+        assertThat(session.maxInactiveInterval).isEqualTo(Duration.ofDays(30).seconds.toInt())
     }
 
     @Test

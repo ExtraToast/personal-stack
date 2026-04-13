@@ -1,0 +1,60 @@
+# CI override for system tests.
+# Usage: bootstrap with .github/scripts/start-system-test-stack.sh
+
+services:
+  # ── Use CI-built images ──────────────────────────────────────────
+  auth-api:
+    image: personal-stack/auth-api:ci
+    pull_policy: never
+    environment:
+      DB_PASSWORD: ci_auth_pass
+      OTEL_TRACES_EXPORTER: none
+      OTEL_EXPORTER_OTLP_ENDPOINT: ''
+
+  assistant-api:
+    image: personal-stack/assistant-api:ci
+    pull_policy: never
+    environment:
+      DB_PASSWORD: ci_assistant_pass
+      OTEL_TRACES_EXPORTER: none
+      OTEL_EXPORTER_OTLP_ENDPOINT: ''
+
+  auth-ui:
+    image: personal-stack/auth-ui:ci
+    pull_policy: never
+
+  assistant-ui:
+    image: personal-stack/assistant-ui:ci
+    pull_policy: never
+
+  app-ui:
+    image: personal-stack/app-ui:ci
+    pull_policy: never
+
+  # ── CI-specific credentials ──────────────────────────────────────
+  postgres:
+    environment:
+      AUTH_DB_PASSWORD: ci_auth_pass
+      ASSISTANT_DB_PASSWORD: ci_assistant_pass
+      N8N_DB_PASSWORD: ci_n8n_pass
+
+  # ── Disable OTEL on traefik (alloy is disabled) ─────────────────
+  traefik:
+    environment:
+      OTEL_TRACES_EXPORTER: none
+
+  # ── Disable services not needed for system tests ─────────────────
+  vault-oidc-init:
+    profiles: [bootstrap]
+  prometheus:
+    profiles: [disabled]
+  loki:
+    profiles: [disabled]
+  alloy:
+    profiles: [disabled]
+  tempo:
+    profiles: [disabled]
+  uptime-kuma:
+    profiles: [disabled]
+  uptime-kuma-init:
+    profiles: [disabled]

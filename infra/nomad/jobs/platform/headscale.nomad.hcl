@@ -44,7 +44,7 @@ job "headscale" {
 
       check {
         type     = "http"
-        path     = "/key"
+        path     = "/health"
         interval = "15s"
         timeout  = "5s"
       }
@@ -83,8 +83,9 @@ job "headscale" {
       }
 
       resources {
-        cpu    = 200
-        memory = 256
+        cpu        = 300
+        memory     = 384
+        memory_max = 512
       }
     }
   }

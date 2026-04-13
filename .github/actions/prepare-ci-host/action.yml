@@ -1,0 +1,27 @@
+name: Prepare CI Host
+description: Download and load CI Docker images, then configure dev DNS.
+
+inputs:
+  artifact-pattern:
+    description: Artifact pattern to download.
+    required: false
+    default: image-*
+  artifact-path:
+    description: Directory where image artifacts are downloaded.
+    required: false
+    default: /tmp/images
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/download-artifact@v8
+      with:
+        pattern: ${{ inputs.artifact-pattern }}
+        path: ${{ inputs.artifact-path }}
+    - shell: bash
+      run: |
+        for tar in "${{ inputs.artifact-path }}"/image-*/*.tar; do
+          docker load -i "$tar"
+        done
+    - shell: bash
+      run: sudo bash infra/scripts/setup-dev-dns.sh
