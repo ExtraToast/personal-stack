@@ -1,5 +1,5 @@
 # CI override for system tests.
-# Usage: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --wait
+# Usage: bootstrap with .github/scripts/start-system-test-stack.sh
 
 services:
   # ── Use CI-built images ──────────────────────────────────────────
@@ -44,6 +44,8 @@ services:
       OTEL_TRACES_EXPORTER: none
 
   # ── Disable services not needed for system tests ─────────────────
+  vault-oidc-init:
+    profiles: [bootstrap]
   prometheus:
     profiles: [disabled]
   loki:
