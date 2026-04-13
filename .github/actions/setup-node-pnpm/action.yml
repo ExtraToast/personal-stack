@@ -1,0 +1,23 @@
+name: Setup Node And PNPM
+description: Configure Node, pnpm, and install workspace dependencies.
+
+inputs:
+  node-version:
+    description: Node.js version to install.
+    required: false
+    default: '24'
+  install-command:
+    description: Command used to install dependencies.
+    required: false
+    default: pnpm install --frozen-lockfile
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v5
+    - uses: actions/setup-node@v6
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: pnpm
+    - shell: bash
+      run: ${{ inputs.install-command }}
