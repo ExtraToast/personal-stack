@@ -1,32 +1,35 @@
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { reactive } from 'vue'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import LoginForm from '../components/LoginForm.vue'
 
 const mockLogin = vi.fn().mockResolvedValue(undefined)
 
-let mockIsLoading = false
-let mockError: string | null = null
-let mockTotpRequired = false
+const mockStoreState = reactive({
+  isLoading: false,
+  error: null as string | null,
+  totpRequired: false,
+})
 
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => ({
     login: mockLogin,
     get isLoading() {
-      return mockIsLoading
+      return mockStoreState.isLoading
     },
     get error() {
-      return mockError
+      return mockStoreState.error
     },
     set error(val: string | null) {
-      mockError = val
+      mockStoreState.error = val
     },
     get totpRequired() {
-      return mockTotpRequired
+      return mockStoreState.totpRequired
     },
     set totpRequired(val: boolean) {
-      mockTotpRequired = val
+      mockStoreState.totpRequired = val
     },
   }),
 }))
@@ -67,9 +70,9 @@ function mountComponent(query: Record<string, string> = {}) {
 
 describe('loginForm', () => {
   beforeEach(() => {
-    mockIsLoading = false
-    mockError = null
-    mockTotpRequired = false
+    mockStoreState.isLoading = false
+    mockStoreState.error = null
+    mockStoreState.totpRequired = false
     mockLogin.mockReset().mockResolvedValue(undefined)
     mockResendConfirmation.mockReset().mockResolvedValue({ message: 'sent' })
     mockSessionLogin.mockReset().mockResolvedValue({ success: true, totpRequired: false })
@@ -94,7 +97,7 @@ describe('loginForm', () => {
   })
 
   it('shows TOTP input when totpRequired is true', async () => {
-    mockTotpRequired = true
+    mockStoreState.totpRequired = true
     const wrapper = mountComponent()
     await wrapper.vm.$nextTick()
     expect(wrapper.find('#totp-code').exists()).toBe(true)
@@ -102,7 +105,7 @@ describe('loginForm', () => {
   })
 
   it('tOTP input validates 6-digit code', async () => {
-    mockTotpRequired = true
+    mockStoreState.totpRequired = true
     const wrapper = mountComponent()
     await wrapper.vm.$nextTick()
     const input = wrapper.find('#totp-code')
@@ -151,7 +154,7 @@ describe('loginForm', () => {
   })
 
   it('shows loading state during login', () => {
-    mockIsLoading = true
+    mockStoreState.isLoading = true
     const wrapper = mountComponent()
     const button = wrapper.find('button[type="submit"]')
     expect(button.text()).toContain('Verifying')
@@ -159,28 +162,28 @@ describe('loginForm', () => {
   })
 
   it('shows error message on login failure', async () => {
-    mockError = 'Invalid credentials'
+    mockStoreState.error = 'Invalid credentials'
     const wrapper = mountComponent()
     await wrapper.vm.$nextTick()
     expect(wrapper.text()).toContain('Invalid credentials')
   })
 
   it('submit button is disabled during loading', () => {
-    mockIsLoading = true
+    mockStoreState.isLoading = true
     const wrapper = mountComponent()
     const button = wrapper.find('button[type="submit"]')
     expect(button.attributes('disabled')).toBeDefined()
   })
 
   it('shows resend confirmation section when email not confirmed', async () => {
-    mockError = 'Your email has not been confirmed'
+    mockStoreState.error = 'Your email has not been confirmed'
     const wrapper = mountComponent()
     await wrapper.vm.$nextTick()
     expect(wrapper.text()).toContain('new confirmation link')
   })
 
   it('resend confirmation success shows message', async () => {
-    mockError = 'Your email has not been confirmed'
+    mockStoreState.error = 'Your email has not been confirmed'
     mockResendConfirmation.mockResolvedValue({ message: 'sent' })
     const wrapper = mountComponent()
     await wrapper.vm.$nextTick()
@@ -196,7 +199,7 @@ describe('loginForm', () => {
   })
 
   it('resend confirmation error shows message', async () => {
-    mockError = 'Your email has not been confirmed'
+    mockStoreState.error = 'Your email has not been confirmed'
     mockResendConfirmation.mockRejectedValue(new Error('fail'))
     const wrapper = mountComponent()
     await wrapper.vm.$nextTick()
@@ -219,7 +222,7 @@ describe('loginForm', () => {
   })
 
   it('tOTP form submission calls authStore.login with TOTP code', async () => {
-    mockTotpRequired = true
+    mockStoreState.totpRequired = true
     const wrapper = mountComponent()
     await wrapper.vm.$nextTick()
 
@@ -251,7 +254,7 @@ describe('loginForm', () => {
   })
 
   it('error messages display from store', () => {
-    mockError = 'Something went wrong'
+    mockStoreState.error = 'Something went wrong'
     const wrapper = mountComponent()
     expect(wrapper.text()).toContain('Something went wrong')
   })
@@ -261,5 +264,49 @@ describe('loginForm', () => {
     const link = wrapper.find('a[href*="register"]')
     expect(link.exists()).toBe(true)
     expect(link.attributes('href')).toContain('/register')
+  })
+
+  it('focuses the totp input when the challenge is already active', async () => {
+    mockStoreState.totpRequired = true
+    const router = createTestRouter()
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    await router.push({ path: '/login' })
+    await router.isReady()
+
+    const wrapper = mount(LoginForm, {
+      attachTo: document.body,
+      global: { plugins: [pinia, router] },
+    })
+
+    await vi.waitFor(() => {
+      expect(wrapper.find('#totp-code').element as HTMLInputElement).toBe(document.activeElement)
+    })
+
+    wrapper.unmount()
+  })
+
+  it('focuses the totp input after an OAuth2 login challenge response', async () => {
+    const router = createTestRouter()
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    await router.push({ path: '/login', query: { redirect: '/api/oauth2/authorize?client_id=x' } })
+    await router.isReady()
+    mockSessionLogin.mockResolvedValue({ success: true, totpRequired: true })
+
+    const wrapper = mount(LoginForm, {
+      attachTo: document.body,
+      global: { plugins: [pinia, router] },
+    })
+
+    await wrapper.find('#username').setValue('alice')
+    await wrapper.find('#password').setValue('secret')
+    await wrapper.find('form').trigger('submit')
+
+    await vi.waitFor(() => {
+      expect(wrapper.find('#totp-code').element as HTMLInputElement).toBe(document.activeElement)
+    })
+
+    wrapper.unmount()
   })
 })

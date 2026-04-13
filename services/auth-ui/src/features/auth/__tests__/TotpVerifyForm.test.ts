@@ -7,6 +7,15 @@ function mountComponent() {
 }
 
 describe('totpVerifyForm', () => {
+  it('focuses the code input on mount', async () => {
+    const wrapper = mount(TotpVerifyForm, { attachTo: document.body })
+
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('#totp-code').element as HTMLInputElement).toBe(document.activeElement)
+    wrapper.unmount()
+  })
+
   it('input accepts numeric characters', () => {
     const wrapper = mountComponent()
     const input = wrapper.find('#totp-code')
