@@ -83,9 +83,28 @@ jobs:
           - name: api
             gradle_task: :services:system-tests:testNonPlaywright
             install_playwright: false
-          - name: playwright
+            shard_index: ''
+            shard_count: ''
+          - name: playwright-1
             gradle_task: :services:system-tests:testPlaywright
             install_playwright: true
+            shard_index: '1'
+            shard_count: '4'
+          - name: playwright-2
+            gradle_task: :services:system-tests:testPlaywright
+            install_playwright: true
+            shard_index: '2'
+            shard_count: '4'
+          - name: playwright-3
+            gradle_task: :services:system-tests:testPlaywright
+            install_playwright: true
+            shard_index: '3'
+            shard_count: '4'
+          - name: playwright-4
+            gradle_task: :services:system-tests:testPlaywright
+            install_playwright: true
+            shard_index: '4'
+            shard_count: '4'
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-java@v5
@@ -122,6 +141,8 @@ jobs:
           -Dtest.auth-api.url=https://auth.jorisjonkers.test
           -Dtest.assistant-api.url=https://assistant.jorisjonkers.test
           -Dtest.db.password=ci_auth_pass
+          -Dtest.shard.index=${{ matrix.suite.shard_index }}
+          -Dtest.shard.count=${{ matrix.suite.shard_count }}
       - name: Dump diagnostics on failure
         if: always() && (failure() || cancelled() || steps.run-tests.outcome == 'failure')
         run: bash .github/scripts/dump-compose-ci-diagnostics.sh
