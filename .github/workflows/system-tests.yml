@@ -82,23 +82,18 @@ jobs:
         suite:
           - name: api
             gradle_task: :services:system-tests:testNonPlaywright
-            install_playwright: false
             shard_args: ''
           - name: playwright-1
             gradle_task: :services:system-tests:testPlaywright
-            install_playwright: true
             shard_args: -Dtest.shard.index=1 -Dtest.shard.count=4
           - name: playwright-2
             gradle_task: :services:system-tests:testPlaywright
-            install_playwright: true
             shard_args: -Dtest.shard.index=2 -Dtest.shard.count=4
           - name: playwright-3
             gradle_task: :services:system-tests:testPlaywright
-            install_playwright: true
             shard_args: -Dtest.shard.index=3 -Dtest.shard.count=4
           - name: playwright-4
             gradle_task: :services:system-tests:testPlaywright
-            install_playwright: true
             shard_args: -Dtest.shard.index=4 -Dtest.shard.count=4
     steps:
       - uses: actions/checkout@v6
@@ -115,9 +110,6 @@ jobs:
         run: bash .github/scripts/verify-system-test-migrations.sh
       - name: Wait for Traefik routes to stabilize
         run: bash .github/scripts/wait-for-system-test-routes.sh
-      - name: Install Playwright browsers
-        if: ${{ matrix.suite.install_playwright }}
-        run: npx playwright install --with-deps chromium
       - name: Run system tests
         id: run-tests
         continue-on-error: ${{ !inputs.fail-fast }}

@@ -34,10 +34,7 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
         servicePage.waitForTimeout(5000.0)
         try {
             waitForServicePageToSettle(servicePage)
-            servicePage.locator("select").selectOption("oidc")
-            servicePage.locator("button:has-text('Sign in with OIDC Provider')").click()
-            servicePage.waitForTimeout(MAX_PLAYWRIGHT_TIMEOUT_MS)
-            waitForServicePageToSettle(servicePage)
+            completeVaultOidcLogin(servicePage)
 
             val currentUrl = servicePage.url()
             assertThatValue(currentUrl)
@@ -473,6 +470,31 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
         )
         page.waitForLoadState()
         page.waitForTimeout(2000.0)
+    }
+
+    private fun completeVaultOidcLogin(servicePage: Page) {
+        servicePage.waitForFunction(
+            """
+            () => {
+              const hasAuthMethodSelect = !!document.querySelector('select');
+              const hasOidcButton = [...document.querySelectorAll('button')]
+                .some((button) => (button.textContent || '').includes('Sign in with OIDC Provider'));
+              return hasAuthMethodSelect || hasOidcButton;
+            }
+            """.trimIndent(),
+            null,
+            Page.WaitForFunctionOptions().setTimeout(MAX_PLAYWRIGHT_TIMEOUT_MS),
+        )
+
+        val authMethodSelect = servicePage.locator("select").first()
+        if (authMethodSelect.count() > 0 && authMethodSelect.isVisible()) {
+            authMethodSelect.selectOption("oidc")
+        }
+
+        val oidcButton = servicePage.locator("button:has-text('Sign in with OIDC Provider')").first()
+        assertThat(oidcButton).isVisible()
+        oidcButton.click()
+        waitForServicePageToSettle(servicePage)
     }
 
     private fun waitForServicePageToSettle(servicePage: Page) {
