@@ -93,7 +93,7 @@ job "assistant-ui" {
       }
 
       resources {
-        cpu    = 200
+        cpu        = 200
         memory     = 128
         memory_max = 192
       }
