@@ -22,5 +22,8 @@ tasks.test {
     useJUnitPlatform {
         includeTags("system")
     }
+    gradle.startParameter.systemPropertiesArgs
+        .filterKeys { it.startsWith("test.") }
+        .forEach(::systemProperty)
     outputs.upToDateWhen { false }
 }

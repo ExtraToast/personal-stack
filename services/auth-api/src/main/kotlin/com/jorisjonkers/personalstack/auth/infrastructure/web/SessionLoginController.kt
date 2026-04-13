@@ -13,6 +13,7 @@ import com.jorisjonkers.personalstack.auth.infrastructure.web.dto.SessionLoginRe
 import com.jorisjonkers.personalstack.auth.infrastructure.web.dto.SessionUserResponse
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.ResponseEntity
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.context.SecurityContextHolder
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import java.time.Duration
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -28,6 +30,8 @@ class SessionLoginController(
     private val userRepository: UserRepository,
     private val passwordEncoder: PasswordEncoder,
     private val totpService: TotpService,
+    @param:Value("\${session.timeout:30d}")
+    private val sessionTimeout: Duration,
 ) {
     @PostMapping("/session-login")
     fun sessionLogin(
@@ -101,6 +105,7 @@ class SessionLoginController(
         SecurityContextHolder.setContext(context)
 
         val session = httpRequest.getSession(true)
+        session.maxInactiveInterval = sessionTimeout.seconds.toInt()
         session.setAttribute(
             HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
             context,
