@@ -1,3 +1,6 @@
+session:
+  timeout: ${SESSION_TIMEOUT:30d}
+
 spring:
   application:
     name: auth-api
@@ -58,6 +61,9 @@ auth:
 
 server:
   port: 8081
+  servlet:
+    session:
+      timeout: ${SESSION_TIMEOUT:30d}
 
 management:
   endpoints:

@@ -5,6 +5,7 @@ import com.jorisjonkers.personalstack.auth.infrastructure.security.Authenticated
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
+import org.springframework.mock.web.MockHttpSession
 import java.util.UUID
 
 class AuthVerificationControllerTest {
@@ -25,28 +26,33 @@ class AuthVerificationControllerTest {
     @Test
     fun `verify returns 200 with user headers for valid session`() {
         val user = buildUserWithUuid(roles = listOf("ROLE_USER", "SERVICE_VAULT"))
+        val session = MockHttpSession()
 
-        val response = controller.verify(user, "vault.jorisjonkers.dev")
+        val response = controller.verify(user, session, "vault.jorisjonkers.dev")
 
         assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
         assertThat(response.headers["X-User-Id"]).containsExactly(defaultUserId.toString())
         assertThat(response.headers["X-User-Roles"]).containsExactly("ROLE_USER,SERVICE_VAULT")
+        assertThat(session.getAttribute(AuthVerificationController.LAST_VERIFIED_AT_SESSION_KEY)).isNotNull()
     }
 
     @Test
     fun `verify returns 403 when USER lacks service permission`() {
         val user = buildUserWithUuid(roles = listOf("ROLE_USER"))
+        val session = MockHttpSession()
 
-        val response = controller.verify(user, "vault.jorisjonkers.dev")
+        val response = controller.verify(user, session, "vault.jorisjonkers.dev")
 
         assertThat(response.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+        assertThat(session.getAttribute(AuthVerificationController.LAST_VERIFIED_AT_SESSION_KEY)).isNotNull()
     }
 
     @Test
     fun `verify returns 200 for ADMIN regardless of service`() {
         val user = buildUserWithUuid(roles = listOf("ROLE_ADMIN"))
+        val session = MockHttpSession()
 
-        val response = controller.verify(user, "nomad.jorisjonkers.dev")
+        val response = controller.verify(user, session, "nomad.jorisjonkers.dev")
 
         assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
     }
@@ -54,8 +60,9 @@ class AuthVerificationControllerTest {
     @Test
     fun `verify returns 200 when USER has nomad service permission`() {
         val user = buildUserWithUuid(roles = listOf("ROLE_USER", "SERVICE_NOMAD"))
+        val session = MockHttpSession()
 
-        val response = controller.verify(user, "nomad.jorisjonkers.dev")
+        val response = controller.verify(user, session, "nomad.jorisjonkers.dev")
 
         assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
     }
@@ -63,8 +70,9 @@ class AuthVerificationControllerTest {
     @Test
     fun `verify returns 200 when no X-Forwarded-Host present`() {
         val user = buildUserWithUuid(roles = listOf("ROLE_USER"))
+        val session = MockHttpSession()
 
-        val response = controller.verify(user, null)
+        val response = controller.verify(user, session, null)
 
         assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
     }
@@ -73,8 +81,9 @@ class AuthVerificationControllerTest {
     fun `verify propagates X-User-Id from session principal`() {
         val id = UUID.randomUUID()
         val user = buildUserWithUuid(id = id)
+        val session = MockHttpSession()
 
-        val response = controller.verify(user, null)
+        val response = controller.verify(user, session, null)
 
         assertThat(response.headers["X-User-Id"]).containsExactly(id.toString())
     }
@@ -82,8 +91,9 @@ class AuthVerificationControllerTest {
     @Test
     fun `verify propagates X-User-Roles header`() {
         val user = buildUserWithUuid(roles = listOf("ROLE_USER", "SERVICE_MAIL"))
+        val session = MockHttpSession()
 
-        val response = controller.verify(user, null)
+        val response = controller.verify(user, session, null)
 
         assertThat(response.headers["X-User-Roles"]).containsExactly("ROLE_USER,SERVICE_MAIL")
     }
@@ -91,8 +101,9 @@ class AuthVerificationControllerTest {
     @Test
     fun `verify with multiple roles joins them with comma`() {
         val user = buildUserWithUuid(roles = listOf("ROLE_USER", "SERVICE_VAULT", "SERVICE_GRAFANA"))
+        val session = MockHttpSession()
 
-        val response = controller.verify(user, null)
+        val response = controller.verify(user, session, null)
 
         assertThat(response.headers["X-User-Roles"])
             .containsExactly("ROLE_USER,SERVICE_VAULT,SERVICE_GRAFANA")
@@ -101,8 +112,9 @@ class AuthVerificationControllerTest {
     @Test
     fun `unknown subdomain host passes through without permission check`() {
         val user = buildUserWithUuid(roles = listOf("ROLE_USER"))
+        val session = MockHttpSession()
 
-        val response = controller.verify(user, "unknown-service.jorisjonkers.dev")
+        val response = controller.verify(user, session, "unknown-service.jorisjonkers.dev")
 
         assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
     }

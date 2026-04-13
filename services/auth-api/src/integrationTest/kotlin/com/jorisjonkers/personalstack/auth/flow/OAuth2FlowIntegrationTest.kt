@@ -4,6 +4,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.jorisjonkers.personalstack.auth.IntegrationTestBase
 import com.jorisjonkers.personalstack.auth.domain.model.ServicePermission
 import com.jorisjonkers.personalstack.auth.domain.service.TotpService
+import com.jorisjonkers.personalstack.auth.infrastructure.web.AuthVerificationController
 import com.jorisjonkers.personalstack.auth.jooq.tables.AppUser.APP_USER
 import com.jorisjonkers.personalstack.auth.jooq.tables.EmailConfirmationToken.EMAIL_CONFIRMATION_TOKEN
 import com.jorisjonkers.personalstack.auth.jooq.tables.UserServicePermissions.USER_SERVICE_PERMISSIONS
@@ -40,6 +41,7 @@ import java.security.SecureRandom
 import java.util.Base64
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import java.time.Duration
 
 class OAuth2FlowIntegrationTest : IntegrationTestBase() {
     @Autowired
@@ -260,9 +262,30 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
         assertThat(json["success"].asBoolean()).isTrue()
         val session = extractSession(result)
         assertThat(session).isNotNull()
+        assertThat(session!!.maxInactiveInterval).isEqualTo(Duration.ofDays(30).seconds.toInt())
         // Verify SecurityContext is stored in the session
-        val securityContext = session!!.getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY)
+        val securityContext = session.getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY)
         assertThat(securityContext).isNotNull()
+    }
+
+    @Test
+    fun `verify endpoint touches existing session to extend its lifetime`() {
+        val username = uniqueUsername()
+        val password = "securepass123"
+        registerAndConfirmUser(username, password)
+
+        val loginResult = doSessionLogin(username, password)
+        val session = extractSession(loginResult)!!
+        assertThat(session.getAttribute(AuthVerificationController.LAST_VERIFIED_AT_SESSION_KEY)).isNull()
+
+        mockMvc
+            .get("/api/v1/auth/verify") {
+                this.session = session
+            }.andExpect {
+                status { isOk() }
+            }
+
+        assertThat(session.getAttribute(AuthVerificationController.LAST_VERIFIED_AT_SESSION_KEY)).isNotNull()
     }
 
     @Test
