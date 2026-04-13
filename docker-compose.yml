@@ -162,6 +162,8 @@ services:
     container_name: personal-stack-grafana
     environment:
       GF_SERVER_ROOT_URL: https://grafana.jorisjonkers.test
+      GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: 'false'
       GF_AUTH_GENERIC_OAUTH_ENABLED: 'true'
       GF_AUTH_GENERIC_OAUTH_NAME: personal-stack
       GF_AUTH_GENERIC_OAUTH_CLIENT_ID: grafana
@@ -178,6 +180,7 @@ services:
       GF_AUTH_GENERIC_OAUTH_AUTO_LOGIN: 'true'
       GF_AUTH_GENERIC_OAUTH_USE_PKCE: 'true'
       GF_AUTH_GENERIC_OAUTH_TLS_SKIP_VERIFY_INSECURE: 'true'
+      GF_PLUGINS_PREINSTALL_DISABLED: 'true'
     volumes:
       - grafana-data:/var/lib/grafana
       - ./infra/observability/grafana/provisioning/datasources/datasources.compose.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
