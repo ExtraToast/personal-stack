@@ -116,9 +116,21 @@ jobs:
         run: bash .github/scripts/dump-compose-ci-diagnostics.sh
 
   validate-health:
-    name: Nomad Health Validation
+    name: Nomad Health (${{ matrix.group.name }})
     runs-on: ubuntu-latest
     needs: [build-images]
+    strategy:
+      fail-fast: false
+      matrix:
+        group:
+          - name: auth
+            validation_group: auth
+          - name: assistant
+            validation_group: assistant
+          - name: app
+            validation_group: app
+          - name: platform
+            validation_group: platform
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
@@ -146,7 +158,7 @@ jobs:
         run: sudo bash infra/scripts/setup-dev-dns.sh
       - name: Bootstrap Nomad stack
         timeout-minutes: 12
-        run: sudo bash .github/scripts/bootstrap-nomad-ci.sh
+        run: sudo env NOMAD_VALIDATION_GROUP=${{ matrix.group.validation_group }} bash .github/scripts/bootstrap-nomad-ci.sh
         env:
           STACK_DIR: ${{ github.workspace }}
       - name: Save HashiCorp binaries to cache
