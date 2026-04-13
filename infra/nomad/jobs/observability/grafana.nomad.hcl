@@ -112,9 +112,9 @@ job "grafana" {
       }
 
       resources {
-        cpu        = 500
-        memory     = 384
-        memory_max = 512
+        cpu        = 700
+        memory     = 512
+        memory_max = 768
       }
     }
   }

@@ -61,9 +61,9 @@ job "tempo" {
       }
 
       resources {
-        cpu        = 400
-        memory     = 1024
-        memory_max = 1280
+        cpu        = 800
+        memory     = 1536
+        memory_max = 2048
       }
     }
   }

@@ -116,9 +116,9 @@ job "assistant-api" {
       }
 
       resources {
-        cpu        = 800
-        memory     = 1280
-        memory_max = 1536
+        cpu        = 1200
+        memory     = 1792
+        memory_max = 2304
       }
     }
   }

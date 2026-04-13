@@ -62,9 +62,9 @@ job "uptime-kuma" {
       }
 
       resources {
-        cpu        = 300
-        memory     = 256
-        memory_max = 384
+        cpu        = 400
+        memory     = 384
+        memory_max = 512
       }
     }
   }
