@@ -23,3 +23,4 @@ check_route assistant-api "https://assistant.jorisjonkers.test/api/actuator/heal
 check_route app-ui        "https://jorisjonkers.test/"
 check_route auth-ui       "https://auth.jorisjonkers.test/"
 check_route assistant-ui  "https://assistant.jorisjonkers.test/"
+check_route vault         "https://vault.jorisjonkers.test/ui/"

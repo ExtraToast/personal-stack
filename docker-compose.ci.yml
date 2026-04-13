@@ -44,10 +44,6 @@ services:
       OTEL_TRACES_EXPORTER: none
 
   # ── Disable services not needed for system tests ─────────────────
-  vault:
-    profiles: [disabled]
-  vault-oidc-init:
-    profiles: [disabled]
   prometheus:
     profiles: [disabled]
   loki:

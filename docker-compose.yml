@@ -543,14 +543,13 @@ services:
       VAULT_TOKEN: dev-root-token
       AUTH_ISSUER: https://auth.jorisjonkers.test
       VAULT_OIDC_CLIENT_SECRET: vault-secret
+    volumes:
+      - ./infra/traefik/dynamic-dev/certs/jorisjonkers.test.crt:/tmp/auth.jorisjonkers.test.pem:ro
     entrypoint:
       - sh
       - -ec
       - |
-        apk add --no-cache openssl >/dev/null
         until vault status >/dev/null 2>&1; do sleep 2; done
-        openssl s_client -showcerts -servername auth.jorisjonkers.test -connect auth.jorisjonkers.test:443 </dev/null 2>/dev/null \
-          | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ { print }' > /tmp/auth.jorisjonkers.test.pem
         cat >/tmp/vault-oidc-role.json <<'EOF'
         {
           "bound_audiences": "vault",
