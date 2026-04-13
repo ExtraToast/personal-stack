@@ -5,7 +5,7 @@ services:
   # ── Use CI-built images ──────────────────────────────────────────
   auth-api:
     image: personal-stack/auth-api:ci
-    build: !reset null
+    pull_policy: never
     environment:
       DB_PASSWORD: ci_auth_pass
       OTEL_TRACES_EXPORTER: none
@@ -13,7 +13,7 @@ services:
 
   assistant-api:
     image: personal-stack/assistant-api:ci
-    build: !reset null
+    pull_policy: never
     environment:
       DB_PASSWORD: ci_assistant_pass
       OTEL_TRACES_EXPORTER: none
@@ -21,15 +21,15 @@ services:
 
   auth-ui:
     image: personal-stack/auth-ui:ci
-    build: !reset null
+    pull_policy: never
 
   assistant-ui:
     image: personal-stack/assistant-ui:ci
-    build: !reset null
+    pull_policy: never
 
   app-ui:
     image: personal-stack/app-ui:ci
-    build: !reset null
+    pull_policy: never
 
   # ── CI-specific credentials ──────────────────────────────────────
   postgres:
