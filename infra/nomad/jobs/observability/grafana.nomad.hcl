@@ -79,8 +79,8 @@ job "grafana" {
 
       env {
         GF_SERVER_ROOT_URL                               = "https://grafana.${var.domain}"
-        GF_ANALYTICS_CHECK_FOR_UPDATES                  = "false"
-        GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES           = "false"
+        GF_ANALYTICS_CHECK_FOR_UPDATES                   = "false"
+        GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES            = "false"
         GF_AUTH_GENERIC_OAUTH_ENABLED                    = "true"
         GF_AUTH_GENERIC_OAUTH_NAME                       = "personal-stack"
         GF_AUTH_GENERIC_OAUTH_CLIENT_ID                  = "grafana"
