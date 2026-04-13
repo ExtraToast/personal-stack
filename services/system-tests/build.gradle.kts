@@ -5,6 +5,7 @@ plugins {
     id("test-logging-conventions")
 }
 
+import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.testing.Test
 
 dependencies {
@@ -20,7 +21,11 @@ dependencies {
     testImplementation("com.microsoft.playwright:playwright:1.52.0")
 }
 
+val testSourceSet = extensions.getByType(SourceSetContainer::class.java).getByName("test")
+
 fun Test.configureSystemTestTask() {
+    testClassesDirs = testSourceSet.output.classesDirs
+    classpath = testSourceSet.runtimeClasspath
     useJUnitPlatform {
         includeTags("system")
     }
