@@ -8,7 +8,7 @@ job "jellyfin" {
   type        = "service"
 
   update {
-    max_parallel      = 1
+    max_parallel      = 0
     min_healthy_time  = "10s"
     healthy_deadline  = "15m"
     progress_deadline = "20m"
