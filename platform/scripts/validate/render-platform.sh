@@ -15,8 +15,14 @@ require_command nix
 require_command kustomize
 require_command helm
 require_command kubeconform
+require_command git
 
 nix flake check "${repo_root}/platform"
+"${repo_root}/platform/scripts/render/render-edge-catalog-configmap.sh"
+(
+  cd "${repo_root}"
+  git diff --exit-code -- platform/cluster/flux/apps/edge/edge-catalog-configmap.yaml
+)
 # Delegates manifest validation to render-flux.sh, which runs:
 # - kustomize build
 # - helm template
