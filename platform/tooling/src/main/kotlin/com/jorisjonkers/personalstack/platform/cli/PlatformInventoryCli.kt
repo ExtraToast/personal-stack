@@ -165,8 +165,7 @@ private fun PlatformFleet.toEdgeCatalog(): EdgeCatalog {
                             exposure == "internal_only" -> "cluster_internal"
                             else -> "direct"
                         },
-                    productionHost = accessIntent.hostLabels[serviceName]?.toFqdn(cluster.publicDomain),
-                    testHost = accessIntent.hostLabels[serviceName]?.toFqdn(cluster.testDomain),
+                    host = accessIntent.hostLabels[serviceName]?.toFqdn(cluster.publicDomain),
                 )
             }
 
@@ -187,7 +186,7 @@ private fun PlatformFleet.toEdgeConfigMapYaml(yamlMapper: ObjectMapper): String 
 private fun PlatformFleet.toEdgeRouteCatalog(): EdgeRouteCatalog {
     val externalServices =
         toEdgeCatalog().services
-            .filter { it.productionHost != null && it.testHost != null }
+            .filter { it.host != null }
             .associateBy { it.name }
 
     val routes =
@@ -299,8 +298,7 @@ private fun EdgeServiceCatalogEntry.toRoute(
     EdgeRouteCatalogEntry(
         name = name,
         service = this.name,
-        productionHost = this.productionHost ?: error("route $name requires a production host"),
-        testHost = this.testHost ?: error("route $name requires a test host"),
+        host = this.host ?: error("route $name requires a host"),
         access = access,
         pathPrefixes = pathPrefixes,
         exactPaths = exactPaths,
@@ -317,10 +315,7 @@ private data class EdgeServiceCatalogEntry(
     val name: String,
     val exposure: String,
     val access: String,
-    @param:com.fasterxml.jackson.annotation.JsonProperty("production_host")
-    val productionHost: String? = null,
-    @param:com.fasterxml.jackson.annotation.JsonProperty("test_host")
-    val testHost: String? = null,
+    val host: String? = null,
 )
 
 private fun String.toFqdn(domain: String): String =
@@ -376,7 +371,7 @@ private fun EdgeRouteCatalogEntry.toIngressRouteYaml(backend: KubernetesIngressB
     }.trimEnd()
 
 private fun EdgeRouteCatalogEntry.toTraefikMatch(): String {
-    val hostMatch = "(Host(`${productionHost}`) || Host(`${testHost}`))"
+    val hostMatch = "Host(`${host}`)"
     val positivePredicates =
         buildList {
             pathPrefixes?.forEach { add("PathPrefix(`${it}`)") }
@@ -416,10 +411,7 @@ private data class EdgeRouteCatalog(
 private data class EdgeRouteCatalogEntry(
     val name: String,
     val service: String,
-    @param:com.fasterxml.jackson.annotation.JsonProperty("production_host")
-    val productionHost: String,
-    @param:com.fasterxml.jackson.annotation.JsonProperty("test_host")
-    val testHost: String,
+    val host: String,
     val access: String,
     @param:com.fasterxml.jackson.annotation.JsonProperty("path_prefixes")
     val pathPrefixes: List<String>? = null,

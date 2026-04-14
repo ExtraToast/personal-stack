@@ -8,7 +8,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: '(Host(`jorisjonkers.dev`) || Host(`jorisjonkers.test`))'
+      match: 'Host(`jorisjonkers.dev`)'
       services:
         - name: app-ui
           namespace: app-system
@@ -25,7 +25,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: '(Host(`assistant.jorisjonkers.dev`) || Host(`assistant.jorisjonkers.test`)) && PathPrefix(`/api/`) && !PathPrefix(`/api/actuator/health/`) && !Path(`/api/actuator/health`) && !Path(`/api/v1/health`)'
+      match: 'Host(`assistant.jorisjonkers.dev`) && PathPrefix(`/api/`) && !PathPrefix(`/api/actuator/health/`) && !Path(`/api/actuator/health`) && !Path(`/api/v1/health`)'
       middlewares:
         - name: forward-auth
           namespace: edge-system
@@ -45,7 +45,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: '(Host(`assistant.jorisjonkers.dev`) || Host(`assistant.jorisjonkers.test`)) && (PathPrefix(`/api/actuator/health/`) || Path(`/api/actuator/health`) || Path(`/api/v1/health`))'
+      match: 'Host(`assistant.jorisjonkers.dev`) && (PathPrefix(`/api/actuator/health/`) || Path(`/api/actuator/health`) || Path(`/api/v1/health`))'
       services:
         - name: assistant-api
           namespace: assistant-system
@@ -62,7 +62,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: '(Host(`assistant.jorisjonkers.dev`) || Host(`assistant.jorisjonkers.test`)) && !PathPrefix(`/api/`)'
+      match: 'Host(`assistant.jorisjonkers.dev`) && !PathPrefix(`/api/`)'
       services:
         - name: assistant-ui
           namespace: assistant-system
@@ -79,7 +79,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: '(Host(`auth.jorisjonkers.dev`) || Host(`auth.jorisjonkers.test`)) && PathPrefix(`/api/`)'
+      match: 'Host(`auth.jorisjonkers.dev`) && PathPrefix(`/api/`)'
       services:
         - name: auth-api
           namespace: auth-system
@@ -96,7 +96,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: '(Host(`auth.jorisjonkers.dev`) || Host(`auth.jorisjonkers.test`)) && PathPrefix(`/.well-known/`)'
+      match: 'Host(`auth.jorisjonkers.dev`) && PathPrefix(`/.well-known/`)'
       services:
         - name: auth-api
           namespace: auth-system
@@ -113,7 +113,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: '(Host(`auth.jorisjonkers.dev`) || Host(`auth.jorisjonkers.test`)) && !PathPrefix(`/api/`) && !PathPrefix(`/.well-known/`)'
+      match: 'Host(`auth.jorisjonkers.dev`) && !PathPrefix(`/api/`) && !PathPrefix(`/.well-known/`)'
       services:
         - name: auth-ui
           namespace: auth-system
@@ -130,7 +130,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: '(Host(`grafana.jorisjonkers.dev`) || Host(`grafana.jorisjonkers.test`))'
+      match: 'Host(`grafana.jorisjonkers.dev`)'
       services:
         - name: grafana
           namespace: observability
@@ -147,7 +147,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: '(Host(`jellyfin.jorisjonkers.dev`) || Host(`jellyfin.jorisjonkers.test`))'
+      match: 'Host(`jellyfin.jorisjonkers.dev`)'
       services:
         - name: jellyfin
           namespace: media-system
@@ -164,7 +164,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: '(Host(`n8n.jorisjonkers.dev`) || Host(`n8n.jorisjonkers.test`))'
+      match: 'Host(`n8n.jorisjonkers.dev`)'
       services:
         - name: n8n
           namespace: automation-system
@@ -181,7 +181,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: '(Host(`rabbitmq.jorisjonkers.dev`) || Host(`rabbitmq.jorisjonkers.test`))'
+      match: 'Host(`rabbitmq.jorisjonkers.dev`)'
       middlewares:
         - name: forward-auth
           namespace: edge-system
@@ -201,7 +201,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: '(Host(`radarr.jorisjonkers.dev`) || Host(`radarr.jorisjonkers.test`))'
+      match: 'Host(`radarr.jorisjonkers.dev`)'
       services:
         - name: radarr
           namespace: media-system
@@ -218,7 +218,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: '(Host(`sonarr.jorisjonkers.dev`) || Host(`sonarr.jorisjonkers.test`))'
+      match: 'Host(`sonarr.jorisjonkers.dev`)'
       services:
         - name: sonarr
           namespace: media-system
@@ -235,7 +235,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: '(Host(`status.jorisjonkers.dev`) || Host(`status.jorisjonkers.test`))'
+      match: 'Host(`status.jorisjonkers.dev`)'
       services:
         - name: uptime-kuma
           namespace: observability
@@ -252,7 +252,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: '(Host(`vault.jorisjonkers.dev`) || Host(`vault.jorisjonkers.test`))'
+      match: 'Host(`vault.jorisjonkers.dev`)'
       middlewares:
         - name: forward-auth
           namespace: edge-system

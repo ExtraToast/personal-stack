@@ -3,7 +3,6 @@ version: 1
 cluster:
   name: personal-stack
   public_domain: jorisjonkers.dev
-  test_domain: jorisjonkers.test
 
 sites:
   frankfurt:

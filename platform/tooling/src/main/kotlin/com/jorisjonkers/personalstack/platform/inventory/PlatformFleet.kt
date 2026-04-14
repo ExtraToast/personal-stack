@@ -23,8 +23,6 @@ data class ClusterInfo(
     val name: String,
     @param:JsonProperty("public_domain")
     val publicDomain: String,
-    @param:JsonProperty("test_domain")
-    val testDomain: String,
 )
 
 data class SiteInfo(
