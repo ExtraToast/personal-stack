@@ -2,10 +2,9 @@
 {
   imports = [
     ../../profiles/worker.nix
-    ../../profiles/control-plane.nix
     ./disko.nix
   ];
 
-  networking.hostName = "frankfurt-contabo-1";
+  networking.hostName = "enschede-pi-1";
   system.stateVersion = "25.05";
 }

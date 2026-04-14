@@ -27,6 +27,10 @@
       nixosConfigurations = {
         frankfurt-contabo-1 = mkHost "x86_64-linux" ./nix/hosts/frankfurt-contabo-1/default.nix;
         enschede-home-gtx960m-1 = mkHost "x86_64-linux" ./nix/hosts/enschede-home-gtx960m-1/default.nix;
+        enschede-home-t1000-1 = mkHost "x86_64-linux" ./nix/hosts/enschede-home-t1000-1/default.nix;
+        enschede-pi-1 = mkHost "aarch64-linux" ./nix/hosts/enschede-pi-1/default.nix;
+        enschede-pi-2 = mkHost "aarch64-linux" ./nix/hosts/enschede-pi-2/default.nix;
+        enschede-pi-3 = mkHost "aarch64-linux" ./nix/hosts/enschede-pi-3/default.nix;
       };
 
       deploy.nodes.frankfurt-contabo-1 = {
