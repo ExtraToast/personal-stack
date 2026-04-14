@@ -25,6 +25,8 @@ dns:
       answer: __HOME_LAN_IP__
     - domain: jellyseerr.jorisjonkers.dev
       answer: __HOME_LAN_IP__
+    - domain: bazarr.jorisjonkers.dev
+      answer: __HOME_LAN_IP__
     - domain: sonarr.jorisjonkers.dev
       answer: __HOME_LAN_IP__
     - domain: radarr.jorisjonkers.dev
