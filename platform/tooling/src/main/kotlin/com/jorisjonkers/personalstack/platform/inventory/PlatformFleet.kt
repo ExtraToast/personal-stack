@@ -105,4 +105,6 @@ data class ExposureIntent(
 data class AccessIntent(
     @param:JsonProperty("sso_protected")
     val ssoProtected: List<String> = emptyList(),
+    @param:JsonProperty("host_labels")
+    val hostLabels: Map<String, String> = emptyMap(),
 )

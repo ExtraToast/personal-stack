@@ -54,5 +54,20 @@ class PlatformFleetLoader(
                 "sso protected service $serviceName must be externally exposed"
             }
         }
+
+        fleet.accessIntent.hostLabels.forEach { (serviceName, hostLabel) ->
+            require(serviceName in knownServices) {
+                "host label for service $serviceName references unknown service intent"
+            }
+            require(hostLabel.isNotBlank()) {
+                "host label for service $serviceName must not be blank"
+            }
+        }
+
+        externallyExposedServices.forEach { serviceName ->
+            require(serviceName in fleet.accessIntent.hostLabels) {
+                "externally exposed service $serviceName must declare a host label"
+            }
+        }
     }
 }

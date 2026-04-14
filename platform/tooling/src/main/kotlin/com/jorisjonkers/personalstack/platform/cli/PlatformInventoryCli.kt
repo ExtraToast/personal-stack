@@ -1,5 +1,6 @@
 package com.jorisjonkers.personalstack.platform.cli
 
+import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.KotlinModule
@@ -17,9 +18,10 @@ class PlatformInventoryCli(
     private val stdout: Writer = System.out.writer(),
     private val stderr: Writer = System.err.writer(),
     private val yamlMapper: ObjectMapper =
-        ObjectMapper(YAMLFactory()).registerModule(
-            KotlinModule.Builder().build(),
-        ),
+        ObjectMapper(YAMLFactory())
+            .registerModule(
+                KotlinModule.Builder().build(),
+            ).setSerializationInclusion(JsonInclude.Include.NON_NULL),
 ) {
     fun run(vararg args: String): Int {
         if (args.isEmpty()) {
@@ -125,6 +127,8 @@ private fun PlatformFleet.toEdgeCatalog(): EdgeCatalog {
                             exposure == "internal_only" -> "cluster_internal"
                             else -> "direct"
                         },
+                    productionHost = accessIntent.hostLabels[serviceName]?.toFqdn(cluster.publicDomain),
+                    testHost = accessIntent.hostLabels[serviceName]?.toFqdn(cluster.testDomain),
                 )
             }
 
@@ -160,7 +164,18 @@ private data class EdgeServiceCatalogEntry(
     val name: String,
     val exposure: String,
     val access: String,
+    @param:com.fasterxml.jackson.annotation.JsonProperty("production_host")
+    val productionHost: String? = null,
+    @param:com.fasterxml.jackson.annotation.JsonProperty("test_host")
+    val testHost: String? = null,
 )
+
+private fun String.toFqdn(domain: String): String =
+    if (this == "root") {
+        domain
+    } else {
+        "${this}.${domain}"
+    }
 
 fun main(args: Array<String>) {
     exitProcess(PlatformInventoryCli().run(*args))
