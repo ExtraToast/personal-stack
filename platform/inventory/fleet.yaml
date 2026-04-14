@@ -1,0 +1,218 @@
+version: 1
+
+cluster:
+  name: personal-stack
+  public_domain: jorisjonkers.dev
+  test_domain: jorisjonkers.test
+
+sites:
+  frankfurt:
+    kind: vps
+    purpose: primary_cluster_site
+  enschede:
+    kind: home
+    purpose: home_lan_and_media_site
+
+nodes:
+  frankfurt-contabo-1:
+    status: active
+    site: frankfurt
+    arch: amd64
+    ssh:
+      host: 167.86.79.203
+      user: deploy
+      port: 2222
+    target_roles:
+      - k3s-control-plane
+      - k3s-worker
+    capacity:
+      cpu_millicores: 16000
+      memory_mib: 32768
+    capabilities:
+      - tailscale
+      - public-ingress
+
+  enschede-home-gtx960m-1:
+    status: active
+    site: enschede
+    arch: amd64
+    ssh:
+      host: enschede-home-gtx960m-1
+      user: deploy
+      port: 22
+    target_roles:
+      - k3s-worker
+      - utility-host
+    capacity:
+      cpu_millicores: 28800
+      memory_mib: 16384
+    gpus:
+      - vendor: nvidia
+        model: gtx960m
+        class: transcode
+    capabilities:
+      - tailscale
+      - lan-ingress
+      - samba
+      - adguard
+      - nvidia
+
+  enschede-home-t1000-1:
+    status: planned
+    site: enschede
+    arch: amd64
+    target_roles:
+      - k3s-worker
+      - utility-host
+    capacity:
+      cpu_millicores: 54000
+      memory_mib: 40960
+    gpus:
+      - vendor: nvidia
+        model: t1000
+        class: transcode
+    capabilities:
+      - tailscale
+      - lan-ingress
+      - samba
+      - adguard
+      - nvidia
+
+  enschede-pi-1:
+    status: planned
+    site: enschede
+    arch: arm64
+    target_roles:
+      - k3s-worker
+    capacity:
+      cpu_millicores: 6000
+      memory_mib: 8192
+    capabilities:
+      - tailscale
+
+  enschede-pi-2:
+    status: planned
+    site: enschede
+    arch: arm64
+    target_roles:
+      - k3s-worker
+    capacity:
+      cpu_millicores: 6000
+      memory_mib: 4096
+    capabilities:
+      - tailscale
+
+  enschede-pi-3:
+    status: planned
+    site: enschede
+    arch: arm64
+    target_roles:
+      - k3s-worker
+    capacity:
+      cpu_millicores: 6000
+      memory_mib: 4096
+    capabilities:
+      - tailscale
+
+service_intent:
+  kubernetes:
+    public_apps:
+      - app-ui
+      - auth-ui
+      - auth-api
+      - assistant-ui
+      - assistant-api
+      - n8n
+      - uptime-kuma
+      - grafana
+    internal_platform:
+      - postgres
+      - rabbitmq
+      - valkey
+      - prometheus
+      - loki
+      - tempo
+      - alloy
+      - flaresolverr
+      - vault
+    home_media:
+      - downloads
+      - radarr
+      - sonarr
+      - jellyfin
+      - bazarr
+
+  host_native:
+    frankfurt:
+      - headscale
+    enschede-home-gtx960m-1:
+      - adguard
+      - samba
+      - tailscale
+
+placement_intent:
+  frankfurt_only:
+    - app-ui
+    - auth-ui
+    - auth-api
+    - assistant-ui
+    - assistant-api
+    - postgres
+    - rabbitmq
+    - valkey
+    - grafana
+    - prometheus
+    - loki
+    - tempo
+    - alloy
+    - flaresolverr
+    - n8n
+    - uptime-kuma
+    - vault
+    - headscale
+
+  enschede_only:
+    - downloads
+    - radarr
+    - sonarr
+    - jellyfin
+    - bazarr
+    - adguard
+    - samba
+
+  gpu_specific:
+    jellyfin:
+      preferred_gpu_model: t1000
+      temporary_gpu_model: gtx960m
+
+exposure_intent:
+  public:
+    - app-ui
+    - auth-ui
+    - auth-api
+    - assistant-ui
+    - assistant-api
+    - grafana
+    - n8n
+    - uptime-kuma
+    - headscale
+
+  public_and_lan:
+    - jellyfin
+    - radarr
+    - sonarr
+
+  internal_only:
+    - postgres
+    - rabbitmq
+    - valkey
+    - prometheus
+    - loki
+    - tempo
+    - alloy
+    - flaresolverr
+    - vault
+
+  lan_only:
+    - adguard
+    - samba
