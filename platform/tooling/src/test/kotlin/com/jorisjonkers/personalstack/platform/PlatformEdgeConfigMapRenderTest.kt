@@ -19,12 +19,19 @@ class PlatformEdgeConfigMapRenderTest {
                 """
                 #!/usr/bin/env bash
                 cat <<'EOF'
-                ---
-                cluster: "personal-stack"
-                services:
-                - name: "vault"
-                  exposure: "public"
-                  access: "sso_protected"
+                apiVersion: v1
+                kind: ConfigMap
+                metadata:
+                  name: platform-edge-catalog
+                  namespace: edge-system
+                data:
+                  edge-catalog.yaml: |
+                    ---
+                    cluster: "personal-stack"
+                    services:
+                    - name: "vault"
+                      exposure: "public"
+                      access: "sso_protected"
                 EOF
                 """.trimIndent(),
             )

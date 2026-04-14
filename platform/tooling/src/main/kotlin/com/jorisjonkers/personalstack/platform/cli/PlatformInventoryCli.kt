@@ -29,6 +29,7 @@ class PlatformInventoryCli(
         return when (args.first()) {
             "show-host-env" -> showHostEnv(args.drop(1))
             "render-edge-catalog" -> renderEdgeCatalog(args.drop(1))
+            "render-edge-configmap" -> renderEdgeConfigMap(args.drop(1))
             else -> fail("Unknown command: ${args.first()}")
         }
     }
@@ -67,6 +68,17 @@ class PlatformInventoryCli(
         val fleet = fleetLoader.load(repositoryRoot.resolve("platform/inventory/fleet.yaml"))
         val catalog = fleet.toEdgeCatalog()
         stdout.append(yamlMapper.writeValueAsString(catalog))
+        stdout.flush()
+        return 0
+    }
+
+    private fun renderEdgeConfigMap(args: List<String>): Int {
+        if (args.isNotEmpty()) {
+            return fail("Usage: render-edge-configmap")
+        }
+
+        val fleet = fleetLoader.load(repositoryRoot.resolve("platform/inventory/fleet.yaml"))
+        stdout.append(fleet.toEdgeConfigMapYaml(yamlMapper))
         stdout.flush()
         return 0
     }
@@ -120,6 +132,23 @@ private fun PlatformFleet.toEdgeCatalog(): EdgeCatalog {
         cluster = cluster.name,
         services = services,
     )
+}
+
+private fun PlatformFleet.toEdgeConfigMapYaml(yamlMapper: ObjectMapper): String {
+    val catalogYaml = yamlMapper.writeValueAsString(toEdgeCatalog()).trimEnd()
+    return buildString {
+        appendLine("apiVersion: v1")
+        appendLine("kind: ConfigMap")
+        appendLine("metadata:")
+        appendLine("  name: platform-edge-catalog")
+        appendLine("  namespace: edge-system")
+        appendLine("data:")
+        appendLine("  edge-catalog.yaml: |")
+        catalogYaml.lineSequence().forEach { line ->
+            append("    ")
+            appendLine(line)
+        }
+    }
 }
 
 private data class EdgeCatalog(
