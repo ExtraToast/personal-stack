@@ -1,9 +1,14 @@
 plugins {
+    application
     id("kotlin-conventions")
     id("detekt-conventions")
     id("ktlint-conventions")
     id("test-logging-conventions")
     jacoco
+}
+
+application {
+    mainClass = "com.jorisjonkers.personalstack.platform.cli.PlatformInventoryCliKt"
 }
 
 jacoco {
