@@ -132,7 +132,7 @@ install_command() {
   run mkdir -p /etc/consul.d /etc/nomad.d
   run mkdir -p /opt/consul /opt/nomad
   run mkdir -p /srv/nomad/lightrag /srv/nomad/alloy
-  run mkdir -p /srv/nomad/qbittorrent /srv/nomad/prowlarr /srv/nomad/sonarr /srv/nomad/radarr /srv/nomad/jellyfin
+  run mkdir -p /srv/nomad/qbittorrent /srv/nomad/prowlarr /srv/nomad/sonarr /srv/nomad/radarr /srv/nomad/jellyfin /srv/nomad/jellyseerr
   run mkdir -p /mnt/media
 
   run chown -R consul:consul /opt/consul
@@ -140,7 +140,7 @@ install_command() {
 
   # Volume ownership matching container UIDs (linuxserver.io convention: UID 1000)
   run chown -R 1000:1000 /srv/nomad/lightrag
-  run chown -R 1000:1000 /srv/nomad/qbittorrent /srv/nomad/prowlarr /srv/nomad/sonarr /srv/nomad/radarr /srv/nomad/jellyfin
+  run chown -R 1000:1000 /srv/nomad/qbittorrent /srv/nomad/prowlarr /srv/nomad/sonarr /srv/nomad/radarr /srv/nomad/jellyfin /srv/nomad/jellyseerr
 
   # Ensure tun module is available for gluetun VPN
   run modprobe tun || true
@@ -251,9 +251,9 @@ EOF
 
   # Firewall
   # Nomad bridge allocations use the default host-local subnet 172.26.64.0/20.
-  # Allow only that internal subnet to reach host-network Arr services so the
-  # downloads group (Prowlarr via Gluetun) can call Sonarr/Radarr directly
-  # without exposing those ports to the LAN.
+  # Allow the LAN to reach user-facing media apps directly, while keeping the
+  # Arr ports reachable only from the internal Nomad bridge so Prowlarr can
+  # call Sonarr/Radarr without exposing those ports to the LAN.
   local nomad_bridge_subnet="172.26.64.0/20"
   if command -v ufw >/dev/null 2>&1; then
     run ufw default deny incoming
@@ -264,6 +264,7 @@ EOF
     run ufw allow in on tailscale0                                    comment 'tailscale mesh traffic'
     run ufw allow proto tcp from 192.168.0.0/16 to any port 445      comment 'samba'
     run ufw allow proto tcp from 192.168.0.0/16 to any port 8096     comment 'jellyfin'
+    run ufw allow proto tcp from 192.168.0.0/16 to any port 5055     comment 'jellyseerr'
     run ufw allow proto tcp from "${nomad_bridge_subnet}" to any port 8989 comment 'sonarr from nomad bridge'
     run ufw allow proto tcp from "${nomad_bridge_subnet}" to any port 7878 comment 'radarr from nomad bridge'
     run ufw --force enable

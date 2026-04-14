@@ -2,13 +2,14 @@
 
 Bootstrap a home network machine as a Nomad/Consul client node that joins the
 VPS cluster over a Tailscale (Headscale) mesh VPN. Runs AdGuard Home for
-network-wide DNS, a media stack (Jellyfin, Sonarr, Radarr, Prowlarr,
-qBittorrent) with VPN-routed downloads, and Samba shares including Time Machine.
+network-wide DNS, a media stack (Jellyfin, Jellyseerr, Sonarr, Radarr,
+Prowlarr, qBittorrent) with VPN-routed downloads, and Samba shares including
+Time Machine.
 
 ## Architecture
 
 ```
-Internet -> Cloudflare -> VPS Traefik (forward-auth) -> Tailscale -> Home Node
+Internet -> Cloudflare -> VPS Traefik -> Tailscale -> Home Node
                                                                        |
 LAN devices -> AdGuard DNS rewrite -> Home Node directly (no auth)     |
                                                                        |
@@ -19,6 +20,7 @@ LAN devices -> AdGuard DNS rewrite -> Home Node directly (no auth)     |
                                     |                                  |
               +---------------------+---- host networking ----------+  |
               |  Sonarr (8989)  Radarr (7878)  Jellyfin (8096)     |  |
+              |  Jellyseerr (5055)                                 |  |
               +---------------------+------------------------------+   |
                                     |                                  |
                           /mnt/media (6TB HDD)                         |
@@ -152,6 +154,7 @@ nomad job run infra/nomad/jobs/media/downloads.nomad.hcl
 nomad job run infra/nomad/jobs/media/sonarr.nomad.hcl
 nomad job run infra/nomad/jobs/media/radarr.nomad.hcl
 nomad job run infra/nomad/jobs/media/jellyfin.nomad.hcl
+nomad job run infra/nomad/jobs/media/jellyseerr.nomad.hcl
 ```
 
 ### 2.6 Configure router DNS
@@ -202,7 +205,16 @@ Open `http://<home-ip>:8096`.
 - Add library: Anime > `/media/Anime`
 - Add library: Music > `/media/Music` (optional)
 
-### 3.6 Time Machine
+### 3.6 Jellyseerr
+
+Open `http://<home-ip>:5055`.
+
+- Complete the setup wizard
+- Connect Jellyfin using `http://<home-ip>:8096` and your Jellyfin admin account
+- Add Sonarr using `http://<home-ip>:8989`
+- Add Radarr using `http://<home-ip>:7878`
+
+### 3.7 Time Machine
 
 On your Mac:
 
@@ -276,6 +288,7 @@ sudo chown 1000:1000 /srv/nomad/sonarr/sonarr.db /srv/nomad/radarr/radarr.db
 | Service      | LAN URL                                    | External URL                           |
 | ------------ | ------------------------------------------ | -------------------------------------- |
 | Jellyfin     | `http://jellyfin.jorisjonkers.dev:8096`    | `https://jellyfin.jorisjonkers.dev`    |
+| Jellyseerr   | `http://jellyseerr.jorisjonkers.dev:5055`  | `https://jellyseerr.jorisjonkers.dev`  |
 | Sonarr       | `http://sonarr.jorisjonkers.dev:8989`      | `https://sonarr.jorisjonkers.dev`      |
 | Radarr       | `http://radarr.jorisjonkers.dev:7878`      | `https://radarr.jorisjonkers.dev`      |
 | Prowlarr     | `http://prowlarr.jorisjonkers.dev:9696`    | `https://prowlarr.jorisjonkers.dev`    |
@@ -285,8 +298,9 @@ sudo chown 1000:1000 /srv/nomad/sonarr/sonarr.db /srv/nomad/radarr/radarr.db
 | AdGuard      | `http://127.0.0.1:3000` (SSH tunnel)       | not exposed                            |
 
 LAN URLs work because AdGuard DNS rewrites resolve these subdomains to the home
-node's LAN IP. External URLs go through VPS Traefik with forward-auth (OIDC
-login required). Note: LAN URLs use HTTP with the service port since there's no
+node's LAN IP. External URLs go through VPS Traefik. `Jellyfin` and
+`Jellyseerr` use their own auth; the admin tools stay behind Traefik
+forward-auth. Note: LAN URLs use HTTP with the service port since there's no
 Traefik on the home node.
 
 ## Verification
@@ -301,6 +315,7 @@ nomad job status downloads                  # gluetun + qbittorrent + prowlarr
 nomad job status sonarr
 nomad job status radarr
 nomad job status jellyfin
+nomad job status jellyseerr
 
 # VPN check - should show PIA IP, not your home IP
 ALLOC=$(nomad job allocs -json downloads | jq -r '.[0].ID')
@@ -308,6 +323,7 @@ nomad alloc exec -task qbittorrent "$ALLOC" curl -s ifconfig.me
 
 # DNS rewrites (from a LAN device using AdGuard DNS)
 dig @<home-ip> jellyfin.jorisjonkers.dev    # -> home LAN IP
+dig @<home-ip> jellyseerr.jorisjonkers.dev  # -> home LAN IP
 
 # Samba
 smbclient -L //<home-ip>/ -N               # lists media + timemachine
@@ -342,4 +358,5 @@ infra/nomad/jobs/media/
   sonarr.nomad.hcl            TV show management
   radarr.nomad.hcl            Movie management
   jellyfin.nomad.hcl          Media server
+  jellyseerr.nomad.hcl        Request management
 ```

@@ -56,6 +56,11 @@ client {
     path      = "/srv/nomad/jellyfin"
     read_only = false
   }
+
+  host_volume "jellyseerr_config" {
+    path      = "/srv/nomad/jellyseerr"
+    read_only = false
+  }
 }
 
 plugin "docker" {
