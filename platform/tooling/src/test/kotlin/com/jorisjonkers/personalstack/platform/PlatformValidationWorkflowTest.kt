@@ -29,6 +29,8 @@ class PlatformValidationWorkflowTest {
         val script = repositoryRoot.resolve("platform/scripts/validate/render-platform.sh").toFile().readText()
 
         assertThat(script).contains("nix flake check")
+        assertThat(script).contains("render-edge-catalog-configmap.sh")
+        assertThat(script).contains("git diff --exit-code -- platform/cluster/flux/apps/edge/edge-catalog-configmap.yaml")
         assertThat(script).contains("kustomize build")
         assertThat(script).contains("helm template")
         assertThat(script).contains("kubeconform")
