@@ -2,9 +2,9 @@
 
 Bootstrap a home network machine as a Nomad/Consul client node that joins the
 VPS cluster over a Tailscale (Headscale) mesh VPN. Runs AdGuard Home for
-network-wide DNS, a media stack (Jellyfin, Jellyseerr, Sonarr, Radarr,
-Prowlarr, qBittorrent) with VPN-routed downloads, and Samba shares including
-Time Machine.
+network-wide DNS, a media stack (Jellyfin, Jellyseerr, Bazarr, Sonarr,
+Radarr, Prowlarr, qBittorrent) with VPN-routed downloads, and Samba shares
+including Time Machine.
 
 ## Architecture
 
@@ -19,8 +19,8 @@ LAN devices -> AdGuard DNS rewrite -> Home Node directly (no auth)     |
               +-----------------------------------------------------+  |
                                     |                                  |
               +---------------------+---- host networking ----------+  |
-              |  Sonarr (8989)  Radarr (7878)  Jellyfin (8096)     |  |
-              |  Jellyseerr (5055)                                 |  |
+              |  Bazarr (6767)  Sonarr (8989)  Radarr (7878)       |  |
+              |  Jellyfin (8096)  Jellyseerr (5055)                |  |
               +---------------------+------------------------------+   |
                                     |                                  |
                           /mnt/media (6TB HDD)                         |
@@ -151,6 +151,7 @@ export NOMAD_ADDR=http://127.0.0.1:4646
 export NOMAD_TOKEN=<your Nomad token>
 
 nomad job run infra/nomad/jobs/media/downloads.nomad.hcl
+nomad job run infra/nomad/jobs/media/bazarr.nomad.hcl
 nomad job run infra/nomad/jobs/media/sonarr.nomad.hcl
 nomad job run infra/nomad/jobs/media/radarr.nomad.hcl
 nomad job run infra/nomad/jobs/media/jellyfin.nomad.hcl
@@ -195,7 +196,16 @@ Open `http://<home-ip>:7878`.
 - Settings > Media Management > Root Folders > Add `/media/Films`
 - Settings > Download Clients > Add qBittorrent (host: `<home-ip>`, port: `8080`)
 
-### 3.5 Jellyfin
+### 3.5 Bazarr
+
+Open `http://<home-ip>:6767`.
+
+- Complete the setup wizard
+- Add Sonarr using `http://127.0.0.1:8989`
+- Add Radarr using `http://127.0.0.1:7878`
+- Keep media paths aligned with the shared `/media` mount
+
+### 3.6 Jellyfin
 
 Open `http://<home-ip>:8096`.
 
@@ -205,7 +215,7 @@ Open `http://<home-ip>:8096`.
 - Add library: Anime > `/media/Anime`
 - Add library: Music > `/media/Music` (optional)
 
-### 3.6 Jellyseerr
+### 3.7 Jellyseerr
 
 Open `http://<home-ip>:5055`.
 
@@ -214,7 +224,7 @@ Open `http://<home-ip>:5055`.
 - Add Sonarr using `http://<home-ip>:8989`
 - Add Radarr using `http://<home-ip>:7878`
 
-### 3.7 Time Machine
+### 3.8 Time Machine
 
 On your Mac:
 
@@ -289,6 +299,7 @@ sudo chown 1000:1000 /srv/nomad/sonarr/sonarr.db /srv/nomad/radarr/radarr.db
 | ------------ | ------------------------------------------ | -------------------------------------- |
 | Jellyfin     | `http://jellyfin.jorisjonkers.dev:8096`    | `https://jellyfin.jorisjonkers.dev`    |
 | Jellyseerr   | `http://jellyseerr.jorisjonkers.dev:5055`  | `https://jellyseerr.jorisjonkers.dev`  |
+| Bazarr       | `http://bazarr.jorisjonkers.dev:6767`      | `https://bazarr.jorisjonkers.dev`      |
 | Sonarr       | `http://sonarr.jorisjonkers.dev:8989`      | `https://sonarr.jorisjonkers.dev`      |
 | Radarr       | `http://radarr.jorisjonkers.dev:7878`      | `https://radarr.jorisjonkers.dev`      |
 | Prowlarr     | `http://prowlarr.jorisjonkers.dev:9696`    | `https://prowlarr.jorisjonkers.dev`    |
@@ -312,6 +323,7 @@ nomad node status                           # home node "ready"
 
 # Media stack
 nomad job status downloads                  # gluetun + qbittorrent + prowlarr
+nomad job status bazarr
 nomad job status sonarr
 nomad job status radarr
 nomad job status jellyfin
@@ -324,6 +336,7 @@ nomad alloc exec -task qbittorrent "$ALLOC" curl -s ifconfig.me
 # DNS rewrites (from a LAN device using AdGuard DNS)
 dig @<home-ip> jellyfin.jorisjonkers.dev    # -> home LAN IP
 dig @<home-ip> jellyseerr.jorisjonkers.dev  # -> home LAN IP
+dig @<home-ip> bazarr.jorisjonkers.dev      # -> home LAN IP
 
 # Samba
 smbclient -L //<home-ip>/ -N               # lists media + timemachine
@@ -355,6 +368,7 @@ infra/home-node/
 
 infra/nomad/jobs/media/
   downloads.nomad.hcl         gluetun VPN + qBittorrent + Prowlarr
+  bazarr.nomad.hcl            Subtitle management
   sonarr.nomad.hcl            TV show management
   radarr.nomad.hcl            Movie management
   jellyfin.nomad.hcl          Media server

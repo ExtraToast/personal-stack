@@ -9,7 +9,7 @@
 #   infra  Observability, platform, mail, core jobs (no Traefik)
 #   edge   Traefik only
 #   apps   auth-api, assistant-api, auth-ui, assistant-ui, app-ui
-#   media  downloads (gluetun+qBittorrent+Prowlarr), Sonarr, Radarr, Jellyfin, Jellyseerr
+#   media  downloads (gluetun+qBittorrent+Prowlarr), Bazarr, Sonarr, Radarr, Jellyfin, Jellyseerr
 #   all    Everything (default)
 set -euo pipefail
 
@@ -40,7 +40,7 @@ Phases:
   infra  Observability, platform, mail, core jobs
   edge   Traefik only
   apps   auth-api, assistant-api, auth-ui, assistant-ui, app-ui
-  media  downloads (gluetun+qBittorrent+Prowlarr), Sonarr, Radarr, Jellyfin, Jellyseerr
+  media  downloads (gluetun+qBittorrent+Prowlarr), Bazarr, Sonarr, Radarr, Jellyfin, Jellyseerr
   all    Everything (default)
 
 Options:
@@ -242,6 +242,7 @@ deploy_apps() {
 
 deploy_media() {
   submit_job "${JOBS_DIR}/media/downloads.nomad.hcl"
+  submit_job "${JOBS_DIR}/media/bazarr.nomad.hcl"
   submit_job "${JOBS_DIR}/media/sonarr.nomad.hcl"
   submit_job "${JOBS_DIR}/media/radarr.nomad.hcl"
   submit_job "${JOBS_DIR}/media/jellyfin.nomad.hcl"
@@ -286,6 +287,7 @@ if [[ "${WAIT}" == true && "${MODE}" == "apply" ]]; then
       ;;
     media)
       wait_for_job_ready downloads 300
+      wait_for_job_ready bazarr 180
       wait_for_job_ready sonarr 180
       wait_for_job_ready radarr 180
       wait_for_job_ready jellyfin 240
@@ -307,6 +309,7 @@ if [[ "${WAIT}" == true && "${MODE}" == "apply" ]]; then
       wait_for_job_ready assistant-ui 240
       wait_for_job_ready app-ui 240
       wait_for_job_ready traefik 180
+      wait_for_job_ready bazarr 180
       wait_for_job_ready sonarr 180
       wait_for_job_ready radarr 180
       wait_for_job_ready jellyfin 240

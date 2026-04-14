@@ -42,6 +42,11 @@ client {
     read_only = false
   }
 
+  host_volume "bazarr_config" {
+    path      = "/srv/nomad/bazarr"
+    read_only = false
+  }
+
   host_volume "sonarr_config" {
     path      = "/srv/nomad/sonarr"
     read_only = false
