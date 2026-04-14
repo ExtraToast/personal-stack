@@ -219,6 +219,7 @@ exposure_intent:
 
 access_intent:
   sso_protected:
+    - assistant-api
     - rabbitmq
     - vault
   host_labels:

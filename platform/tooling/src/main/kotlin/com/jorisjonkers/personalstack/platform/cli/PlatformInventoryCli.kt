@@ -25,12 +25,13 @@ class PlatformInventoryCli(
 ) {
     fun run(vararg args: String): Int {
         if (args.isEmpty()) {
-            return fail("Usage: show-host-env <node-name> | render-edge-catalog")
+            return fail("Usage: show-host-env <node-name> | render-edge-catalog | render-edge-route-catalog")
         }
 
         return when (args.first()) {
             "show-host-env" -> showHostEnv(args.drop(1))
             "render-edge-catalog" -> renderEdgeCatalog(args.drop(1))
+            "render-edge-route-catalog" -> renderEdgeRouteCatalog(args.drop(1))
             "render-edge-configmap" -> renderEdgeConfigMap(args.drop(1))
             else -> fail("Unknown command: ${args.first()}")
         }
@@ -70,6 +71,18 @@ class PlatformInventoryCli(
         val fleet = fleetLoader.load(repositoryRoot.resolve("platform/inventory/fleet.yaml"))
         val catalog = fleet.toEdgeCatalog()
         stdout.append(yamlMapper.writeValueAsString(catalog))
+        stdout.flush()
+        return 0
+    }
+
+    private fun renderEdgeRouteCatalog(args: List<String>): Int {
+        if (args.isNotEmpty()) {
+            return fail("Usage: render-edge-route-catalog")
+        }
+
+        val fleet = fleetLoader.load(repositoryRoot.resolve("platform/inventory/fleet.yaml"))
+        val routes = fleet.toEdgeRouteCatalog()
+        stdout.append(yamlMapper.writeValueAsString(routes))
         stdout.flush()
         return 0
     }
@@ -155,6 +168,110 @@ private fun PlatformFleet.toEdgeConfigMapYaml(yamlMapper: ObjectMapper): String 
     }
 }
 
+private fun PlatformFleet.toEdgeRouteCatalog(): EdgeRouteCatalog {
+    val externalServices =
+        toEdgeCatalog().services
+            .filter { it.productionHost != null && it.testHost != null }
+            .associateBy { it.name }
+
+    val routes =
+        buildList {
+            externalServices["app-ui"]?.let(::addDefaultRoute)
+
+            externalServices["auth-api"]?.let { authApi ->
+                add(
+                    authApi.toRoute(
+                        name = "auth-api",
+                        pathPrefixes = listOf("/api/"),
+                    ),
+                )
+                add(
+                    authApi.toRoute(
+                        name = "auth-api-well-known",
+                        pathPrefixes = listOf("/.well-known/"),
+                    ),
+                )
+            }
+            externalServices["auth-ui"]?.let { authUi ->
+                add(
+                    authUi.toRoute(
+                        excludedPathPrefixes = listOf("/api/", "/.well-known/"),
+                    ),
+                )
+            }
+
+            externalServices["assistant-api"]?.let { assistantApi ->
+                add(
+                    assistantApi.toRoute(
+                        pathPrefixes = listOf("/api/"),
+                        excludedPaths = listOf("/api/actuator/health", "/api/v1/health"),
+                        excludedPathPrefixes = listOf("/api/actuator/health/"),
+                    ),
+                )
+                add(
+                    assistantApi.toRoute(
+                        name = "assistant-api-health",
+                        access = "direct",
+                        exactPaths = listOf("/api/actuator/health", "/api/v1/health"),
+                        pathPrefixes = listOf("/api/actuator/health/"),
+                    ),
+                )
+            }
+            externalServices["assistant-ui"]?.let { assistantUi ->
+                add(
+                    assistantUi.toRoute(
+                        excludedPathPrefixes = listOf("/api/"),
+                    ),
+                )
+            }
+
+            listOf(
+                "grafana",
+                "headscale",
+                "jellyfin",
+                "n8n",
+                "rabbitmq",
+                "radarr",
+                "sonarr",
+                "uptime-kuma",
+                "vault",
+                "adguard",
+                "samba",
+            ).forEach { serviceName ->
+                externalServices[serviceName]?.let(::addDefaultRoute)
+            }
+        }.sortedBy { it.name }
+
+    return EdgeRouteCatalog(
+        cluster = cluster.name,
+        routes = routes,
+    )
+}
+
+private fun MutableList<EdgeRouteCatalogEntry>.addDefaultRoute(service: EdgeServiceCatalogEntry) {
+    add(service.toRoute())
+}
+
+private fun EdgeServiceCatalogEntry.toRoute(
+    name: String = this.name,
+    access: String = this.access,
+    pathPrefixes: List<String>? = null,
+    exactPaths: List<String>? = null,
+    excludedPathPrefixes: List<String>? = null,
+    excludedPaths: List<String>? = null,
+): EdgeRouteCatalogEntry =
+    EdgeRouteCatalogEntry(
+        name = name,
+        service = this.name,
+        productionHost = this.productionHost ?: error("route $name requires a production host"),
+        testHost = this.testHost ?: error("route $name requires a test host"),
+        access = access,
+        pathPrefixes = pathPrefixes,
+        exactPaths = exactPaths,
+        excludedPathPrefixes = excludedPathPrefixes,
+        excludedPaths = excludedPaths,
+    )
+
 private data class EdgeCatalog(
     val cluster: String,
     val services: List<EdgeServiceCatalogEntry>,
@@ -176,6 +293,29 @@ private fun String.toFqdn(domain: String): String =
     } else {
         "${this}.${domain}"
     }
+
+private data class EdgeRouteCatalog(
+    val cluster: String,
+    val routes: List<EdgeRouteCatalogEntry>,
+)
+
+private data class EdgeRouteCatalogEntry(
+    val name: String,
+    val service: String,
+    @param:com.fasterxml.jackson.annotation.JsonProperty("production_host")
+    val productionHost: String,
+    @param:com.fasterxml.jackson.annotation.JsonProperty("test_host")
+    val testHost: String,
+    val access: String,
+    @param:com.fasterxml.jackson.annotation.JsonProperty("path_prefixes")
+    val pathPrefixes: List<String>? = null,
+    @param:com.fasterxml.jackson.annotation.JsonProperty("exact_paths")
+    val exactPaths: List<String>? = null,
+    @param:com.fasterxml.jackson.annotation.JsonProperty("excluded_path_prefixes")
+    val excludedPathPrefixes: List<String>? = null,
+    @param:com.fasterxml.jackson.annotation.JsonProperty("excluded_paths")
+    val excludedPaths: List<String>? = null,
+)
 
 fun main(args: Array<String>) {
     exitProcess(PlatformInventoryCli().run(*args))

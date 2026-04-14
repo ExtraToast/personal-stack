@@ -23,7 +23,7 @@ data:
       test_host: "jorisjonkers.test"
     - name: "assistant-api"
       exposure: "public"
-      access: "direct"
+      access: "sso_protected"
       production_host: "assistant.jorisjonkers.dev"
       test_host: "assistant.jorisjonkers.test"
     - name: "assistant-ui"
