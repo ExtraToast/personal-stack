@@ -31,5 +31,28 @@ class PlatformFleetLoader(
                 }
             }
         }
+
+        val knownServices =
+            buildSet {
+                addAll(fleet.serviceIntent.kubernetes.publicApps)
+                addAll(fleet.serviceIntent.kubernetes.internalPlatform)
+                addAll(fleet.serviceIntent.kubernetes.homeMedia)
+                fleet.serviceIntent.hostNative.values.forEach(::addAll)
+            }
+        val externallyExposedServices =
+            buildSet {
+                addAll(fleet.exposureIntent.public)
+                addAll(fleet.exposureIntent.publicAndLan)
+                addAll(fleet.exposureIntent.lanOnly)
+            }
+
+        fleet.accessIntent.ssoProtected.forEach { serviceName ->
+            require(serviceName in knownServices) {
+                "sso protected service $serviceName is not defined in service intent"
+            }
+            require(serviceName in externallyExposedServices) {
+                "sso protected service $serviceName must be externally exposed"
+            }
+        }
     }
 }

@@ -195,6 +195,7 @@ exposure_intent:
     - grafana
     - n8n
     - uptime-kuma
+    - vault
     - headscale
 
   public_and_lan:
@@ -211,8 +212,11 @@ exposure_intent:
     - tempo
     - alloy
     - flaresolverr
-    - vault
 
   lan_only:
     - adguard
     - samba
+
+access_intent:
+  sso_protected:
+    - vault

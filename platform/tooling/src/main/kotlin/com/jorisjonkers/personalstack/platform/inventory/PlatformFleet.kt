@@ -13,6 +13,8 @@ data class PlatformFleet(
     val placementIntent: PlacementIntent,
     @param:JsonProperty("exposure_intent")
     val exposureIntent: ExposureIntent,
+    @param:JsonProperty("access_intent")
+    val accessIntent: AccessIntent = AccessIntent(),
 )
 
 data class ClusterInfo(
@@ -98,4 +100,9 @@ data class ExposureIntent(
     val internalOnly: List<String>,
     @param:JsonProperty("lan_only")
     val lanOnly: List<String>,
+)
+
+data class AccessIntent(
+    @param:JsonProperty("sso_protected")
+    val ssoProtected: List<String> = emptyList(),
 )
