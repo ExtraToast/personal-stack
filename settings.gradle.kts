@@ -20,6 +20,7 @@ dependencyResolutionManagement {
 }
 
 include(":libs:kotlin-common")
+include(":platform:tooling")
 include(":services:auth-api")
 include(":services:assistant-api")
 include(":services:system-tests")
