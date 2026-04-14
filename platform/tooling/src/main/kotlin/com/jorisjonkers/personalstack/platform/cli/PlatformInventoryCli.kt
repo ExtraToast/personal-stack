@@ -403,7 +403,7 @@ private fun EdgeRouteCatalogEntry.toIngressRouteYaml(
         appendLine("  annotations:")
         ingressDnsTarget?.let {
             appendLine("    external-dns.alpha.kubernetes.io/target: ${it}")
-            appendLine("    external-dns.alpha.kubernetes.io/cloudflare-proxied: \"true\"")
+            appendLine("    external-dns.alpha.kubernetes.io/cloudflare-proxied: 'true'")
         }
         appendLine("    kubernetes.io/ingress.class: ${ingressClassName}")
         appendLine("spec:")

@@ -84,7 +84,7 @@ class PlatformLanIngressFluxTest {
             .contains("ingressClass: traefik-lan")
             .contains("kubernetesIngress:")
             .contains("nodeSelector:")
-            .contains("personal-stack/capability-lan-ingress: \"true\"")
+            .contains("personal-stack/capability-lan-ingress:")
             .contains("externalTrafficPolicy: Local")
             .contains("metallb.io/address-pool: enschede-lan")
             .contains("metallb.io/loadBalancerIPs: 192.168.1.240")

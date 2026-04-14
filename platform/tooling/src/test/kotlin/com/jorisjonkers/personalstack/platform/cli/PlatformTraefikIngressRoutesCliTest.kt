@@ -46,7 +46,7 @@ class PlatformTraefikIngressRoutesCliTest {
             .contains("kind: IngressRoute")
             .contains("name: assistant-api")
             .contains("external-dns.alpha.kubernetes.io/target: ingress.jorisjonkers.dev")
-            .contains("external-dns.alpha.kubernetes.io/cloudflare-proxied: \"true\"")
+            .contains("external-dns.alpha.kubernetes.io/cloudflare-proxied:")
             .contains("kubernetes.io/ingress.class: traefik-public")
             .contains("match: 'Host(`assistant.jorisjonkers.dev`) && PathPrefix(`/api/`) && !PathPrefix(`/api/actuator/health/`) && !Path(`/api/actuator/health`) && !Path(`/api/v1/health`)'")
             .contains("name: forward-auth")

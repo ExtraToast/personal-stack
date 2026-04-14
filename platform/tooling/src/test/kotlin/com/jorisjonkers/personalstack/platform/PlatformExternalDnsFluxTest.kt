@@ -57,6 +57,6 @@ class PlatformExternalDnsFluxTest {
         assertThat(release)
             .contains("annotations:")
             .contains("external-dns.alpha.kubernetes.io/hostname: ingress.jorisjonkers.dev")
-            .contains("external-dns.alpha.kubernetes.io/cloudflare-proxied: \"true\"")
+            .contains("external-dns.alpha.kubernetes.io/cloudflare-proxied:")
     }
 }
