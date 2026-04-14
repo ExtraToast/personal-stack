@@ -16,6 +16,7 @@ spec:
     ingressClass:
       enabled: true
       isDefaultClass: true
+      name: traefik-public
     ingressRoute:
       dashboard:
         enabled: false
@@ -23,11 +24,16 @@ spec:
       kubernetesCRD:
         allowCrossNamespace: true
         enabled: true
+        ingressClass: traefik-public
       kubernetesIngress:
         enabled: true
+        ingressClass: traefik-public
         publishedService:
           enabled: true
     service:
+      annotations:
+        external-dns.alpha.kubernetes.io/cloudflare-proxied: 'true'
+        external-dns.alpha.kubernetes.io/hostname: ingress.jorisjonkers.dev
       spec:
         externalTrafficPolicy: Local
       type: LoadBalancer

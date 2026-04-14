@@ -3,6 +3,5 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
-  - cert-manager
-  - external-dns
-  - ingress-controller
+  - source.yaml
+  - release.yaml

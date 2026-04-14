@@ -272,11 +272,15 @@ private fun PlatformFleet.toEdgeRouteConfigMapYaml(yamlMapper: ObjectMapper): St
 }
 
 private fun PlatformFleet.toTraefikIngressRoutesYaml(): String {
+    val ingressDnsTarget = "ingress.${cluster.publicDomain}"
     val routes =
         toEdgeRouteCatalog().routes
             .mapNotNull { route ->
                 ingressIntent.kubernetesBackends[route.service]?.let { backend ->
-                    route.toIngressRouteYaml(backend)
+                    route.toIngressRouteYaml(
+                        backend = backend,
+                        ingressDnsTarget = ingressDnsTarget,
+                    )
                 }
             }
 
@@ -345,13 +349,20 @@ private fun String.toConfigMapYaml(
         }
     }
 
-private fun EdgeRouteCatalogEntry.toIngressRouteYaml(backend: KubernetesIngressBackend): String =
+private fun EdgeRouteCatalogEntry.toIngressRouteYaml(
+    backend: KubernetesIngressBackend,
+    ingressDnsTarget: String,
+): String =
     buildString {
         appendLine("apiVersion: traefik.io/v1alpha1")
         appendLine("kind: IngressRoute")
         appendLine("metadata:")
         appendLine("  name: ${name}")
         appendLine("  namespace: edge-system")
+        appendLine("  annotations:")
+        appendLine("    external-dns.alpha.kubernetes.io/target: ${ingressDnsTarget}")
+        appendLine("    external-dns.alpha.kubernetes.io/cloudflare-proxied: \"true\"")
+        appendLine("    kubernetes.io/ingress.class: traefik-public")
         appendLine("spec:")
         appendLine("  entryPoints:")
         appendLine("    - websecure")
