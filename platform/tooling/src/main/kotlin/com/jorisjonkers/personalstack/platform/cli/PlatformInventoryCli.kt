@@ -1,7 +1,11 @@
 package com.jorisjonkers.personalstack.platform.cli
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.jorisjonkers.personalstack.platform.RepositoryRootLocator
 import com.jorisjonkers.personalstack.platform.inventory.NodeInfo
+import com.jorisjonkers.personalstack.platform.inventory.PlatformFleet
 import com.jorisjonkers.personalstack.platform.inventory.PlatformFleetLoader
 import java.io.Writer
 import java.nio.file.Path
@@ -12,14 +16,19 @@ class PlatformInventoryCli(
     private val fleetLoader: PlatformFleetLoader = PlatformFleetLoader(),
     private val stdout: Writer = System.out.writer(),
     private val stderr: Writer = System.err.writer(),
+    private val yamlMapper: ObjectMapper =
+        ObjectMapper(YAMLFactory()).registerModule(
+            KotlinModule.Builder().build(),
+        ),
 ) {
     fun run(vararg args: String): Int {
         if (args.isEmpty()) {
-            return fail("Usage: show-host-env <node-name>")
+            return fail("Usage: show-host-env <node-name> | render-edge-catalog")
         }
 
         return when (args.first()) {
             "show-host-env" -> showHostEnv(args.drop(1))
+            "render-edge-catalog" -> renderEdgeCatalog(args.drop(1))
             else -> fail("Unknown command: ${args.first()}")
         }
     }
@@ -50,6 +59,18 @@ class PlatformInventoryCli(
         return 0
     }
 
+    private fun renderEdgeCatalog(args: List<String>): Int {
+        if (args.isNotEmpty()) {
+            return fail("Usage: render-edge-catalog")
+        }
+
+        val fleet = fleetLoader.load(repositoryRoot.resolve("platform/inventory/fleet.yaml"))
+        val catalog = fleet.toEdgeCatalog()
+        stdout.append(yamlMapper.writeValueAsString(catalog))
+        stdout.flush()
+        return 0
+    }
+
     private fun fail(message: String): Int {
         stderr.appendLine(message)
         stderr.flush()
@@ -69,6 +90,48 @@ private fun NodeInfo.toNixSystem(): String =
         "arm64" -> "aarch64-linux"
         else -> error("Unsupported arch $arch")
     }
+
+private fun PlatformFleet.toEdgeCatalog(): EdgeCatalog {
+    val exposureByService =
+        buildMap {
+            exposureIntent.public.forEach { put(it, "public") }
+            exposureIntent.publicAndLan.forEach { put(it, "public_and_lan") }
+            exposureIntent.internalOnly.forEach { put(it, "internal_only") }
+            exposureIntent.lanOnly.forEach { put(it, "lan_only") }
+        }
+
+    val services =
+        exposureByService.entries
+            .sortedBy { it.key }
+            .map { (serviceName, exposure) ->
+                EdgeServiceCatalogEntry(
+                    name = serviceName,
+                    exposure = exposure,
+                    access =
+                        when {
+                            serviceName in accessIntent.ssoProtected -> "sso_protected"
+                            exposure == "internal_only" -> "cluster_internal"
+                            else -> "direct"
+                        },
+                )
+            }
+
+    return EdgeCatalog(
+        cluster = cluster.name,
+        services = services,
+    )
+}
+
+private data class EdgeCatalog(
+    val cluster: String,
+    val services: List<EdgeServiceCatalogEntry>,
+)
+
+private data class EdgeServiceCatalogEntry(
+    val name: String,
+    val exposure: String,
+    val access: String,
+)
 
 fun main(args: Array<String>) {
     exitProcess(PlatformInventoryCli().run(*args))

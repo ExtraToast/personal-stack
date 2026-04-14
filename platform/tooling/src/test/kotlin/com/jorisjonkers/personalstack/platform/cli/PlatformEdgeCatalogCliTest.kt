@@ -23,13 +23,13 @@ class PlatformEdgeCatalogCliTest {
 
         assertThat(exitCode).isEqualTo(0)
         assertThat(stdout.toString(StandardCharsets.UTF_8))
-            .contains("name: vault")
-            .contains("exposure: public")
-            .contains("access: sso_protected")
+            .contains("name: \"vault\"")
+            .contains("exposure: \"public\"")
+            .contains("access: \"sso_protected\"")
         assertThat(stdout.toString(StandardCharsets.UTF_8))
-            .contains("name: postgres")
-            .contains("exposure: internal_only")
-            .contains("access: cluster_internal")
+            .contains("name: \"postgres\"")
+            .contains("exposure: \"internal_only\"")
+            .contains("access: \"cluster_internal\"")
         assertThat(stderr.toString(StandardCharsets.UTF_8)).isBlank()
     }
 }
