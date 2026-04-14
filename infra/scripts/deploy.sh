@@ -9,7 +9,7 @@
 #   infra  Observability, platform, mail, core jobs (no Traefik)
 #   edge   Traefik only
 #   apps   auth-api, assistant-api, auth-ui, assistant-ui, app-ui
-#   media  downloads (gluetun+qBittorrent+Prowlarr), Sonarr, Radarr, Jellyfin
+#   media  downloads (gluetun+qBittorrent+Prowlarr), Sonarr, Radarr, Jellyfin, Jellyseerr
 #   all    Everything (default)
 set -euo pipefail
 
@@ -40,7 +40,7 @@ Phases:
   infra  Observability, platform, mail, core jobs
   edge   Traefik only
   apps   auth-api, assistant-api, auth-ui, assistant-ui, app-ui
-  media  downloads (gluetun+qBittorrent+Prowlarr), Sonarr, Radarr, Jellyfin
+  media  downloads (gluetun+qBittorrent+Prowlarr), Sonarr, Radarr, Jellyfin, Jellyseerr
   all    Everything (default)
 
 Options:
@@ -245,6 +245,7 @@ deploy_media() {
   submit_job "${JOBS_DIR}/media/sonarr.nomad.hcl"
   submit_job "${JOBS_DIR}/media/radarr.nomad.hcl"
   submit_job "${JOBS_DIR}/media/jellyfin.nomad.hcl"
+  submit_job "${JOBS_DIR}/media/jellyseerr.nomad.hcl"
 }
 
 case "${PHASE}" in
@@ -288,6 +289,7 @@ if [[ "${WAIT}" == true && "${MODE}" == "apply" ]]; then
       wait_for_job_ready sonarr 180
       wait_for_job_ready radarr 180
       wait_for_job_ready jellyfin 240
+      wait_for_job_ready jellyseerr 240
       ;;
     all)
       wait_for_job_ready postgres 240
@@ -308,6 +310,7 @@ if [[ "${WAIT}" == true && "${MODE}" == "apply" ]]; then
       wait_for_job_ready sonarr 180
       wait_for_job_ready radarr 180
       wait_for_job_ready jellyfin 240
+      wait_for_job_ready jellyseerr 240
       ;;
   esac
   echo "All critical jobs running."
