@@ -12,6 +12,7 @@ class PlatformValidationWorkflowTest {
         val requiredFiles =
             listOf(
                 "platform/scripts/render/render-edge-route-catalog-configmap.sh",
+                "platform/scripts/render/render-traefik-ingressroutes.sh",
                 "platform/scripts/validate/render-platform.sh",
                 "platform/scripts/validate/render-flux.sh",
                 ".github/workflows/platform-validate.yml",
@@ -32,8 +33,10 @@ class PlatformValidationWorkflowTest {
         assertThat(script).contains("nix flake check")
         assertThat(script).contains("render-edge-catalog-configmap.sh")
         assertThat(script).contains("render-edge-route-catalog-configmap.sh")
+        assertThat(script).contains("render-traefik-ingressroutes.sh")
         assertThat(script).contains("git diff --exit-code -- platform/cluster/flux/apps/edge/edge-catalog-configmap.yaml")
         assertThat(script).contains("git diff --exit-code -- platform/cluster/flux/apps/edge/edge-route-catalog-configmap.yaml")
+        assertThat(script).contains("git diff --exit-code -- platform/cluster/flux/apps/edge/traefik-ingressroutes.yaml")
         assertThat(script).contains("kustomize build")
         assertThat(script).contains("helm template")
         assertThat(script).contains("kubeconform")

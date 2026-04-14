@@ -49,8 +49,10 @@ class PlatformIngressControllerFluxTest {
 
     @Test
     fun `edge app publishes a shared traefik forward auth middleware`() {
+        val kustomization = repositoryRoot.resolve("platform/cluster/flux/apps/edge/kustomization.yaml").toFile().readText()
         val middlewarePath = repositoryRoot.resolve("platform/cluster/flux/apps/edge/traefik-forward-auth-middleware.yaml")
 
+        assertThat(kustomization).contains("traefik-forward-auth-middleware.yaml").contains("traefik-ingressroutes.yaml")
         assertThat(Files.exists(middlewarePath)).isTrue()
 
         val middleware = middlewarePath.toFile().readText()

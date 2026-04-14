@@ -29,6 +29,10 @@ class PlatformFleetLoaderTest {
         assertThat(fleet.nodes.getValue("frankfurt-contabo-1").ssh?.host).isEqualTo("167.86.79.203")
         assertThat(fleet.placementIntent.gpuSpecific.getValue("jellyfin").preferredGpuModel).isEqualTo("t1000")
         assertThat(fleet.exposureIntent.publicAndLan).containsExactlyInAnyOrder("jellyfin", "radarr", "sonarr")
+        assertThat(fleet.ingressIntent.kubernetesBackends.getValue("vault").port).isEqualTo(8200)
+        assertThat(fleet.ingressIntent.kubernetesBackends.getValue("auth-api").namespace).isEqualTo("auth-system")
+        assertThat(fleet.ingressIntent.kubernetesBackends.getValue("assistant-api").port).isEqualTo(8082)
+        assertThat(fleet.ingressIntent.kubernetesBackends).doesNotContainKey("headscale")
     }
 
     @Test
@@ -127,6 +131,67 @@ class PlatformFleetLoaderTest {
         assertThatThrownBy { loader.load(inventoryPath) }
             .isInstanceOf(IllegalArgumentException::class.java)
             .hasMessageContaining("node stray-node references unknown site enschede")
+    }
+
+    @Test
+    fun `rejects externally exposed kubernetes services without ingress backends`() {
+        val inventoryPath =
+            tempInventory(
+                """
+                version: 1
+                cluster:
+                  name: personal-stack
+                  public_domain: jorisjonkers.dev
+                  test_domain: jorisjonkers.test
+                sites:
+                  frankfurt:
+                    kind: vps
+                    purpose: primary_cluster_site
+                nodes:
+                  frankfurt-contabo-1:
+                    status: active
+                    site: frankfurt
+                    arch: amd64
+                    ssh:
+                      host: 167.86.79.203
+                      user: deploy
+                      port: 2222
+                    target_roles:
+                      - k3s-control-plane
+                    capacity:
+                      cpu_millicores: 1000
+                      memory_mib: 1024
+                    capabilities:
+                      - tailscale
+                service_intent:
+                  kubernetes:
+                    public_apps:
+                      - app-ui
+                    internal_platform: []
+                    home_media: []
+                  host_native: {}
+                placement_intent:
+                  frankfurt_only:
+                    - app-ui
+                  enschede_only: []
+                  gpu_specific: {}
+                exposure_intent:
+                  public:
+                    - app-ui
+                  public_and_lan: []
+                  internal_only: []
+                  lan_only: []
+                access_intent:
+                  host_labels:
+                    app-ui: root
+                ingress_intent:
+                  kubernetes_backends: {}
+                """.trimIndent(),
+            )
+
+        assertThatThrownBy { loader.load(inventoryPath) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("externally exposed kubernetes service app-ui must declare an ingress backend")
     }
 
     private fun tempInventory(content: String) =
