@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.jorisjonkers.personalstack.platform.RepositoryRootLocator
+import com.jorisjonkers.personalstack.platform.inventory.KubernetesIngressBackend
 import com.jorisjonkers.personalstack.platform.inventory.NodeInfo
 import com.jorisjonkers.personalstack.platform.inventory.PlatformFleet
 import com.jorisjonkers.personalstack.platform.inventory.PlatformFleetLoader
@@ -25,7 +26,7 @@ class PlatformInventoryCli(
 ) {
     fun run(vararg args: String): Int {
         if (args.isEmpty()) {
-            return fail("Usage: show-host-env <node-name> | render-edge-catalog | render-edge-route-catalog | render-edge-configmap | render-edge-route-configmap")
+            return fail("Usage: show-host-env <node-name> | render-edge-catalog | render-edge-route-catalog | render-edge-configmap | render-edge-route-configmap | render-traefik-ingressroutes")
         }
 
         return when (args.first()) {
@@ -34,6 +35,7 @@ class PlatformInventoryCli(
             "render-edge-route-catalog" -> renderEdgeRouteCatalog(args.drop(1))
             "render-edge-configmap" -> renderEdgeConfigMap(args.drop(1))
             "render-edge-route-configmap" -> renderEdgeRouteConfigMap(args.drop(1))
+            "render-traefik-ingressroutes" -> renderTraefikIngressRoutes(args.drop(1))
             else -> fail("Unknown command: ${args.first()}")
         }
     }
@@ -106,6 +108,17 @@ class PlatformInventoryCli(
 
         val fleet = fleetLoader.load(repositoryRoot.resolve("platform/inventory/fleet.yaml"))
         stdout.append(fleet.toEdgeRouteConfigMapYaml(yamlMapper))
+        stdout.flush()
+        return 0
+    }
+
+    private fun renderTraefikIngressRoutes(args: List<String>): Int {
+        if (args.isNotEmpty()) {
+            return fail("Usage: render-traefik-ingressroutes")
+        }
+
+        val fleet = fleetLoader.load(repositoryRoot.resolve("platform/inventory/fleet.yaml"))
+        stdout.append(fleet.toTraefikIngressRoutesYaml())
         stdout.flush()
         return 0
     }
@@ -259,6 +272,18 @@ private fun PlatformFleet.toEdgeRouteConfigMapYaml(yamlMapper: ObjectMapper): St
     )
 }
 
+private fun PlatformFleet.toTraefikIngressRoutesYaml(): String {
+    val routes =
+        toEdgeRouteCatalog().routes
+            .mapNotNull { route ->
+                ingressIntent.kubernetesBackends[route.service]?.let { backend ->
+                    route.toIngressRouteYaml(backend)
+                }
+            }
+
+    return routes.joinToString(separator = "\n---\n")
+}
+
 private fun MutableList<EdgeRouteCatalogEntry>.addDefaultRoute(service: EdgeServiceCatalogEntry) {
     add(service.toRoute())
 }
@@ -324,6 +349,64 @@ private fun String.toConfigMapYaml(
             }
         }
     }
+
+private fun EdgeRouteCatalogEntry.toIngressRouteYaml(backend: KubernetesIngressBackend): String =
+    buildString {
+        appendLine("apiVersion: traefik.io/v1alpha1")
+        appendLine("kind: IngressRoute")
+        appendLine("metadata:")
+        appendLine("  name: ${name}")
+        appendLine("  namespace: edge-system")
+        appendLine("spec:")
+        appendLine("  entryPoints:")
+        appendLine("    - websecure")
+        appendLine("  routes:")
+        appendLine("    - kind: Rule")
+        appendLine("      match: ${toYamlDoubleQuotedString(toTraefikMatch())}")
+        if (access == "sso_protected") {
+            appendLine("      middlewares:")
+            appendLine("        - name: forward-auth")
+            appendLine("          namespace: edge-system")
+        }
+        appendLine("      services:")
+        appendLine("        - name: ${backend.serviceName}")
+        appendLine("          namespace: ${backend.namespace}")
+        appendLine("          port: ${backend.port}")
+        appendLine("  tls: {}")
+    }.trimEnd()
+
+private fun EdgeRouteCatalogEntry.toTraefikMatch(): String {
+    val hostMatch = "(Host(`${productionHost}`) || Host(`${testHost}`))"
+    val positivePredicates =
+        buildList {
+            pathPrefixes?.forEach { add("PathPrefix(`${it}`)") }
+            exactPaths?.forEach { add("Path(`${it}`)") }
+        }
+    val negativePredicates =
+        buildList {
+            excludedPathPrefixes?.forEach { add("!PathPrefix(`${it}`)") }
+            excludedPaths?.forEach { add("!Path(`${it}`)") }
+        }
+
+    val routePredicates =
+        buildList {
+            add(hostMatch)
+            positivePredicates.toCombinedPredicate()?.let(::add)
+            addAll(negativePredicates)
+        }
+
+    return routePredicates.joinToString(" && ")
+}
+
+private fun List<String>.toCombinedPredicate(): String? =
+    when (size) {
+        0 -> null
+        1 -> single()
+        else -> joinToString(" || ", prefix = "(", postfix = ")")
+    }
+
+private fun toYamlDoubleQuotedString(value: String): String =
+    "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
 private data class EdgeRouteCatalog(
     val cluster: String,

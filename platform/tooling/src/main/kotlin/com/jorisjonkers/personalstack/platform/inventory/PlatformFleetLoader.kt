@@ -39,12 +39,19 @@ class PlatformFleetLoader(
                 addAll(fleet.serviceIntent.kubernetes.homeMedia)
                 fleet.serviceIntent.hostNative.values.forEach(::addAll)
             }
+        val knownKubernetesServices =
+            buildSet {
+                addAll(fleet.serviceIntent.kubernetes.publicApps)
+                addAll(fleet.serviceIntent.kubernetes.internalPlatform)
+                addAll(fleet.serviceIntent.kubernetes.homeMedia)
+            }
         val externallyExposedServices =
             buildSet {
                 addAll(fleet.exposureIntent.public)
                 addAll(fleet.exposureIntent.publicAndLan)
                 addAll(fleet.exposureIntent.lanOnly)
             }
+        val externallyExposedKubernetesServices = externallyExposedServices.intersect(knownKubernetesServices)
 
         fleet.accessIntent.ssoProtected.forEach { serviceName ->
             require(serviceName in knownServices) {
@@ -67,6 +74,30 @@ class PlatformFleetLoader(
         externallyExposedServices.forEach { serviceName ->
             require(serviceName in fleet.accessIntent.hostLabels) {
                 "externally exposed service $serviceName must declare a host label"
+            }
+        }
+
+        fleet.ingressIntent.kubernetesBackends.forEach { (serviceName, backend) ->
+            require(serviceName in knownKubernetesServices) {
+                "ingress backend for service $serviceName references unknown kubernetes service intent"
+            }
+            require(serviceName in externallyExposedKubernetesServices) {
+                "ingress backend for service $serviceName must target an externally exposed kubernetes service"
+            }
+            require(backend.namespace.isNotBlank()) {
+                "ingress backend namespace for service $serviceName must not be blank"
+            }
+            require(backend.serviceName.isNotBlank()) {
+                "ingress backend service name for service $serviceName must not be blank"
+            }
+            require(backend.port > 0) {
+                "ingress backend port for service $serviceName must be positive"
+            }
+        }
+
+        externallyExposedKubernetesServices.forEach { serviceName ->
+            require(serviceName in fleet.ingressIntent.kubernetesBackends) {
+                "externally exposed kubernetes service $serviceName must declare an ingress backend"
             }
         }
     }

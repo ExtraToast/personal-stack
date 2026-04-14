@@ -239,3 +239,58 @@ access_intent:
     sonarr: sonarr
     adguard: adguard
     samba: samba
+
+ingress_intent:
+  kubernetes_backends:
+    app-ui:
+      namespace: app-system
+      service: app-ui
+      port: 80
+    auth-api:
+      namespace: auth-system
+      service: auth-api
+      port: 8081
+    auth-ui:
+      namespace: auth-system
+      service: auth-ui
+      port: 80
+    assistant-api:
+      namespace: assistant-system
+      service: assistant-api
+      port: 8082
+    assistant-ui:
+      namespace: assistant-system
+      service: assistant-ui
+      port: 80
+    grafana:
+      namespace: observability
+      service: grafana
+      port: 3000
+    jellyfin:
+      namespace: media-system
+      service: jellyfin
+      port: 8096
+    n8n:
+      namespace: automation-system
+      service: n8n
+      port: 5678
+    rabbitmq:
+      namespace: data-system
+      service: rabbitmq
+      port: 15672
+    radarr:
+      namespace: media-system
+      service: radarr
+      port: 7878
+    sonarr:
+      namespace: media-system
+      service: sonarr
+      port: 8989
+    uptime-kuma:
+      namespace: observability
+      service: uptime-kuma
+      port: 3001
+    vault:
+      namespace: data-system
+      service: vault
+      port: 8200

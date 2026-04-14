@@ -6,3 +6,4 @@ resources:
   - edge-catalog-configmap.yaml
   - edge-route-catalog-configmap.yaml
   - traefik-forward-auth-middleware.yaml
+  - traefik-ingressroutes.yaml

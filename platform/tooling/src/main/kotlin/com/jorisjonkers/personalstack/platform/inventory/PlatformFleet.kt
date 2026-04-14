@@ -15,6 +15,8 @@ data class PlatformFleet(
     val exposureIntent: ExposureIntent,
     @param:JsonProperty("access_intent")
     val accessIntent: AccessIntent = AccessIntent(),
+    @param:JsonProperty("ingress_intent")
+    val ingressIntent: IngressIntent = IngressIntent(),
 )
 
 data class ClusterInfo(
@@ -107,4 +109,16 @@ data class AccessIntent(
     val ssoProtected: List<String> = emptyList(),
     @param:JsonProperty("host_labels")
     val hostLabels: Map<String, String> = emptyMap(),
+)
+
+data class IngressIntent(
+    @param:JsonProperty("kubernetes_backends")
+    val kubernetesBackends: Map<String, KubernetesIngressBackend> = emptyMap(),
+)
+
+data class KubernetesIngressBackend(
+    val namespace: String,
+    @param:JsonProperty("service")
+    val serviceName: String,
+    val port: Int,
 )
