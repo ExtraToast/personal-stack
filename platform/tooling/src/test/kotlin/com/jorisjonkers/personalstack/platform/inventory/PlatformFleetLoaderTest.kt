@@ -18,6 +18,7 @@ class PlatformFleetLoaderTest {
 
         assertThat(fleet.cluster.name).isEqualTo("personal-stack")
         assertThat(fleet.sites.keys).containsExactlyInAnyOrder("frankfurt", "enschede")
+        assertThat(fleet.sites.getValue("enschede").networking?.lanIngressIp).isEqualTo("192.168.1.240")
         assertThat(fleet.nodes.keys).contains(
             "frankfurt-contabo-1",
             "enschede-home-gtx960m-1",
