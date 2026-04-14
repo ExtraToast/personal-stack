@@ -25,7 +25,7 @@ class PlatformInventoryCli(
 ) {
     fun run(vararg args: String): Int {
         if (args.isEmpty()) {
-            return fail("Usage: show-host-env <node-name> | render-edge-catalog | render-edge-route-catalog")
+            return fail("Usage: show-host-env <node-name> | render-edge-catalog | render-edge-route-catalog | render-edge-configmap | render-edge-route-configmap")
         }
 
         return when (args.first()) {
@@ -33,6 +33,7 @@ class PlatformInventoryCli(
             "render-edge-catalog" -> renderEdgeCatalog(args.drop(1))
             "render-edge-route-catalog" -> renderEdgeRouteCatalog(args.drop(1))
             "render-edge-configmap" -> renderEdgeConfigMap(args.drop(1))
+            "render-edge-route-configmap" -> renderEdgeRouteConfigMap(args.drop(1))
             else -> fail("Unknown command: ${args.first()}")
         }
     }
@@ -98,6 +99,17 @@ class PlatformInventoryCli(
         return 0
     }
 
+    private fun renderEdgeRouteConfigMap(args: List<String>): Int {
+        if (args.isNotEmpty()) {
+            return fail("Usage: render-edge-route-configmap")
+        }
+
+        val fleet = fleetLoader.load(repositoryRoot.resolve("platform/inventory/fleet.yaml"))
+        stdout.append(fleet.toEdgeRouteConfigMapYaml(yamlMapper))
+        stdout.flush()
+        return 0
+    }
+
     private fun fail(message: String): Int {
         stderr.appendLine(message)
         stderr.flush()
@@ -153,19 +165,10 @@ private fun PlatformFleet.toEdgeCatalog(): EdgeCatalog {
 
 private fun PlatformFleet.toEdgeConfigMapYaml(yamlMapper: ObjectMapper): String {
     val catalogYaml = yamlMapper.writeValueAsString(toEdgeCatalog()).trimEnd()
-    return buildString {
-        appendLine("apiVersion: v1")
-        appendLine("kind: ConfigMap")
-        appendLine("metadata:")
-        appendLine("  name: platform-edge-catalog")
-        appendLine("  namespace: edge-system")
-        appendLine("data:")
-        appendLine("  edge-catalog.yaml: |")
-        catalogYaml.lineSequence().forEach { line ->
-            append("    ")
-            appendLine(line)
-        }
-    }
+    return catalogYaml.toConfigMapYaml(
+        configMapName = "platform-edge-catalog",
+        dataKey = "edge-catalog.yaml",
+    )
 }
 
 private fun PlatformFleet.toEdgeRouteCatalog(): EdgeRouteCatalog {
@@ -248,6 +251,14 @@ private fun PlatformFleet.toEdgeRouteCatalog(): EdgeRouteCatalog {
     )
 }
 
+private fun PlatformFleet.toEdgeRouteConfigMapYaml(yamlMapper: ObjectMapper): String {
+    val routeCatalogYaml = yamlMapper.writeValueAsString(toEdgeRouteCatalog()).trimEnd()
+    return routeCatalogYaml.toConfigMapYaml(
+        configMapName = "platform-edge-route-catalog",
+        dataKey = "edge-route-catalog.yaml",
+    )
+}
+
 private fun MutableList<EdgeRouteCatalogEntry>.addDefaultRoute(service: EdgeServiceCatalogEntry) {
     add(service.toRoute())
 }
@@ -292,6 +303,26 @@ private fun String.toFqdn(domain: String): String =
         domain
     } else {
         "${this}.${domain}"
+    }
+
+private fun String.toConfigMapYaml(
+    configMapName: String,
+    dataKey: String,
+): String =
+    let { sourceYaml ->
+        buildString {
+            appendLine("apiVersion: v1")
+            appendLine("kind: ConfigMap")
+            appendLine("metadata:")
+            appendLine("  name: ${configMapName}")
+            appendLine("  namespace: edge-system")
+            appendLine("data:")
+            appendLine("  ${dataKey}: |")
+            sourceYaml.lineSequence().forEach { line ->
+                append("    ")
+                appendLine(line)
+            }
+        }
     }
 
 private data class EdgeRouteCatalog(

@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - edge-catalog-configmap.yaml
+  - edge-route-catalog-configmap.yaml
