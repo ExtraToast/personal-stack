@@ -11,6 +11,8 @@ sites:
   enschede:
     kind: home
     purpose: home_lan_and_media_site
+    networking:
+      lan_ingress_ip: 192.168.1.240
 
 nodes:
   frankfurt-contabo-1:

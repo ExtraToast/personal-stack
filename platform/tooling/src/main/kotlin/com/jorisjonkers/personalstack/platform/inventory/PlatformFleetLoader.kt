@@ -100,5 +100,23 @@ class PlatformFleetLoader(
                 "externally exposed kubernetes service $serviceName must declare an ingress backend"
             }
         }
+
+        val lanExposedServices =
+            buildSet {
+                addAll(fleet.exposureIntent.publicAndLan)
+                addAll(fleet.exposureIntent.lanOnly)
+            }
+        if (lanExposedServices.isNotEmpty()) {
+            require(fleet.sites.values.any { it.networking?.lanIngressIp != null }) {
+                "lan exposed services require at least one site lan ingress ip"
+            }
+            require(
+                fleet.nodes.values.any { node ->
+                    node.status == "active" && "lan-ingress" in node.capabilities
+                },
+            ) {
+                "lan exposed services require at least one active lan ingress node"
+            }
+        }
     }
 }

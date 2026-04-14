@@ -9,3 +9,4 @@ resources:
   - traefik-default-tls.yaml
   - traefik-forward-auth-middleware.yaml
   - traefik-ingressroutes.yaml
+  - traefik-lan-ingressroutes.yaml

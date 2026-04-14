@@ -1,0 +1,56 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: jellyfin-lan
+  namespace: edge-system
+  annotations:
+    kubernetes.io/ingress.class: traefik-lan
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: 'Host(`jellyfin.jorisjonkers.dev`)'
+      services:
+        - name: jellyfin
+          namespace: media-system
+          port: 8096
+  tls: {}
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: radarr-lan
+  namespace: edge-system
+  annotations:
+    kubernetes.io/ingress.class: traefik-lan
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: 'Host(`radarr.jorisjonkers.dev`)'
+      services:
+        - name: radarr
+          namespace: media-system
+          port: 7878
+  tls: {}
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: sonarr-lan
+  namespace: edge-system
+  annotations:
+    kubernetes.io/ingress.class: traefik-lan
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: 'Host(`sonarr.jorisjonkers.dev`)'
+      services:
+        - name: sonarr
+          namespace: media-system
+          port: 8989
+  tls: {}

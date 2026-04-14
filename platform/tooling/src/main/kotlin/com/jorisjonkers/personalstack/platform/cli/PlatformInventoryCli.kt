@@ -26,7 +26,9 @@ class PlatformInventoryCli(
 ) {
     fun run(vararg args: String): Int {
         if (args.isEmpty()) {
-            return fail("Usage: show-host-env <node-name> | render-edge-catalog | render-edge-route-catalog | render-edge-configmap | render-edge-route-configmap | render-traefik-ingressroutes")
+            return fail(
+                "Usage: show-host-env <node-name> | render-edge-catalog | render-edge-route-catalog | render-edge-configmap | render-edge-route-configmap | render-traefik-ingressroutes | render-traefik-lan-ingressroutes",
+            )
         }
 
         return when (args.first()) {
@@ -36,6 +38,7 @@ class PlatformInventoryCli(
             "render-edge-configmap" -> renderEdgeConfigMap(args.drop(1))
             "render-edge-route-configmap" -> renderEdgeRouteConfigMap(args.drop(1))
             "render-traefik-ingressroutes" -> renderTraefikIngressRoutes(args.drop(1))
+            "render-traefik-lan-ingressroutes" -> renderTraefikLanIngressRoutes(args.drop(1))
             else -> fail("Unknown command: ${args.first()}")
         }
     }
@@ -119,6 +122,19 @@ class PlatformInventoryCli(
 
         val fleet = fleetLoader.load(repositoryRoot.resolve("platform/inventory/fleet.yaml"))
         stdout.append(fleet.toTraefikIngressRoutesYaml())
+        stdout.appendLine()
+        stdout.flush()
+        return 0
+    }
+
+    private fun renderTraefikLanIngressRoutes(args: List<String>): Int {
+        if (args.isNotEmpty()) {
+            return fail("Usage: render-traefik-lan-ingressroutes")
+        }
+
+        val fleet = fleetLoader.load(repositoryRoot.resolve("platform/inventory/fleet.yaml"))
+        stdout.append(fleet.toTraefikLanIngressRoutesYaml())
+        stdout.appendLine()
         stdout.flush()
         return 0
     }
@@ -272,13 +288,37 @@ private fun PlatformFleet.toEdgeRouteConfigMapYaml(yamlMapper: ObjectMapper): St
 }
 
 private fun PlatformFleet.toTraefikIngressRoutesYaml(): String {
-    val ingressDnsTarget = "ingress.${cluster.publicDomain}"
+    val publicServices = exposureIntent.public.toSet() + exposureIntent.publicAndLan.toSet()
+    return toTraefikIngressRoutesYaml(
+        serviceNames = publicServices,
+        ingressClassName = "traefik-public",
+        ingressDnsTarget = "ingress.${cluster.publicDomain}",
+    )
+}
+
+private fun PlatformFleet.toTraefikLanIngressRoutesYaml(): String {
+    val lanServices = exposureIntent.publicAndLan.toSet() + exposureIntent.lanOnly.toSet()
+    return toTraefikIngressRoutesYaml(
+        serviceNames = lanServices,
+        ingressClassName = "traefik-lan",
+        nameSuffix = "-lan",
+    )
+}
+
+private fun PlatformFleet.toTraefikIngressRoutesYaml(
+    serviceNames: Set<String>,
+    ingressClassName: String,
+    ingressDnsTarget: String? = null,
+    nameSuffix: String = "",
+): String {
     val routes =
         toEdgeRouteCatalog().routes
+            .filter { it.service in serviceNames }
             .mapNotNull { route ->
                 ingressIntent.kubernetesBackends[route.service]?.let { backend ->
-                    route.toIngressRouteYaml(
+                    route.copy(name = "${route.name}${nameSuffix}").toIngressRouteYaml(
                         backend = backend,
+                        ingressClassName = ingressClassName,
                         ingressDnsTarget = ingressDnsTarget,
                     )
                 }
@@ -351,7 +391,8 @@ private fun String.toConfigMapYaml(
 
 private fun EdgeRouteCatalogEntry.toIngressRouteYaml(
     backend: KubernetesIngressBackend,
-    ingressDnsTarget: String,
+    ingressClassName: String,
+    ingressDnsTarget: String? = null,
 ): String =
     buildString {
         appendLine("apiVersion: traefik.io/v1alpha1")
@@ -360,9 +401,11 @@ private fun EdgeRouteCatalogEntry.toIngressRouteYaml(
         appendLine("  name: ${name}")
         appendLine("  namespace: edge-system")
         appendLine("  annotations:")
-        appendLine("    external-dns.alpha.kubernetes.io/target: ${ingressDnsTarget}")
-        appendLine("    external-dns.alpha.kubernetes.io/cloudflare-proxied: \"true\"")
-        appendLine("    kubernetes.io/ingress.class: traefik-public")
+        ingressDnsTarget?.let {
+            appendLine("    external-dns.alpha.kubernetes.io/target: ${it}")
+            appendLine("    external-dns.alpha.kubernetes.io/cloudflare-proxied: \"true\"")
+        }
+        appendLine("    kubernetes.io/ingress.class: ${ingressClassName}")
         appendLine("spec:")
         appendLine("  entryPoints:")
         appendLine("    - websecure")

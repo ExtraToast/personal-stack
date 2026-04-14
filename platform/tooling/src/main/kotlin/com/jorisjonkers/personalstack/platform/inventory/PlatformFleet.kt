@@ -28,6 +28,12 @@ data class ClusterInfo(
 data class SiteInfo(
     val kind: String,
     val purpose: String,
+    val networking: SiteNetworking? = null,
+)
+
+data class SiteNetworking(
+    @param:JsonProperty("lan_ingress_ip")
+    val lanIngressIp: String? = null,
 )
 
 data class NodeInfo(
