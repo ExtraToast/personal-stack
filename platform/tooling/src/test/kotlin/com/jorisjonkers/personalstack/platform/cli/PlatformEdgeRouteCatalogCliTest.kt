@@ -27,20 +27,19 @@ class PlatformEdgeRouteCatalogCliTest {
         assertThat(output)
             .contains("name: \"app-ui\"")
             .contains("service: \"app-ui\"")
-            .contains("production_host: \"jorisjonkers.dev\"")
-            .contains("test_host: \"jorisjonkers.test\"")
+            .contains("host: \"jorisjonkers.dev\"")
 
         assertThat(output)
             .contains("name: \"auth-api-well-known\"")
             .contains("service: \"auth-api\"")
-            .contains("production_host: \"auth.jorisjonkers.dev\"")
+            .contains("host: \"auth.jorisjonkers.dev\"")
             .contains("path_prefixes:")
             .contains("- \"/.well-known/\"")
 
         assertThat(output)
             .contains("name: \"assistant-api\"")
             .contains("service: \"assistant-api\"")
-            .contains("production_host: \"assistant.jorisjonkers.dev\"")
+            .contains("host: \"assistant.jorisjonkers.dev\"")
             .contains("access: \"sso_protected\"")
             .contains("- \"/api/\"")
 
@@ -55,14 +54,16 @@ class PlatformEdgeRouteCatalogCliTest {
         assertThat(output)
             .contains("name: \"vault\"")
             .contains("service: \"vault\"")
-            .contains("production_host: \"vault.jorisjonkers.dev\"")
+            .contains("host: \"vault.jorisjonkers.dev\"")
             .contains("access: \"sso_protected\"")
 
         assertThat(output)
             .contains("name: \"rabbitmq\"")
             .contains("service: \"rabbitmq\"")
-            .contains("production_host: \"rabbitmq.jorisjonkers.dev\"")
+            .contains("host: \"rabbitmq.jorisjonkers.dev\"")
             .contains("access: \"sso_protected\"")
+            .doesNotContain("test_host")
+            .doesNotContain("jorisjonkers.test")
 
         assertThat(stderr.toString(StandardCharsets.UTF_8)).isBlank()
     }

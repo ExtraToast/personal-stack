@@ -45,20 +45,25 @@ class PlatformTraefikIngressRoutesCliTest {
         assertThat(output)
             .contains("kind: IngressRoute")
             .contains("name: assistant-api")
-            .contains("match: \"(Host(`assistant.jorisjonkers.dev`) || Host(`assistant.jorisjonkers.test`)) && PathPrefix(`/api/`) && !PathPrefix(`/api/actuator/health/`) && !Path(`/api/actuator/health`) && !Path(`/api/v1/health`)\"")
+            .contains("match: \"Host(`assistant.jorisjonkers.dev`) && PathPrefix(`/api/`) && !PathPrefix(`/api/actuator/health/`) && !Path(`/api/actuator/health`) && !Path(`/api/v1/health`)\"")
             .contains("name: forward-auth")
             .contains("namespace: edge-system")
             .contains("port: 8082")
 
         assertThat(output)
             .contains("name: assistant-api-health")
-            .contains("match: \"(Host(`assistant.jorisjonkers.dev`) || Host(`assistant.jorisjonkers.test`)) && (PathPrefix(`/api/actuator/health/`) || Path(`/api/actuator/health`) || Path(`/api/v1/health`))\"")
+            .contains("match: \"Host(`assistant.jorisjonkers.dev`) && (PathPrefix(`/api/actuator/health/`) || Path(`/api/actuator/health`) || Path(`/api/v1/health`))\"")
+
+        assertThat(output)
+            .contains("name: auth-api-well-known")
+            .contains("match: \"Host(`auth.jorisjonkers.dev`) && PathPrefix(`/.well-known/`)\"")
 
         assertThat(output)
             .contains("name: vault")
-            .contains("match: \"(Host(`vault.jorisjonkers.dev`) || Host(`vault.jorisjonkers.test`))\"")
+            .contains("match: \"Host(`vault.jorisjonkers.dev`)\"")
             .contains("namespace: data-system")
             .contains("port: 8200")
+            .doesNotContain("jorisjonkers.test")
 
         assertThat(stderr.toString(StandardCharsets.UTF_8)).isBlank()
     }

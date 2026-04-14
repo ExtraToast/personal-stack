@@ -31,8 +31,7 @@ class PlatformEdgeRouteConfigMapRenderTest {
                     routes:
                     - name: "vault"
                       service: "vault"
-                      production_host: "vault.jorisjonkers.dev"
-                      test_host: "vault.jorisjonkers.test"
+                      host: "vault.jorisjonkers.dev"
                       access: "sso_protected"
                 EOF
                 """.trimIndent(),

@@ -44,7 +44,6 @@ class PlatformFleetLoaderTest {
                 cluster:
                   name: personal-stack
                   public_domain: jorisjonkers.dev
-                  test_domain: jorisjonkers.test
                 sites:
                   frankfurt:
                     kind: vps
@@ -93,7 +92,6 @@ class PlatformFleetLoaderTest {
                 cluster:
                   name: personal-stack
                   public_domain: jorisjonkers.dev
-                  test_domain: jorisjonkers.test
                 sites:
                   frankfurt:
                     kind: vps
@@ -142,7 +140,6 @@ class PlatformFleetLoaderTest {
                 cluster:
                   name: personal-stack
                   public_domain: jorisjonkers.dev
-                  test_domain: jorisjonkers.test
                 sites:
                   frankfurt:
                     kind: vps

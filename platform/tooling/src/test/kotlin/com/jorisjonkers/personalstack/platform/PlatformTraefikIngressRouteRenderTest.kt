@@ -29,7 +29,7 @@ class PlatformTraefikIngressRouteRenderTest {
                     - websecure
                   routes:
                     - kind: Rule
-                      match: "(Host(`vault.jorisjonkers.dev`) || Host(`vault.jorisjonkers.test`))"
+                      match: "Host(`vault.jorisjonkers.dev`)"
                       middlewares:
                         - name: forward-auth
                           namespace: edge-system
