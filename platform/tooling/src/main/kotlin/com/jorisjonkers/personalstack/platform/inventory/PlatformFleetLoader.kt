@@ -18,5 +18,18 @@ class PlatformFleetLoader(
     fun load(path: Path): PlatformFleet =
         path.inputStream().use { input ->
             objectMapper.readValue(input, PlatformFleet::class.java)
+        }.also(::validate)
+
+    private fun validate(fleet: PlatformFleet) {
+        fleet.nodes.forEach { (nodeName, node) ->
+            require(node.site in fleet.sites) {
+                "node $nodeName references unknown site ${node.site}"
+            }
+            if (node.status == "active") {
+                require(node.ssh != null) {
+                    "active node $nodeName must define ssh connection details"
+                }
+            }
         }
+    }
 }

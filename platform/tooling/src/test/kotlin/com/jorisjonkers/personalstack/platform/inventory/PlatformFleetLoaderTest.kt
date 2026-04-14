@@ -1,5 +1,6 @@
 package com.jorisjonkers.personalstack.platform.inventory
 
+import com.jorisjonkers.personalstack.platform.RepositoryRootLocator
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -9,10 +10,11 @@ import kotlin.io.path.writeText
 
 class PlatformFleetLoaderTest {
     private val loader = PlatformFleetLoader()
+    private val repositoryRoot = RepositoryRootLocator().locate()
 
     @Test
     fun `loads the seeded platform inventory`() {
-        val fleet = loader.load(Path("platform/inventory/fleet.yaml"))
+        val fleet = loader.load(repositoryRoot.resolve("platform/inventory/fleet.yaml"))
 
         assertThat(fleet.cluster.name).isEqualTo("personal-stack")
         assertThat(fleet.sites.keys).containsExactlyInAnyOrder("frankfurt", "enschede")

@@ -7,6 +7,8 @@ import java.nio.file.Path
 import kotlin.io.path.readText
 
 class PlatformScaffoldTest {
+    private val repositoryRoot = RepositoryRootLocator().locate()
+
     @Test
     fun `platform scaffold exists for nix and flux bootstrap`() {
         val requiredFiles =
@@ -24,7 +26,7 @@ class PlatformScaffoldTest {
 
         assertThat(requiredFiles)
             .allSatisfy { file ->
-                assertThat(Files.exists(Path.of(file)))
+                assertThat(Files.exists(repositoryRoot.resolve(file)))
                     .describedAs("%s should exist", file)
                     .isTrue()
             }
@@ -32,7 +34,7 @@ class PlatformScaffoldTest {
 
     @Test
     fun `flake wires required platform inputs`() {
-        val flake = Path.of("platform/flake.nix").readText()
+        val flake = repositoryRoot.resolve("platform/flake.nix").readText()
 
         assertThat(flake).contains("deploy-rs")
         assertThat(flake).contains("disko")
@@ -41,7 +43,8 @@ class PlatformScaffoldTest {
 
     @Test
     fun `flux production kustomization references core apps`() {
-        val kustomization = Path.of("platform/cluster/flux/clusters/production/kustomization.yaml").readText()
+        val kustomization =
+            repositoryRoot.resolve("platform/cluster/flux/clusters/production/kustomization.yaml").readText()
 
         assertThat(kustomization).contains("../../apps/core")
     }
