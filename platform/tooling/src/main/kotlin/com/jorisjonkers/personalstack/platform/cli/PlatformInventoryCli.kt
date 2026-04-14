@@ -357,7 +357,7 @@ private fun EdgeRouteCatalogEntry.toIngressRouteYaml(backend: KubernetesIngressB
         appendLine("    - websecure")
         appendLine("  routes:")
         appendLine("    - kind: Rule")
-        appendLine("      match: ${toYamlDoubleQuotedString(toTraefikMatch())}")
+        appendLine("      match: ${toYamlSingleQuotedString(toTraefikMatch())}")
         if (access == "sso_protected") {
             appendLine("      middlewares:")
             appendLine("        - name: forward-auth")
@@ -400,8 +400,8 @@ private fun List<String>.toCombinedPredicate(): String? =
         else -> joinToString(" || ", prefix = "(", postfix = ")")
     }
 
-private fun toYamlDoubleQuotedString(value: String): String =
-    "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+private fun toYamlSingleQuotedString(value: String): String =
+    "'" + value.replace("'", "''") + "'"
 
 private data class EdgeRouteCatalog(
     val cluster: String,

@@ -3,7 +3,9 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
+  - cluster-issuer-cloudflare.yaml
   - edge-catalog-configmap.yaml
   - edge-route-catalog-configmap.yaml
+  - traefik-default-tls.yaml
   - traefik-forward-auth-middleware.yaml
   - traefik-ingressroutes.yaml
