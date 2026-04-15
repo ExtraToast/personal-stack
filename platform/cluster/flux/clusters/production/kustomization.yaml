@@ -5,4 +5,5 @@ resources:
   - ../../apps/core
   - ../../apps/data
   - ../../apps/observability
+  - ../../apps/stateless
   - ../../apps/edge
