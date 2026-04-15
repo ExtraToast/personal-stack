@@ -51,6 +51,42 @@
         };
       };
 
+      deploy.nodes.enschede-home-t1000-1 = {
+        hostname = "enschede-home-t1000-1";
+        profiles.system = {
+          sshUser = "root";
+          user = "root";
+          path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.enschede-home-t1000-1;
+        };
+      };
+
+      deploy.nodes.enschede-pi-1 = {
+        hostname = "enschede-pi-1";
+        profiles.system = {
+          sshUser = "root";
+          user = "root";
+          path = deploy-rs.lib.aarch64-linux.activate.nixos self.nixosConfigurations.enschede-pi-1;
+        };
+      };
+
+      deploy.nodes.enschede-pi-2 = {
+        hostname = "enschede-pi-2";
+        profiles.system = {
+          sshUser = "root";
+          user = "root";
+          path = deploy-rs.lib.aarch64-linux.activate.nixos self.nixosConfigurations.enschede-pi-2;
+        };
+      };
+
+      deploy.nodes.enschede-pi-3 = {
+        hostname = "enschede-pi-3";
+        profiles.system = {
+          sshUser = "root";
+          user = "root";
+          path = deploy-rs.lib.aarch64-linux.activate.nixos self.nixosConfigurations.enschede-pi-3;
+        };
+      };
+
       packages.x86_64-linux.nixos-anywhere = nixos-anywhere.packages.x86_64-linux.default;
     };
 }

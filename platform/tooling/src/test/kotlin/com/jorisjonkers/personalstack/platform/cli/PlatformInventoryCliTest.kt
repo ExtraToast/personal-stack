@@ -36,7 +36,7 @@ class PlatformInventoryCliTest {
     }
 
     @Test
-    fun `show-host-env marks install ready nodes without ssh as not remotely reachable`() {
+    fun `show-host-env prints bootstrap ssh metadata for install ready nodes`() {
         val stdout = ByteArrayOutputStream()
         val stderr = ByteArrayOutputStream()
 
@@ -52,10 +52,10 @@ class PlatformInventoryCliTest {
             .contains("NODE_NAME=enschede-pi-1")
             .contains("NODE_STATUS=install-ready")
             .contains("NIX_SYSTEM=aarch64-linux")
-            .contains("HAS_SSH=false")
-            .contains("SSH_HOST=")
-            .contains("SSH_USER=")
-            .contains("SSH_PORT=")
+            .contains("HAS_SSH=true")
+            .contains("SSH_HOST=enschede-pi-1")
+            .contains("SSH_USER=root")
+            .contains("SSH_PORT=22")
         assertThat(stderr.toString(StandardCharsets.UTF_8)).isBlank()
     }
 

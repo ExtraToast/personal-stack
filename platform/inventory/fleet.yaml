@@ -62,6 +62,10 @@ nodes:
     status: install-ready
     site: enschede
     arch: amd64
+    ssh:
+      host: enschede-home-t1000-1
+      user: root
+      port: 22
     target_roles:
       - k3s-worker
       - utility-host
@@ -83,6 +87,10 @@ nodes:
     status: install-ready
     site: enschede
     arch: arm64
+    ssh:
+      host: enschede-pi-1
+      user: root
+      port: 22
     target_roles:
       - k3s-worker
     capacity:
@@ -95,6 +103,10 @@ nodes:
     status: install-ready
     site: enschede
     arch: arm64
+    ssh:
+      host: enschede-pi-2
+      user: root
+      port: 22
     target_roles:
       - k3s-worker
     capacity:
@@ -107,6 +119,10 @@ nodes:
     status: install-ready
     site: enschede
     arch: arm64
+    ssh:
+      host: enschede-pi-3
+      user: root
+      port: 22
     target_roles:
       - k3s-worker
     capacity:

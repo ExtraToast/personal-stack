@@ -407,8 +407,16 @@ Every phase should have a validation path before the next one begins.
 
 The next implementation steps should focus on real host bring-up and the first live migrations:
 
-1. Add SSH/install metadata for `enschede-home-t1000-1`, clean-install it to `NixOS`, and validate GPU runtime plus `k3s` worker join
+1. Use the committed bootstrap SSH metadata for `enschede-home-t1000-1`, clean-install it to `NixOS`, and validate GPU runtime plus `k3s` worker join
 2. Use `enschede-pi-1` as the first ARM worker install rehearsal, then fold in `enschede-pi-2` and `enschede-pi-3` once the join path is boring
 3. Move one low-risk workload family onto the new home nodes before widening the wave
 4. Publish `Stalwart` mail protocols through the direct DNS model in [infra/dns/jorisjonkers.dev.zone](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/infra/dns/jorisjonkers.dev.zone:1) instead of trying to route them through Traefik
 5. Keep the admin UI on `stalwart.jorisjonkers.dev` behind forward-auth while the protocol endpoint stays on `mail.jorisjonkers.dev`
+
+For clean machines, the expected sequence is:
+
+1. Boot a temporary SSH-reachable installer environment and point the inventory `ssh` metadata at it
+2. Run `platform/scripts/install/install-host.sh <node-name>` to install `NixOS` from the flake with `nixos-anywhere`
+3. Reboot into the installed `NixOS` system and verify baseline host services such as networking, `Tailscale`, storage mounts, and GPU runtime where applicable
+4. Use `platform/scripts/deploy/deploy-host.sh <node-name>` for steady-state updates through `deploy-rs`
+5. Only after the node is healthy should it join the target `k3s` role and start receiving Flux-managed workloads

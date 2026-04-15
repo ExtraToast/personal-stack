@@ -6,9 +6,16 @@ Flux owns ongoing reconciliation.
 Initial scope:
 
 - bootstrap notes for the first `k3s` control-plane node
+- install playbooks for clean host bring-up
 - manual Vault unseal runbooks
 - first Flux bootstrap command references
 - stateful cutover and recovery playbooks
+
+## Home Install Wave
+
+The clean-install sequence for `enschede-home-t1000-1` and the Raspberry Pi worker
+wave lives in
+[home-install-playbook.md](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/cluster/bootstrap/home-install-playbook.md:1).
 
 ## Vault unseal
 

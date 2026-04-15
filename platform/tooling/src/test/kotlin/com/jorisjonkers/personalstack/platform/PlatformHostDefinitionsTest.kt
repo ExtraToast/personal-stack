@@ -60,4 +60,25 @@ class PlatformHostDefinitionsTest {
             assertThat(flake).contains("${nodeName} = mkHost \"${expectedSystem}\"")
         }
     }
+
+    @Test
+    fun `flake exports deploy targets for every ssh reachable inventory node`() {
+        val flake = repositoryRoot.resolve("platform/flake.nix").toFile().readText()
+
+        fleet.nodes.forEach { (nodeName, node) ->
+            node.ssh?.let {
+                val expectedSystem =
+                    when (node.arch) {
+                        "amd64" -> "x86_64-linux"
+                        "arm64" -> "aarch64-linux"
+                        else -> error("Unsupported arch ${node.arch}")
+                    }
+
+                assertThat(flake).contains("deploy.nodes.${nodeName}")
+                assertThat(flake).contains("hostname = \"${it.host}\"")
+                assertThat(flake)
+                    .contains("deploy-rs.lib.${expectedSystem}.activate.nixos self.nixosConfigurations.${nodeName}")
+            }
+        }
+    }
 }

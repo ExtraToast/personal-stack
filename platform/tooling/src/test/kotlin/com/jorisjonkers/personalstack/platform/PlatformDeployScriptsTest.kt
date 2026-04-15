@@ -67,6 +67,60 @@ class PlatformDeployScriptsTest {
     }
 
     @Test
+    fun `install-host can target install ready nodes through bootstrap root ssh`() {
+        val gradlewStub =
+            tempDir.resolve("gradlew-install-ready").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                cat <<'EOF'
+                NODE_NAME=enschede-home-t1000-1
+                NODE_STATUS=install-ready
+                NODE_SITE=enschede
+                NODE_ARCH=amd64
+                NIX_SYSTEM=x86_64-linux
+                HAS_SSH=true
+                SSH_HOST=enschede-home-t1000-1
+                SSH_USER=root
+                SSH_PORT=22
+                EOF
+                """.trimIndent(),
+            )
+        val nixLog = tempDir.resolve("nix-install-ready.log")
+        val nixStub =
+            tempDir.resolve("nix-install-ready-stub").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
+                """.trimIndent(),
+            )
+
+        val result =
+            runScript(
+                repositoryRoot.resolve("platform/scripts/install/install-host.sh"),
+                "enschede-home-t1000-1",
+                environment =
+                    mapOf(
+                        "PLATFORM_GRADLEW" to gradlewStub,
+                        "PLATFORM_NIX" to nixStub,
+                    ),
+            )
+
+        assertThat(result.exitCode).isEqualTo(0)
+        assertThat(Files.readAllLines(nixLog))
+            .containsExactly(
+                "run",
+                ".#nixos-anywhere",
+                "--",
+                "--flake",
+                ".#enschede-home-t1000-1",
+                "--target-host",
+                "root@enschede-home-t1000-1",
+                "--ssh-port",
+                "22",
+            )
+    }
+
+    @Test
     fun `install-host rejects install ready nodes without ssh details`() {
         val gradlewStub =
             tempDir.resolve("gradlew-no-ssh").writeExecutable(

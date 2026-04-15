@@ -28,6 +28,8 @@ class PlatformFleetLoaderTest {
             "enschede-pi-3",
         )
         assertThat(fleet.nodes.getValue("frankfurt-contabo-1").ssh?.host).isEqualTo("167.86.79.203")
+        assertThat(fleet.nodes.getValue("enschede-home-t1000-1").ssh?.user).isEqualTo("root")
+        assertThat(fleet.nodes.getValue("enschede-pi-1").ssh?.host).isEqualTo("enschede-pi-1")
         assertThat(fleet.placementIntent.gpuSpecific.getValue("jellyfin").preferredGpuModel).isEqualTo("t1000")
         assertThat(fleet.exposureIntent.publicAndLan)
             .containsExactlyInAnyOrder("bazarr", "jellyfin", "prowlarr", "qbittorrent", "radarr", "sonarr")
