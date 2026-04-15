@@ -8,3 +8,29 @@ Initial scope:
 - bootstrap notes for the first `k3s` control-plane node
 - manual Vault unseal runbooks
 - first Flux bootstrap command references
+
+## Vault unseal
+
+The first `Vault` start on a fresh cluster is manual by design.
+
+1. Wait for the `vault-0` pod in `data-system` to be running.
+2. Initialize once:
+   `kubectl -n data-system exec -it vault-0 -- vault operator init`
+3. Store the unseal keys offline and store the initial root token outside the repo.
+4. Unseal with quorum:
+   `kubectl -n data-system exec -it vault-0 -- vault operator unseal`
+5. Repeat `vault operator unseal` until the server reports `Sealed false`.
+
+## Vault Kubernetes Auth Bootstrap
+
+The Flux-managed `vault-bootstrap-auth` job configures the Kubernetes auth
+backend, seeds a sample `kvv2/platform/sample` secret, and creates the
+`platform-sample` role used by the injector-based smoke workload.
+
+Prerequisites:
+
+1. Create the bootstrap token secret from the initial root token:
+   `kubectl -n data-system create secret generic vault-bootstrap-token --from-literal=token=...`
+2. Confirm `vault-bootstrap-auth` completes successfully.
+3. Check the `sample-reader` pod for `/vault/secrets/sample.txt`.
+4. Delete `vault-bootstrap-token` after the bootstrap job has succeeded.

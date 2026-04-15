@@ -4,3 +4,6 @@ kind: Kustomization
 resources:
   - source.yaml
   - release.yaml
+  - bootstrap-auth-configmap.yaml
+  - bootstrap-auth-job.yaml
+  - sample-secret-reader.yaml

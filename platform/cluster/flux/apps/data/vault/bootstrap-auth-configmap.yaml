@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-bootstrap-auth
+  namespace: data-system
+data:
+  bootstrap.sh: |
+    #!/usr/bin/env sh
+    set -eu
+
+    if ! vault auth list -format=json | grep -q '"kubernetes/"'; then
+      vault auth enable kubernetes
+    fi
+
+    vault write auth/kubernetes/config \
+      kubernetes_host="https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT_HTTPS}" \
+      token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+      kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+
+    if ! vault secrets list -format=json | grep -q '"kvv2/"'; then
+      vault secrets enable -path=kvv2 kv-v2
+    fi
+
+    vault kv put kvv2/platform/sample message="hello from vault"
+
+    cat <<'EOF' >/tmp/platform-sample-read.hcl
+    path "kvv2/data/platform/sample" {
+      capabilities = ["read"]
+    }
+    EOF
+
+    vault policy write platform-sample-read /tmp/platform-sample-read.hcl
+
+    vault write auth/kubernetes/role/platform-sample \
+      bound_service_account_names="platform-vault-sample" \
+      bound_service_account_namespaces="data-system" \
+      policies="platform-sample-read" \
+      ttl="1h"
