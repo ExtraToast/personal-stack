@@ -1,6 +1,25 @@
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
+  name: bazarr-lan
+  namespace: edge-system
+  annotations:
+    kubernetes.io/ingress.class: traefik-lan
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: 'Host(`bazarr.jorisjonkers.dev`)'
+      services:
+        - name: bazarr
+          namespace: media-system
+          port: 6767
+  tls: {}
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
   name: jellyfin-lan
   namespace: edge-system
   annotations:
@@ -15,6 +34,44 @@ spec:
         - name: jellyfin
           namespace: media-system
           port: 8096
+  tls: {}
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: prowlarr-lan
+  namespace: edge-system
+  annotations:
+    kubernetes.io/ingress.class: traefik-lan
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: 'Host(`prowlarr.jorisjonkers.dev`)'
+      services:
+        - name: prowlarr
+          namespace: media-system
+          port: 9696
+  tls: {}
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: qbittorrent-lan
+  namespace: edge-system
+  annotations:
+    kubernetes.io/ingress.class: traefik-lan
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: 'Host(`qbittorrent.jorisjonkers.dev`)'
+      services:
+        - name: qbittorrent
+          namespace: media-system
+          port: 8080
   tls: {}
 ---
 apiVersion: traefik.io/v1alpha1

@@ -138,6 +138,8 @@ service_intent:
       - vault
     home_media:
       - downloads
+      - qbittorrent
+      - prowlarr
       - radarr
       - sonarr
       - jellyfin
@@ -174,6 +176,8 @@ placement_intent:
 
   enschede_only:
     - downloads
+    - qbittorrent
+    - prowlarr
     - radarr
     - sonarr
     - jellyfin
@@ -201,7 +205,10 @@ exposure_intent:
     - headscale
 
   public_and_lan:
+    - bazarr
     - jellyfin
+    - prowlarr
+    - qbittorrent
     - radarr
     - sonarr
 
@@ -221,6 +228,9 @@ exposure_intent:
 access_intent:
   sso_protected:
     - assistant-api
+    - bazarr
+    - prowlarr
+    - qbittorrent
     - rabbitmq
     - vault
   host_labels:
@@ -235,7 +245,10 @@ access_intent:
     rabbitmq: rabbitmq
     vault: vault
     headscale: headscale
+    bazarr: bazarr
     jellyfin: jellyfin
+    prowlarr: prowlarr
+    qbittorrent: qbittorrent
     radarr: radarr
     sonarr: sonarr
     adguard: adguard
@@ -267,6 +280,10 @@ ingress_intent:
       namespace: observability
       service: grafana
       port: 3000
+    bazarr:
+      namespace: media-system
+      service: bazarr
+      port: 6767
     jellyfin:
       namespace: media-system
       service: jellyfin
@@ -275,6 +292,14 @@ ingress_intent:
       namespace: automation-system
       service: n8n
       port: 5678
+    prowlarr:
+      namespace: media-system
+      service: prowlarr
+      port: 9696
+    qbittorrent:
+      namespace: media-system
+      service: qbittorrent
+      port: 8080
     rabbitmq:
       namespace: data-system
       service: rabbitmq

@@ -98,13 +98,20 @@ class PlatformLanIngressFluxTest {
         assertThat(kustomization).contains("traefik-lan-ingressroutes.yaml")
 
         assertThat(routes)
+            .contains("name: bazarr-lan")
             .contains("name: jellyfin-lan")
+            .contains("name: prowlarr-lan")
+            .contains("name: qbittorrent-lan")
             .contains("name: radarr-lan")
             .contains("name: sonarr-lan")
+            .contains("Host(`bazarr.jorisjonkers.dev`)")
             .contains("Host(`jellyfin.jorisjonkers.dev`)")
+            .contains("Host(`prowlarr.jorisjonkers.dev`)")
+            .contains("Host(`qbittorrent.jorisjonkers.dev`)")
             .contains("Host(`radarr.jorisjonkers.dev`)")
             .contains("Host(`sonarr.jorisjonkers.dev`)")
             .contains("kubernetes.io/ingress.class: traefik-lan")
             .doesNotContain("external-dns.alpha.kubernetes.io/target")
+            .doesNotContain("name: forward-auth")
     }
 }

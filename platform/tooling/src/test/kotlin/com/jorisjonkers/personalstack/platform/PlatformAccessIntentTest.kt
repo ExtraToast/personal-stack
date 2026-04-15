@@ -25,6 +25,9 @@ class PlatformAccessIntentTest {
         assertThat(fleet.accessIntent.hostLabels["auth-ui"]).isEqualTo("auth")
         assertThat(fleet.accessIntent.hostLabels["assistant-ui"]).isEqualTo("assistant")
         assertThat(fleet.accessIntent.hostLabels["uptime-kuma"]).isEqualTo("status")
+        assertThat(fleet.accessIntent.hostLabels["bazarr"]).isEqualTo("bazarr")
+        assertThat(fleet.accessIntent.hostLabels["prowlarr"]).isEqualTo("prowlarr")
+        assertThat(fleet.accessIntent.hostLabels["qbittorrent"]).isEqualTo("qbittorrent")
     }
 
     @Test
@@ -33,5 +36,15 @@ class PlatformAccessIntentTest {
         assertThat(fleet.accessIntent.hostLabels["rabbitmq"]).isEqualTo("rabbitmq")
         assertThat(fleet.exposureIntent.public).contains("rabbitmq")
         assertThat(fleet.exposureIntent.internalOnly).doesNotContain("rabbitmq")
+    }
+
+    @Test
+    fun `media tools are public on both edges with external sso enforcement`() {
+        assertThat(fleet.exposureIntent.publicAndLan)
+            .contains("bazarr", "prowlarr", "qbittorrent")
+        assertThat(fleet.accessIntent.ssoProtected)
+            .contains("bazarr", "prowlarr", "qbittorrent")
+        assertThat(fleet.exposureIntent.internalOnly)
+            .doesNotContain("bazarr", "prowlarr", "qbittorrent")
     }
 }

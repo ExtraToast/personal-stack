@@ -151,6 +151,30 @@ spec:
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
+  name: bazarr
+  namespace: edge-system
+  annotations:
+    external-dns.alpha.kubernetes.io/target: ingress.jorisjonkers.dev
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: 'true'
+    kubernetes.io/ingress.class: traefik-public
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: 'Host(`bazarr.jorisjonkers.dev`)'
+      middlewares:
+        - name: forward-auth
+          namespace: edge-system
+      services:
+        - name: bazarr
+          namespace: media-system
+          port: 6767
+  tls: {}
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
   name: grafana
   namespace: edge-system
   annotations:
@@ -209,6 +233,54 @@ spec:
         - name: n8n
           namespace: automation-system
           port: 5678
+  tls: {}
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: prowlarr
+  namespace: edge-system
+  annotations:
+    external-dns.alpha.kubernetes.io/target: ingress.jorisjonkers.dev
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: 'true'
+    kubernetes.io/ingress.class: traefik-public
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: 'Host(`prowlarr.jorisjonkers.dev`)'
+      middlewares:
+        - name: forward-auth
+          namespace: edge-system
+      services:
+        - name: prowlarr
+          namespace: media-system
+          port: 9696
+  tls: {}
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: qbittorrent
+  namespace: edge-system
+  annotations:
+    external-dns.alpha.kubernetes.io/target: ingress.jorisjonkers.dev
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: 'true'
+    kubernetes.io/ingress.class: traefik-public
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: 'Host(`qbittorrent.jorisjonkers.dev`)'
+      middlewares:
+        - name: forward-auth
+          namespace: edge-system
+      services:
+        - name: qbittorrent
+          namespace: media-system
+          port: 8080
   tls: {}
 ---
 apiVersion: traefik.io/v1alpha1

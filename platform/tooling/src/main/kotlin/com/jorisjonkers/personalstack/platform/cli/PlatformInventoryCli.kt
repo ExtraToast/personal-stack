@@ -257,10 +257,13 @@ private fun PlatformFleet.toEdgeRouteCatalog(): EdgeRouteCatalog {
             }
 
             listOf(
+                "bazarr",
                 "grafana",
                 "headscale",
                 "jellyfin",
                 "n8n",
+                "prowlarr",
+                "qbittorrent",
                 "rabbitmq",
                 "radarr",
                 "sonarr",
@@ -302,6 +305,7 @@ private fun PlatformFleet.toTraefikLanIngressRoutesYaml(): String {
         serviceNames = lanServices,
         ingressClassName = "traefik-lan",
         nameSuffix = "-lan",
+        accessOverride = "direct",
     )
 }
 
@@ -310,13 +314,17 @@ private fun PlatformFleet.toTraefikIngressRoutesYaml(
     ingressClassName: String,
     ingressDnsTarget: String? = null,
     nameSuffix: String = "",
+    accessOverride: String? = null,
 ): String {
     val routes =
         toEdgeRouteCatalog().routes
             .filter { it.service in serviceNames }
             .mapNotNull { route ->
                 ingressIntent.kubernetesBackends[route.service]?.let { backend ->
-                    route.copy(name = "${route.name}${nameSuffix}").toIngressRouteYaml(
+                    route.copy(
+                        name = "${route.name}${nameSuffix}",
+                        access = accessOverride ?: route.access,
+                    ).toIngressRouteYaml(
                         backend = backend,
                         ingressClassName = ingressClassName,
                         ingressDnsTarget = ingressDnsTarget,

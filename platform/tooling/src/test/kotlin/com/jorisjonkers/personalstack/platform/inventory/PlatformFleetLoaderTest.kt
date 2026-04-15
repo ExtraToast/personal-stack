@@ -29,10 +29,14 @@ class PlatformFleetLoaderTest {
         )
         assertThat(fleet.nodes.getValue("frankfurt-contabo-1").ssh?.host).isEqualTo("167.86.79.203")
         assertThat(fleet.placementIntent.gpuSpecific.getValue("jellyfin").preferredGpuModel).isEqualTo("t1000")
-        assertThat(fleet.exposureIntent.publicAndLan).containsExactlyInAnyOrder("jellyfin", "radarr", "sonarr")
+        assertThat(fleet.exposureIntent.publicAndLan)
+            .containsExactlyInAnyOrder("bazarr", "jellyfin", "prowlarr", "qbittorrent", "radarr", "sonarr")
         assertThat(fleet.ingressIntent.kubernetesBackends.getValue("vault").port).isEqualTo(8200)
         assertThat(fleet.ingressIntent.kubernetesBackends.getValue("auth-api").namespace).isEqualTo("auth-system")
         assertThat(fleet.ingressIntent.kubernetesBackends.getValue("assistant-api").port).isEqualTo(8082)
+        assertThat(fleet.ingressIntent.kubernetesBackends.getValue("bazarr").port).isEqualTo(6767)
+        assertThat(fleet.ingressIntent.kubernetesBackends.getValue("prowlarr").port).isEqualTo(9696)
+        assertThat(fleet.ingressIntent.kubernetesBackends.getValue("qbittorrent").port).isEqualTo(8080)
         assertThat(fleet.ingressIntent.kubernetesBackends).doesNotContainKey("headscale")
     }
 
