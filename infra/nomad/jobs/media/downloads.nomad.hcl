@@ -167,7 +167,7 @@ job "downloads" {
       }
 
       config {
-        image = "linuxserver/qbittorrent:5.0.4"
+        image = "linuxserver/qbittorrent:5.1.4"
       }
 
       volume_mount {
