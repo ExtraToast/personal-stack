@@ -67,7 +67,7 @@ job "sonarr" {
       }
 
       config {
-        image        = "linuxserver/sonarr:4.0.14"
+        image        = "linuxserver/sonarr:latest"
         network_mode = "host"
       }
 

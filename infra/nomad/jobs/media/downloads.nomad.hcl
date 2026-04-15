@@ -117,7 +117,7 @@ job "downloads" {
       }
 
       config {
-        image = "qmcgaw/gluetun:v3.40"
+        image = "qmcgaw/gluetun:latest"
         cap_add = [
           "NET_ADMIN",
           "NET_RAW",
@@ -125,9 +125,9 @@ job "downloads" {
       }
 
       resources {
-        cpu        = 400
-        memory     = 256
-        memory_max = 512
+        cpu        = 1000
+        memory     = 512
+        memory_max = 1024
       }
     }
 
@@ -139,7 +139,7 @@ job "downloads" {
       driver = "docker"
 
       config {
-        image   = "busybox:1.37"
+        image   = "busybox:latest"
         command = "sh"
         args = [
           "-ec",
@@ -167,7 +167,7 @@ job "downloads" {
       }
 
       config {
-        image = "linuxserver/qbittorrent:5.0.4"
+        image = "linuxserver/qbittorrent:latest"
       }
 
       volume_mount {
@@ -181,9 +181,9 @@ job "downloads" {
       }
 
       resources {
-        cpu        = 1500
-        memory     = 768
-        memory_max = 1536
+        cpu        = 3000
+        memory     = 1536
+        memory_max = 3072
       }
     }
 
@@ -197,7 +197,7 @@ job "downloads" {
       }
 
       config {
-        image = "linuxserver/prowlarr:1.32.2"
+        image = "linuxserver/prowlarr:latest"
       }
 
       volume_mount {

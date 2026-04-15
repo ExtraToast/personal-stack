@@ -128,7 +128,7 @@ HEADSCALE_URL=https://headscale.jorisjonkers.dev
 GHCR_USER=ExtraToast
 GHCR_TOKEN=<your GitHub PAT with read:packages>
 MEDIA_DISK_UUID=<from step 2.2>
-MEDIA_DISK_FS=ext4
+MEDIA_DISK_FS=ntfs3
 SAMBA_PASSWORD=<choose a password>
 HOME_LAN_IP=<this machine's LAN IP, e.g. 192.168.1.100>
 EOF
