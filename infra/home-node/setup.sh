@@ -205,7 +205,7 @@ configure_command() {
   if [[ -n "${MEDIA_DISK_UUID:-}" ]]; then
     install -m 0644 "${HOME_NODE_DIR}/systemd/mnt-media.mount" /etc/systemd/system/mnt-media.mount
     sed -i "s/__MEDIA_DISK_UUID__/${MEDIA_DISK_UUID}/g" /etc/systemd/system/mnt-media.mount
-    sed -i "s/__MEDIA_DISK_FS__/${MEDIA_DISK_FS:-ext4}/g" /etc/systemd/system/mnt-media.mount
+    sed -i "s/__MEDIA_DISK_FS__/${MEDIA_DISK_FS:-ntfs3}/g" /etc/systemd/system/mnt-media.mount
     echo "Media HDD mount unit configured (UUID: ${MEDIA_DISK_UUID})"
   fi
 
