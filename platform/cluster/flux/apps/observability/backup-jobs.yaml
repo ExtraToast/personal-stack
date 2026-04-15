@@ -1,0 +1,197 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: observability-backups
+  namespace: observability
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pvc-snapshot-backup
+  namespace: observability
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pvc-snapshot-backup
+  namespace: observability
+rules:
+  - apiGroups:
+      - snapshot.storage.k8s.io
+    resources:
+      - volumesnapshots
+    verbs:
+      - create
+      - get
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pvc-snapshot-backup
+  namespace: observability
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pvc-snapshot-backup
+subjects:
+  - kind: ServiceAccount
+    name: pvc-snapshot-backup
+    namespace: observability
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: vault-raft-snapshot
+  namespace: observability
+spec:
+  schedule: '0 */6 * * *'
+  suspend: true
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: vault-raft-snapshot
+              image: hashicorp/vault:1.18.4
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  vault operator raft snapshot save /backups/vault.snap
+              env:
+                - name: VAULT_ADDR
+                  value: http://vault.data-system.svc.cluster.local:8200
+                - name: VAULT_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: vault-backup-token
+                      key: token
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: observability-backups
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-logical-backup
+  namespace: observability
+spec:
+  schedule: '30 2 * * *'
+  suspend: true
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: postgres-logical-backup
+              image: postgres:16-alpine
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  pg_dumpall -h postgres.data-system.svc.cluster.local -U "$POSTGRES_USER" > /backups/postgres.sql
+              env:
+                - name: POSTGRES_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-backup
+                      key: username
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-backup
+                      key: password
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: observability-backups
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: rabbitmq-definitions-backup
+  namespace: observability
+spec:
+  schedule: '0 3 * * *'
+  suspend: true
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: rabbitmq-definitions-backup
+              image: curlimages/curl:8.10.1
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  curl -fsS -u "$RABBITMQ_USERNAME:$RABBITMQ_PASSWORD" \
+                    http://rabbitmq.data-system.svc.cluster.local:15672/api/definitions \
+                    -o /backups/rabbitmq-definitions.json
+              env:
+                - name: RABBITMQ_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: rabbitmq-backup
+                      key: username
+                - name: RABBITMQ_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: rabbitmq-backup
+                      key: password
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: observability-backups
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pvc-snapshot-backup
+  namespace: observability
+spec:
+  schedule: '0 4 * * 0'
+  suspend: true
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: pvc-snapshot-backup
+          containers:
+            - name: pvc-snapshot-backup
+              image: bitnami/kubectl:1.31
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  cat <<'EOF' | kubectl apply -f -
+                  apiVersion: snapshot.storage.k8s.io/v1
+                  kind: VolumeSnapshot
+                  metadata:
+                    name: vault-data-weekly
+                    namespace: data-system
+                  spec:
+                    source:
+                      persistentVolumeClaimName: data-vault-0
+                  EOF
