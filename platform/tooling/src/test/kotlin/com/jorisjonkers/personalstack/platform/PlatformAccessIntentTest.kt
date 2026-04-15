@@ -24,6 +24,7 @@ class PlatformAccessIntentTest {
         assertThat(fleet.accessIntent.hostLabels["app-ui"]).isEqualTo("root")
         assertThat(fleet.accessIntent.hostLabels["auth-ui"]).isEqualTo("auth")
         assertThat(fleet.accessIntent.hostLabels["assistant-ui"]).isEqualTo("assistant")
+        assertThat(fleet.accessIntent.hostLabels["stalwart"]).isEqualTo("stalwart")
         assertThat(fleet.accessIntent.hostLabels["uptime-kuma"]).isEqualTo("status")
         assertThat(fleet.accessIntent.hostLabels["bazarr"]).isEqualTo("bazarr")
         assertThat(fleet.accessIntent.hostLabels["prowlarr"]).isEqualTo("prowlarr")
@@ -36,6 +37,14 @@ class PlatformAccessIntentTest {
         assertThat(fleet.accessIntent.hostLabels["rabbitmq"]).isEqualTo("rabbitmq")
         assertThat(fleet.exposureIntent.public).contains("rabbitmq")
         assertThat(fleet.exposureIntent.internalOnly).doesNotContain("rabbitmq")
+    }
+
+    @Test
+    fun `stalwart admin is modeled as a public sso protected service`() {
+        assertThat(fleet.accessIntent.ssoProtected).contains("stalwart")
+        assertThat(fleet.accessIntent.hostLabels["stalwart"]).isEqualTo("stalwart")
+        assertThat(fleet.exposureIntent.public).contains("stalwart")
+        assertThat(fleet.exposureIntent.internalOnly).doesNotContain("stalwart")
     }
 
     @Test

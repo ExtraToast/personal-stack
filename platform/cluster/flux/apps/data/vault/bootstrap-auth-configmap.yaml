@@ -109,12 +109,23 @@ data:
     }
     EOF
 
+    cat <<'EOF' >/tmp/stalwart.hcl
+    path "secret/data/platform/mail" {
+      capabilities = ["read"]
+    }
+
+    path "secret/data/platform/edge" {
+      capabilities = ["read"]
+    }
+    EOF
+
     vault policy write auth-api /tmp/auth-api.hcl
     vault policy write assistant-api /tmp/assistant-api.hcl
     vault policy write n8n /tmp/n8n.hcl
     vault policy write postgres /tmp/postgres.hcl
     vault policy write rabbitmq /tmp/rabbitmq.hcl
     vault policy write downloads /tmp/downloads.hcl
+    vault policy write stalwart /tmp/stalwart.hcl
 
     vault write auth/kubernetes/role/auth-api \
       bound_service_account_names="auth-api" \
@@ -150,4 +161,10 @@ data:
       bound_service_account_names="downloads" \
       bound_service_account_namespaces="media-system" \
       policies="downloads" \
+      ttl="1h"
+
+    vault write auth/kubernetes/role/stalwart \
+      bound_service_account_names="stalwart" \
+      bound_service_account_namespaces="mail-system" \
+      policies="stalwart" \
       ttl="1h"

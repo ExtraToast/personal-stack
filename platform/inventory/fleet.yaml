@@ -123,6 +123,7 @@ service_intent:
       - auth-api
       - assistant-ui
       - assistant-api
+      - stalwart
       - n8n
       - uptime-kuma
       - grafana
@@ -160,6 +161,7 @@ placement_intent:
     - auth-api
     - assistant-ui
     - assistant-api
+    - stalwart
     - postgres
     - rabbitmq
     - valkey
@@ -197,6 +199,7 @@ exposure_intent:
     - auth-api
     - assistant-ui
     - assistant-api
+    - stalwart
     - grafana
     - n8n
     - uptime-kuma
@@ -228,6 +231,7 @@ exposure_intent:
 access_intent:
   sso_protected:
     - assistant-api
+    - stalwart
     - bazarr
     - prowlarr
     - qbittorrent
@@ -239,6 +243,7 @@ access_intent:
     auth-api: auth
     assistant-ui: assistant
     assistant-api: assistant
+    stalwart: stalwart
     grafana: grafana
     n8n: n8n
     uptime-kuma: status
@@ -276,6 +281,10 @@ ingress_intent:
       namespace: assistant-system
       service: assistant-ui
       port: 80
+    stalwart:
+      namespace: mail-system
+      service: stalwart
+      port: 8080
     grafana:
       namespace: observability
       service: grafana

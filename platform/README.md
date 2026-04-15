@@ -129,6 +129,7 @@ platform/
       apps/
         core/
         data/
+        mail/
         observability/
         media/
         utility/
@@ -341,19 +342,23 @@ Exit criteria:
 - Public access works through ingress when enabled
 - GPU scheduling is proven on the intended node
 
-### Phase 11: Decide the Mail Boundary
+### Phase 11: Migrate Mail Through Kubernetes
 
-Goal: avoid forcing mail into the cluster before the platform is stable.
+Goal: keep mail under the same GitOps and reconciliation model as the rest of the platform where that does not compromise deliverability.
 
-Recommended default:
+Preferred direction:
 
-- keep `Stalwart` out of the first migration wave
-- run it host-native on a Frankfurt NixOS node first if mail remains required
-- only move it into Kubernetes later if that clearly reduces complexity
+- run `Stalwart` as a `Flux`-managed Kubernetes workload pinned to `frankfurt`
+- keep mail state on persistent cluster storage in `frankfurt`
+- keep the web admin route behind forward-auth
+- expose SMTP, IMAP, submission, and sieve explicitly instead of hiding them behind generic HTTP ingress assumptions
+- defer HA mail until the core platform has a stable three-node Frankfurt control plane
 
 Exit criteria:
 
-- Mail is either intentionally deferred or given its own migration track
+- `Stalwart` is reconciled by `Flux`
+- the admin UI is reachable through the public edge with auth in front
+- mail protocols have an explicit Kubernetes exposure model and backup path
 
 ### Phase 12: Expand to HA and Retire Nomad
 

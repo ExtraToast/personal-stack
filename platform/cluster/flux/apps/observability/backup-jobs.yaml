@@ -190,6 +190,7 @@ spec:
                     "vault-data-weekly data-system data-vault-0" \
                     "postgres-data-weekly data-system postgres-data" \
                     "rabbitmq-data-weekly data-system rabbitmq-data" \
+                    "stalwart-data-weekly mail-system stalwart-data" \
                     "valkey-data-weekly data-system valkey-data"
                   do
                     set -- $snapshot

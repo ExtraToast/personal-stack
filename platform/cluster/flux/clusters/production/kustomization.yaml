@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - ../../apps/core
   - ../../apps/data
+  - ../../apps/mail
   - ../../apps/observability
   - ../../apps/stateless
   - ../../apps/media

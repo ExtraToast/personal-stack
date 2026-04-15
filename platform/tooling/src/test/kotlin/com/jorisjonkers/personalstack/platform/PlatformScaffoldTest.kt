@@ -23,6 +23,7 @@ class PlatformScaffoldTest {
                 "platform/cluster/flux/clusters/production/kustomization.yaml",
                 "platform/cluster/bootstrap/README.md",
                 "platform/cluster/bootstrap/data-services-playbook.md",
+                "platform/cluster/flux/apps/mail/kustomization.yaml",
             )
 
         assertThat(requiredFiles)
@@ -48,5 +49,6 @@ class PlatformScaffoldTest {
             repositoryRoot.resolve("platform/cluster/flux/clusters/production/kustomization.yaml").readText()
 
         assertThat(kustomization).contains("../../apps/core")
+        assertThat(kustomization).contains("../../apps/mail")
     }
 }

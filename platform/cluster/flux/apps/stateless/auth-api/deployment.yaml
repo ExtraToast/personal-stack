@@ -80,7 +80,7 @@ spec:
             - name: SPRING_RABBITMQ_PORT
               value: '5672'
             - name: MAIL_HOST
-              value: mail.jorisjonkers.dev
+              value: stalwart.mail-system.svc.cluster.local
             - name: MAIL_PORT
               value: '587'
             - name: AUTH_LOGIN_URL

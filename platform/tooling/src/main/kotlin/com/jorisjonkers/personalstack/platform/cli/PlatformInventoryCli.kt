@@ -266,6 +266,7 @@ private fun PlatformFleet.toEdgeRouteCatalog(): EdgeRouteCatalog {
                 "qbittorrent",
                 "rabbitmq",
                 "radarr",
+                "stalwart",
                 "sonarr",
                 "uptime-kuma",
                 "vault",

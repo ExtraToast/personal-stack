@@ -32,6 +32,7 @@ class PlatformApiAppsFluxTest {
             .contains("postgres.data-system.svc.cluster.local")
             .contains("rabbitmq.data-system.svc.cluster.local")
             .contains("valkey.data-system.svc.cluster.local")
+            .contains("stalwart.mail-system.svc.cluster.local")
             .contains("alloy.observability.svc.cluster.local:4318")
             .contains("containerPort: 8081")
             .contains("path: /api/actuator/health/liveness")
@@ -79,5 +80,7 @@ class PlatformApiAppsFluxTest {
             .contains("database/creds/auth-api")
             .contains("database/creds/assistant-api")
             .contains("rabbitmq/creds/app-consumer")
+            .contains("vault policy write stalwart")
+            .contains("auth/kubernetes/role/stalwart")
     }
 }

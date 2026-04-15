@@ -34,6 +34,8 @@ class PlatformFleetLoaderTest {
         assertThat(fleet.ingressIntent.kubernetesBackends.getValue("vault").port).isEqualTo(8200)
         assertThat(fleet.ingressIntent.kubernetesBackends.getValue("auth-api").namespace).isEqualTo("auth-system")
         assertThat(fleet.ingressIntent.kubernetesBackends.getValue("assistant-api").port).isEqualTo(8082)
+        assertThat(fleet.ingressIntent.kubernetesBackends.getValue("stalwart").namespace).isEqualTo("mail-system")
+        assertThat(fleet.ingressIntent.kubernetesBackends.getValue("stalwart").port).isEqualTo(8080)
         assertThat(fleet.ingressIntent.kubernetesBackends.getValue("bazarr").port).isEqualTo(6767)
         assertThat(fleet.ingressIntent.kubernetesBackends.getValue("prowlarr").port).isEqualTo(9696)
         assertThat(fleet.ingressIntent.kubernetesBackends.getValue("qbittorrent").port).isEqualTo(8080)
