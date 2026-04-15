@@ -6,5 +6,7 @@ resources:
   - bazarr
   - downloads
   - jellyfin
+  - jellyseerr
   - radarr
   - sonarr
+  - wireguard-check

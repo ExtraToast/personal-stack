@@ -232,6 +232,14 @@ private fun PlatformFleet.toEdgeRouteCatalog(): EdgeRouteCatalog {
         toEdgeCatalog().services
             .filter { it.host != null }
             .associateBy { it.name }
+    val specialCasedServices =
+        setOf(
+            "app-ui",
+            "auth-api",
+            "auth-ui",
+            "assistant-api",
+            "assistant-ui",
+        )
 
     val routes =
         buildList {
@@ -284,25 +292,13 @@ private fun PlatformFleet.toEdgeRouteCatalog(): EdgeRouteCatalog {
                 )
             }
 
-            listOf(
-                "bazarr",
-                "grafana",
-                "headscale",
-                "jellyfin",
-                "n8n",
-                "prowlarr",
-                "qbittorrent",
-                "rabbitmq",
-                "radarr",
-                "stalwart",
-                "sonarr",
-                "uptime-kuma",
-                "vault",
-                "adguard",
-                "samba",
-            ).forEach { serviceName ->
-                externalServices[serviceName]?.let(::addDefaultRoute)
-            }
+            externalServices.keys
+                .asSequence()
+                .filterNot { it in specialCasedServices }
+                .sorted()
+                .forEach { serviceName ->
+                    addDefaultRoute(externalServices.getValue(serviceName))
+                }
         }.sortedBy { it.name }
 
     return EdgeRouteCatalog(

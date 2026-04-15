@@ -39,6 +39,25 @@ spec:
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
+  name: jellyseerr-lan
+  namespace: edge-system
+  annotations:
+    kubernetes.io/ingress.class: traefik-lan
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: 'Host(`jellyseerr.jorisjonkers.dev`)'
+      services:
+        - name: jellyseerr
+          namespace: media-system
+          port: 5055
+  tls: {}
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
   name: prowlarr-lan
   namespace: edge-system
   annotations:

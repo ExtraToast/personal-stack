@@ -21,11 +21,7 @@ Plan the move explicitly.
 - Old media disk mount: `/mnt/media`
 - New media disk mount: `/srv/media`
 - Old media config roots: `/srv/nomad/qbittorrent`, `/srv/nomad/prowlarr`, `/srv/nomad/bazarr`, `/srv/nomad/sonarr`, `/srv/nomad/radarr`, `/srv/nomad/jellyfin`, `/srv/nomad/jellyseerr`
-- New media config roots: `/var/lib/personal-stack/media/qbittorrent`, `/var/lib/personal-stack/media/prowlarr`, `/var/lib/personal-stack/media/bazarr`, `/var/lib/personal-stack/media/sonarr`, `/var/lib/personal-stack/media/radarr`, `/var/lib/personal-stack/media/jellyfin`
-
-The current Kubernetes scaffolding does not yet include `jellyseerr`. If you
-still rely on it, keep its config backed up separately and either leave that
-service on the old node for now or scaffold it before the final media cutover.
+- New media config roots: `/var/lib/personal-stack/media/qbittorrent`, `/var/lib/personal-stack/media/prowlarr`, `/var/lib/personal-stack/media/bazarr`, `/var/lib/personal-stack/media/sonarr`, `/var/lib/personal-stack/media/radarr`, `/var/lib/personal-stack/media/jellyfin`, `/var/lib/personal-stack/media/jellyseerr`
 
 ## Pre-Cutover Checklist
 
@@ -35,6 +31,7 @@ service on the old node for now or scaffold it before the final media cutover.
    Move the existing disk physically to the T1000 so the actual media files do not need a full LAN copy.
 3. Verify the disk identity before install.
    The current host definition expects [disko.nix](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/nix/hosts/enschede-home-t1000-1/disko.nix:1) to mount `/dev/disk/by-label/media` at `/srv/media`.
+   The current home media hosts assume `ntfs3` with compatibility mount options matching the existing home-node setup.
    If the current disk is not labeled `media`, patch the host definition to use the real UUID or relabel the filesystem before the cutover.
 4. Export or snapshot the old media config directories before you stop anything:
    `sudo rsync -a /srv/nomad/qbittorrent/ /tmp/home-cutover/qbittorrent/`
@@ -85,7 +82,7 @@ Suggested stop set:
 - `sonarr`
 - `radarr`
 - `jellyfin`
-- `jellyseerr` if still in use
+- `jellyseerr`
 
 Copy the config roots onto the T1000:
 
@@ -95,6 +92,7 @@ Copy the config roots onto the T1000:
 - `/srv/nomad/sonarr/` -> `/var/lib/personal-stack/media/sonarr/`
 - `/srv/nomad/radarr/` -> `/var/lib/personal-stack/media/radarr/`
 - `/srv/nomad/jellyfin/` -> `/var/lib/personal-stack/media/jellyfin/`
+- `/srv/nomad/jellyseerr/` -> `/var/lib/personal-stack/media/jellyseerr/`
 
 Example:
 
@@ -129,6 +127,7 @@ After the old jobs are down and the new node is live:
 1. Confirm the media workloads schedule onto `enschede-home-t1000-1`.
 2. Open:
    `jellyfin.jorisjonkers.dev`
+   `jellyseerr.jorisjonkers.dev`
    `radarr.jorisjonkers.dev`
    `sonarr.jorisjonkers.dev`
    `bazarr.jorisjonkers.dev`

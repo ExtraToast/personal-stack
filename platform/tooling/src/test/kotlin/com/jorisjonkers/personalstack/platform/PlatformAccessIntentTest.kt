@@ -29,6 +29,7 @@ class PlatformAccessIntentTest {
         assertThat(fleet.accessIntent.hostLabels["bazarr"]).isEqualTo("bazarr")
         assertThat(fleet.accessIntent.hostLabels["prowlarr"]).isEqualTo("prowlarr")
         assertThat(fleet.accessIntent.hostLabels["qbittorrent"]).isEqualTo("qbittorrent")
+        assertThat(fleet.accessIntent.hostLabels["jellyseerr"]).isEqualTo("jellyseerr")
     }
 
     @Test
@@ -50,10 +51,11 @@ class PlatformAccessIntentTest {
     @Test
     fun `media tools are public on both edges with external sso enforcement`() {
         assertThat(fleet.exposureIntent.publicAndLan)
-            .contains("bazarr", "prowlarr", "qbittorrent")
+            .contains("bazarr", "prowlarr", "qbittorrent", "jellyseerr")
         assertThat(fleet.accessIntent.ssoProtected)
             .contains("bazarr", "prowlarr", "qbittorrent")
+            .doesNotContain("jellyseerr")
         assertThat(fleet.exposureIntent.internalOnly)
-            .doesNotContain("bazarr", "prowlarr", "qbittorrent")
+            .doesNotContain("bazarr", "prowlarr", "qbittorrent", "jellyseerr")
     }
 }

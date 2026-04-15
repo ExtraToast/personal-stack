@@ -162,7 +162,9 @@ service_intent:
       - radarr
       - sonarr
       - jellyfin
+      - jellyseerr
       - bazarr
+      - wireguard-check
 
   host_native:
     frankfurt:
@@ -201,7 +203,9 @@ placement_intent:
     - radarr
     - sonarr
     - jellyfin
+    - jellyseerr
     - bazarr
+    - wireguard-check
     - adguard
     - samba
 
@@ -228,6 +232,7 @@ exposure_intent:
   public_and_lan:
     - bazarr
     - jellyfin
+    - jellyseerr
     - prowlarr
     - qbittorrent
     - radarr
@@ -241,6 +246,7 @@ exposure_intent:
     - tempo
     - alloy
     - flaresolverr
+    - wireguard-check
 
   lan_only:
     - adguard
@@ -270,6 +276,7 @@ access_intent:
     headscale: headscale
     bazarr: bazarr
     jellyfin: jellyfin
+    jellyseerr: jellyseerr
     prowlarr: prowlarr
     qbittorrent: qbittorrent
     radarr: radarr
@@ -315,6 +322,10 @@ ingress_intent:
       namespace: media-system
       service: jellyfin
       port: 8096
+    jellyseerr:
+      namespace: media-system
+      service: jellyseerr
+      port: 5055
     n8n:
       namespace: automation-system
       service: n8n

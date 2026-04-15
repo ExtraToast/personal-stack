@@ -335,13 +335,16 @@ Goal: move the media estate without losing LAN simplicity.
 - Expose selected services publicly and on LAN where required
 - Install the `NVIDIA` Kubernetes device plugin on `gtx960m` and later `t1000`
 - Move `Jellyfin` to the `t1000` node once provisioned
+- Keep `Jellyseerr` with the rest of the media apps instead of leaving it behind on the old home node
+- Prove the WireGuard-based download path before the final home cutover
 
 Exit criteria:
 
-- `Jellyfin`, `Radarr`, `Sonarr`, and downloads run on home nodes
+- `Jellyfin`, `Jellyseerr`, `Radarr`, `Sonarr`, `Bazarr`, and downloads run on home nodes
 - LAN access works directly
 - Public access works through ingress when enabled
 - GPU scheduling is proven on the intended node
+- The media VPN path is validated on the new node
 
 ### Phase 11: Migrate Mail Through Kubernetes
 

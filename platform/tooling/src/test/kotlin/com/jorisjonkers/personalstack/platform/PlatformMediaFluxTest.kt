@@ -19,8 +19,10 @@ class PlatformMediaFluxTest {
             .contains("- downloads")
             .contains("namespace.yaml")
             .contains("- jellyfin")
+            .contains("- jellyseerr")
             .contains("- radarr")
             .contains("- sonarr")
+            .contains("- wireguard-check")
         assertThat(namespace)
             .contains("kind: Namespace")
             .contains("name: media-system")
@@ -155,6 +157,50 @@ class PlatformMediaFluxTest {
             .contains("name: prowlarr")
             .contains("port: 8080")
             .contains("port: 9696")
+    }
+
+    @Test
+    fun `jellyseerr runs on enschede utility hosts with persisted config`() {
+        val kustomization = repositoryRoot.resolve("platform/cluster/flux/apps/media/jellyseerr/kustomization.yaml").toFile().readText()
+        val manifest = repositoryRoot.resolve("platform/cluster/flux/apps/media/jellyseerr/deployment.yaml").toFile().readText()
+
+        assertThat(kustomization).contains("deployment.yaml")
+
+        assertThat(manifest)
+            .contains("name: jellyseerr")
+            .contains("namespace: media-system")
+            .contains("ghcr.io/seerr-team/seerr:v3.1.1")
+            .contains("personal-stack/site: enschede")
+            .contains("personal-stack/role-utility-host:")
+            .contains("path: /var/lib/personal-stack/media/jellyseerr")
+            .contains("mountPath: /app/config")
+            .contains("containerPort: 5055")
+            .contains("path: /api/v1/settings/public")
+            .contains("kind: Service")
+            .contains("port: 5055")
+    }
+
+    @Test
+    fun `wireguard check validates the media vpn path with vault delivered wireguard secrets`() {
+        val kustomization = repositoryRoot.resolve("platform/cluster/flux/apps/media/wireguard-check/kustomization.yaml").toFile().readText()
+        val manifest = repositoryRoot.resolve("platform/cluster/flux/apps/media/wireguard-check/deployment.yaml").toFile().readText()
+
+        assertThat(kustomization).contains("deployment.yaml")
+
+        assertThat(manifest)
+            .contains("name: wireguard-check")
+            .contains("namespace: media-system")
+            .contains("vault.hashicorp.com/role: downloads")
+            .contains("gluetun-wireguard.env")
+            .contains("pia.wireguard_endpoint_ip")
+            .contains("pia.wireguard_private_key")
+            .contains("pia.wireguard_addresses")
+            .contains("qmcgaw/gluetun:v3.40")
+            .contains("curlimages/curl:")
+            .contains("https://ifconfig.me/ip")
+            .contains("personal-stack/site: enschede")
+            .contains("personal-stack/role-utility-host:")
+            .contains("serviceAccountName: downloads")
     }
 
     @Test
