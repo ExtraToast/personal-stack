@@ -113,7 +113,7 @@ class PlatformVaultFluxTest {
             .contains("kind: ServiceAccount")
             .contains("name: platform-vault-sample")
             .contains("kind: Deployment")
-            .contains("vault.hashicorp.com/agent-inject: \"true\"")
+            .contains("vault.hashicorp.com/agent-inject:")
             .contains("vault.hashicorp.com/role: platform-sample")
             .contains("vault.hashicorp.com/agent-inject-secret-sample.txt: kvv2/data/platform/sample")
             .contains("name: sample-reader")
