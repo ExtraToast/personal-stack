@@ -67,14 +67,14 @@ class PlatformDeployScriptsTest {
     }
 
     @Test
-    fun `install-host rejects nodes without ssh details`() {
+    fun `install-host rejects install ready nodes without ssh details`() {
         val gradlewStub =
             tempDir.resolve("gradlew-no-ssh").writeExecutable(
                 """
                 #!/usr/bin/env bash
                 cat <<'EOF'
                 NODE_NAME=enschede-pi-1
-                NODE_STATUS=planned
+                NODE_STATUS=install-ready
                 NODE_SITE=enschede
                 NODE_ARCH=arm64
                 NIX_SYSTEM=aarch64-linux

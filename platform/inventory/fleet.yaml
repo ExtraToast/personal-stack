@@ -59,7 +59,7 @@ nodes:
       - nvidia
 
   enschede-home-t1000-1:
-    status: planned
+    status: install-ready
     site: enschede
     arch: amd64
     target_roles:
@@ -80,7 +80,7 @@ nodes:
       - nvidia
 
   enschede-pi-1:
-    status: planned
+    status: install-ready
     site: enschede
     arch: arm64
     target_roles:
@@ -92,7 +92,7 @@ nodes:
       - tailscale
 
   enschede-pi-2:
-    status: planned
+    status: install-ready
     site: enschede
     arch: arm64
     target_roles:
@@ -104,7 +104,7 @@ nodes:
       - tailscale
 
   enschede-pi-3:
-    status: planned
+    status: install-ready
     site: enschede
     arch: arm64
     target_roles:

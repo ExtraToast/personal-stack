@@ -54,6 +54,7 @@ Run one Kubernetes cluster across the estate, but do not stretch the control-pla
 - Phase 1 starts with the existing `frankfurt-contabo-1` node as a single control-plane node
 - Phase 2 expands to three control-plane nodes in `frankfurt` for real HA
 - Home nodes join only as workers and utility hosts
+- The next home install wave is `enschede-home-t1000-1` first, then `enschede-pi-1`, then `enschede-pi-2` and `enschede-pi-3`
 
 This avoids unstable `etcd` quorum behavior across `frankfurt <-> enschede`.
 
@@ -351,7 +352,8 @@ Preferred direction:
 - run `Stalwart` as a `Flux`-managed Kubernetes workload pinned to `frankfurt`
 - keep mail state on persistent cluster storage in `frankfurt`
 - keep the web admin route behind forward-auth
-- expose SMTP, IMAP, submission, and sieve explicitly instead of hiding them behind generic HTTP ingress assumptions
+- expose SMTP, IMAP, submission, and sieve through direct node-bound publishing and DNS, not through Traefik HTTP ingress
+- keep `mail.jorisjonkers.dev` as the direct, non-proxied mail endpoint and `jorisjonkers.dev` MX target, matching [infra/dns/jorisjonkers.dev.zone](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/infra/dns/jorisjonkers.dev.zone:1)
 - defer HA mail until the core platform has a stable three-node Frankfurt control plane
 
 Exit criteria:
@@ -403,12 +405,10 @@ Every phase should have a validation path before the next one begins.
 
 ## Immediate Next Steps
 
-The next implementation branch after this plan should do only these things:
+The next implementation steps should focus on real host bring-up and the first live migrations:
 
-1. Create the `platform/` flake scaffold
-2. Add the first `NixOS` base modules and one host definition for `frankfurt-contabo-1`
-3. Add `nixos-anywhere`, `disko`, and `deploy-rs`
-4. Add a minimal `Flux` bootstrap skeleton
-5. Add CI validation for Nix and Kubernetes render output
-
-Everything else should build on top of that instead of reviving the old Nomad orchestration work.
+1. Add SSH/install metadata for `enschede-home-t1000-1`, clean-install it to `NixOS`, and validate GPU runtime plus `k3s` worker join
+2. Use `enschede-pi-1` as the first ARM worker install rehearsal, then fold in `enschede-pi-2` and `enschede-pi-3` once the join path is boring
+3. Move one low-risk workload family onto the new home nodes before widening the wave
+4. Publish `Stalwart` mail protocols through the direct DNS model in [infra/dns/jorisjonkers.dev.zone](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/infra/dns/jorisjonkers.dev.zone:1) instead of trying to route them through Traefik
+5. Keep the admin UI on `stalwart.jorisjonkers.dev` behind forward-auth while the protocol endpoint stays on `mail.jorisjonkers.dev`

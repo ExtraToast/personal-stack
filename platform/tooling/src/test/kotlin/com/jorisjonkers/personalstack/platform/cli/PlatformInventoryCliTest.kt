@@ -36,7 +36,7 @@ class PlatformInventoryCliTest {
     }
 
     @Test
-    fun `show-host-env marks planned nodes without ssh as not remotely reachable`() {
+    fun `show-host-env marks install ready nodes without ssh as not remotely reachable`() {
         val stdout = ByteArrayOutputStream()
         val stderr = ByteArrayOutputStream()
 
@@ -50,7 +50,7 @@ class PlatformInventoryCliTest {
         assertThat(exitCode).isEqualTo(0)
         assertThat(stdout.toString(StandardCharsets.UTF_8))
             .contains("NODE_NAME=enschede-pi-1")
-            .contains("NODE_STATUS=planned")
+            .contains("NODE_STATUS=install-ready")
             .contains("NIX_SYSTEM=aarch64-linux")
             .contains("HAS_SSH=false")
             .contains("SSH_HOST=")
