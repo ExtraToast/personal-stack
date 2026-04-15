@@ -197,7 +197,7 @@ job "downloads" {
       }
 
       config {
-        image = "linuxserver/prowlarr:1.32.2"
+        image = "linuxserver/prowlarr:2.3.5"
       }
 
       volume_mount {
