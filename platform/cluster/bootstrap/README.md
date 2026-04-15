@@ -8,6 +8,7 @@ Initial scope:
 - bootstrap notes for the first `k3s` control-plane node
 - manual Vault unseal runbooks
 - first Flux bootstrap command references
+- stateful cutover and recovery playbooks
 
 ## Vault unseal
 
@@ -34,3 +35,12 @@ Prerequisites:
 2. Confirm `vault-bootstrap-auth` completes successfully.
 3. Check the `sample-reader` pod for `/vault/secrets/sample.txt`.
 4. Delete `vault-bootstrap-token` after the bootstrap job has succeeded.
+
+## Data Service Cutover And Recovery
+
+Phase 9 recovery procedures for `PostgreSQL`, `RabbitMQ`, and `Valkey` live in
+[data-services-playbook.md](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/cluster/bootstrap/data-services-playbook.md:1).
+
+Use that playbook before the first stateful cutover window and keep the
+recorded backup artifact names with the change record until rollback is no
+longer needed.

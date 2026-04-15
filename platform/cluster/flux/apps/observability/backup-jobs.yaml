@@ -185,13 +185,28 @@ spec:
                 - /bin/sh
                 - -ec
                 - |
-                  cat <<'EOF' | kubectl apply -f -
-                  apiVersion: snapshot.storage.k8s.io/v1
-                  kind: VolumeSnapshot
-                  metadata:
-                    name: vault-data-weekly
-                    namespace: data-system
-                  spec:
-                    source:
-                      persistentVolumeClaimName: data-vault-0
-                  EOF
+                  snapshot_stamp="$(date -u +%Y%m%d-%H%M%S)"
+                  for snapshot in \
+                    "vault-data-weekly data-system data-vault-0" \
+                    "postgres-data-weekly data-system postgres-data" \
+                    "rabbitmq-data-weekly data-system rabbitmq-data" \
+                    "valkey-data-weekly data-system valkey-data"
+                  do
+                    set -- $snapshot
+                    name="$1"
+                    namespace="$2"
+                    pvc="$3"
+
+                    cat <<EOF | kubectl apply -f -
+                    apiVersion: snapshot.storage.k8s.io/v1
+                    kind: VolumeSnapshot
+                    metadata:
+                      name: ${name}-${snapshot_stamp}
+                      namespace: ${namespace}
+                      labels:
+                        personal-stack/backup-source: ${pvc}
+                    spec:
+                      source:
+                        persistentVolumeClaimName: ${pvc}
+                    EOF
+                  done

@@ -126,4 +126,29 @@ class PlatformDataServicesFluxTest {
             .contains("bound_service_account_names=\"postgres\"")
             .contains("bound_service_account_names=\"rabbitmq\"")
     }
+
+    @Test
+    fun `data service playbook documents backup restore and rollback for each datastore`() {
+        val readme = repositoryRoot.resolve("platform/cluster/bootstrap/README.md").toFile().readText()
+        val playbook =
+            repositoryRoot.resolve("platform/cluster/bootstrap/data-services-playbook.md").toFile().readText()
+
+        assertThat(readme)
+            .contains("Data Service Cutover And Recovery")
+            .contains("data-services-playbook.md")
+
+        assertThat(playbook)
+            .contains("PostgreSQL")
+            .contains("RabbitMQ")
+            .contains("Valkey")
+            .contains("postgres-logical-backup")
+            .contains("rabbitmq-definitions-backup")
+            .contains("pvc-snapshot-backup")
+            .contains("postgres-data")
+            .contains("rabbitmq-data")
+            .contains("valkey-data")
+            .contains("restore")
+            .contains("rollback")
+            .contains("Rehearsal Record")
+    }
 }

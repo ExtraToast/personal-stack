@@ -22,6 +22,7 @@ class PlatformScaffoldTest {
                 "platform/nix/hosts/frankfurt-contabo-1/disko.nix",
                 "platform/cluster/flux/clusters/production/kustomization.yaml",
                 "platform/cluster/bootstrap/README.md",
+                "platform/cluster/bootstrap/data-services-playbook.md",
             )
 
         assertThat(requiredFiles)
