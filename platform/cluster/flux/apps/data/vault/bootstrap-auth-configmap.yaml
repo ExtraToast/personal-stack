@@ -91,9 +91,23 @@ data:
     }
     EOF
 
+    cat <<'EOF' >/tmp/postgres.hcl
+    path "secret/data/platform/postgres" {
+      capabilities = ["read"]
+    }
+    EOF
+
+    cat <<'EOF' >/tmp/rabbitmq.hcl
+    path "secret/data/platform/rabbitmq" {
+      capabilities = ["read"]
+    }
+    EOF
+
     vault policy write auth-api /tmp/auth-api.hcl
     vault policy write assistant-api /tmp/assistant-api.hcl
     vault policy write n8n /tmp/n8n.hcl
+    vault policy write postgres /tmp/postgres.hcl
+    vault policy write rabbitmq /tmp/rabbitmq.hcl
 
     vault write auth/kubernetes/role/auth-api \
       bound_service_account_names="auth-api" \
@@ -111,4 +125,16 @@ data:
       bound_service_account_names="n8n" \
       bound_service_account_namespaces="automation-system" \
       policies="n8n" \
+      ttl="1h"
+
+    vault write auth/kubernetes/role/postgres \
+      bound_service_account_names="postgres" \
+      bound_service_account_namespaces="data-system" \
+      policies="postgres" \
+      ttl="1h"
+
+    vault write auth/kubernetes/role/rabbitmq \
+      bound_service_account_names="rabbitmq" \
+      bound_service_account_namespaces="data-system" \
+      policies="rabbitmq" \
       ttl="1h"

@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-enabled-plugins
+  namespace: data-system
+data:
+  enabled_plugins: |
+    [rabbitmq_management,rabbitmq_auth_backend_oauth2,rabbitmq_prometheus].
