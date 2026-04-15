@@ -117,7 +117,7 @@ job "downloads" {
       }
 
       config {
-        image = "qmcgaw/gluetun:v3.40"
+        image = "qmcgaw/gluetun:latest"
         cap_add = [
           "NET_ADMIN",
           "NET_RAW",
@@ -139,7 +139,7 @@ job "downloads" {
       driver = "docker"
 
       config {
-        image   = "busybox:1.37"
+        image   = "busybox:latest"
         command = "sh"
         args = [
           "-ec",
@@ -167,7 +167,7 @@ job "downloads" {
       }
 
       config {
-        image = "linuxserver/qbittorrent:5.1.4"
+        image = "linuxserver/qbittorrent:latest"
       }
 
       volume_mount {
@@ -197,7 +197,7 @@ job "downloads" {
       }
 
       config {
-        image = "linuxserver/prowlarr:2.3.5"
+        image = "linuxserver/prowlarr:latest"
       }
 
       volume_mount {

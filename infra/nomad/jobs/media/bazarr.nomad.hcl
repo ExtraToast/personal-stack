@@ -67,7 +67,7 @@ job "bazarr" {
       }
 
       config {
-        image        = "linuxserver/bazarr:1.5.6"
+        image        = "linuxserver/bazarr:latest"
         network_mode = "host"
       }
 

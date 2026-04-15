@@ -60,7 +60,7 @@ job "jellyseerr" {
       }
 
       config {
-        image        = "ghcr.io/seerr-team/seerr:v3.1.1"
+        image        = "ghcr.io/seerr-team/seerr:latest"
         network_mode = "host"
       }
 

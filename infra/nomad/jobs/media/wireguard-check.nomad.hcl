@@ -47,7 +47,7 @@ job "wireguard-check" {
       }
 
       config {
-        image = "qmcgaw/gluetun:v3.40"
+        image = "qmcgaw/gluetun:latest"
         cap_add = [
           "NET_ADMIN",
           "NET_RAW",
@@ -65,7 +65,7 @@ job "wireguard-check" {
       driver = "docker"
 
       config {
-        image   = "curlimages/curl:8.12.1"
+        image   = "curlimages/curl:latest"
         command = "sh"
         args = [
           "-ec",
