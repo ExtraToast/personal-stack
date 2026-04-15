@@ -34,12 +34,21 @@ require_single_node_arg() {
 }
 
 load_host_env() {
-  local node_name="$1"
+  load_platform_env_with_command "show-host-env" "$1"
+}
+
+load_install_host_env() {
+  load_platform_env_with_command "show-install-host-env" "$1"
+}
+
+load_platform_env_with_command() {
+  local command_name="$1"
+  local node_name="$2"
   local gradlew
   local env_output
 
   gradlew="$(platform_gradlew)"
-  env_output="$("${gradlew}" -q :platform:tooling:run --args="show-host-env ${node_name}")"
+  env_output="$("${gradlew}" -q :platform:tooling:run --args="${command_name} ${node_name}")"
 
   while IFS='=' read -r key value; do
     if [[ -z "${key}" ]]; then
@@ -54,6 +63,13 @@ load_host_env() {
 require_host_ssh() {
   if [[ "${HAS_SSH:-false}" != "true" ]]; then
     echo "Node ${NODE_NAME:-unknown} does not define SSH connection details" >&2
+    exit 1
+  fi
+}
+
+require_bootstrap_ssh() {
+  if [[ "${HAS_SSH:-false}" != "true" ]]; then
+    echo "Node ${NODE_NAME:-unknown} does not define bootstrap SSH connection details" >&2
     exit 1
   fi
 }

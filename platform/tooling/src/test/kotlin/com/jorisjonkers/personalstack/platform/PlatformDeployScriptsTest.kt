@@ -129,7 +129,7 @@ class PlatformDeployScriptsTest {
     }
 
     @Test
-    fun `install-host rejects install ready nodes without ssh details`() {
+    fun `install-host rejects install ready nodes without bootstrap ssh details`() {
         val gradlewStub =
             tempDir.resolve("gradlew-no-ssh").writeExecutable(
                 """
@@ -168,7 +168,7 @@ class PlatformDeployScriptsTest {
             )
 
         assertThat(result.exitCode).isEqualTo(1)
-        assertThat(result.stderr).contains("does not define SSH connection details")
+        assertThat(result.stderr).contains("does not define bootstrap SSH connection details")
         assertThat(Files.exists(nixLog)).isFalse()
     }
 

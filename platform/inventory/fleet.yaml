@@ -62,6 +62,8 @@ nodes:
     status: install-ready
     site: enschede
     arch: amd64
+    # `ssh` is the intended post-install NixOS endpoint.
+    # Add `bootstrap_ssh` with the current OS access path before first install.
     ssh:
       host: enschede-home-t1000-1
       user: deploy

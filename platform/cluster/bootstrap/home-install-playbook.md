@@ -20,9 +20,12 @@ The intended order is:
 For each node, the sequence is:
 
 1. Create `platform/nix/authorized-keys.nix` from [authorized-keys.nix.example](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/nix/authorized-keys.nix.example:1).
-2. Make the target reachable at the `ssh.host` recorded in [fleet.yaml](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/inventory/fleet.yaml:1).
-   The bootstrap default is `deploy@<node-name>:2222`; swap `ssh.host` to a raw LAN IP if local name resolution is not ready yet.
-3. If the machine is still on `RHEL`, prepare a key-only `deploy` bootstrap account first:
+2. Keep `ssh` in [fleet.yaml](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/inventory/fleet.yaml:1) pointed at the desired `NixOS` end state, which is `deploy@<node-name>:2222`.
+3. Before the first install, add `bootstrap_ssh` for the node with whatever SSH endpoint the current OS already exposes today.
+   That can be `root@<node-name>:22`, an existing admin user on another port, or a temporary bootstrap account if you prefer.
+4. If the machine is still on `RHEL`, log in through that existing admin path and make sure the `bootstrap_ssh` user has key-based SSH access plus passwordless `sudo`.
+   You do not need to move the old OS to port `2222` first.
+   If you want a temporary dedicated bootstrap user, this is sufficient:
    `sudo useradd --create-home --groups wheel deploy || sudo usermod --append --groups wheel deploy`
    `sudo install -d -m 700 -o deploy -g deploy /home/deploy/.ssh`
    `sudo install -m 600 -o deploy -g deploy ~/.ssh/id_ed25519.pub /home/deploy/.ssh/authorized_keys`
@@ -30,32 +33,18 @@ For each node, the sequence is:
    `deploy ALL=(ALL) NOPASSWD: ALL`
    `EOF`
    `sudo chmod 440 /etc/sudoers.d/90-deploy-nopasswd`
-   `sudo tee /etc/ssh/sshd_config.d/10-personal-stack-bootstrap.conf >/dev/null <<'EOF'`
-   `Port 2222`
-   `AllowUsers deploy`
-   `PubkeyAuthentication yes`
-   `PasswordAuthentication no`
-   `KbdInteractiveAuthentication no`
-   `PermitRootLogin no`
-   `EOF`
-   `sudo dnf install -y policycoreutils-python-utils`
-   `sudo semanage port -a -t ssh_port_t -p tcp 2222 || sudo semanage port -m -t ssh_port_t -p tcp 2222`
-   `sudo firewall-cmd --permanent --add-port=2222/tcp`
-   `sudo firewall-cmd --reload`
-   `sudo systemctl restart sshd`
    Verify with:
-   `ssh -p 2222 deploy@<host> 'sudo -n true'`
-   Only after that should you close port `22` on the old OS if it is still open.
-4. Run:
+   `ssh -p <bootstrap-port> <bootstrap-user>@<host> 'sudo -n true'`
+5. Run:
    `platform/scripts/install/install-host.sh <node-name>`
-5. Reboot into the installed `NixOS` system.
-6. Validate the base host:
+6. Reboot into the installed `NixOS` system.
+7. Validate the base host:
    `hostnamectl`
    `tailscale status`
    `systemctl status k3s`
-7. Run:
+8. Run:
    `platform/scripts/deploy/deploy-host.sh <node-name>`
-8. Verify node registration and labels:
+9. Verify node registration and labels:
    `kubectl get nodes -o wide`
    `kubectl get node <node-name> --show-labels`
 

@@ -7,8 +7,8 @@ source "${script_dir}/../lib/host-env.sh"
 
 require_single_node_arg "$(basename "$0")" "$@"
 
-load_host_env "$1"
-require_host_ssh
+load_install_host_env "$1"
+require_bootstrap_ssh
 require_authorized_keys_file
 
 cd "$(platform_flake_dir)"

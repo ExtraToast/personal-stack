@@ -29,6 +29,7 @@ class PlatformFleetLoaderTest {
         )
         assertThat(fleet.nodes.getValue("frankfurt-contabo-1").ssh?.host).isEqualTo("167.86.79.203")
         assertThat(fleet.nodes.getValue("enschede-home-t1000-1").ssh?.user).isEqualTo("deploy")
+        assertThat(fleet.nodes.getValue("enschede-home-t1000-1").bootstrapSsh).isNull()
         assertThat(fleet.nodes.getValue("enschede-pi-1").ssh?.host).isEqualTo("enschede-pi-1")
         assertThat(fleet.nodes.values.mapNotNull { it.ssh?.port }).containsOnly(2222)
         assertThat(fleet.placementIntent.gpuSpecific.getValue("jellyfin").preferredGpuModel).isEqualTo("t1000")

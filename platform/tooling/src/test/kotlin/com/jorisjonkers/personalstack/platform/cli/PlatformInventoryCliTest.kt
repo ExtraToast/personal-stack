@@ -36,7 +36,7 @@ class PlatformInventoryCliTest {
     }
 
     @Test
-    fun `show-host-env prints bootstrap ssh metadata for install ready nodes`() {
+    fun `show-host-env prints steady state ssh metadata for install ready nodes`() {
         val stdout = ByteArrayOutputStream()
         val stderr = ByteArrayOutputStream()
 
@@ -56,6 +56,29 @@ class PlatformInventoryCliTest {
             .contains("SSH_HOST=enschede-pi-1")
             .contains("SSH_USER=deploy")
             .contains("SSH_PORT=2222")
+        assertThat(stderr.toString(StandardCharsets.UTF_8)).isBlank()
+    }
+
+    @Test
+    fun `show-install-host-env leaves ssh blank when install ready node has no bootstrap ssh yet`() {
+        val stdout = ByteArrayOutputStream()
+        val stderr = ByteArrayOutputStream()
+
+        val exitCode =
+            PlatformInventoryCli(
+                repositoryRoot = repositoryRoot,
+                stdout = stdout.writer(StandardCharsets.UTF_8),
+                stderr = stderr.writer(StandardCharsets.UTF_8),
+            ).run("show-install-host-env", "enschede-pi-1")
+
+        assertThat(exitCode).isEqualTo(0)
+        assertThat(stdout.toString(StandardCharsets.UTF_8))
+            .contains("NODE_NAME=enschede-pi-1")
+            .contains("NODE_STATUS=install-ready")
+            .contains("HAS_SSH=false")
+            .contains("SSH_HOST=")
+            .contains("SSH_USER=")
+            .contains("SSH_PORT=")
         assertThat(stderr.toString(StandardCharsets.UTF_8)).isBlank()
     }
 

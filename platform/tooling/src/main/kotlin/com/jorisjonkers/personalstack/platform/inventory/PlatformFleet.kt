@@ -41,6 +41,8 @@ data class NodeInfo(
     val site: String,
     val arch: String,
     val ssh: SshConnection? = null,
+    @param:JsonProperty("bootstrap_ssh")
+    val bootstrapSsh: SshConnection? = null,
     @param:JsonProperty("target_roles")
     val targetRoles: List<String>,
     val capacity: NodeCapacity,

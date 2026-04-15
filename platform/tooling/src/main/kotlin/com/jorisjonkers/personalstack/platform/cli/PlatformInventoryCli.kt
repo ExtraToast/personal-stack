@@ -9,6 +9,7 @@ import com.jorisjonkers.personalstack.platform.inventory.KubernetesIngressBacken
 import com.jorisjonkers.personalstack.platform.inventory.NodeInfo
 import com.jorisjonkers.personalstack.platform.inventory.PlatformFleet
 import com.jorisjonkers.personalstack.platform.inventory.PlatformFleetLoader
+import com.jorisjonkers.personalstack.platform.inventory.SshConnection
 import java.io.Writer
 import java.nio.file.Path
 import kotlin.system.exitProcess
@@ -27,12 +28,13 @@ class PlatformInventoryCli(
     fun run(vararg args: String): Int {
         if (args.isEmpty()) {
             return fail(
-                "Usage: show-host-env <node-name> | render-edge-catalog | render-edge-route-catalog | render-edge-configmap | render-edge-route-configmap | render-traefik-ingressroutes | render-traefik-lan-ingressroutes",
+                "Usage: show-host-env <node-name> | show-install-host-env <node-name> | render-edge-catalog | render-edge-route-catalog | render-edge-configmap | render-edge-route-configmap | render-traefik-ingressroutes | render-traefik-lan-ingressroutes",
             )
         }
 
         return when (args.first()) {
             "show-host-env" -> showHostEnv(args.drop(1))
+            "show-install-host-env" -> showInstallHostEnv(args.drop(1))
             "render-edge-catalog" -> renderEdgeCatalog(args.drop(1))
             "render-edge-route-catalog" -> renderEdgeRouteCatalog(args.drop(1))
             "render-edge-configmap" -> renderEdgeConfigMap(args.drop(1))
@@ -52,21 +54,47 @@ class PlatformInventoryCli(
         val fleet = fleetLoader.load(repositoryRoot.resolve("platform/inventory/fleet.yaml"))
         val node = fleet.nodes[nodeName] ?: return fail("Unknown node: $nodeName")
 
+        writeHostEnv(nodeName = nodeName, node = node, ssh = node.ssh)
+        return 0
+    }
+
+    private fun showInstallHostEnv(args: List<String>): Int {
+        if (args.size != 1) {
+            return fail("Usage: show-install-host-env <node-name>")
+        }
+
+        val nodeName = args.single()
+        val fleet = fleetLoader.load(repositoryRoot.resolve("platform/inventory/fleet.yaml"))
+        val node = fleet.nodes[nodeName] ?: return fail("Unknown node: $nodeName")
+
+        val installSsh =
+            when (node.status) {
+                "active" -> node.bootstrapSsh ?: node.ssh
+                else -> node.bootstrapSsh
+            }
+        writeHostEnv(nodeName = nodeName, node = node, ssh = installSsh)
+        return 0
+    }
+
+    private fun writeHostEnv(
+        nodeName: String,
+        node: NodeInfo,
+        ssh: SshConnection?,
+    ) {
         stdout.writeLine("NODE_NAME", nodeName)
         stdout.writeLine("NODE_STATUS", node.status)
         stdout.writeLine("NODE_SITE", node.site)
         stdout.writeLine("NODE_ARCH", node.arch)
         stdout.writeLine("NIX_SYSTEM", node.toNixSystem())
-        stdout.writeLine("HAS_SSH", (node.ssh != null).toString())
-        stdout.writeLine("SSH_HOST", node.ssh?.host.orEmpty())
-        stdout.writeLine("SSH_USER", node.ssh?.user.orEmpty())
-        stdout.writeLine("SSH_PORT", node.ssh?.port?.toString().orEmpty())
+        stdout.writeLine("HAS_SSH", (ssh != null).toString())
+        stdout.writeLine("SSH_HOST", ssh?.host.orEmpty())
+        stdout.writeLine("SSH_USER", ssh?.user.orEmpty())
+        stdout.writeLine("SSH_PORT", ssh?.port?.toString().orEmpty())
         stdout.writeLine("IS_CONTROL_PLANE", ("k3s-control-plane" in node.targetRoles).toString())
         stdout.writeLine("IS_WORKER", ("k3s-worker" in node.targetRoles).toString())
         stdout.writeLine("IS_UTILITY_HOST", ("utility-host" in node.targetRoles).toString())
         stdout.writeLine("HAS_NVIDIA", ("nvidia" in node.capabilities).toString())
         stdout.flush()
-        return 0
     }
 
     private fun renderEdgeCatalog(args: List<String>): Int {
