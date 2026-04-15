@@ -103,11 +103,18 @@ data:
     }
     EOF
 
+    cat <<'EOF' >/tmp/downloads.hcl
+    path "secret/data/platform/media" {
+      capabilities = ["read"]
+    }
+    EOF
+
     vault policy write auth-api /tmp/auth-api.hcl
     vault policy write assistant-api /tmp/assistant-api.hcl
     vault policy write n8n /tmp/n8n.hcl
     vault policy write postgres /tmp/postgres.hcl
     vault policy write rabbitmq /tmp/rabbitmq.hcl
+    vault policy write downloads /tmp/downloads.hcl
 
     vault write auth/kubernetes/role/auth-api \
       bound_service_account_names="auth-api" \
@@ -137,4 +144,10 @@ data:
       bound_service_account_names="rabbitmq" \
       bound_service_account_namespaces="data-system" \
       policies="rabbitmq" \
+      ttl="1h"
+
+    vault write auth/kubernetes/role/downloads \
+      bound_service_account_names="downloads" \
+      bound_service_account_namespaces="media-system" \
+      policies="downloads" \
       ttl="1h"

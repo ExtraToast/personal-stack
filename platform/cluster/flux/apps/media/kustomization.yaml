@@ -3,6 +3,8 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
+  - bazarr
+  - downloads
   - jellyfin
   - radarr
   - sonarr

@@ -15,6 +15,8 @@ class PlatformMediaFluxTest {
 
         assertThat(clusterKustomization).contains("- ../../apps/media")
         assertThat(appKustomization)
+            .contains("- bazarr")
+            .contains("- downloads")
             .contains("namespace.yaml")
             .contains("- jellyfin")
             .contains("- radarr")
@@ -88,5 +90,82 @@ class PlatformMediaFluxTest {
             .contains("containerPort: 8989")
             .contains("kind: Service")
             .contains("port: 8989")
+    }
+
+    @Test
+    fun `bazarr runs on enschede utility hosts with shared media storage`() {
+        val kustomization = repositoryRoot.resolve("platform/cluster/flux/apps/media/bazarr/kustomization.yaml").toFile().readText()
+        val manifest = repositoryRoot.resolve("platform/cluster/flux/apps/media/bazarr/deployment.yaml").toFile().readText()
+
+        assertThat(kustomization).contains("deployment.yaml")
+
+        assertThat(manifest)
+            .contains("name: bazarr")
+            .contains("namespace: media-system")
+            .contains("linuxserver/bazarr:1.5.6")
+            .contains("personal-stack/site: enschede")
+            .contains("personal-stack/role-utility-host:")
+            .contains("personal-stack/capability-samba:")
+            .contains("path: /srv/media")
+            .contains("path: /var/lib/personal-stack/media/bazarr")
+            .contains("mountPath: /media")
+            .contains("mountPath: /config")
+            .contains("containerPort: 6767")
+            .contains("kind: Service")
+            .contains("port: 6767")
+    }
+
+    @Test
+    fun `downloads pod keeps vpn scoped services and vault delivered media credentials`() {
+        val kustomization = repositoryRoot.resolve("platform/cluster/flux/apps/media/downloads/kustomization.yaml").toFile().readText()
+        val manifest = repositoryRoot.resolve("platform/cluster/flux/apps/media/downloads/deployment.yaml").toFile().readText()
+
+        assertThat(kustomization).contains("deployment.yaml")
+
+        assertThat(manifest)
+            .contains("kind: ServiceAccount")
+            .contains("name: downloads")
+            .contains("namespace: media-system")
+            .contains("kind: Deployment")
+            .contains("name: downloads")
+            .contains("vault.hashicorp.com/agent-inject:")
+            .contains("vault.hashicorp.com/agent-inject-token:")
+            .contains("vault.hashicorp.com/role: downloads")
+            .contains("secret/data/platform/media")
+            .contains("pia.username")
+            .contains("pia.password")
+            .contains("pia.server_regions")
+            .contains("/vault/secrets/gluetun.env")
+            .contains("qmcgaw/gluetun:v3.40")
+            .contains("exec /gluetun-entrypoint")
+            .contains("linuxserver/qbittorrent:5.0.4")
+            .contains("linuxserver/prowlarr:1.32.2")
+            .contains("NET_ADMIN")
+            .contains("NET_RAW")
+            .contains("path: /srv/media")
+            .contains("path: /var/lib/personal-stack/media/qbittorrent")
+            .contains("path: /var/lib/personal-stack/media/prowlarr")
+            .contains("name: tailscale-local-route")
+            .contains("100.64.0.0/10")
+            .contains("containerPort: 8080")
+            .contains("containerPort: 9696")
+            .contains("kind: Service")
+            .contains("name: qbittorrent")
+            .contains("name: prowlarr")
+            .contains("port: 8080")
+            .contains("port: 9696")
+    }
+
+    @Test
+    fun `vault bootstrap configures downloads media policy and kubernetes role`() {
+        val bootstrapScript =
+            repositoryRoot.resolve("platform/cluster/flux/apps/data/vault/bootstrap-auth-configmap.yaml").toFile().readText()
+
+        assertThat(bootstrapScript)
+            .contains("vault policy write downloads")
+            .contains("auth/kubernetes/role/downloads")
+            .contains("secret/data/platform/media")
+            .contains("bound_service_account_names=\"downloads\"")
+            .contains("bound_service_account_namespaces=\"media-system\"")
     }
 }
