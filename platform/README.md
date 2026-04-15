@@ -423,6 +423,10 @@ For clean machines, the expected sequence is:
 3. For a first install on an existing machine, add `bootstrap_ssh` with whatever admin SSH endpoint the current OS already exposes today
 4. Make sure that `bootstrap_ssh` user has SSH-key access and passwordless `sudo`; you do not need to move the old OS to `deploy@<host>:2222` before install
 5. Run `platform/scripts/install/install-host.sh <node-name>` to install `NixOS` from the flake with `nixos-anywhere`
+   If the current machine still needs explicit bootstrap auth, pass it directly at runtime with either
+   `platform/scripts/install/install-host.sh --ssh-key ~/.ssh/ps-t1000 <node-name>`
+   or
+   `platform/scripts/install/install-host.sh --ssh-password '<bootstrap-password>' <node-name>`
 6. Reboot into the installed `NixOS` system and verify base host health
 7. Use `platform/scripts/deploy/deploy-host.sh <node-name>` for steady-state config updates over `deploy@<host>:2222`
 8. Only then let the node act as a real `k3s` worker/utility host and start receiving Flux-managed workloads

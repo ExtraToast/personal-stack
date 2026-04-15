@@ -49,7 +49,7 @@ class PlatformDeployScriptsTest {
         val result =
             runScript(
                 repositoryRoot.resolve("platform/scripts/install/install-host.sh"),
-                "frankfurt-contabo-1",
+                listOf("frankfurt-contabo-1"),
                 environment =
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
@@ -104,7 +104,7 @@ class PlatformDeployScriptsTest {
         val result =
             runScript(
                 repositoryRoot.resolve("platform/scripts/install/install-host.sh"),
-                "enschede-home-t1000-1",
+                listOf("enschede-home-t1000-1"),
                 environment =
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
@@ -126,6 +126,124 @@ class PlatformDeployScriptsTest {
                 "--ssh-port",
                 "2222",
             )
+    }
+
+    @Test
+    fun `install-host forwards an explicit ssh identity file to nixos-anywhere`() {
+        val gradlewStub =
+            tempDir.resolve("gradlew-ssh-key").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                cat <<'EOF'
+                NODE_NAME=enschede-home-t1000-1
+                NODE_STATUS=install-ready
+                NODE_SITE=enschede
+                NODE_ARCH=amd64
+                NIX_SYSTEM=x86_64-linux
+                HAS_SSH=true
+                SSH_HOST=192.168.1.50
+                SSH_USER=extratoast
+                SSH_PORT=22
+                EOF
+                """.trimIndent(),
+            )
+        val nixLog = tempDir.resolve("nix-ssh-key.log")
+        val nixStub =
+            tempDir.resolve("nix-ssh-key-stub").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
+                """.trimIndent(),
+            )
+        val sshKey = tempDir.resolve("ps-t1000")
+        Files.writeString(sshKey, "private-key")
+
+        val result =
+            runScript(
+                repositoryRoot.resolve("platform/scripts/install/install-host.sh"),
+                listOf("--ssh-key", sshKey.toAbsolutePath().toString(), "enschede-home-t1000-1"),
+                environment =
+                    mapOf(
+                        "PLATFORM_GRADLEW" to gradlewStub,
+                        "PLATFORM_NIX" to nixStub,
+                        "PLATFORM_AUTHORIZED_KEYS_FILE" to authorizedKeysFile(),
+                    ),
+            )
+
+        assertThat(result.exitCode).isEqualTo(0)
+        assertThat(Files.readAllLines(nixLog))
+            .containsExactly(
+                "run",
+                ".#nixos-anywhere",
+                "--",
+                "--flake",
+                ".#enschede-home-t1000-1",
+                "--target-host",
+                "extratoast@192.168.1.50",
+                "--ssh-port",
+                "22",
+                "-i",
+                sshKey.toAbsolutePath().toString(),
+            )
+    }
+
+    @Test
+    fun `install-host forwards an explicit ssh password to nixos-anywhere`() {
+        val gradlewStub =
+            tempDir.resolve("gradlew-password").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                cat <<'EOF'
+                NODE_NAME=enschede-home-t1000-1
+                NODE_STATUS=install-ready
+                NODE_SITE=enschede
+                NODE_ARCH=amd64
+                NIX_SYSTEM=x86_64-linux
+                HAS_SSH=true
+                SSH_HOST=192.168.1.50
+                SSH_USER=extratoast
+                SSH_PORT=22
+                EOF
+                """.trimIndent(),
+            )
+        val nixLog = tempDir.resolve("nix-password.log")
+        val sshPassLog = tempDir.resolve("nix-password-env.log")
+        val nixStub =
+            tempDir.resolve("nix-password-stub").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
+                printf '%s' "${'$'}{SSHPASS:-}" > "${sshPassLog.toAbsolutePath()}"
+                """.trimIndent(),
+            )
+
+        val result =
+            runScript(
+                repositoryRoot.resolve("platform/scripts/install/install-host.sh"),
+                listOf("--ssh-password", "bootstrap-secret", "enschede-home-t1000-1"),
+                environment =
+                    mapOf(
+                        "PLATFORM_GRADLEW" to gradlewStub,
+                        "PLATFORM_NIX" to nixStub,
+                        "PLATFORM_AUTHORIZED_KEYS_FILE" to authorizedKeysFile(),
+                    ),
+            )
+
+        assertThat(result.exitCode).isEqualTo(0)
+        assertThat(Files.readAllLines(nixLog))
+            .containsExactly(
+                "run",
+                ".#nixos-anywhere",
+                "--",
+                "--flake",
+                ".#enschede-home-t1000-1",
+                "--target-host",
+                "extratoast@192.168.1.50",
+                "--ssh-port",
+                "22",
+                "--env-password",
+            )
+        assertThat(Files.readString(sshPassLog)).isEqualTo("bootstrap-secret")
     }
 
     @Test
@@ -159,7 +277,7 @@ class PlatformDeployScriptsTest {
         val result =
             runScript(
                 repositoryRoot.resolve("platform/scripts/install/install-host.sh"),
-                "enschede-pi-1",
+                listOf("enschede-pi-1"),
                 environment =
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
@@ -203,7 +321,7 @@ class PlatformDeployScriptsTest {
         val result =
             runScript(
                 repositoryRoot.resolve("platform/scripts/install/install-host.sh"),
-                "enschede-home-t1000-1",
+                listOf("enschede-home-t1000-1"),
                 environment =
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
@@ -248,7 +366,7 @@ class PlatformDeployScriptsTest {
         val result =
             runScript(
                 repositoryRoot.resolve("platform/scripts/deploy/deploy-host.sh"),
-                "frankfurt-contabo-1",
+                listOf("frankfurt-contabo-1"),
                 environment =
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
@@ -268,11 +386,11 @@ class PlatformDeployScriptsTest {
 
     private fun runScript(
         script: Path,
-        nodeName: String,
+        arguments: List<String>,
         environment: Map<String, String>,
     ): ProcessResult {
         val process =
-            ProcessBuilder(script.toAbsolutePath().toString(), nodeName)
+            ProcessBuilder(listOf(script.toAbsolutePath().toString()) + arguments)
                 .directory(repositoryRoot.toFile())
                 .apply {
                     environment().putAll(environment)

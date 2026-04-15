@@ -37,6 +37,9 @@ For each node, the sequence is:
    `ssh -p <bootstrap-port> <bootstrap-user>@<host> 'sudo -n true'`
 5. Run:
    `platform/scripts/install/install-host.sh <node-name>`
+   or pass the bootstrap auth explicitly for the current OS session:
+   `platform/scripts/install/install-host.sh --ssh-key ~/.ssh/ps-t1000 <node-name>`
+   `platform/scripts/install/install-host.sh --ssh-password '<bootstrap-password>' <node-name>`
 6. Reboot into the installed `NixOS` system.
 7. Validate the base host:
    `hostnamectl`
