@@ -25,6 +25,7 @@ class PlatformScaffoldTest {
                 "platform/cluster/bootstrap/README.md",
                 "platform/cluster/bootstrap/data-services-playbook.md",
                 "platform/cluster/bootstrap/home-install-playbook.md",
+                "platform/cluster/bootstrap/home-service-cutover-playbook.md",
                 "platform/cluster/flux/apps/mail/kustomization.yaml",
             )
 

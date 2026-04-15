@@ -17,6 +17,9 @@ The clean-install sequence for `enschede-home-t1000-1` and the Raspberry Pi work
 wave lives in
 [home-install-playbook.md](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/cluster/bootstrap/home-install-playbook.md:1).
 
+The actual home service cutover for media data and Samba lives in
+[home-service-cutover-playbook.md](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/cluster/bootstrap/home-service-cutover-playbook.md:1).
+
 ## Vault unseal
 
 The first `Vault` start on a fresh cluster is manual by design.
