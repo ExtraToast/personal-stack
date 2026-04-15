@@ -19,24 +19,56 @@ The intended order is:
 
 For each node, the sequence is:
 
-1. Boot a temporary installer environment that exposes SSH.
-2. Make the installer reachable at the `ssh.host` recorded in [fleet.yaml](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/inventory/fleet.yaml:1).
-   The current default is `root@<node-name>:22`; swap the host value to a raw LAN IP if local name resolution is not ready yet.
-3. Run:
+1. Create `platform/nix/authorized-keys.nix` from [authorized-keys.nix.example](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/nix/authorized-keys.nix.example:1).
+2. Make the target reachable at the `ssh.host` recorded in [fleet.yaml](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/inventory/fleet.yaml:1).
+   The bootstrap default is `deploy@<node-name>:2222`; swap `ssh.host` to a raw LAN IP if local name resolution is not ready yet.
+3. If the machine is still on `RHEL`, prepare a key-only `deploy` bootstrap account first:
+   `sudo useradd --create-home --groups wheel deploy || sudo usermod --append --groups wheel deploy`
+   `sudo install -d -m 700 -o deploy -g deploy /home/deploy/.ssh`
+   `sudo install -m 600 -o deploy -g deploy ~/.ssh/id_ed25519.pub /home/deploy/.ssh/authorized_keys`
+   `sudo tee /etc/sudoers.d/90-deploy-nopasswd >/dev/null <<'EOF'`
+   `deploy ALL=(ALL) NOPASSWD: ALL`
+   `EOF`
+   `sudo chmod 440 /etc/sudoers.d/90-deploy-nopasswd`
+   `sudo tee /etc/ssh/sshd_config.d/10-personal-stack-bootstrap.conf >/dev/null <<'EOF'`
+   `Port 2222`
+   `AllowUsers deploy`
+   `PubkeyAuthentication yes`
+   `PasswordAuthentication no`
+   `KbdInteractiveAuthentication no`
+   `PermitRootLogin no`
+   `EOF`
+   `sudo dnf install -y policycoreutils-python-utils`
+   `sudo semanage port -a -t ssh_port_t -p tcp 2222 || sudo semanage port -m -t ssh_port_t -p tcp 2222`
+   `sudo firewall-cmd --permanent --add-port=2222/tcp`
+   `sudo firewall-cmd --reload`
+   `sudo systemctl restart sshd`
+   Verify with:
+   `ssh -p 2222 deploy@<host> 'sudo -n true'`
+   Only after that should you close port `22` on the old OS if it is still open.
+4. Run:
    `platform/scripts/install/install-host.sh <node-name>`
-4. Reboot into the installed `NixOS` system.
-5. Validate the base host:
+5. Reboot into the installed `NixOS` system.
+6. Validate the base host:
    `hostnamectl`
    `tailscale status`
    `systemctl status k3s`
-6. Run:
+7. Run:
    `platform/scripts/deploy/deploy-host.sh <node-name>`
-7. Verify node registration and labels:
+8. Verify node registration and labels:
    `kubectl get nodes -o wide`
    `kubectl get node <node-name> --show-labels`
 
 Only after these checks pass should the node be treated as ready for workload
 placement.
+
+For interactive access after install, prefer a local `~/.ssh/config` entry like:
+
+`Host enschede-home-t1000-1 enschede-pi-1 enschede-pi-2 enschede-pi-3 enschede-home-gtx960m-1 frankfurt-contabo-1`
+`  User deploy`
+`  Port 2222`
+`  IdentityFile ~/.ssh/id_ed25519`
+`  IdentitiesOnly yes`
 
 ## T1000 First
 

@@ -40,7 +40,7 @@ nodes:
     ssh:
       host: enschede-home-gtx960m-1
       user: deploy
-      port: 22
+      port: 2222
     target_roles:
       - k3s-worker
       - utility-host
@@ -64,8 +64,8 @@ nodes:
     arch: amd64
     ssh:
       host: enschede-home-t1000-1
-      user: root
-      port: 22
+      user: deploy
+      port: 2222
     target_roles:
       - k3s-worker
       - utility-host
@@ -89,8 +89,8 @@ nodes:
     arch: arm64
     ssh:
       host: enschede-pi-1
-      user: root
-      port: 22
+      user: deploy
+      port: 2222
     target_roles:
       - k3s-worker
     capacity:
@@ -105,8 +105,8 @@ nodes:
     arch: arm64
     ssh:
       host: enschede-pi-2
-      user: root
-      port: 22
+      user: deploy
+      port: 2222
     target_roles:
       - k3s-worker
     capacity:
@@ -121,8 +121,8 @@ nodes:
     arch: arm64
     ssh:
       host: enschede-pi-3
-      user: root
-      port: 22
+      user: deploy
+      port: 2222
     target_roles:
       - k3s-worker
     capacity:

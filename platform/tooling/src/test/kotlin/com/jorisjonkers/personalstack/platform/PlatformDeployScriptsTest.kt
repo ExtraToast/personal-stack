@@ -12,6 +12,12 @@ class PlatformDeployScriptsTest {
     @TempDir
     lateinit var tempDir: Path
 
+    private fun authorizedKeysFile(): String =
+        tempDir.resolve("authorized-keys.nix")
+            .also { Files.writeString(it, "[ ]\n") }
+            .toAbsolutePath()
+            .toString()
+
     @Test
     fun `install-host uses nixos-anywhere with ssh metadata from inventory cli`() {
         val gradlewStub =
@@ -48,6 +54,7 @@ class PlatformDeployScriptsTest {
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
                         "PLATFORM_NIX" to nixStub,
+                        "PLATFORM_AUTHORIZED_KEYS_FILE" to authorizedKeysFile(),
                     ),
             )
 
@@ -67,7 +74,7 @@ class PlatformDeployScriptsTest {
     }
 
     @Test
-    fun `install-host can target install ready nodes through bootstrap root ssh`() {
+    fun `install-host can target install ready nodes through bootstrap deploy ssh`() {
         val gradlewStub =
             tempDir.resolve("gradlew-install-ready").writeExecutable(
                 """
@@ -80,8 +87,8 @@ class PlatformDeployScriptsTest {
                 NIX_SYSTEM=x86_64-linux
                 HAS_SSH=true
                 SSH_HOST=enschede-home-t1000-1
-                SSH_USER=root
-                SSH_PORT=22
+                SSH_USER=deploy
+                SSH_PORT=2222
                 EOF
                 """.trimIndent(),
             )
@@ -102,6 +109,7 @@ class PlatformDeployScriptsTest {
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
                         "PLATFORM_NIX" to nixStub,
+                        "PLATFORM_AUTHORIZED_KEYS_FILE" to authorizedKeysFile(),
                     ),
             )
 
@@ -114,9 +122,9 @@ class PlatformDeployScriptsTest {
                 "--flake",
                 ".#enschede-home-t1000-1",
                 "--target-host",
-                "root@enschede-home-t1000-1",
+                "deploy@enschede-home-t1000-1",
                 "--ssh-port",
-                "22",
+                "2222",
             )
     }
 
@@ -161,6 +169,51 @@ class PlatformDeployScriptsTest {
 
         assertThat(result.exitCode).isEqualTo(1)
         assertThat(result.stderr).contains("does not define SSH connection details")
+        assertThat(Files.exists(nixLog)).isFalse()
+    }
+
+    @Test
+    fun `install-host rejects missing authorized keys file for key only hosts`() {
+        val gradlewStub =
+            tempDir.resolve("gradlew-missing-authorized-keys").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                cat <<'EOF'
+                NODE_NAME=enschede-home-t1000-1
+                NODE_STATUS=install-ready
+                NODE_SITE=enschede
+                NODE_ARCH=amd64
+                NIX_SYSTEM=x86_64-linux
+                HAS_SSH=true
+                SSH_HOST=enschede-home-t1000-1
+                SSH_USER=deploy
+                SSH_PORT=2222
+                EOF
+                """.trimIndent(),
+            )
+        val nixLog = tempDir.resolve("nix-missing-authorized-keys.log")
+        val nixStub =
+            tempDir.resolve("nix-missing-authorized-keys-stub").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
+                """.trimIndent(),
+            )
+
+        val result =
+            runScript(
+                repositoryRoot.resolve("platform/scripts/install/install-host.sh"),
+                "enschede-home-t1000-1",
+                environment =
+                    mapOf(
+                        "PLATFORM_GRADLEW" to gradlewStub,
+                        "PLATFORM_NIX" to nixStub,
+                        "PLATFORM_AUTHORIZED_KEYS_FILE" to tempDir.resolve("missing-authorized-keys.nix").toString(),
+                    ),
+            )
+
+        assertThat(result.exitCode).isEqualTo(1)
+        assertThat(result.stderr).contains("create it from platform/nix/authorized-keys.nix.example")
         assertThat(Files.exists(nixLog)).isFalse()
     }
 

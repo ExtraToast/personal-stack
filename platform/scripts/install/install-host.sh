@@ -9,6 +9,7 @@ require_single_node_arg "$(basename "$0")" "$@"
 
 load_host_env "$1"
 require_host_ssh
+require_authorized_keys_file
 
 cd "$(platform_flake_dir)"
 "$(platform_nix)" run .#nixos-anywhere -- \

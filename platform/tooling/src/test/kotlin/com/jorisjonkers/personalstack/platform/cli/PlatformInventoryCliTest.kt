@@ -54,8 +54,8 @@ class PlatformInventoryCliTest {
             .contains("NIX_SYSTEM=aarch64-linux")
             .contains("HAS_SSH=true")
             .contains("SSH_HOST=enschede-pi-1")
-            .contains("SSH_USER=root")
-            .contains("SSH_PORT=22")
+            .contains("SSH_USER=deploy")
+            .contains("SSH_PORT=2222")
         assertThat(stderr.toString(StandardCharsets.UTF_8)).isBlank()
     }
 

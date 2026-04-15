@@ -51,6 +51,7 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+platform/nix/authorized-keys.nix
 acme.json
 *.crt
 *.cer

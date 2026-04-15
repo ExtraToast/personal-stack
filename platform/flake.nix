@@ -36,8 +36,9 @@
       deploy.nodes.frankfurt-contabo-1 = {
         hostname = "167.86.79.203";
         profiles.system = {
-          sshUser = "root";
+          sshUser = "deploy";
           user = "root";
+          sshOpts = [ "-p" "2222" ];
           path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.frankfurt-contabo-1;
         };
       };
@@ -45,8 +46,9 @@
       deploy.nodes.enschede-home-gtx960m-1 = {
         hostname = "enschede-home-gtx960m-1";
         profiles.system = {
-          sshUser = "root";
+          sshUser = "deploy";
           user = "root";
+          sshOpts = [ "-p" "2222" ];
           path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.enschede-home-gtx960m-1;
         };
       };
@@ -54,8 +56,9 @@
       deploy.nodes.enschede-home-t1000-1 = {
         hostname = "enschede-home-t1000-1";
         profiles.system = {
-          sshUser = "root";
+          sshUser = "deploy";
           user = "root";
+          sshOpts = [ "-p" "2222" ];
           path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.enschede-home-t1000-1;
         };
       };
@@ -63,8 +66,9 @@
       deploy.nodes.enschede-pi-1 = {
         hostname = "enschede-pi-1";
         profiles.system = {
-          sshUser = "root";
+          sshUser = "deploy";
           user = "root";
+          sshOpts = [ "-p" "2222" ];
           path = deploy-rs.lib.aarch64-linux.activate.nixos self.nixosConfigurations.enschede-pi-1;
         };
       };
@@ -72,8 +76,9 @@
       deploy.nodes.enschede-pi-2 = {
         hostname = "enschede-pi-2";
         profiles.system = {
-          sshUser = "root";
+          sshUser = "deploy";
           user = "root";
+          sshOpts = [ "-p" "2222" ];
           path = deploy-rs.lib.aarch64-linux.activate.nixos self.nixosConfigurations.enschede-pi-2;
         };
       };
@@ -81,8 +86,9 @@
       deploy.nodes.enschede-pi-3 = {
         hostname = "enschede-pi-3";
         profiles.system = {
-          sshUser = "root";
+          sshUser = "deploy";
           user = "root";
+          sshOpts = [ "-p" "2222" ];
           path = deploy-rs.lib.aarch64-linux.activate.nixos self.nixosConfigurations.enschede-pi-3;
         };
       };

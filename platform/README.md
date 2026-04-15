@@ -415,8 +415,10 @@ The next implementation steps should focus on real host bring-up and the first l
 
 For clean machines, the expected sequence is:
 
-1. Boot a temporary SSH-reachable installer environment and point the inventory `ssh` metadata at it
-2. Run `platform/scripts/install/install-host.sh <node-name>` to install `NixOS` from the flake with `nixos-anywhere`
-3. Reboot into the installed `NixOS` system and verify baseline host services such as networking, `Tailscale`, storage mounts, and GPU runtime where applicable
-4. Use `platform/scripts/deploy/deploy-host.sh <node-name>` for steady-state updates through `deploy-rs`
-5. Only after the node is healthy should it join the target `k3s` role and start receiving Flux-managed workloads
+1. Put your SSH public key into a local `platform/nix/authorized-keys.nix` file based on [platform/nix/authorized-keys.nix.example](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/nix/authorized-keys.nix.example:1)
+2. Make the target reachable as `deploy@<host>:2222` with key-only auth and passwordless `sudo`
+3. Boot a temporary SSH-reachable installer environment or harden the existing OS in place so the inventory `ssh` metadata points at that `deploy` bootstrap account
+4. Run `platform/scripts/install/install-host.sh <node-name>` to install `NixOS` from the flake with `nixos-anywhere`
+5. Reboot into the installed `NixOS` system and verify base host health
+6. Use `platform/scripts/deploy/deploy-host.sh <node-name>` for steady-state config updates over `deploy@<host>:2222`
+7. Only then let the node act as a real `k3s` worker/utility host and start receiving Flux-managed workloads

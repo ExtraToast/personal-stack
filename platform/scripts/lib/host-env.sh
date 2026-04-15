@@ -19,6 +19,10 @@ platform_nix() {
   printf '%s\n' "${PLATFORM_NIX:-nix}"
 }
 
+platform_authorized_keys_file() {
+  printf '%s\n' "${PLATFORM_AUTHORIZED_KEYS_FILE:-$(platform_flake_dir)/nix/authorized-keys.nix}"
+}
+
 require_single_node_arg() {
   local script_name="$1"
   shift
@@ -50,6 +54,16 @@ load_host_env() {
 require_host_ssh() {
   if [[ "${HAS_SSH:-false}" != "true" ]]; then
     echo "Node ${NODE_NAME:-unknown} does not define SSH connection details" >&2
+    exit 1
+  fi
+}
+
+require_authorized_keys_file() {
+  local authorized_keys_file
+  authorized_keys_file="$(platform_authorized_keys_file)"
+
+  if [[ ! -f "${authorized_keys_file}" ]]; then
+    echo "Missing ${authorized_keys_file}; create it from platform/nix/authorized-keys.nix.example before installing a key-only host" >&2
     exit 1
   fi
 }

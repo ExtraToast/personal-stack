@@ -76,6 +76,8 @@ class PlatformHostDefinitionsTest {
 
                 assertThat(flake).contains("deploy.nodes.${nodeName}")
                 assertThat(flake).contains("hostname = \"${it.host}\"")
+                assertThat(flake).contains("sshUser = \"${it.user}\"")
+                assertThat(flake).contains("sshOpts = [ \"-p\" \"${it.port}\" ]")
                 assertThat(flake)
                     .contains("deploy-rs.lib.${expectedSystem}.activate.nixos self.nixosConfigurations.${nodeName}")
             }
