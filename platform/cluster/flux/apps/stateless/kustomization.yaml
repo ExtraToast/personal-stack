@@ -3,7 +3,9 @@ kind: Kustomization
 
 resources:
   - app-ui
+  - auth-api
   - auth-ui
+  - assistant-api
   - assistant-ui
   - flaresolverr
   - uptime-kuma

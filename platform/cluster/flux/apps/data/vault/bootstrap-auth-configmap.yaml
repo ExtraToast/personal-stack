@@ -36,3 +36,58 @@ data:
       bound_service_account_namespaces="data-system" \
       policies="platform-sample-read" \
       ttl="1h"
+
+    if ! vault read transit/keys/auth-api-jwt >/dev/null 2>&1; then
+      vault write transit/keys/auth-api-jwt type="rsa-2048"
+    fi
+
+    cat <<'EOF' >/tmp/auth-api.hcl
+    path "secret/data/auth-api" {
+      capabilities = ["read"]
+    }
+
+    path "secret/data/auth-api/*" {
+      capabilities = ["read"]
+    }
+
+    path "rabbitmq/creds/app-consumer" {
+      capabilities = ["read"]
+    }
+
+    path "database/creds/auth-api" {
+      capabilities = ["read"]
+    }
+
+    path "transit/sign/auth-api-jwt" {
+      capabilities = ["update"]
+    }
+
+    path "transit/keys/auth-api-jwt" {
+      capabilities = ["read"]
+    }
+    EOF
+
+    cat <<'EOF' >/tmp/assistant-api.hcl
+    path "rabbitmq/creds/app-consumer" {
+      capabilities = ["read"]
+    }
+
+    path "database/creds/assistant-api" {
+      capabilities = ["read"]
+    }
+    EOF
+
+    vault policy write auth-api /tmp/auth-api.hcl
+    vault policy write assistant-api /tmp/assistant-api.hcl
+
+    vault write auth/kubernetes/role/auth-api \
+      bound_service_account_names="auth-api" \
+      bound_service_account_namespaces="auth-system" \
+      policies="auth-api" \
+      ttl="1h"
+
+    vault write auth/kubernetes/role/assistant-api \
+      bound_service_account_names="assistant-api" \
+      bound_service_account_namespaces="assistant-system" \
+      policies="assistant-api" \
+      ttl="1h"
