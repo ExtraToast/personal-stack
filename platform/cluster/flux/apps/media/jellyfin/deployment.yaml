@@ -68,9 +68,11 @@ spec:
             requests:
               cpu: 2000m
               memory: 4096Mi
+              nvidia.com/gpu: 1
             limits:
               cpu: 12000m
               memory: 8192Mi
+              nvidia.com/gpu: 1
       volumes:
         - name: media-library
           hostPath:

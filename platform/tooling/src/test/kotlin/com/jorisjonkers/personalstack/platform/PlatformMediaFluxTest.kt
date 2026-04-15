@@ -50,6 +50,7 @@ class PlatformMediaFluxTest {
             .contains("mountPath: /config")
             .contains("containerPort: 8096")
             .contains("path: /health")
+            .contains("nvidia.com/gpu: 1")
             .contains("kind: Service")
             .contains("port: 8096")
     }

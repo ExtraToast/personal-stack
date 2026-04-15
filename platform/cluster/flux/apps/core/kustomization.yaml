@@ -6,5 +6,6 @@ resources:
   - cert-manager
   - external-dns
   - ingress-controller
+  - nvidia-device-plugin
   - metallb
   - lan-ingress-controller
