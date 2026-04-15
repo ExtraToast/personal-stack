@@ -67,7 +67,7 @@ job "radarr" {
       }
 
       config {
-        image        = "linuxserver/radarr:5.21.1"
+        image        = "linuxserver/radarr:6.1.1"
         network_mode = "host"
       }
 
