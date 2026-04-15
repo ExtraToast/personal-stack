@@ -125,9 +125,9 @@ job "downloads" {
       }
 
       resources {
-        cpu        = 400
-        memory     = 256
-        memory_max = 512
+        cpu        = 1000
+        memory     = 512
+        memory_max = 1024
       }
     }
 
@@ -181,9 +181,9 @@ job "downloads" {
       }
 
       resources {
-        cpu        = 1500
-        memory     = 768
-        memory_max = 1536
+        cpu        = 3000
+        memory     = 1536
+        memory_max = 3072
       }
     }
 
