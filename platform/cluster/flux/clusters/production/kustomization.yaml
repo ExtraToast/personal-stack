@@ -6,4 +6,5 @@ resources:
   - ../../apps/data
   - ../../apps/observability
   - ../../apps/stateless
+  - ../../apps/media
   - ../../apps/edge
