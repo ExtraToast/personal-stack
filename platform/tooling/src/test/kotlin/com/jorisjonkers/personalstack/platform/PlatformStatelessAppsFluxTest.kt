@@ -20,7 +20,7 @@ class PlatformStatelessAppsFluxTest {
             .contains("- assistant-ui")
             .contains("- flaresolverr")
             .contains("- uptime-kuma")
-            .doesNotContain("n8n")
+            .contains("- n8n")
     }
 
     @Test
