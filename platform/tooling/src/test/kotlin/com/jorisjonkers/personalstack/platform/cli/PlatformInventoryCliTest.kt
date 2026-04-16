@@ -64,7 +64,7 @@ class PlatformInventoryCliTest {
             .contains("SSH_HOST=enschede-pi-1")
             .contains("SSH_USER=deploy")
             .contains("SSH_PORT=2222")
-            .contains("BOOTSTRAP_SSH_HOST=192.168.0.132")
+            .contains("BOOTSTRAP_SSH_HOST=192.168.0.131")
             .contains("BOOTSTRAP_SSH_USER=deploy")
             .contains("BOOTSTRAP_SSH_PORT=22")
         assertThat(stderr.toString(StandardCharsets.UTF_8)).isBlank()
@@ -89,10 +89,10 @@ class PlatformInventoryCliTest {
             .contains("K3S_BOOTSTRAP_CONTROL_PLANE_NODE=frankfurt-contabo-1")
             .contains("HAS_BOOTSTRAP_SSH=true")
             .contains("HAS_SSH=true")
-            .contains("SSH_HOST=192.168.0.132")
+            .contains("SSH_HOST=192.168.0.131")
             .contains("SSH_USER=deploy")
             .contains("SSH_PORT=22")
-            .contains("BOOTSTRAP_SSH_HOST=192.168.0.132")
+            .contains("BOOTSTRAP_SSH_HOST=192.168.0.131")
         assertThat(stderr.toString(StandardCharsets.UTF_8)).isBlank()
     }
 

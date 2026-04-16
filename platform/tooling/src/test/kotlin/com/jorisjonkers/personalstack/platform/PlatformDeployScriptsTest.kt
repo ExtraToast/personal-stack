@@ -339,7 +339,7 @@ class PlatformDeployScriptsTest {
                 SSH_HOST=
                 SSH_USER=
                 SSH_PORT=
-                BOOTSTRAP_SSH_HOST=192.168.0.132
+                BOOTSTRAP_SSH_HOST=192.168.0.131
                 BOOTSTRAP_SSH_USER=deploy
                 BOOTSTRAP_SSH_PORT=22
                 EOF

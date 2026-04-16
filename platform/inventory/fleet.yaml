@@ -106,7 +106,7 @@ nodes:
       user: deploy
       port: 2222
     bootstrap_ssh:
-      host: 192.168.0.132
+      host: 192.168.0.131
       user: deploy
       port: 22
     target_roles:
