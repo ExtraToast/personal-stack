@@ -86,7 +86,7 @@ infra/scripts/backup-service-snapshots.sh
 vps 'sudo bash -s' <<'EOF'
 source /opt/personal-stack/.nomad-keys
 export NOMAD_ADDR=http://127.0.0.1:4646 NOMAD_TOKEN="$NOMAD_BOOTSTRAP_TOKEN"
-nomad job status -json | jq -r '.[].ID' | while read -r job; do
+curl -fsS -H "X-Nomad-Token: $NOMAD_TOKEN" "$NOMAD_ADDR/v1/jobs" | jq -r '.[].ID' | while read -r job; do
   nomad job stop -purge "$job"
 done
 EOF

@@ -140,7 +140,7 @@ Stopping all Nomad jobs safely uses the same pattern:
 
 ```bash
 ssh -i ~/.ssh/ps-vps-1 -p 2222 deploy@100.64.0.1 \
-  "sudo bash -lc 'source /opt/personal-stack/.nomad-keys; export NOMAD_ADDR=http://127.0.0.1:4646 NOMAD_TOKEN=\$NOMAD_BOOTSTRAP_TOKEN; nomad job status -json | jq -r \".[].ID\" | while read -r job; do nomad job stop -purge \"\$job\"; done'"
+  "sudo bash -lc 'source /opt/personal-stack/.nomad-keys; export NOMAD_ADDR=http://127.0.0.1:4646 NOMAD_TOKEN=\$NOMAD_BOOTSTRAP_TOKEN; curl -fsS -H \"X-Nomad-Token: \$NOMAD_TOKEN\" \"\$NOMAD_ADDR/v1/jobs\" | jq -r \".[].ID\" | while read -r job; do nomad job stop -purge \"\$job\"; done'"
 ```
 
 Stop the remaining VPS host services:
