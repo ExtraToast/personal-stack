@@ -7,6 +7,15 @@ class PlatformGpuNvidiaRoleTest {
     private val repositoryRoot = RepositoryRootLocator().locate()
 
     @Test
+    fun `gpu nvidia profile allows unfree nvidia packages`() {
+        val profile = repositoryRoot.resolve("platform/nix/profiles/gpu-nvidia.nix").toFile().readText()
+
+        assertThat(profile)
+            .contains("nixpkgs.config.allowUnfreePredicate")
+            .contains("lib.hasPrefix \"nvidia-\" name")
+    }
+
+    @Test
     fun `gpu nvidia role enables driver modesetting and container toolkit`() {
         val role = repositoryRoot.resolve("platform/nix/modules/roles/gpu-nvidia.nix").toFile().readText()
 
