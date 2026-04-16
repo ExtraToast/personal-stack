@@ -12,6 +12,12 @@
     inputs@{ self, nixpkgs, deploy-rs, disko, nixos-anywhere, ... }:
     let
       lib = nixpkgs.lib;
+      supportedNixosAnywhereSystems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
+      ];
       mkHost =
         system: hostModule:
         lib.nixosSystem {
@@ -26,8 +32,8 @@
     {
       nixosConfigurations = {
         frankfurt-contabo-1 = mkHost "x86_64-linux" ./nix/hosts/frankfurt-contabo-1/default.nix;
-        enschede-home-gtx960m-1 = mkHost "x86_64-linux" ./nix/hosts/enschede-home-gtx960m-1/default.nix;
-        enschede-home-t1000-1 = mkHost "x86_64-linux" ./nix/hosts/enschede-home-t1000-1/default.nix;
+        enschede-gtx-960m-1 = mkHost "x86_64-linux" ./nix/hosts/enschede-gtx-960m-1/default.nix;
+        enschede-t1000-1 = mkHost "x86_64-linux" ./nix/hosts/enschede-t1000-1/default.nix;
         enschede-pi-1 = mkHost "aarch64-linux" ./nix/hosts/enschede-pi-1/default.nix;
         enschede-pi-2 = mkHost "aarch64-linux" ./nix/hosts/enschede-pi-2/default.nix;
         enschede-pi-3 = mkHost "aarch64-linux" ./nix/hosts/enschede-pi-3/default.nix;
@@ -43,23 +49,23 @@
         };
       };
 
-      deploy.nodes.enschede-home-gtx960m-1 = {
-        hostname = "enschede-home-gtx960m-1";
+      deploy.nodes.enschede-gtx-960m-1 = {
+        hostname = "enschede-gtx-960m-1";
         profiles.system = {
           sshUser = "deploy";
           user = "root";
           sshOpts = [ "-p" "2222" ];
-          path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.enschede-home-gtx960m-1;
+          path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.enschede-gtx-960m-1;
         };
       };
 
-      deploy.nodes.enschede-home-t1000-1 = {
-        hostname = "enschede-home-t1000-1";
+      deploy.nodes.enschede-t1000-1 = {
+        hostname = "enschede-t1000-1";
         profiles.system = {
           sshUser = "deploy";
           user = "root";
           sshOpts = [ "-p" "2222" ];
-          path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.enschede-home-t1000-1;
+          path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.enschede-t1000-1;
         };
       };
 
@@ -93,6 +99,21 @@
         };
       };
 
-      packages.x86_64-linux.nixos-anywhere = nixos-anywhere.packages.x86_64-linux.default;
+      packages = lib.genAttrs supportedNixosAnywhereSystems (
+        system:
+        {
+          nixos-anywhere = nixos-anywhere.packages.${system}.default;
+        }
+      );
+
+      apps = lib.genAttrs supportedNixosAnywhereSystems (
+        system:
+        {
+          nixos-anywhere = {
+            type = "app";
+            program = "${self.packages.${system}.nixos-anywhere}/bin/nixos-anywhere";
+          };
+        }
+      );
     };
 }

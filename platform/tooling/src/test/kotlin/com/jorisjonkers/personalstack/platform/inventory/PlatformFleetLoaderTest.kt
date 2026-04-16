@@ -17,18 +17,22 @@ class PlatformFleetLoaderTest {
         val fleet = loader.load(repositoryRoot.resolve("platform/inventory/fleet.yaml"))
 
         assertThat(fleet.cluster.name).isEqualTo("personal-stack")
+        assertThat(fleet.cluster.kubernetes.bootstrapControlPlane).isEqualTo("frankfurt-contabo-1")
+        assertThat(fleet.cluster.kubernetes.apiServerEndpoint).isEqualTo("https://167.86.79.203:6443")
+        assertThat(fleet.cluster.kubernetes.controlPlaneTokenFile).isEqualTo("/var/lib/rancher/k3s/server/node-token")
+        assertThat(fleet.cluster.kubernetes.workerJoinTokenFile).isEqualTo("/var/lib/personal-stack/secrets/k3s/agent-token")
         assertThat(fleet.sites.keys).containsExactlyInAnyOrder("frankfurt", "enschede")
         assertThat(fleet.sites.getValue("enschede").networking?.lanIngressIp).isEqualTo("192.168.1.240")
         assertThat(fleet.nodes.keys).contains(
             "frankfurt-contabo-1",
-            "enschede-home-gtx960m-1",
-            "enschede-home-t1000-1",
+            "enschede-gtx-960m-1",
+            "enschede-t1000-1",
             "enschede-pi-1",
             "enschede-pi-2",
             "enschede-pi-3",
         )
         assertThat(fleet.nodes.getValue("frankfurt-contabo-1").ssh?.host).isEqualTo("167.86.79.203")
-        assertThat(fleet.nodes.getValue("enschede-home-t1000-1").ssh?.user).isEqualTo("deploy")
+        assertThat(fleet.nodes.getValue("enschede-t1000-1").ssh?.user).isEqualTo("deploy")
         assertThat(fleet.nodes.getValue("enschede-pi-1").ssh?.host).isEqualTo("enschede-pi-1")
         assertThat(fleet.nodes.values.mapNotNull { it.ssh?.port }).containsOnly(2222)
         assertThat(fleet.placementIntent.gpuSpecific.getValue("jellyfin").preferredGpuModel).isEqualTo("t1000")
@@ -55,6 +59,11 @@ class PlatformFleetLoaderTest {
                 cluster:
                   name: personal-stack
                   public_domain: jorisjonkers.dev
+                  kubernetes:
+                    bootstrap_control_plane: frankfurt-contabo-1
+                    api_server_endpoint: https://167.86.79.203:6443
+                    control_plane_token_file: /var/lib/rancher/k3s/server/node-token
+                    worker_join_token_file: /var/lib/personal-stack/secrets/k3s/agent-token
                 sites:
                   frankfurt:
                     kind: vps
@@ -103,6 +112,11 @@ class PlatformFleetLoaderTest {
                 cluster:
                   name: personal-stack
                   public_domain: jorisjonkers.dev
+                  kubernetes:
+                    bootstrap_control_plane: stray-node
+                    api_server_endpoint: https://167.86.79.203:6443
+                    control_plane_token_file: /var/lib/rancher/k3s/server/node-token
+                    worker_join_token_file: /var/lib/personal-stack/secrets/k3s/agent-token
                 sites:
                   frankfurt:
                     kind: vps
@@ -113,6 +127,7 @@ class PlatformFleetLoaderTest {
                     site: enschede
                     arch: arm64
                     target_roles:
+                      - k3s-control-plane
                       - k3s-worker
                     capacity:
                       cpu_millicores: 1000
@@ -151,6 +166,11 @@ class PlatformFleetLoaderTest {
                 cluster:
                   name: personal-stack
                   public_domain: jorisjonkers.dev
+                  kubernetes:
+                    bootstrap_control_plane: frankfurt-contabo-1
+                    api_server_endpoint: https://167.86.79.203:6443
+                    control_plane_token_file: /var/lib/rancher/k3s/server/node-token
+                    worker_join_token_file: /var/lib/personal-stack/secrets/k3s/agent-token
                 sites:
                   frankfurt:
                     kind: vps

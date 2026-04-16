@@ -23,6 +23,18 @@ data class ClusterInfo(
     val name: String,
     @param:JsonProperty("public_domain")
     val publicDomain: String,
+    val kubernetes: KubernetesClusterInfo,
+)
+
+data class KubernetesClusterInfo(
+    @param:JsonProperty("bootstrap_control_plane")
+    val bootstrapControlPlane: String,
+    @param:JsonProperty("api_server_endpoint")
+    val apiServerEndpoint: String,
+    @param:JsonProperty("control_plane_token_file")
+    val controlPlaneTokenFile: String,
+    @param:JsonProperty("worker_join_token_file")
+    val workerJoinTokenFile: String,
 )
 
 data class SiteInfo(

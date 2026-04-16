@@ -21,6 +21,23 @@ class PlatformFleetLoader(
         }.also(::validate)
 
     private fun validate(fleet: PlatformFleet) {
+        val bootstrapControlPlane =
+            requireNotNull(fleet.nodes[fleet.cluster.kubernetes.bootstrapControlPlane]) {
+                "bootstrap control plane ${fleet.cluster.kubernetes.bootstrapControlPlane} is not defined as a node"
+            }
+        require("k3s-control-plane" in bootstrapControlPlane.targetRoles) {
+            "bootstrap control plane ${fleet.cluster.kubernetes.bootstrapControlPlane} must target the k3s-control-plane role"
+        }
+        require(fleet.cluster.kubernetes.apiServerEndpoint.startsWith("https://")) {
+            "cluster kubernetes api_server_endpoint must use https"
+        }
+        require(fleet.cluster.kubernetes.controlPlaneTokenFile.startsWith("/")) {
+            "cluster kubernetes control_plane_token_file must be an absolute path"
+        }
+        require(fleet.cluster.kubernetes.workerJoinTokenFile.startsWith("/")) {
+            "cluster kubernetes worker_join_token_file must be an absolute path"
+        }
+
         fleet.nodes.forEach { (nodeName, node) ->
             require(node.site in fleet.sites) {
                 "node $nodeName references unknown site ${node.site}"

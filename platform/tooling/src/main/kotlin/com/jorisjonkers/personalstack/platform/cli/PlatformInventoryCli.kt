@@ -54,7 +54,7 @@ class PlatformInventoryCli(
         val fleet = fleetLoader.load(repositoryRoot.resolve("platform/inventory/fleet.yaml"))
         val node = fleet.nodes[nodeName] ?: return fail("Unknown node: $nodeName")
 
-        writeHostEnv(nodeName = nodeName, node = node, ssh = node.ssh)
+        writeHostEnv(nodeName = nodeName, node = node, ssh = node.ssh, fleet = fleet)
         return 0
     }
 
@@ -72,7 +72,7 @@ class PlatformInventoryCli(
                 "active" -> node.bootstrapSsh ?: node.ssh
                 else -> node.bootstrapSsh
             }
-        writeHostEnv(nodeName = nodeName, node = node, ssh = installSsh)
+        writeHostEnv(nodeName = nodeName, node = node, ssh = installSsh, fleet = fleet)
         return 0
     }
 
@@ -80,16 +80,25 @@ class PlatformInventoryCli(
         nodeName: String,
         node: NodeInfo,
         ssh: SshConnection?,
+        fleet: PlatformFleet,
     ) {
         stdout.writeLine("NODE_NAME", nodeName)
         stdout.writeLine("NODE_STATUS", node.status)
         stdout.writeLine("NODE_SITE", node.site)
         stdout.writeLine("NODE_ARCH", node.arch)
         stdout.writeLine("NIX_SYSTEM", node.toNixSystem())
+        stdout.writeLine("K3S_BOOTSTRAP_CONTROL_PLANE_NODE", fleet.cluster.kubernetes.bootstrapControlPlane)
+        stdout.writeLine("K3S_API_SERVER_ENDPOINT", fleet.cluster.kubernetes.apiServerEndpoint)
+        stdout.writeLine("K3S_CONTROL_PLANE_TOKEN_FILE", fleet.cluster.kubernetes.controlPlaneTokenFile)
+        stdout.writeLine("K3S_WORKER_JOIN_TOKEN_FILE", fleet.cluster.kubernetes.workerJoinTokenFile)
         stdout.writeLine("HAS_SSH", (ssh != null).toString())
+        stdout.writeLine("HAS_BOOTSTRAP_SSH", (node.bootstrapSsh != null).toString())
         stdout.writeLine("SSH_HOST", ssh?.host.orEmpty())
         stdout.writeLine("SSH_USER", ssh?.user.orEmpty())
         stdout.writeLine("SSH_PORT", ssh?.port?.toString().orEmpty())
+        stdout.writeLine("BOOTSTRAP_SSH_HOST", node.bootstrapSsh?.host.orEmpty())
+        stdout.writeLine("BOOTSTRAP_SSH_USER", node.bootstrapSsh?.user.orEmpty())
+        stdout.writeLine("BOOTSTRAP_SSH_PORT", node.bootstrapSsh?.port?.toString().orEmpty())
         stdout.writeLine("IS_CONTROL_PLANE", ("k3s-control-plane" in node.targetRoles).toString())
         stdout.writeLine("IS_WORKER", ("k3s-worker" in node.targetRoles).toString())
         stdout.writeLine("IS_UTILITY_HOST", ("utility-host" in node.targetRoles).toString())

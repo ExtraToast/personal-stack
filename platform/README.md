@@ -54,7 +54,7 @@ Run one Kubernetes cluster across the estate, but do not stretch the control-pla
 - Phase 1 starts with the existing `frankfurt-contabo-1` node as a single control-plane node
 - Phase 2 expands to three control-plane nodes in `frankfurt` for real HA
 - Home nodes join only as workers and utility hosts
-- The next home install wave is `enschede-home-t1000-1` first, then `enschede-pi-1`, then `enschede-pi-2` and `enschede-pi-3`
+- The next home install wave is `enschede-t1000-1` first, then `enschede-pi-1`, then `enschede-pi-2` and `enschede-pi-3`
 
 This avoids unstable `etcd` quorum behavior across `frankfurt <-> enschede`.
 
@@ -63,7 +63,7 @@ This avoids unstable `etcd` quorum behavior across `frankfurt <-> enschede`.
 Use the platform where it fits best instead of forcing everything into one runtime.
 
 - `k3s`: public apps, internal apps, observability, data services, media stack where containerized scheduling helps
-- `NixOS host-native`: `AdGuard`, `Samba`, `Tailscale`, and bootstrap-critical services such as `Headscale`
+- `NixOS host-native`: `AdGuard`, `Samba`, `Tailscale`, and other node-local utility services
 - `Vault`: runs in-cluster on `frankfurt` storage, with manual unseal and Raft storage
 
 ### 4. Networking and Exposure
@@ -119,7 +119,7 @@ platform/
       frankfurt-contabo-1/
         default.nix
         disko.nix
-      enschede-home-gtx960m-1/
+      enschede-gtx-960m-1/
         default.nix
         disko.nix
   cluster/
@@ -209,8 +209,8 @@ Exit criteria:
 
 Goal: stand up the services that the rest of the platform depends on.
 
-- Run `Headscale` host-native on the Frankfurt node first
 - Run `Tailscale` on every node
+- Use the hosted `Tailscale` admin console for machine auth keys, tags, and policy management
 - Keep `AdGuard` and `Samba` host-native on the home utility node
 - Declare media disks and mountpoints through `disko` or host storage modules
 - Add `NVIDIA` driver support only on the nodes that need it
@@ -227,7 +227,7 @@ Goal: get the cluster online with the smallest viable topology.
 
 - Install `k3s` on `frankfurt-contabo-1`
 - Disable bundled components that should be GitOps-managed separately
-- Join `enschede-home-gtx960m-1` as a worker once cross-site connectivity is ready
+- Join `enschede-gtx-960m-1` as a worker once cross-site connectivity is ready
 - Label nodes by:
   - `site`
   - `arch`
@@ -410,7 +410,11 @@ Every phase should have a validation path before the next one begins.
 
 The next implementation steps should focus on real host bring-up and the first live migrations:
 
-1. Use the committed bootstrap SSH metadata for `enschede-home-t1000-1`, clean-install it to `NixOS`, and validate GPU runtime plus `k3s` worker join
+1. Use the committed bootstrap SSH metadata for `enschede-t1000-1`, clean-install it to `NixOS`, join it to the `Tailscale` tailnet, and validate GPU runtime plus `k3s` worker join
+   Use `platform/scripts/bootstrap/bootstrap-tailnet.sh <node-name>` after the
+   first boot so the overlay join is explicit and repeatable.
+   Then use `platform/scripts/bootstrap/bootstrap-k3s-worker.sh <node-name>` so
+   the worker token copy is explicit and repeatable.
 2. Use `enschede-pi-1` as the first ARM worker install rehearsal, then fold in `enschede-pi-2` and `enschede-pi-3` once the join path is boring
 3. Move one low-risk workload family onto the new home nodes before widening the wave
 4. Publish `Stalwart` mail protocols through the direct DNS model in [infra/dns/jorisjonkers.dev.zone](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/infra/dns/jorisjonkers.dev.zone:1) instead of trying to route them through Traefik
@@ -428,5 +432,7 @@ For clean machines, the expected sequence is:
    or
    `platform/scripts/install/install-host.sh --ssh-password '<bootstrap-password>' <node-name>`
 6. Reboot into the installed `NixOS` system and verify base host health
-7. Use `platform/scripts/deploy/deploy-host.sh <node-name>` for steady-state config updates over `deploy@<host>:2222`
-8. Only then let the node act as a real `k3s` worker/utility host and start receiving Flux-managed workloads
+7. Use a one-off `Tailscale` auth key from the admin console and run `platform/scripts/bootstrap/bootstrap-tailnet.sh <node-name>` so the node joins the shared private overlay
+8. For worker nodes, run `platform/scripts/bootstrap/bootstrap-k3s-worker.sh <node-name>` so the join token is copied from the bootstrap control plane onto the new host
+9. Use `platform/scripts/deploy/deploy-host.sh <node-name>` for steady-state config updates over `deploy@<host>:2222`
+10. Only then let the node act as a real `k3s` worker/utility host and start receiving Flux-managed workloads

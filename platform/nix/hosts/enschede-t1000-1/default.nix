@@ -8,10 +8,10 @@
     ./disko.nix
   ];
 
-  networking.hostName = "enschede-home-gtx960m-1";
+  networking.hostName = "enschede-t1000-1";
   personalStack.k3sNodeLabels = {
     "personal-stack/site" = "enschede";
-    "personal-stack/node" = "enschede-home-gtx960m-1";
+    "personal-stack/node" = "enschede-t1000-1";
     "topology.kubernetes.io/region" = "enschede";
     "personal-stack/role-k3s-worker" = "true";
     "personal-stack/role-utility-host" = "true";
@@ -21,7 +21,7 @@
     "personal-stack/capability-adguard" = "true";
     "personal-stack/capability-nvidia" = "true";
     "personal-stack/gpu-vendor-nvidia" = "true";
-    "personal-stack/gpu-model-gtx960m" = "true";
+    "personal-stack/gpu-model-t1000" = "true";
     "personal-stack/gpu-class-transcode" = "true";
   };
   networking.firewall.allowedTCPPorts = [

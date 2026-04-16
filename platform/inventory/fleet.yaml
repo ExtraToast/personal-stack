@@ -3,6 +3,14 @@ version: 1
 cluster:
   name: personal-stack
   public_domain: jorisjonkers.dev
+  kubernetes:
+    bootstrap_control_plane: frankfurt-contabo-1
+    # Bootstrap with the public endpoint first, then switch this to the
+    # Frankfurt control-plane Tailscale or MagicDNS address once the tailnet is
+    # the primary inter-node network.
+    api_server_endpoint: https://167.86.79.203:6443
+    control_plane_token_file: /var/lib/rancher/k3s/server/node-token
+    worker_join_token_file: /var/lib/personal-stack/secrets/k3s/agent-token
 
 sites:
   frankfurt:
@@ -33,12 +41,12 @@ nodes:
       - tailscale
       - public-ingress
 
-  enschede-home-gtx960m-1:
+  enschede-gtx-960m-1:
     status: active
     site: enschede
     arch: amd64
     ssh:
-      host: enschede-home-gtx960m-1
+      host: enschede-gtx-960m-1
       user: deploy
       port: 2222
     target_roles:
@@ -58,22 +66,26 @@ nodes:
       - adguard
       - nvidia
 
-  enschede-home-t1000-1:
+  enschede-t1000-1:
     status: install-ready
     site: enschede
     arch: amd64
     # `ssh` is the intended post-install NixOS endpoint.
     # Add `bootstrap_ssh` with the current OS access path before first install.
     ssh:
-      host: enschede-home-t1000-1
+      host: enschede-t1000-1
       user: deploy
       port: 2222
+    bootstrap_ssh:
+      host: 192.168.0.100
+      user: extratoat
+      port: 22
     target_roles:
       - k3s-worker
       - utility-host
     capacity:
       cpu_millicores: 54000
-      memory_mib: 40960
+      memory_mib: 32000
     gpus:
       - vendor: nvidia
         model: t1000
@@ -93,6 +105,10 @@ nodes:
       host: enschede-pi-1
       user: deploy
       port: 2222
+    bootstrap_ssh:
+      host: 192.168.0.132
+      user: deploy
+      port: 22
     target_roles:
       - k3s-worker
     capacity:
@@ -167,9 +183,7 @@ service_intent:
       - wireguard-check
 
   host_native:
-    frankfurt:
-      - headscale
-    enschede-home-gtx960m-1:
+    enschede-gtx-960m-1:
       - adguard
       - samba
       - tailscale
@@ -194,7 +208,6 @@ placement_intent:
     - n8n
     - uptime-kuma
     - vault
-    - headscale
 
   enschede_only:
     - downloads
@@ -227,7 +240,6 @@ exposure_intent:
     - uptime-kuma
     - rabbitmq
     - vault
-    - headscale
 
   public_and_lan:
     - bazarr
@@ -273,7 +285,6 @@ access_intent:
     uptime-kuma: status
     rabbitmq: rabbitmq
     vault: vault
-    headscale: headscale
     bazarr: bazarr
     jellyfin: jellyfin
     jellyseerr: jellyseerr

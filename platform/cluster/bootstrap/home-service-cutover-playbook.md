@@ -1,7 +1,7 @@
 # Home Service Cutover Playbook
 
 This playbook covers the first real cutover from the current home utility node
-onto `enschede-home-t1000-1`.
+onto `enschede-t1000-1`.
 
 Scope:
 
@@ -25,12 +25,12 @@ Plan the move explicitly.
 
 ## Pre-Cutover Checklist
 
-1. Add `bootstrap_ssh` for `enschede-home-t1000-1` in [fleet.yaml](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/inventory/fleet.yaml:1) with the real current `RHEL` SSH endpoint.
+1. Add `bootstrap_ssh` for `enschede-t1000-1` in [fleet.yaml](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/inventory/fleet.yaml:1) with the real current `RHEL` SSH endpoint.
 2. Decide how the media disk will arrive on the T1000.
    Preferred path:
    Move the existing disk physically to the T1000 so the actual media files do not need a full LAN copy.
 3. Verify the disk identity before install.
-   The current host definition expects [disko.nix](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/nix/hosts/enschede-home-t1000-1/disko.nix:1) to mount `/dev/disk/by-label/media` at `/srv/media`.
+   The current host definition expects [disko.nix](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/nix/hosts/enschede-t1000-1/disko.nix:1) to mount `/dev/disk/by-label/media` at `/srv/media`.
    The current home media hosts assume `ntfs3` with compatibility mount options matching the existing home-node setup.
    If the current disk is not labeled `media`, patch the host definition to use the real UUID or relabel the filesystem before the cutover.
 4. Export or snapshot the old media config directories before you stop anything:
@@ -48,13 +48,13 @@ Plan the move explicitly.
 
 1. Install `NixOS` using [home-install-playbook.md](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/cluster/bootstrap/home-install-playbook.md:1).
 2. Verify the T1000 post-install prerequisites:
-   `ssh -p 2222 deploy@enschede-home-t1000-1 hostnamectl`
-   `ssh -p 2222 deploy@enschede-home-t1000-1 nvidia-smi`
-   `ssh -p 2222 deploy@enschede-home-t1000-1 mount | grep /srv/media`
-   `kubectl get node enschede-home-t1000-1 --show-labels`
+   `ssh -p 2222 deploy@enschede-t1000-1 hostnamectl`
+   `ssh -p 2222 deploy@enschede-t1000-1 nvidia-smi`
+   `ssh -p 2222 deploy@enschede-t1000-1 mount | grep /srv/media`
+   `kubectl get node enschede-t1000-1 --show-labels`
 3. Confirm the host prep module created the expected paths:
-   `ssh -p 2222 deploy@enschede-home-t1000-1 sudo find /srv/media -maxdepth 1 -type d | sort`
-   `ssh -p 2222 deploy@enschede-home-t1000-1 sudo find /var/lib/personal-stack/media -maxdepth 1 -type d | sort`
+   `ssh -p 2222 deploy@enschede-t1000-1 sudo find /srv/media -maxdepth 1 -type d | sort`
+   `ssh -p 2222 deploy@enschede-t1000-1 sudo find /var/lib/personal-stack/media -maxdepth 1 -type d | sort`
 
 ## Media Data Migration
 
@@ -115,16 +115,16 @@ The `utility` profile now prepares the legacy share layout on the T1000:
 Before clients reconnect:
 
 1. Set a Samba password for `deploy`:
-   `ssh -p 2222 deploy@enschede-home-t1000-1 sudo smbpasswd -a deploy`
+   `ssh -p 2222 deploy@enschede-t1000-1 sudo smbpasswd -a deploy`
 2. Validate the exported share list:
-   `smbclient -L //enschede-home-t1000-1 -U deploy`
+   `smbclient -L //enschede-t1000-1 -U deploy`
 3. Validate write access to the main share and read access to the library shares.
 
 ## Cutover Validation
 
 After the old jobs are down and the new node is live:
 
-1. Confirm the media workloads schedule onto `enschede-home-t1000-1`.
+1. Confirm the media workloads schedule onto `enschede-t1000-1`.
 2. Open:
    `jellyfin.jorisjonkers.dev`
    `jellyseerr.jorisjonkers.dev`

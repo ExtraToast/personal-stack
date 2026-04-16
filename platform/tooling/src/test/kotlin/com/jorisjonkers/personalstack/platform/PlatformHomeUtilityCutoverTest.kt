@@ -70,8 +70,8 @@ class PlatformHomeUtilityCutoverTest {
 
     @Test
     fun `home media hosts mount the shared disk with ntfs3 compatibility options`() {
-        val gtx960mDisko = repositoryRoot.resolve("platform/nix/hosts/enschede-home-gtx960m-1/disko.nix").toFile().readText()
-        val t1000Disko = repositoryRoot.resolve("platform/nix/hosts/enschede-home-t1000-1/disko.nix").toFile().readText()
+        val gtx960mDisko = repositoryRoot.resolve("platform/nix/hosts/enschede-gtx-960m-1/disko.nix").toFile().readText()
+        val t1000Disko = repositoryRoot.resolve("platform/nix/hosts/enschede-t1000-1/disko.nix").toFile().readText()
 
         assertThat(gtx960mDisko)
             .contains("device = \"/dev/disk/by-label/media\"")

@@ -3,14 +3,14 @@
 This playbook covers the first clean-install wave for the currently available
 home nodes:
 
-- `enschede-home-t1000-1`
+- `enschede-t1000-1`
 - `enschede-pi-1`
 - `enschede-pi-2`
 - `enschede-pi-3`
 
 The intended order is:
 
-1. `enschede-home-t1000-1`
+1. `enschede-t1000-1`
 2. `enschede-pi-1`
 3. `enschede-pi-2`
 4. `enschede-pi-3`
@@ -43,20 +43,29 @@ For each node, the sequence is:
 6. Reboot into the installed `NixOS` system.
 7. Validate the base host:
    `hostnamectl`
-   `tailscale status`
+   `systemctl status tailscaled`
    `systemctl status k3s`
-8. Run:
-   `platform/scripts/deploy/deploy-host.sh <node-name>`
-9. Verify node registration and labels:
-   `kubectl get nodes -o wide`
-   `kubectl get node <node-name> --show-labels`
+   On freshly installed workers this may still be `failed` until the node has
+   joined the tailnet and the worker join token has been copied in the next
+   steps.
+8. Join the node to the `Tailscale` tailnet:
+   `platform/scripts/bootstrap/bootstrap-tailnet.sh <node-name>`
+   Then verify:
+   `tailscale status`
+9. Copy the worker join token from the bootstrap control plane:
+   `platform/scripts/bootstrap/bootstrap-k3s-worker.sh <node-name>`
+10. Run:
+    `platform/scripts/deploy/deploy-host.sh <node-name>`
+11. Verify node registration and labels:
+    `kubectl get nodes -o wide`
+    `kubectl get node <node-name> --show-labels`
 
 Only after these checks pass should the node be treated as ready for workload
 placement.
 
 For interactive access after install, prefer a local `~/.ssh/config` entry like:
 
-`Host enschede-home-t1000-1 enschede-pi-1 enschede-pi-2 enschede-pi-3 enschede-home-gtx960m-1 frankfurt-contabo-1`
+`Host enschede-t1000-1 enschede-pi-1 enschede-pi-2 enschede-pi-3 enschede-gtx-960m-1 frankfurt-contabo-1`
 `  User deploy`
 `  Port 2222`
 `  IdentityFile ~/.ssh/id_ed25519`
@@ -64,7 +73,7 @@ For interactive access after install, prefer a local `~/.ssh/config` entry like:
 
 ## T1000 First
 
-`enschede-home-t1000-1` is the first meaningful live target because it unlocks
+`enschede-t1000-1` is the first meaningful live target because it unlocks
 both the new GPU host and additional home capacity.
 
 Validate these points before moving on:
