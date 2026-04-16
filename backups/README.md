@@ -19,10 +19,31 @@ The current list includes:
 - `Stalwart` state
 - `Uptime Kuma` state
 - `PostgreSQL`, `Valkey`, `RabbitMQ`
+- `Prometheus`
 - `Traefik`, `Grafana`, `Loki`, `Tempo`, `Alloy`, `n8n`
 - `Vault`, `Consul`, and `Nomad` data directories
 - home-media application configs and `/mnt/media`
 - host-local `AdGuard`, `Samba`, and legacy bootstrap env/key files
+
+## Critical Order
+
+For the control-plane services, the safest backup order is:
+
+1. While the services are still running, capture service-native snapshots and exports.
+2. Stop Nomad jobs and then stop stateful host services.
+3. Pull the filesystem archives from the now-quiesced hosts.
+4. Verify the captured artifacts and archive checksums before deleting or migrating anything.
+
+This order matters because:
+
+- `Vault`, `Consul`, and `Nomad` all have official snapshot commands that should be used before shutdown.
+- `RabbitMQ` definitions export is easiest while the broker is still up.
+- `PostgreSQL`, `Grafana` SQLite, `Uptime Kuma` SQLite, and `Stalwart` RocksDB are safest to copy after they stop writing.
+
+In this repo, `n8n` state is split across two places:
+
+- `/srv/nomad/n8n` for the `.n8n` user folder and encryption key
+- `/srv/nomad/postgres` for workflows, executions, and credentials because this deployment uses PostgreSQL
 
 ## Usage
 
@@ -30,11 +51,20 @@ List the scope before running anything:
 
 ```bash
 infra/scripts/backup-service-state.sh --list
+infra/scripts/backup-service-snapshots.sh --list
 ```
 
-Back up everything into a timestamped folder under `backups/`:
+Audit the manifest against the declared Nomad host volumes first:
 
 ```bash
+infra/scripts/audit-backup-scope.sh
+```
+
+Back up everything into a single timestamped folder under `backups/`:
+
+```bash
+RUN_DIR="$PWD/backups/run-$(date -u +%Y%m%dT%H%M%SZ)"
+
 BACKUP_CLOUD_SSH_HOST=167.86.79.203 \
 BACKUP_CLOUD_SSH_USER=deploy \
 BACKUP_CLOUD_SSH_PORT=2222 \
@@ -43,7 +73,21 @@ BACKUP_HOME_SSH_HOST=<y50-host-or-ip> \
 BACKUP_HOME_SSH_USER=<user> \
 BACKUP_HOME_SSH_PORT=<port> \
 BACKUP_HOME_SSH_IDENTITY_FILE="$HOME/.ssh/ps-y50" \
+BACKUP_OUTPUT_DIR="$RUN_DIR" \
+infra/scripts/backup-service-snapshots.sh
+
+BACKUP_CLOUD_SSH_HOST=167.86.79.203 \
+BACKUP_CLOUD_SSH_USER=deploy \
+BACKUP_CLOUD_SSH_PORT=2222 \
+BACKUP_CLOUD_SSH_IDENTITY_FILE="$HOME/.ssh/ps-frankfurt" \
+BACKUP_HOME_SSH_HOST=<y50-host-or-ip> \
+BACKUP_HOME_SSH_USER=<user> \
+BACKUP_HOME_SSH_PORT=<port> \
+BACKUP_HOME_SSH_IDENTITY_FILE="$HOME/.ssh/ps-y50" \
+BACKUP_OUTPUT_DIR="$RUN_DIR" \
 infra/scripts/backup-service-state.sh
+
+infra/scripts/verify-backup-run.sh "$RUN_DIR"
 ```
 
 Back up just one side:
@@ -86,9 +130,18 @@ infra/scripts/backup-service-state.sh
 
 ## Notes
 
-- The script creates filesystem backups with remote `tar` and local `gzip`.
+- `backup-service-snapshots.sh` writes:
+  - `service-snapshots.tsv`
+  - `service-snapshots.sha256`
+- `backup-service-state.sh` writes:
+  - `archives.tsv`
+  - `checksums.sha256`
+- The filesystem script creates remote `tar` streams and compresses them locally with `gzip`.
 - For write-heavy services such as `PostgreSQL`, `RabbitMQ`, `Vault`, and
   `Stalwart`, a live filesystem copy is better than nothing but is not as safe
   as a quiesced backup window. If you want the highest-confidence backup,
   stop or pause those services before running the archive pull.
-- `archives.tsv` and `checksums.sha256` are written into each backup run folder.
+- `Vault` snapshots do not replace your unseal/recovery material. Keep
+  `.vault-keys` or another secure copy of the unseal/root-token information.
+- `RabbitMQ` definitions export complements the data directory backup; it does
+  not replace the broker data volume if you need queued messages and on-disk state.
