@@ -62,12 +62,13 @@ require_host_ssh
 require_authorized_keys_file
 
 cd "$(platform_flake_dir)"
+flake_ref="$(platform_flake_ref)"
 nix_args=(
   run
-  .#nixos-anywhere
+  "${flake_ref}#nixos-anywhere"
   --
   --flake
-  ".#${NODE_NAME}"
+  "${flake_ref}#${NODE_NAME}"
   --target-host
   "${SSH_USER}@${SSH_HOST}"
   --ssh-port

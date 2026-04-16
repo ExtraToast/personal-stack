@@ -11,6 +11,10 @@ platform_flake_dir() {
   printf '%s/platform\n' "$(platform_repo_root)"
 }
 
+platform_flake_ref() {
+  printf 'path:%s\n' "$(platform_flake_dir)"
+}
+
 platform_gradlew() {
   printf '%s\n' "${PLATFORM_GRADLEW:-$(platform_repo_root)/gradlew}"
 }
