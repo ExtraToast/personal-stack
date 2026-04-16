@@ -67,9 +67,10 @@ source /opt/personal-stack/.vault-keys
 export VAULT_ADDR=http://127.0.0.1:8200
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
+seal_status_url="${VAULT_ADDR}/v1/sys/seal-status"
 
 for _ in $(seq 1 30); do
-  if timeout 5 vault status -format=json >"$tmp/status.json" 2>/dev/null; then
+  if curl -fsS --max-time 5 "$seal_status_url" >"$tmp/status.json" 2>/dev/null; then
     echo "Vault API reachable"
     break
   fi
@@ -77,16 +78,20 @@ for _ in $(seq 1 30); do
   sleep 2
 done
 
-timeout 5 vault status -format=json >"$tmp/status.json"
+curl -fsS --max-time 5 "$seal_status_url" >"$tmp/status.json"
 if jq -e '.sealed == true' "$tmp/status.json" >/dev/null; then
+  if [[ -z "${VAULT_UNSEAL_KEY:-}" ]]; then
+    echo "Vault is sealed but VAULT_UNSEAL_KEY is missing from /opt/personal-stack/.vault-keys" >&2
+    exit 1
+  fi
   echo "Vault is sealed, running unseal"
   timeout 10 vault operator unseal "$VAULT_UNSEAL_KEY" >/dev/null
 else
   echo "Vault already unsealed"
 fi
 
-timeout 5 vault status -format=json >"$tmp/status.json"
-jq -r '"Vault state: initialized=\(.initialized) sealed=\(.sealed) standby=\(.standby)"' "$tmp/status.json"
+curl -fsS --max-time 5 "$seal_status_url" >"$tmp/status.json"
+jq -r '"Vault state: initialized=\(.initialized) sealed=\(.sealed) standby=\(.standby // false)"' "$tmp/status.json"
 echo VAULT_UNSEALED
 EOF
 
