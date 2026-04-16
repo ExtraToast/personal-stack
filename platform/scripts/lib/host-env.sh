@@ -86,6 +86,10 @@ platform_install_build_on() {
   printf '%s\n' "${PLATFORM_INSTALL_BUILD_ON:-auto}"
 }
 
+platform_deploy_build_on() {
+  printf '%s\n' "${PLATFORM_DEPLOY_BUILD_ON:-auto}"
+}
+
 run_platform_nix() {
   local nix_bin features nix_config
   nix_bin="$(platform_nix)"
@@ -233,6 +237,29 @@ install_should_build_on_remote() {
       ;;
     *)
       echo "Unsupported PLATFORM_INSTALL_BUILD_ON setting: ${build_on}" >&2
+      exit 1
+      ;;
+  esac
+}
+
+deploy_should_build_on_remote() {
+  local build_on current_system
+  build_on="$(platform_deploy_build_on)"
+
+  case "${build_on}" in
+    remote)
+      return 0
+      ;;
+    local)
+      return 1
+      ;;
+    auto)
+      current_system="$(platform_current_system)"
+      [[ "${current_system}" != "${NIX_SYSTEM:-}" ]]
+      return
+      ;;
+    *)
+      echo "Unsupported PLATFORM_DEPLOY_BUILD_ON setting: ${build_on}" >&2
       exit 1
       ;;
   esac

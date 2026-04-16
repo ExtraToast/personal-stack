@@ -526,6 +526,61 @@ class PlatformDeployScriptsTest {
     }
 
     @Test
+    fun `deploy-host builds on remote when the local and target platforms differ`() {
+        val gradlewStub =
+            tempDir.resolve("gradlew-deploy-remote-build").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                cat <<'EOF'
+                NODE_NAME=enschede-t1000-1
+                NODE_STATUS=active
+                NODE_SITE=enschede
+                NODE_ARCH=amd64
+                NIX_SYSTEM=x86_64-linux
+                HAS_SSH=true
+                SSH_HOST=enschede-t1000-1
+                SSH_USER=deploy
+                SSH_PORT=2222
+                EOF
+                """.trimIndent(),
+            )
+        val nixLog = tempDir.resolve("nix-deploy-remote-build.log")
+        val nixStub =
+            tempDir.resolve("nix-deploy-remote-build-stub").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
+                """.trimIndent(),
+            )
+
+        val result =
+            runScript(
+                repositoryRoot.resolve("platform/scripts/deploy/deploy-host.sh"),
+                listOf("enschede-t1000-1"),
+                environment =
+                    mapOf(
+                        "PLATFORM_GRADLEW" to gradlewStub,
+                        "PLATFORM_NIX" to nixStub,
+                        "PLATFORM_CURRENT_SYSTEM" to "aarch64-darwin",
+                        "PLATFORM_DEPLOY_BUILD_ON" to "auto",
+                    ),
+            )
+
+        assertThat(result.exitCode).isEqualTo(0)
+        assertThat(Files.readAllLines(nixLog))
+            .containsExactly(
+                "--extra-experimental-features",
+                "nix-command flakes",
+                "run",
+                "github:serokell/deploy-rs",
+                "--",
+                "--skip-checks",
+                "--remote-build",
+                "${platformFlakeRef}#enschede-t1000-1",
+            )
+    }
+
+    @Test
     fun `deploy-host exports flake features for nested nix invocations`() {
         val gradlewStub =
             tempDir.resolve("gradlew-deploy-nix-config").writeExecutable(
@@ -588,6 +643,7 @@ class PlatformDeployScriptsTest {
                 .apply {
                     environment().putAll(environment)
                     environment().putIfAbsent("PLATFORM_INSTALL_BUILD_ON", "local")
+                    environment().putIfAbsent("PLATFORM_DEPLOY_BUILD_ON", "local")
                 }.start()
 
         return ProcessResult(
