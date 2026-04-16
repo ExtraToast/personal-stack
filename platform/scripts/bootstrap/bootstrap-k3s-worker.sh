@@ -8,6 +8,7 @@ require_single_node_arg "$(basename "$0")" "$@"
 
 load_host_env "$1"
 require_host_ssh
+require_platform_ssh_identity_file_if_set
 
 if [[ "${IS_WORKER}" != "true" ]]; then
   echo "Node ${NODE_NAME} is not marked as a k3s worker in the inventory" >&2
@@ -35,18 +36,31 @@ control_plane_ssh_host="${SSH_HOST}"
 control_plane_ssh_user="${SSH_USER}"
 control_plane_ssh_port="${SSH_PORT}"
 
+ssh_identity_file="$(platform_ssh_identity_file)"
 worker_ssh=(
   ssh
   -p
   "${worker_ssh_port}"
-  "${worker_ssh_user}@${worker_ssh_host}"
 )
 control_plane_ssh=(
   ssh
   -p
   "${control_plane_ssh_port}"
-  "${control_plane_ssh_user}@${control_plane_ssh_host}"
 )
+
+if [[ -n "${ssh_identity_file}" ]]; then
+  worker_ssh+=(
+    -i
+    "${ssh_identity_file}"
+  )
+  control_plane_ssh+=(
+    -i
+    "${ssh_identity_file}"
+  )
+fi
+
+worker_ssh+=("${worker_ssh_user}@${worker_ssh_host}")
+control_plane_ssh+=("${control_plane_ssh_user}@${control_plane_ssh_host}")
 
 control_plane_token="$("${control_plane_ssh[@]}" "sudo cat '${control_plane_token_file}'")"
 if [[ -z "${control_plane_token}" ]]; then

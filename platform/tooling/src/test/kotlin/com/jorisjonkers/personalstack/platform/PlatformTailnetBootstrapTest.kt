@@ -52,7 +52,9 @@ class PlatformTailnetBootstrapTest {
 
         assertThat(helperScript)
             .contains("TS_AUTH_KEY")
+            .contains("PLATFORM_SSH_IDENTITY_FILE")
             .contains("BOOTSTRAP_SSH_HOST")
+            .contains("require_platform_ssh_identity_file_if_set")
             .contains("tailscale up")
             .contains("--auth-key=")
             .contains("--hostname=")

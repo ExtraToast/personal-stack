@@ -57,6 +57,8 @@ class PlatformK3sBootstrapTest {
             .contains("K3S_BOOTSTRAP_CONTROL_PLANE_NODE")
             .contains("K3S_CONTROL_PLANE_TOKEN_FILE")
             .contains("K3S_WORKER_JOIN_TOKEN_FILE")
+            .contains("platform_ssh_identity_file")
+            .contains("require_platform_ssh_identity_file_if_set")
             .contains("sudo cat")
             .contains("sudo tee")
     }

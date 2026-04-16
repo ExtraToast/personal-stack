@@ -74,6 +74,13 @@ nix_args=(
   "${SSH_PORT}"
 )
 
+if install_should_build_on_remote; then
+  nix_args+=(
+    --build-on
+    remote
+  )
+fi
+
 if [[ -n "${INSTALL_SSH_KEY}" ]]; then
   nix_args+=(
     -i

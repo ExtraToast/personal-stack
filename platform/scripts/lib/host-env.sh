@@ -23,6 +23,49 @@ platform_nix_experimental_features() {
   printf '%s\n' "${PLATFORM_NIX_EXPERIMENTAL_FEATURES:-nix-command flakes}"
 }
 
+platform_current_system() {
+  if [[ -n "${PLATFORM_CURRENT_SYSTEM:-}" ]]; then
+    printf '%s\n' "${PLATFORM_CURRENT_SYSTEM}"
+    return 0
+  fi
+
+  local machine kernel nix_machine nix_kernel
+  machine="$(uname -m)"
+  kernel="$(uname -s)"
+
+  case "${machine}" in
+    x86_64|amd64)
+      nix_machine="x86_64"
+      ;;
+    arm64|aarch64)
+      nix_machine="aarch64"
+      ;;
+    *)
+      echo "Unsupported local machine architecture: ${machine}" >&2
+      return 1
+      ;;
+  esac
+
+  case "${kernel}" in
+    Linux)
+      nix_kernel="linux"
+      ;;
+    Darwin)
+      nix_kernel="darwin"
+      ;;
+    *)
+      echo "Unsupported local kernel: ${kernel}" >&2
+      return 1
+      ;;
+  esac
+
+  printf '%s-%s\n' "${nix_machine}" "${nix_kernel}"
+}
+
+platform_install_build_on() {
+  printf '%s\n' "${PLATFORM_INSTALL_BUILD_ON:-auto}"
+}
+
 run_platform_nix() {
   local nix_bin features
   nix_bin="$(platform_nix)"
@@ -45,6 +88,10 @@ platform_install_ssh_user_override() {
 
 platform_install_ssh_port_override() {
   printf '%s\n' "${PLATFORM_INSTALL_SSH_PORT:-}"
+}
+
+platform_ssh_identity_file() {
+  printf '%s\n' "${PLATFORM_SSH_IDENTITY_FILE:-}"
 }
 
 platform_authorized_keys_file() {
@@ -112,6 +159,16 @@ require_authorized_keys_file() {
   fi
 }
 
+require_platform_ssh_identity_file_if_set() {
+  local identity_file
+  identity_file="$(platform_ssh_identity_file)"
+
+  if [[ -n "${identity_file}" && ! -f "${identity_file}" ]]; then
+    echo "SSH identity file not found: ${identity_file}" >&2
+    exit 1
+  fi
+}
+
 apply_install_ssh_overrides() {
   local override_host override_user override_port
   override_host="$(platform_install_ssh_host_override)"
@@ -131,4 +188,27 @@ apply_install_ssh_overrides() {
   SSH_USER="${override_user}"
   SSH_PORT="${override_port:-22}"
   HAS_SSH=true
+}
+
+install_should_build_on_remote() {
+  local build_on current_system
+  build_on="$(platform_install_build_on)"
+
+  case "${build_on}" in
+    remote)
+      return 0
+      ;;
+    local)
+      return 1
+      ;;
+    auto)
+      current_system="$(platform_current_system)"
+      [[ "${current_system}" != "${NIX_SYSTEM:-}" ]]
+      return
+      ;;
+    *)
+      echo "Unsupported PLATFORM_INSTALL_BUILD_ON setting: ${build_on}" >&2
+      exit 1
+      ;;
+  esac
 }

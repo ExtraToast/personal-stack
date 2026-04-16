@@ -323,6 +323,67 @@ class PlatformDeployScriptsTest {
     }
 
     @Test
+    fun `install-host builds on remote when the local and target platforms differ`() {
+        val gradlewStub =
+            tempDir.resolve("gradlew-remote-build").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                cat <<'EOF'
+                NODE_NAME=enschede-t1000-1
+                NODE_STATUS=install-ready
+                NODE_SITE=enschede
+                NODE_ARCH=amd64
+                NIX_SYSTEM=x86_64-linux
+                HAS_SSH=true
+                SSH_HOST=192.168.0.100
+                SSH_USER=extratoat
+                SSH_PORT=22
+                EOF
+                """.trimIndent(),
+            )
+        val nixLog = tempDir.resolve("nix-remote-build.log")
+        val nixStub =
+            tempDir.resolve("nix-remote-build-stub").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
+                """.trimIndent(),
+            )
+
+        val result =
+            runScript(
+                repositoryRoot.resolve("platform/scripts/install/install-host.sh"),
+                listOf("enschede-t1000-1"),
+                environment =
+                    mapOf(
+                        "PLATFORM_GRADLEW" to gradlewStub,
+                        "PLATFORM_NIX" to nixStub,
+                        "PLATFORM_AUTHORIZED_KEYS_FILE" to authorizedKeysFile(),
+                        "PLATFORM_CURRENT_SYSTEM" to "aarch64-darwin",
+                        "PLATFORM_INSTALL_BUILD_ON" to "auto",
+                    ),
+            )
+
+        assertThat(result.exitCode).isEqualTo(0)
+        assertThat(Files.readAllLines(nixLog))
+            .containsExactly(
+                "--extra-experimental-features",
+                "nix-command flakes",
+                "run",
+                ".#nixos-anywhere",
+                "--",
+                "--flake",
+                ".#enschede-t1000-1",
+                "--target-host",
+                "extratoat@192.168.0.100",
+                "--ssh-port",
+                "22",
+                "--build-on",
+                "remote",
+            )
+    }
+
+    @Test
     fun `install-host rejects install ready nodes without bootstrap ssh details`() {
         val gradlewStub =
             tempDir.resolve("gradlew-no-ssh").writeExecutable(
@@ -472,6 +533,7 @@ class PlatformDeployScriptsTest {
                 .directory(repositoryRoot.toFile())
                 .apply {
                     environment().putAll(environment)
+                    environment().putIfAbsent("PLATFORM_INSTALL_BUILD_ON", "local")
                 }.start()
 
         return ProcessResult(

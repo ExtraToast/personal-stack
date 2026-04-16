@@ -5,7 +5,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${script_dir}/../lib/host-env.sh"
 
 usage() {
-  echo "Usage: TS_AUTH_KEY=<tailscale-auth-key> $(basename "$0") <node-name>" >&2
+  echo "Usage: TS_AUTH_KEY=<tailscale-auth-key> [PLATFORM_SSH_IDENTITY_FILE=<identity-file>] $(basename "$0") <node-name>" >&2
   exit 1
 }
 
@@ -18,6 +18,20 @@ fi
 
 load_host_env "$1"
 require_host_ssh
+require_platform_ssh_identity_file_if_set
+
+ssh_args=(
+  ssh
+  -p
+  "${SSH_PORT}"
+)
+
+if [[ -n "$(platform_ssh_identity_file)" ]]; then
+  ssh_args+=(
+    -i
+    "$(platform_ssh_identity_file)"
+  )
+fi
 
 ssh_host="${SSH_HOST}"
 if [[ "${HAS_BOOTSTRAP_SSH:-false}" == "true" && -n "${BOOTSTRAP_SSH_HOST:-}" ]]; then
@@ -29,7 +43,7 @@ fi
 ssh_target="${SSH_USER}@${ssh_host}"
 
 printf '%s\n' "${TS_AUTH_KEY}" |
-  ssh -p "${SSH_PORT}" "${ssh_target}" '
+  "${ssh_args[@]}" "${ssh_target}" '
     read -r TS_AUTH_KEY
     sudo systemctl enable --now tailscaled >/dev/null
     sudo env TS_AUTH_KEY="${TS_AUTH_KEY}" tailscale up \
@@ -38,5 +52,5 @@ printf '%s\n' "${TS_AUTH_KEY}" |
       --accept-dns=true
   '
 
-ssh -p "${SSH_PORT}" "${ssh_target}" "tailscale status"
+"${ssh_args[@]}" "${ssh_target}" "tailscale status"
 echo "Tailnet bootstrap completed for ${NODE_NAME}"
