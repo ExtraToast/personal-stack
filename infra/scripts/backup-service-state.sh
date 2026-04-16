@@ -149,9 +149,14 @@ build_ssh_command() {
 }
 
 remote_exec() {
-  local group="$1" remote_command="$2"
+  local group="$1" remote_script="$2" remote_runner
   build_ssh_command "${group}"
-  "${SSH_CMD[@]}" "${SSH_TARGET}" "bash -lc $(shell_quote "${remote_command}")"
+  if [[ -n "${REMOTE_SUDO}" ]]; then
+    remote_runner="${REMOTE_SUDO} bash -s"
+  else
+    remote_runner="bash -s"
+  fi
+  "${SSH_CMD[@]}" "${SSH_TARGET}" "${remote_runner}" <<< "${remote_script}"
 }
 
 matches_filters() {
@@ -209,7 +214,8 @@ record_archive() {
 
 backup_entry() {
   local group="$1" service="$2" source_path="$3" required="$4" description="$5"
-  local relative_path archive_path remote_path_quoted relative_path_quoted remote_sudo
+  local relative_path archive_path remote_path_quoted relative_path_quoted
+  local exists_script archive_script
 
   if ! matches_filters "${group}" "${service}"; then
     return 0
@@ -219,9 +225,19 @@ backup_entry() {
   archive_path="${OUTPUT_DIR}/${group}/${service}.tar.gz"
   remote_path_quoted="$(shell_quote "${source_path}")"
   relative_path_quoted="$(shell_quote "${relative_path}")"
-  remote_sudo="$(group_sudo "${group}")"
+  exists_script="$(cat <<EOF
+set -euo pipefail
+test -e ${remote_path_quoted}
+EOF
+)"
 
-  if ! remote_exec "${group}" "${remote_sudo} test -e ${remote_path_quoted}" >/dev/null 2>&1; then
+  archive_script="$(cat <<EOF
+set -euo pipefail
+tar --numeric-owner --acls --xattrs -C / -cpf - ${relative_path_quoted}
+EOF
+)"
+
+  if ! remote_exec "${group}" "${exists_script}" >/dev/null 2>&1; then
     if [[ "${required}" == "true" ]]; then
       echo "Required path missing on ${group}: ${source_path} (${service})" >&2
       return 1
@@ -240,7 +256,7 @@ backup_entry() {
     return 0
   fi
 
-  remote_exec "${group}" "${remote_sudo} tar --numeric-owner --acls --xattrs -C / -cpf - ${relative_path_quoted}" \
+  remote_exec "${group}" "${archive_script}" \
     | gzip -1 > "${archive_path}"
 
   record_archive "${group}" "${service}" "${source_path}" "${archive_path}" "backed-up" "${description}"
