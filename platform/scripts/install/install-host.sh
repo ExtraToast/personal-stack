@@ -7,6 +7,7 @@ source "${script_dir}/../lib/host-env.sh"
 
 usage() {
   echo "Usage: $(basename "$0") [--ssh-key <identity-file> | --ssh-password <password>] <node-name>" >&2
+  echo "Optional env overrides: PLATFORM_INSTALL_SSH_HOST PLATFORM_INSTALL_SSH_USER [PLATFORM_INSTALL_SSH_PORT]" >&2
   exit 1
 }
 
@@ -56,7 +57,8 @@ if [[ -n "${INSTALL_SSH_KEY}" && ! -f "${INSTALL_SSH_KEY}" ]]; then
 fi
 
 load_install_host_env "${INSTALL_NODE_NAME}"
-require_bootstrap_ssh
+apply_install_ssh_overrides
+require_host_ssh
 require_authorized_keys_file
 
 cd "$(platform_flake_dir)"
@@ -84,4 +86,4 @@ if [[ -n "${INSTALL_SSH_PASSWORD}" ]]; then
   nix_args+=(--env-password)
 fi
 
-"$(platform_nix)" "${nix_args[@]}"
+run_platform_nix "${nix_args[@]}"

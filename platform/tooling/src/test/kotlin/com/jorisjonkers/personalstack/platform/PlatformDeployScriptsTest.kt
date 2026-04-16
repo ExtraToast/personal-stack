@@ -61,6 +61,8 @@ class PlatformDeployScriptsTest {
         assertThat(result.exitCode).isEqualTo(0)
         assertThat(Files.readAllLines(nixLog))
             .containsExactly(
+                "--extra-experimental-features",
+                "nix-command flakes",
                 "run",
                 ".#nixos-anywhere",
                 "--",
@@ -80,13 +82,13 @@ class PlatformDeployScriptsTest {
                 """
                 #!/usr/bin/env bash
                 cat <<'EOF'
-                NODE_NAME=enschede-home-t1000-1
+                NODE_NAME=enschede-t1000-1
                 NODE_STATUS=install-ready
                 NODE_SITE=enschede
                 NODE_ARCH=amd64
                 NIX_SYSTEM=x86_64-linux
                 HAS_SSH=true
-                SSH_HOST=enschede-home-t1000-1
+                SSH_HOST=enschede-t1000-1
                 SSH_USER=deploy
                 SSH_PORT=2222
                 EOF
@@ -104,7 +106,7 @@ class PlatformDeployScriptsTest {
         val result =
             runScript(
                 repositoryRoot.resolve("platform/scripts/install/install-host.sh"),
-                listOf("enschede-home-t1000-1"),
+                listOf("enschede-t1000-1"),
                 environment =
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
@@ -116,13 +118,15 @@ class PlatformDeployScriptsTest {
         assertThat(result.exitCode).isEqualTo(0)
         assertThat(Files.readAllLines(nixLog))
             .containsExactly(
+                "--extra-experimental-features",
+                "nix-command flakes",
                 "run",
                 ".#nixos-anywhere",
                 "--",
                 "--flake",
-                ".#enschede-home-t1000-1",
+                ".#enschede-t1000-1",
                 "--target-host",
-                "deploy@enschede-home-t1000-1",
+                "deploy@enschede-t1000-1",
                 "--ssh-port",
                 "2222",
             )
@@ -135,7 +139,7 @@ class PlatformDeployScriptsTest {
                 """
                 #!/usr/bin/env bash
                 cat <<'EOF'
-                NODE_NAME=enschede-home-t1000-1
+                NODE_NAME=enschede-t1000-1
                 NODE_STATUS=install-ready
                 NODE_SITE=enschede
                 NODE_ARCH=amd64
@@ -161,7 +165,7 @@ class PlatformDeployScriptsTest {
         val result =
             runScript(
                 repositoryRoot.resolve("platform/scripts/install/install-host.sh"),
-                listOf("--ssh-key", sshKey.toAbsolutePath().toString(), "enschede-home-t1000-1"),
+                listOf("--ssh-key", sshKey.toAbsolutePath().toString(), "enschede-t1000-1"),
                 environment =
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
@@ -173,11 +177,13 @@ class PlatformDeployScriptsTest {
         assertThat(result.exitCode).isEqualTo(0)
         assertThat(Files.readAllLines(nixLog))
             .containsExactly(
+                "--extra-experimental-features",
+                "nix-command flakes",
                 "run",
                 ".#nixos-anywhere",
                 "--",
                 "--flake",
-                ".#enschede-home-t1000-1",
+                ".#enschede-t1000-1",
                 "--target-host",
                 "extratoast@192.168.1.50",
                 "--ssh-port",
@@ -194,7 +200,7 @@ class PlatformDeployScriptsTest {
                 """
                 #!/usr/bin/env bash
                 cat <<'EOF'
-                NODE_NAME=enschede-home-t1000-1
+                NODE_NAME=enschede-t1000-1
                 NODE_STATUS=install-ready
                 NODE_SITE=enschede
                 NODE_ARCH=amd64
@@ -220,7 +226,7 @@ class PlatformDeployScriptsTest {
         val result =
             runScript(
                 repositoryRoot.resolve("platform/scripts/install/install-host.sh"),
-                listOf("--ssh-password", "bootstrap-secret", "enschede-home-t1000-1"),
+                listOf("--ssh-password", "bootstrap-secret", "enschede-t1000-1"),
                 environment =
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
@@ -232,11 +238,13 @@ class PlatformDeployScriptsTest {
         assertThat(result.exitCode).isEqualTo(0)
         assertThat(Files.readAllLines(nixLog))
             .containsExactly(
+                "--extra-experimental-features",
+                "nix-command flakes",
                 "run",
                 ".#nixos-anywhere",
                 "--",
                 "--flake",
-                ".#enschede-home-t1000-1",
+                ".#enschede-t1000-1",
                 "--target-host",
                 "extratoast@192.168.1.50",
                 "--ssh-port",
@@ -244,6 +252,74 @@ class PlatformDeployScriptsTest {
                 "--env-password",
             )
         assertThat(Files.readString(sshPassLog)).isEqualTo("bootstrap-secret")
+    }
+
+    @Test
+    fun `install-host can override inventory ssh for temporary installer sessions`() {
+        val gradlewStub =
+            tempDir.resolve("gradlew-installer-override").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                cat <<'EOF'
+                NODE_NAME=enschede-pi-1
+                NODE_STATUS=install-ready
+                NODE_SITE=enschede
+                NODE_ARCH=arm64
+                NIX_SYSTEM=aarch64-linux
+                HAS_SSH=false
+                HAS_BOOTSTRAP_SSH=true
+                SSH_HOST=
+                SSH_USER=
+                SSH_PORT=
+                BOOTSTRAP_SSH_HOST=192.168.0.132
+                BOOTSTRAP_SSH_USER=deploy
+                BOOTSTRAP_SSH_PORT=22
+                EOF
+                """.trimIndent(),
+            )
+        val nixLog = tempDir.resolve("nix-installer-override.log")
+        val sshPassLog = tempDir.resolve("nix-installer-override-env.log")
+        val nixStub =
+            tempDir.resolve("nix-installer-override-stub").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
+                printf '%s' "${'$'}{SSHPASS:-}" > "${sshPassLog.toAbsolutePath()}"
+                """.trimIndent(),
+            )
+
+        val result =
+            runScript(
+                repositoryRoot.resolve("platform/scripts/install/install-host.sh"),
+                listOf("--ssh-password", "nixos-installer", "enschede-pi-1"),
+                environment =
+                    mapOf(
+                        "PLATFORM_GRADLEW" to gradlewStub,
+                        "PLATFORM_NIX" to nixStub,
+                        "PLATFORM_AUTHORIZED_KEYS_FILE" to authorizedKeysFile(),
+                        "PLATFORM_INSTALL_SSH_HOST" to "192.168.0.140",
+                        "PLATFORM_INSTALL_SSH_USER" to "nixos",
+                        "PLATFORM_INSTALL_SSH_PORT" to "22",
+                    ),
+            )
+
+        assertThat(result.exitCode).isEqualTo(0)
+        assertThat(Files.readAllLines(nixLog))
+            .containsExactly(
+                "--extra-experimental-features",
+                "nix-command flakes",
+                "run",
+                ".#nixos-anywhere",
+                "--",
+                "--flake",
+                ".#enschede-pi-1",
+                "--target-host",
+                "nixos@192.168.0.140",
+                "--ssh-port",
+                "22",
+                "--env-password",
+            )
+        assertThat(Files.readString(sshPassLog)).isEqualTo("nixos-installer")
     }
 
     @Test
@@ -283,10 +359,10 @@ class PlatformDeployScriptsTest {
                         "PLATFORM_GRADLEW" to gradlewStub,
                         "PLATFORM_NIX" to nixStub,
                     ),
-            )
+        )
 
         assertThat(result.exitCode).isEqualTo(1)
-        assertThat(result.stderr).contains("does not define bootstrap SSH connection details")
+        assertThat(result.stderr).contains("does not define SSH connection details")
         assertThat(Files.exists(nixLog)).isFalse()
     }
 
@@ -297,13 +373,13 @@ class PlatformDeployScriptsTest {
                 """
                 #!/usr/bin/env bash
                 cat <<'EOF'
-                NODE_NAME=enschede-home-t1000-1
+                NODE_NAME=enschede-t1000-1
                 NODE_STATUS=install-ready
                 NODE_SITE=enschede
                 NODE_ARCH=amd64
                 NIX_SYSTEM=x86_64-linux
                 HAS_SSH=true
-                SSH_HOST=enschede-home-t1000-1
+                SSH_HOST=enschede-t1000-1
                 SSH_USER=deploy
                 SSH_PORT=2222
                 EOF
@@ -321,7 +397,7 @@ class PlatformDeployScriptsTest {
         val result =
             runScript(
                 repositoryRoot.resolve("platform/scripts/install/install-host.sh"),
-                listOf("enschede-home-t1000-1"),
+                listOf("enschede-t1000-1"),
                 environment =
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
@@ -377,6 +453,8 @@ class PlatformDeployScriptsTest {
         assertThat(result.exitCode).isEqualTo(0)
         assertThat(Files.readAllLines(nixLog))
             .containsExactly(
+                "--extra-experimental-features",
+                "nix-command flakes",
                 "run",
                 "github:serokell/deploy-rs",
                 "--",
