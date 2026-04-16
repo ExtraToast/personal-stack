@@ -486,9 +486,11 @@ class PlatformDeployScriptsTest {
                 NODE_ARCH=amd64
                 NIX_SYSTEM=x86_64-linux
                 HAS_SSH=true
+                HAS_BOOTSTRAP_SSH=false
                 SSH_HOST=167.86.79.203
                 SSH_USER=deploy
                 SSH_PORT=2222
+                BOOTSTRAP_SSH_HOST=
                 EOF
                 """.trimIndent(),
             )
@@ -521,6 +523,8 @@ class PlatformDeployScriptsTest {
                 "github:serokell/deploy-rs",
                 "--",
                 "--skip-checks",
+                "--hostname",
+                "167.86.79.203",
                 "${platformFlakeRef}#frankfurt-contabo-1",
             )
     }
@@ -533,14 +537,16 @@ class PlatformDeployScriptsTest {
                 #!/usr/bin/env bash
                 cat <<'EOF'
                 NODE_NAME=enschede-t1000-1
-                NODE_STATUS=active
+                NODE_STATUS=install-ready
                 NODE_SITE=enschede
                 NODE_ARCH=amd64
                 NIX_SYSTEM=x86_64-linux
                 HAS_SSH=true
+                HAS_BOOTSTRAP_SSH=true
                 SSH_HOST=enschede-t1000-1
                 SSH_USER=deploy
                 SSH_PORT=2222
+                BOOTSTRAP_SSH_HOST=192.168.0.100
                 EOF
                 """.trimIndent(),
             )
@@ -575,6 +581,8 @@ class PlatformDeployScriptsTest {
                 "github:serokell/deploy-rs",
                 "--",
                 "--skip-checks",
+                "--hostname",
+                "192.168.0.100",
                 "--remote-build",
                 "${platformFlakeRef}#enschede-t1000-1",
             )
@@ -593,9 +601,11 @@ class PlatformDeployScriptsTest {
                 NODE_ARCH=amd64
                 NIX_SYSTEM=x86_64-linux
                 HAS_SSH=true
+                HAS_BOOTSTRAP_SSH=false
                 SSH_HOST=167.86.79.203
                 SSH_USER=deploy
                 SSH_PORT=2222
+                BOOTSTRAP_SSH_HOST=
                 EOF
                 """.trimIndent(),
             )
