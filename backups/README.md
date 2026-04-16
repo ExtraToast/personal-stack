@@ -103,6 +103,60 @@ Back up only specific services:
 infra/scripts/backup-service-state.sh --service stalwart --service uptime-kuma
 ```
 
+## Tested Remote Commands
+
+These are the copy-paste-safe remote commands for the current backup flow.
+
+Check passwordless sudo on both hosts:
+
+```bash
+ssh -i ~/.ssh/ps-vps-1 -p 2222 deploy@100.64.0.1 'sudo -n true'
+ssh -i ~/.ssh/ps-gtx960m -p 22 extratoast@100.64.0.2 'sudo -n true'
+```
+
+Check that the Vault token file on the VPS still works:
+
+```bash
+ssh -i ~/.ssh/ps-vps-1 -p 2222 deploy@100.64.0.1 \
+  "sudo bash -lc 'source /opt/personal-stack/.vault-keys; export VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN=\$VAULT_ROOT_TOKEN; vault status >/dev/null && echo VAULT_OK'"
+```
+
+Check that RabbitMQ credentials can be resolved from Vault and used locally:
+
+```bash
+ssh -i ~/.ssh/ps-vps-1 -p 2222 deploy@100.64.0.1 \
+  "sudo bash -lc 'source /opt/personal-stack/.vault-keys; export VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN=\$VAULT_ROOT_TOKEN; rmq_user=\$(vault kv get -field=rabbitmq.user secret/platform/rabbitmq); rmq_password=\$(vault kv get -field=rabbitmq.password secret/platform/rabbitmq); curl -fsS --user \"\$rmq_user:\$rmq_password\" http://127.0.0.1:15672/api/overview >/dev/null && echo RABBITMQ_OK'"
+```
+
+For remote Nomad checks on the VPS, keep `NOMAD_ADDR` and `NOMAD_TOKEN` on the
+same `export` command inside the remote shell:
+
+```bash
+ssh -i ~/.ssh/ps-vps-1 -p 2222 deploy@100.64.0.1 \
+  "sudo bash -lc 'source /opt/personal-stack/.nomad-keys; export NOMAD_ADDR=http://127.0.0.1:4646 NOMAD_TOKEN=\$NOMAD_BOOTSTRAP_TOKEN; nomad status >/dev/null && echo NOMAD_OK'"
+```
+
+Stopping all Nomad jobs safely uses the same pattern:
+
+```bash
+ssh -i ~/.ssh/ps-vps-1 -p 2222 deploy@100.64.0.1 \
+  "sudo bash -lc 'source /opt/personal-stack/.nomad-keys; export NOMAD_ADDR=http://127.0.0.1:4646 NOMAD_TOKEN=\$NOMAD_BOOTSTRAP_TOKEN; nomad job status -json | jq -r \".[].ID\" | while read -r job; do nomad job stop -purge \"\$job\"; done'"
+```
+
+Stop the remaining VPS host services:
+
+```bash
+ssh -i ~/.ssh/ps-vps-1 -p 2222 deploy@100.64.0.1 \
+  'sudo systemctl stop vault nomad consul'
+```
+
+Stop the home-node services after the live snapshots complete:
+
+```bash
+ssh -i ~/.ssh/ps-gtx960m -p 22 extratoast@100.64.0.2 \
+  'sudo systemctl stop nomad consul smbd adguard-home'
+```
+
 ## Required Environment
 
 For each host group you want to back up, provide either:
