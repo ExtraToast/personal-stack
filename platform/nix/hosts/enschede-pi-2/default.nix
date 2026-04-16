@@ -1,10 +1,11 @@
-{ lib, ... }:
+{ imageBuild ? false, lib, ... }:
 {
-  imports = [
-    ../../profiles/worker.nix
-    ../../modules/k3s/node-labels.nix
-    ./disko.nix
-  ];
+  imports =
+    [
+      ../../profiles/worker.nix
+      ../../modules/k3s/node-labels.nix
+    ]
+    ++ lib.optional (!imageBuild) ./disko.nix;
 
   # Raspberry Pi images boot through firmware + U-Boot/extlinux rather than EFI/systemd-boot.
   boot.loader = {

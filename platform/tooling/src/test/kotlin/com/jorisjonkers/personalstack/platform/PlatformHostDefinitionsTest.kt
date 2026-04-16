@@ -50,9 +50,24 @@ class PlatformHostDefinitionsTest {
             val hostDefinition = repositoryRoot.resolve("platform/nix/hosts/${nodeName}/default.nix").toFile().readText()
 
             assertThat(hostDefinition)
+                .contains("imageBuild ? false")
+                .contains("lib.optional (!imageBuild) ./disko.nix")
                 .contains("systemd-boot.enable = lib.mkForce false")
                 .contains("efi.canTouchEfiVariables = lib.mkForce false")
                 .contains("generic-extlinux-compatible.enable = true")
+        }
+    }
+
+    @Test
+    fun `flake exports host specific raspberry pi sd images`() {
+        val flake = repositoryRoot.resolve("platform/flake.nix").toFile().readText()
+        val buildScript = repositoryRoot.resolve("platform/scripts/build/build-pi-image.sh").toFile().readText()
+
+        listOf("enschede-pi-1", "enschede-pi-2", "enschede-pi-3").forEach { nodeName ->
+            assertThat(flake).contains("${nodeName} = mkHost {")
+            assertThat(flake).contains("extraSpecialArgs = { imageBuild = true; };")
+            assertThat(flake).contains("piSdImages =")
+            assertThat(buildScript).contains("#piSdImages.\${NODE_NAME}")
         }
     }
 
@@ -69,7 +84,9 @@ class PlatformHostDefinitionsTest {
                     "arm64" -> "aarch64-linux"
                     else -> error("Unsupported arch ${node.arch}")
                 }
-            assertThat(flake).contains("${nodeName} = mkHost \"${expectedSystem}\"")
+            assertThat(flake).contains("${nodeName} = mkHost {")
+            assertThat(flake).contains("system = \"${expectedSystem}\";")
+            assertThat(flake).contains("hostModule = ./nix/hosts/${nodeName}/default.nix;")
         }
     }
 

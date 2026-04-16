@@ -1,6 +1,8 @@
 # Gradle
 .gradle/
 build/
+!platform/scripts/build/
+!platform/scripts/build/*.sh
 
 # Java/Kotlin
 *.class

@@ -19,25 +19,72 @@
         "aarch64-darwin"
       ];
       mkHost =
-        system: hostModule:
+        {
+          system,
+          hostModule,
+          extraModules ? [ ],
+          extraSpecialArgs ? { },
+        }:
         lib.nixosSystem {
           inherit system;
-          specialArgs = { inherit inputs; };
-          modules = [
-            disko.nixosModules.disko
-            hostModule
-          ];
+          specialArgs = { inherit inputs; } // extraSpecialArgs;
+          modules =
+            [
+              disko.nixosModules.disko
+              hostModule
+            ]
+            ++ extraModules;
         };
+      piSdImageConfigurations = {
+        enschede-pi-1 = mkHost {
+          system = "aarch64-linux";
+          hostModule = ./nix/hosts/enschede-pi-1/default.nix;
+          extraModules = [ ./nix/modules/image/raspberry-pi-sd-image.nix ];
+          extraSpecialArgs = { imageBuild = true; };
+        };
+        enschede-pi-2 = mkHost {
+          system = "aarch64-linux";
+          hostModule = ./nix/hosts/enschede-pi-2/default.nix;
+          extraModules = [ ./nix/modules/image/raspberry-pi-sd-image.nix ];
+          extraSpecialArgs = { imageBuild = true; };
+        };
+        enschede-pi-3 = mkHost {
+          system = "aarch64-linux";
+          hostModule = ./nix/hosts/enschede-pi-3/default.nix;
+          extraModules = [ ./nix/modules/image/raspberry-pi-sd-image.nix ];
+          extraSpecialArgs = { imageBuild = true; };
+        };
+      };
     in
     {
       nixosConfigurations = {
-        frankfurt-contabo-1 = mkHost "x86_64-linux" ./nix/hosts/frankfurt-contabo-1/default.nix;
-        enschede-gtx-960m-1 = mkHost "x86_64-linux" ./nix/hosts/enschede-gtx-960m-1/default.nix;
-        enschede-t1000-1 = mkHost "x86_64-linux" ./nix/hosts/enschede-t1000-1/default.nix;
-        enschede-pi-1 = mkHost "aarch64-linux" ./nix/hosts/enschede-pi-1/default.nix;
-        enschede-pi-2 = mkHost "aarch64-linux" ./nix/hosts/enschede-pi-2/default.nix;
-        enschede-pi-3 = mkHost "aarch64-linux" ./nix/hosts/enschede-pi-3/default.nix;
+        frankfurt-contabo-1 = mkHost {
+          system = "x86_64-linux";
+          hostModule = ./nix/hosts/frankfurt-contabo-1/default.nix;
+        };
+        enschede-gtx-960m-1 = mkHost {
+          system = "x86_64-linux";
+          hostModule = ./nix/hosts/enschede-gtx-960m-1/default.nix;
+        };
+        enschede-t1000-1 = mkHost {
+          system = "x86_64-linux";
+          hostModule = ./nix/hosts/enschede-t1000-1/default.nix;
+        };
+        enschede-pi-1 = mkHost {
+          system = "aarch64-linux";
+          hostModule = ./nix/hosts/enschede-pi-1/default.nix;
+        };
+        enschede-pi-2 = mkHost {
+          system = "aarch64-linux";
+          hostModule = ./nix/hosts/enschede-pi-2/default.nix;
+        };
+        enschede-pi-3 = mkHost {
+          system = "aarch64-linux";
+          hostModule = ./nix/hosts/enschede-pi-3/default.nix;
+        };
       };
+
+      piSdImages = lib.mapAttrs (_: configuration: configuration.config.system.build.sdImage) piSdImageConfigurations;
 
       deploy.nodes.frankfurt-contabo-1 = {
         hostname = "167.86.79.203";
