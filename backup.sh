@@ -128,7 +128,9 @@ EOF
 # Note: the script will also print system-service paths such as /opt/consul,
 # /opt/nomad, /opt/vault/data, /opt/adguard-home, and /var/lib/samba.
 # Those are expected because they are backup paths, but not Nomad host_volume
-# declarations. The failure condition is only missing declared host volumes.
+# declarations. Paths listed in backups/audit-excluded-paths.txt are also
+# intentionally ignored by the audit. The failure condition is only missing
+# declared host volumes outside that explicit exclusion list.
 step "Auditing backup manifest coverage"
 infra/scripts/audit-backup-scope.sh
 
