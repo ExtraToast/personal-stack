@@ -10,4 +10,5 @@ load_host_env "$1"
 require_host_ssh
 
 cd "$(platform_flake_dir)"
-run_platform_nix run github:serokell/deploy-rs -- ".#${NODE_NAME}"
+flake_ref="$(platform_flake_ref)"
+run_platform_nix run github:serokell/deploy-rs -- "${flake_ref}#${NODE_NAME}"

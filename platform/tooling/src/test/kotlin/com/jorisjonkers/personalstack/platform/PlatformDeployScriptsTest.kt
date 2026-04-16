@@ -520,7 +520,7 @@ class PlatformDeployScriptsTest {
                 "run",
                 "github:serokell/deploy-rs",
                 "--",
-                ".#frankfurt-contabo-1",
+                "${platformFlakeRef}#frankfurt-contabo-1",
             )
     }
 
