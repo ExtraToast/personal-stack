@@ -7,6 +7,7 @@
 
 set -euo pipefail
 trap 'printf "backup.sh failed at line %s\n" "$LINENO" >&2' ERR
+set -x
 
 # Move into the repo root first.
 cd /Users/j.w.jonkers/IDEAProjects/personal-stack-2
@@ -30,6 +31,10 @@ export BACKUP_HOME_SSH_IDENTITY_FILE="$HOME/.ssh/ps-gtx960m"
 
 # Force both backup scripts to write into the same run directory.
 export BACKUP_OUTPUT_DIR="$RUN_DIR"
+
+# Mirror all output to a daily log file while still printing to the terminal.
+mkdir -p "$RUN_DIR"
+exec > >(tee -a "$RUN_DIR/backup.log") 2>&1
 
 # Convenience SSH wrappers so the remote commands stay readable.
 vps() {
