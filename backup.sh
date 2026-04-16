@@ -6,6 +6,7 @@
 # 2. execute it as a script after reviewing the commands.
 
 set -euo pipefail
+trap 'printf "backup.sh failed at line %s\n" "$LINENO" >&2' ERR
 
 # Move into the repo root first.
 cd /Users/j.w.jonkers/IDEAProjects/personal-stack-2
@@ -37,9 +38,15 @@ homehost() {
   ssh -i "$HOME/.ssh/ps-gtx960m" -p 22 extratoast@100.64.0.2 "$@"
 }
 
+# Step 1: audit manifest coverage.
 # Check that the manifest still covers every declared Nomad host volume.
+# Note: the script will also print system-service paths such as /opt/consul,
+# /opt/nomad, /opt/vault/data, /opt/adguard-home, and /var/lib/samba.
+# Those are expected because they are backup paths, but not Nomad host_volume
+# declarations. The failure condition is only missing declared host volumes.
 infra/scripts/audit-backup-scope.sh
 
+# Step 2: confirm remote sudo and control-plane auth.
 # Check passwordless sudo on both source hosts.
 vps 'sudo -n true'
 homehost 'sudo -n true'
@@ -70,9 +77,11 @@ nomad status >/dev/null
 echo NOMAD_OK
 EOF
 
+# Step 3: capture live snapshots and exports while services are still up.
 # Capture live service-native snapshots before stopping anything.
 infra/scripts/backup-service-snapshots.sh
 
+# Step 4: stop old workloads.
 # Stop all Nomad jobs on the VPS before stopping Nomad itself.
 vps 'sudo bash -s' <<'EOF'
 source /opt/personal-stack/.nomad-keys
@@ -88,9 +97,11 @@ vps 'sudo systemctl stop vault nomad consul'
 # Stop stateful host services on the home node.
 homehost 'sudo systemctl stop nomad consul smbd adguard-home'
 
+# Step 5: pull filesystem archives.
 # Pull filesystem backups from both hosts.
 infra/scripts/backup-service-state.sh
 
+# Step 6: verify the completed run.
 # Verify the run metadata, required artifacts, and recorded checksums.
 infra/scripts/verify-backup-run.sh "$RUN_DIR"
 
