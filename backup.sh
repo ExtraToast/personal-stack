@@ -7,6 +7,7 @@
 
 set -euo pipefail
 trap 'printf "backup.sh failed at line %s\n" "$LINENO" >&2' ERR
+PS4='+ [${LINENO}] '
 set -x
 
 # Move into the repo root first.
@@ -36,6 +37,10 @@ export BACKUP_OUTPUT_DIR="$RUN_DIR"
 mkdir -p "$RUN_DIR"
 exec > >(tee -a "$RUN_DIR/backup.log") 2>&1
 
+step() {
+  printf '\n==> %s\n' "$1"
+}
+
 # Convenience SSH wrappers so the remote commands stay readable.
 vps() {
   ssh -i "$HOME/.ssh/ps-vps-1" -p 2222 deploy@100.64.0.1 "$@"
@@ -45,35 +50,49 @@ homehost() {
   ssh -i "$HOME/.ssh/ps-gtx960m" -p 22 extratoast@100.64.0.2 "$@"
 }
 
+step "Using backup run directory: $RUN_DIR"
+
 # Step 0: restore the old environment so a fresh rerun can capture live state.
 # This uses the VPS's own checked-out repo under /opt/personal-stack so the
 # backup reflects the currently deployed old stack, not newer local changes.
+step "Starting prerequisite services on both source hosts"
 vps 'sudo systemctl start consul vault nomad'
 homehost 'sudo systemctl start consul nomad smbd adguard-home'
 
 # Unseal Vault on the VPS before any Vault-backed checks or job restores.
+step "Waiting for Vault to become reachable and unsealed"
 vps 'sudo bash -s' <<'EOF'
 set -euo pipefail
 source /opt/personal-stack/.vault-keys
 export VAULT_ADDR=http://127.0.0.1:8200
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
 
 for _ in $(seq 1 30); do
-  if vault status >/dev/null 2>&1; then
+  if timeout 5 vault status -format=json >"$tmp/status.json" 2>/dev/null; then
+    echo "Vault API reachable"
     break
   fi
+  echo "Vault API not reachable yet, sleeping 2s"
   sleep 2
 done
 
-if vault status -format=json | jq -e '.sealed == true' >/dev/null; then
-  vault operator unseal "$VAULT_UNSEAL_KEY" >/dev/null
+timeout 5 vault status -format=json >"$tmp/status.json"
+if jq -e '.sealed == true' "$tmp/status.json" >/dev/null; then
+  echo "Vault is sealed, running unseal"
+  timeout 10 vault operator unseal "$VAULT_UNSEAL_KEY" >/dev/null
+else
+  echo "Vault already unsealed"
 fi
 
-vault status >/dev/null
+timeout 5 vault status -format=json >"$tmp/status.json"
+jq -r '"Vault state: initialized=\(.initialized) sealed=\(.sealed) standby=\(.standby)"' "$tmp/status.json"
 echo VAULT_UNSEALED
 EOF
 
 # Re-submit only the RabbitMQ job so the live definitions export can run again.
 # Avoid touching PostgreSQL or the rest of the old stack during a backup rerun.
+step "Ensuring RabbitMQ is up for the live definitions export"
 vps 'sudo bash -s' <<'EOF'
 set -euo pipefail
 source /opt/personal-stack/.nomad-keys
@@ -87,10 +106,11 @@ export VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN="$VAULT_ROOT_TOKEN"
 for _ in $(seq 1 60); do
   rmq_user="$(vault kv get -field=rabbitmq.user secret/platform/rabbitmq)"
   rmq_password="$(vault kv get -field=rabbitmq.password secret/platform/rabbitmq)"
-  if curl -fsS --user "$rmq_user:$rmq_password" http://127.0.0.1:15672/api/overview >/dev/null; then
+  if curl -fsS --max-time 5 --user "$rmq_user:$rmq_password" http://127.0.0.1:15672/api/overview >/dev/null; then
     echo RABBITMQ_RESTORED
     exit 0
   fi
+  echo "RabbitMQ management API not ready yet, sleeping 3s"
   sleep 3
 done
 
@@ -104,10 +124,12 @@ EOF
 # /opt/nomad, /opt/vault/data, /opt/adguard-home, and /var/lib/samba.
 # Those are expected because they are backup paths, but not Nomad host_volume
 # declarations. The failure condition is only missing declared host volumes.
+step "Auditing backup manifest coverage"
 infra/scripts/audit-backup-scope.sh
 
 # Step 2: confirm remote sudo and control-plane auth.
 # Check passwordless sudo on both source hosts.
+step "Running sudo and control-plane auth preflight checks"
 vps 'sudo -n true'
 homehost 'sudo -n true'
 
@@ -139,10 +161,12 @@ EOF
 
 # Step 3: capture live snapshots and exports while services are still up.
 # Capture live service-native snapshots before stopping anything.
+step "Capturing live service snapshots"
 infra/scripts/backup-service-snapshots.sh
 
 # Step 4: stop old workloads.
 # Stop all Nomad jobs on the VPS before stopping Nomad itself.
+step "Stopping Nomad jobs on the VPS"
 vps 'sudo bash -s' <<'EOF'
 source /opt/personal-stack/.nomad-keys
 export NOMAD_ADDR=http://127.0.0.1:4646 NOMAD_TOKEN="$NOMAD_BOOTSTRAP_TOKEN"
@@ -152,17 +176,21 @@ done
 EOF
 
 # Stop remaining stateful host services on the VPS.
+step "Stopping remaining VPS host services"
 vps 'sudo systemctl stop vault nomad consul'
 
 # Stop stateful host services on the home node.
+step "Stopping remaining home host services"
 homehost 'sudo systemctl stop nomad consul smbd adguard-home'
 
 # Step 5: pull filesystem archives.
 # Pull filesystem backups from both hosts.
+step "Streaming filesystem archives into $RUN_DIR"
 infra/scripts/backup-service-state.sh
 
 # Step 6: verify the completed run.
 # Verify the run metadata, required artifacts, and recorded checksums.
+step "Verifying backup artifacts"
 infra/scripts/verify-backup-run.sh "$RUN_DIR"
 
 # Verify every compressed filesystem archive is readable.
