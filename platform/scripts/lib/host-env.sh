@@ -123,8 +123,13 @@ platform_ssh_identity_file() {
   printf '%s\n' "${PLATFORM_SSH_IDENTITY_FILE:-}"
 }
 
-platform_authorized_keys_file() {
-  printf '%s\n' "${PLATFORM_AUTHORIZED_KEYS_FILE:-$(platform_flake_dir)/nix/authorized-keys.nix}"
+platform_authorized_keys_dir() {
+  printf '%s\n' "${PLATFORM_AUTHORIZED_KEYS_DIR:-$(platform_flake_dir)/nix/authorized-keys}"
+}
+
+platform_authorized_key_file_for_node() {
+  local node_name="$1"
+  printf '%s/%s.pub\n' "$(platform_authorized_keys_dir)" "${node_name}"
 }
 
 require_single_node_arg() {
@@ -178,37 +183,41 @@ require_bootstrap_ssh() {
   fi
 }
 
-require_authorized_keys_file() {
-  local authorized_keys_file
-  authorized_keys_file="$(platform_authorized_keys_file)"
+require_authorized_key_file_for_node() {
+  local node_name="$1"
+  local authorized_key_file
+  authorized_key_file="$(platform_authorized_key_file_for_node "${node_name}")"
 
-  if [[ ! -f "${authorized_keys_file}" ]]; then
-    echo "Missing ${authorized_keys_file}; create it from platform/nix/authorized-keys.nix.example before installing a key-only host" >&2
+  if [[ ! -f "${authorized_key_file}" ]]; then
+    echo "Missing deploy SSH public key for ${node_name}: ${authorized_key_file}" >&2
+    echo "Create platform/nix/authorized-keys/${node_name}.pub with exactly one SSH public key before installing or deploying that host." >&2
     exit 1
   fi
 }
 
-require_install_ssh_key_in_authorized_keys() {
-  local identity_file="$1"
-  local authorized_keys_file public_key_file public_key
+require_install_ssh_key_matches_node_authorized_key() {
+  local node_name="$1"
+  local identity_file="$2"
+  local authorized_key_file public_key_file public_key expected_key
 
   [[ -n "${identity_file}" ]] || return 0
 
-  authorized_keys_file="$(platform_authorized_keys_file)"
+  authorized_key_file="$(platform_authorized_key_file_for_node "${node_name}")"
   public_key_file="${identity_file}.pub"
 
   if [[ ! -f "${public_key_file}" ]]; then
     echo "Missing public key for install identity: ${public_key_file}" >&2
-    echo "The install workflow must be able to verify that the post-install NixOS config authorizes the same key." >&2
+    echo "The install workflow must be able to verify that the target node authorizes the same post-install SSH key." >&2
     exit 1
   fi
 
   public_key="$(<"${public_key_file}")"
+  expected_key="$(<"${authorized_key_file}")"
 
-  if ! grep -Fq -- "\"${public_key}\"" "${authorized_keys_file}"; then
-    echo "Install identity ${identity_file} is not present in ${authorized_keys_file}" >&2
+  if [[ "${public_key}" != "${expected_key}" ]]; then
+    echo "Install identity ${identity_file} does not match ${authorized_key_file}" >&2
     echo "Post-install SSH on deploy@<host>:2222 would reject that key after the first reboot." >&2
-    echo "Add ${public_key_file} to platform/nix/authorized-keys.nix before installing." >&2
+    echo "Use the node's configured deploy key or update ${authorized_key_file} before installing." >&2
     exit 1
   fi
 }

@@ -59,8 +59,8 @@ fi
 load_install_host_env "${INSTALL_NODE_NAME}"
 apply_install_ssh_overrides
 require_host_ssh
-require_authorized_keys_file
-require_install_ssh_key_in_authorized_keys "${INSTALL_SSH_KEY}"
+require_authorized_key_file_for_node "${INSTALL_NODE_NAME}"
+require_install_ssh_key_matches_node_authorized_key "${INSTALL_NODE_NAME}" "${INSTALL_SSH_KEY}"
 
 cd "$(platform_flake_dir)"
 flake_ref="$(platform_flake_ref)"

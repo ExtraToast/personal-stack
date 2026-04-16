@@ -18,7 +18,7 @@ class PlatformScaffoldTest {
                 "platform/nix/profiles/worker.nix",
                 "platform/nix/profiles/utility.nix",
                 "platform/nix/profiles/gpu-nvidia.nix",
-                "platform/nix/authorized-keys.nix.example",
+                "platform/nix/authorized-keys/README.md",
                 "platform/nix/hosts/frankfurt-contabo-1/default.nix",
                 "platform/nix/hosts/frankfurt-contabo-1/disko.nix",
                 "platform/cluster/flux/clusters/production/kustomization.yaml",

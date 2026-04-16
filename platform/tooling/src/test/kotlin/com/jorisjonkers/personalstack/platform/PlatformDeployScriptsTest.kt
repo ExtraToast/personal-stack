@@ -13,11 +13,17 @@ class PlatformDeployScriptsTest {
     @TempDir
     lateinit var tempDir: Path
 
-    private fun authorizedKeysFile(): String =
-        tempDir.resolve("authorized-keys.nix")
-            .also { Files.writeString(it, "[ ]\n") }
-            .toAbsolutePath()
-            .toString()
+    private fun authorizedKeysDir(): Path =
+        tempDir.resolve("authorized-keys").also { Files.createDirectories(it) }
+
+    private fun writeAuthorizedKey(
+        nodeName: String,
+        publicKey: String = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey ${nodeName}",
+    ): String {
+        val keyFile = authorizedKeysDir().resolve("${nodeName}.pub")
+        Files.writeString(keyFile, "${publicKey}\n")
+        return publicKey
+    }
 
     @Test
     fun `install-host uses nixos-anywhere with ssh metadata from inventory cli`() {
@@ -46,6 +52,7 @@ class PlatformDeployScriptsTest {
                 printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
                 """.trimIndent(),
             )
+        writeAuthorizedKey("frankfurt-contabo-1")
 
         val result =
             runScript(
@@ -55,7 +62,7 @@ class PlatformDeployScriptsTest {
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
                         "PLATFORM_NIX" to nixStub,
-                        "PLATFORM_AUTHORIZED_KEYS_FILE" to authorizedKeysFile(),
+                        "PLATFORM_AUTHORIZED_KEYS_DIR" to authorizedKeysDir().toAbsolutePath().toString(),
                     ),
             )
 
@@ -103,6 +110,7 @@ class PlatformDeployScriptsTest {
                 printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
                 """.trimIndent(),
             )
+        writeAuthorizedKey("enschede-t1000-1")
 
         val result =
             runScript(
@@ -112,7 +120,7 @@ class PlatformDeployScriptsTest {
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
                         "PLATFORM_NIX" to nixStub,
-                        "PLATFORM_AUTHORIZED_KEYS_FILE" to authorizedKeysFile(),
+                        "PLATFORM_AUTHORIZED_KEYS_DIR" to authorizedKeysDir().toAbsolutePath().toString(),
                     ),
             )
 
@@ -160,17 +168,7 @@ class PlatformDeployScriptsTest {
                 printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
                 """.trimIndent(),
             )
-        val authorizedKeys =
-            tempDir.resolve("authorized-keys.nix").also {
-                Files.writeString(
-                    it,
-                    """
-                    [
-                      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey install-test"
-                    ]
-                    """.trimIndent(),
-                )
-            }
+        writeAuthorizedKey("enschede-t1000-1", "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey install-test")
         val sshKey = tempDir.resolve("ps-t1000")
         Files.writeString(sshKey, "private-key")
         Files.writeString(
@@ -186,7 +184,7 @@ class PlatformDeployScriptsTest {
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
                         "PLATFORM_NIX" to nixStub,
-                        "PLATFORM_AUTHORIZED_KEYS_FILE" to authorizedKeys.toAbsolutePath().toString(),
+                        "PLATFORM_AUTHORIZED_KEYS_DIR" to authorizedKeysDir().toAbsolutePath().toString(),
                     ),
             )
 
@@ -236,17 +234,7 @@ class PlatformDeployScriptsTest {
                 exit 99
                 """.trimIndent(),
             )
-        val authorizedKeys =
-            tempDir.resolve("authorized-keys.nix").also {
-                Files.writeString(
-                    it,
-                    """
-                    [
-                      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBakedInKey baked-in"
-                    ]
-                    """.trimIndent(),
-                )
-            }
+        writeAuthorizedKey("frankfurt-contabo-1", "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBakedInKey baked-in")
         val sshKey = tempDir.resolve("ps-vps-1")
         Files.writeString(sshKey, "private-key")
         Files.writeString(
@@ -262,13 +250,13 @@ class PlatformDeployScriptsTest {
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
                         "PLATFORM_NIX" to nixStub,
-                        "PLATFORM_AUTHORIZED_KEYS_FILE" to authorizedKeys.toAbsolutePath().toString(),
+                        "PLATFORM_AUTHORIZED_KEYS_DIR" to authorizedKeysDir().toAbsolutePath().toString(),
                     ),
             )
 
         assertThat(result.exitCode).isEqualTo(1)
         assertThat(result.stderr)
-            .contains("is not present in")
+            .contains("does not match")
             .contains("would reject that key after the first reboot")
     }
 
@@ -301,6 +289,7 @@ class PlatformDeployScriptsTest {
                 printf '%s' "${'$'}{SSHPASS:-}" > "${sshPassLog.toAbsolutePath()}"
                 """.trimIndent(),
             )
+        writeAuthorizedKey("enschede-t1000-1")
 
         val result =
             runScript(
@@ -310,7 +299,7 @@ class PlatformDeployScriptsTest {
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
                         "PLATFORM_NIX" to nixStub,
-                        "PLATFORM_AUTHORIZED_KEYS_FILE" to authorizedKeysFile(),
+                        "PLATFORM_AUTHORIZED_KEYS_DIR" to authorizedKeysDir().toAbsolutePath().toString(),
                     ),
             )
 
@@ -366,6 +355,7 @@ class PlatformDeployScriptsTest {
                 printf '%s' "${'$'}{SSHPASS:-}" > "${sshPassLog.toAbsolutePath()}"
                 """.trimIndent(),
             )
+        writeAuthorizedKey("enschede-pi-1")
 
         val result =
             runScript(
@@ -375,7 +365,7 @@ class PlatformDeployScriptsTest {
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
                         "PLATFORM_NIX" to nixStub,
-                        "PLATFORM_AUTHORIZED_KEYS_FILE" to authorizedKeysFile(),
+                        "PLATFORM_AUTHORIZED_KEYS_DIR" to authorizedKeysDir().toAbsolutePath().toString(),
                         "PLATFORM_INSTALL_SSH_HOST" to "192.168.0.140",
                         "PLATFORM_INSTALL_SSH_USER" to "nixos",
                         "PLATFORM_INSTALL_SSH_PORT" to "22",
@@ -428,6 +418,7 @@ class PlatformDeployScriptsTest {
                 printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
                 """.trimIndent(),
             )
+        writeAuthorizedKey("enschede-t1000-1")
 
         val result =
             runScript(
@@ -437,7 +428,7 @@ class PlatformDeployScriptsTest {
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
                         "PLATFORM_NIX" to nixStub,
-                        "PLATFORM_AUTHORIZED_KEYS_FILE" to authorizedKeysFile(),
+                        "PLATFORM_AUTHORIZED_KEYS_DIR" to authorizedKeysDir().toAbsolutePath().toString(),
                         "PLATFORM_CURRENT_SYSTEM" to "aarch64-darwin",
                         "PLATFORM_INSTALL_BUILD_ON" to "auto",
                     ),
@@ -542,12 +533,12 @@ class PlatformDeployScriptsTest {
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
                         "PLATFORM_NIX" to nixStub,
-                        "PLATFORM_AUTHORIZED_KEYS_FILE" to tempDir.resolve("missing-authorized-keys.nix").toString(),
+                        "PLATFORM_AUTHORIZED_KEYS_DIR" to tempDir.resolve("missing-authorized-keys").toString(),
                     ),
             )
 
         assertThat(result.exitCode).isEqualTo(1)
-        assertThat(result.stderr).contains("create it from platform/nix/authorized-keys.nix.example")
+        assertThat(result.stderr).contains("Create platform/nix/authorized-keys/enschede-t1000-1.pub")
         assertThat(Files.exists(nixLog)).isFalse()
     }
 
@@ -580,6 +571,7 @@ class PlatformDeployScriptsTest {
                 printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
                 """.trimIndent(),
             )
+        writeAuthorizedKey("frankfurt-contabo-1")
 
         val result =
             runScript(
@@ -589,6 +581,7 @@ class PlatformDeployScriptsTest {
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
                         "PLATFORM_NIX" to nixStub,
+                        "PLATFORM_AUTHORIZED_KEYS_DIR" to authorizedKeysDir().toAbsolutePath().toString(),
                     ),
             )
 
@@ -636,6 +629,7 @@ class PlatformDeployScriptsTest {
                 printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
                 """.trimIndent(),
             )
+        writeAuthorizedKey("enschede-t1000-1")
 
         val result =
             runScript(
@@ -645,6 +639,7 @@ class PlatformDeployScriptsTest {
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
                         "PLATFORM_NIX" to nixStub,
+                        "PLATFORM_AUTHORIZED_KEYS_DIR" to authorizedKeysDir().toAbsolutePath().toString(),
                         "PLATFORM_CURRENT_SYSTEM" to "aarch64-darwin",
                         "PLATFORM_DEPLOY_BUILD_ON" to "auto",
                     ),
@@ -697,6 +692,7 @@ class PlatformDeployScriptsTest {
                 printf '%s' "${'$'}{NIX_CONFIG:-}" > "${nixConfigLog.toAbsolutePath()}"
                 """.trimIndent(),
             )
+        writeAuthorizedKey("frankfurt-contabo-1")
 
         val result =
             runScript(
@@ -706,6 +702,7 @@ class PlatformDeployScriptsTest {
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
                         "PLATFORM_NIX" to nixStub,
+                        "PLATFORM_AUTHORIZED_KEYS_DIR" to authorizedKeysDir().toAbsolutePath().toString(),
                         "NIX_CONFIG" to "substituters = https://cache.nixos.org",
                     ),
             )
@@ -718,6 +715,53 @@ class PlatformDeployScriptsTest {
                 experimental-features = nix-command flakes
                 """.trimIndent(),
             )
+    }
+
+    @Test
+    fun `deploy-host rejects missing per-node authorized key files`() {
+        val gradlewStub =
+            tempDir.resolve("gradlew-deploy-missing-key").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                cat <<'EOF'
+                NODE_NAME=frankfurt-contabo-1
+                NODE_STATUS=active
+                NODE_SITE=frankfurt
+                NODE_ARCH=amd64
+                NIX_SYSTEM=x86_64-linux
+                HAS_SSH=true
+                HAS_BOOTSTRAP_SSH=false
+                SSH_HOST=167.86.79.203
+                SSH_USER=deploy
+                SSH_PORT=2222
+                BOOTSTRAP_SSH_HOST=
+                EOF
+                """.trimIndent(),
+            )
+        val nixLog = tempDir.resolve("nix-deploy-missing-key.log")
+        val nixStub =
+            tempDir.resolve("nix-deploy-missing-key-stub").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
+                """.trimIndent(),
+            )
+
+        val result =
+            runScript(
+                repositoryRoot.resolve("platform/scripts/deploy/deploy-host.sh"),
+                listOf("frankfurt-contabo-1"),
+                environment =
+                    mapOf(
+                        "PLATFORM_GRADLEW" to gradlewStub,
+                        "PLATFORM_NIX" to nixStub,
+                        "PLATFORM_AUTHORIZED_KEYS_DIR" to tempDir.resolve("missing-authorized-keys").toString(),
+                    ),
+            )
+
+        assertThat(result.exitCode).isEqualTo(1)
+        assertThat(result.stderr).contains("Create platform/nix/authorized-keys/frankfurt-contabo-1.pub")
+        assertThat(Files.exists(nixLog)).isFalse()
     }
 
     private fun runScript(

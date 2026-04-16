@@ -8,6 +8,7 @@ require_single_node_arg "$(basename "$0")" "$@"
 
 load_host_env "$1"
 require_host_ssh
+require_authorized_key_file_for_node "${NODE_NAME}"
 
 cd "$(platform_flake_dir)"
 flake_ref="$(platform_flake_ref)"
