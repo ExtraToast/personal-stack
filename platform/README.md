@@ -436,3 +436,16 @@ For clean machines, the expected sequence is:
 8. For worker nodes, run `platform/scripts/bootstrap/bootstrap-k3s-worker.sh <node-name>` so the join token is copied from the bootstrap control plane onto the new host
 9. Use `platform/scripts/deploy/deploy-host.sh <node-name>` for steady-state config updates over `deploy@<host>:2222`
 10. Only then let the node act as a real `k3s` worker/utility host and start receiving Flux-managed workloads
+
+## Bring-up Log
+
+Track the remaining platform cleanup here instead of rediscovering it during the
+next host install.
+
+- `enschede-t1000-1` reached a successful steady-state `deploy-host.sh` run on April 16, 2026.
+- The `Samba` module still uses `services.samba.shares`, which now evaluates with a rename warning on current `NixOS`. Migrate it to `services.samba.settings` in [platform/nix/modules/services/samba.nix](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/nix/modules/services/samba.nix:1).
+- The `k3s` worker path still evaluates with `k3s: token, tokenFile or configPath ... should be set if role is 'agent'` before `bootstrap-k3s-worker.sh` copies the join token onto a new node. Rework [platform/nix/modules/k3s/bootstrap.nix](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/nix/modules/k3s/bootstrap.nix:1) so agent nodes stop warning during evaluation while still keeping the token out of Git.
+- `enschede-gtx-960m-1` is still not install-complete in Git. [platform/nix/hosts/enschede-gtx-960m-1/disko.nix](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/nix/hosts/enschede-gtx-960m-1/disko.nix:1) only mounts `/srv/media`; it still needs real `/boot` and `/` disk layout before full-flake validation can pass without deploy-time workarounds.
+- The cluster API endpoint in [platform/inventory/fleet.yaml](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/inventory/fleet.yaml:1) is still pinned to the public Frankfurt IP. Once the first home workers are on the tailnet, switch that to the `Tailscale` address or MagicDNS name.
+- `deploy-host.sh` currently falls back to `bootstrap_ssh.host` for `install-ready` nodes because pre-tailnet names like `enschede-t1000-1` are not resolvable from the workstation yet. After each node joins `Tailscale`, clean up inventory so steady-state deploys use the final private hostname path only.
+- Remote builds currently print `warning: ignoring the client-specified setting 'store', because it is a restricted setting and you are not a trusted user`. This did not block deployment, but it is worth revisiting if the remote builder setup needs tightening later.
