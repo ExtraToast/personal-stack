@@ -201,12 +201,39 @@ configure_command() {
     echo "AdGuard DNS rewrites configured for LAN IP ${HOME_LAN_IP}"
   fi
 
-  # Media HDD mount unit
+  # Media HDD mount unit — only written on first setup, never overwritten.
+  # Safety: refuses to mount anything that isn't a USB-attached device to
+  # prevent accidentally mounting a system drive.
   if [[ -n "${MEDIA_DISK_UUID:-}" ]]; then
-    install -m 0644 "${HOME_NODE_DIR}/systemd/mnt-media.mount" /etc/systemd/system/mnt-media.mount
-    sed -i "s/__MEDIA_DISK_UUID__/${MEDIA_DISK_UUID}/g" /etc/systemd/system/mnt-media.mount
-    sed -i "s/__MEDIA_DISK_FS__/${MEDIA_DISK_FS:-ntfs3}/g" /etc/systemd/system/mnt-media.mount
-    echo "Media HDD mount unit configured (UUID: ${MEDIA_DISK_UUID})"
+    if [[ -f /etc/systemd/system/mnt-media.mount ]]; then
+      echo "Media HDD mount unit already exists, skipping (delete manually to reconfigure)"
+    else
+      # Verify the UUID belongs to a USB device
+      local disk_path
+      disk_path="$(blkid -U "${MEDIA_DISK_UUID}" 2>/dev/null || true)"
+      if [[ -z "${disk_path}" ]]; then
+        echo "Warning: MEDIA_DISK_UUID=${MEDIA_DISK_UUID} not found, skipping mount unit"
+      else
+        local dev_name
+        dev_name="$(basename "$(readlink -f "${disk_path}")")"
+        # Strip partition number to get the parent device
+        local parent_dev
+        parent_dev="$(lsblk -no PKNAME "/dev/${dev_name}" 2>/dev/null || true)"
+        local removable
+        removable="$(cat "/sys/block/${parent_dev:-${dev_name}}/removable" 2>/dev/null || echo 0)"
+        local bus
+        bus="$(udevadm info --query=property --name="/dev/${parent_dev:-${dev_name}}" 2>/dev/null | grep '^ID_BUS=' | cut -d= -f2 || true)"
+        if [[ "${removable}" != "1" && "${bus}" != "usb" ]]; then
+          echo "ERROR: MEDIA_DISK_UUID=${MEDIA_DISK_UUID} (${disk_path}) is not a USB device — refusing to create mount unit" >&2
+          echo "  removable=${removable}, bus=${bus}" >&2
+        else
+          install -m 0644 "${HOME_NODE_DIR}/systemd/mnt-media.mount" /etc/systemd/system/mnt-media.mount
+          sed -i "s/__MEDIA_DISK_UUID__/${MEDIA_DISK_UUID}/g" /etc/systemd/system/mnt-media.mount
+          sed -i "s/__MEDIA_DISK_FS__/${MEDIA_DISK_FS:-ntfs3}/g" /etc/systemd/system/mnt-media.mount
+          echo "Media HDD mount unit configured (UUID: ${MEDIA_DISK_UUID}, device: ${disk_path}, bus: ${bus})"
+        fi
+      fi
+    fi
   fi
 
   # Samba config
