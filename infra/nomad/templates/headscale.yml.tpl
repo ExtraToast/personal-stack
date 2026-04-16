@@ -1,5 +1,5 @@
 server_url: https://headscale.{{ env "DOMAIN" }}
-listen_addr: 0.0.0.0:8085
+listen_addr: 0.0.0.0:{{ env "NOMAD_PORT_http" }}
 metrics_listen_addr: 127.0.0.1:9098
 
 database:

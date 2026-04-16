@@ -22,7 +22,7 @@ job "headscale" {
 
     network {
       mode = "host"
-      port "http" { static = 8085 }
+      port "http" {}
     }
 
     volume "headscale_data" {
@@ -39,7 +39,6 @@ job "headscale" {
         "traefik.http.routers.headscale.rule=Host(`headscale.${var.domain}`)",
         "traefik.http.routers.headscale.entrypoints=websecure",
         "traefik.http.routers.headscale.tls=true",
-        "traefik.http.services.headscale.loadbalancer.server.port=8085",
       ]
 
       check {

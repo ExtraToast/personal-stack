@@ -33,7 +33,7 @@ job "grafana" {
 
     network {
       mode = "host"
-      port "http" { static = 3000 }
+      port "http" {}
     }
 
     volume "grafana_data" {
@@ -51,7 +51,6 @@ job "grafana" {
         "traefik.http.routers.grafana.entrypoints=websecure",
         "traefik.http.routers.grafana.tls=true",
         "traefik.http.routers.grafana.middlewares=grafana-security-headers@file",
-        "traefik.http.services.grafana.loadbalancer.server.port=3000",
       ]
 
       check {
@@ -78,6 +77,7 @@ job "grafana" {
       driver = "docker"
 
       env {
+        GF_SERVER_HTTP_PORT                              = "${NOMAD_PORT_http}"
         GF_SERVER_ROOT_URL                               = "https://grafana.${var.domain}"
         GF_ANALYTICS_CHECK_FOR_UPDATES                   = "false"
         GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES            = "false"

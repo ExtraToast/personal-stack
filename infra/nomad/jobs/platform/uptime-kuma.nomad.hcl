@@ -7,6 +7,14 @@ job "uptime-kuma" {
   datacenters = ["dc1"]
   type        = "service"
 
+  update {
+    max_parallel      = 1
+    min_healthy_time  = "10s"
+    healthy_deadline  = "5m"
+    progress_deadline = "10m"
+    auto_revert       = true
+  }
+
   group "uptime-kuma" {
     constraint {
       attribute = "${meta.node_type}"
@@ -14,8 +22,8 @@ job "uptime-kuma" {
     }
 
     network {
-      mode = "host"
-      port "http" { static = 3001 }
+      mode = "bridge"
+      port "http" { to = 3001 }
     }
 
     volume "uptime_kuma_data" {
@@ -33,7 +41,6 @@ job "uptime-kuma" {
         "traefik.http.routers.uptime-kuma.entrypoints=websecure",
         "traefik.http.routers.uptime-kuma.tls=true",
         "traefik.http.routers.uptime-kuma.middlewares=security-headers@file",
-        "traefik.http.services.uptime-kuma.loadbalancer.server.port=3001",
       ]
 
       check {
@@ -52,8 +59,7 @@ job "uptime-kuma" {
       }
 
       config {
-        image        = "louislam/uptime-kuma:2"
-        network_mode = "host"
+        image = "louislam/uptime-kuma:2"
       }
 
       volume_mount {

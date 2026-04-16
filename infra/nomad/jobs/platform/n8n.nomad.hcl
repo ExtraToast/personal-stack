@@ -33,7 +33,7 @@ job "n8n" {
 
     network {
       mode = "host"
-      port "http" { static = 5678 }
+      port "http" {}
     }
 
     volume "n8n_data" {
@@ -51,7 +51,6 @@ job "n8n" {
         "traefik.http.routers.n8n.entrypoints=websecure",
         "traefik.http.routers.n8n.tls=true",
         "traefik.http.routers.n8n.middlewares=rate-limit@file,n8n-security-headers@file",
-        "traefik.http.services.n8n.loadbalancer.server.port=5678",
       ]
 
       check {
@@ -89,6 +88,7 @@ EOF
       driver = "docker"
 
       env {
+        N8N_PORT                     = "${NOMAD_PORT_http}"
         DB_TYPE                      = "postgresdb"
         DB_POSTGRESDB_HOST           = "127.0.0.1"
         DB_POSTGRESDB_PORT           = "5432"
