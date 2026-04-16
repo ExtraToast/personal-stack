@@ -44,14 +44,30 @@ homehost() {
 vps 'sudo systemctl start consul vault nomad'
 homehost 'sudo systemctl start consul nomad smbd adguard-home'
 
-# Re-submit the Nomad data jobs so RabbitMQ is live again for the definitions
-# export. Avoid re-deploying the full old stack just for backup collection.
+# Re-submit only the RabbitMQ job so the live definitions export can run again.
+# Avoid touching PostgreSQL or the rest of the old stack during a backup rerun.
 vps 'sudo bash -s' <<'EOF'
 set -euo pipefail
 source /opt/personal-stack/.nomad-keys
 export NOMAD_ADDR=http://127.0.0.1:4646 NOMAD_TOKEN="$NOMAD_BOOTSTRAP_TOKEN"
 cd /opt/personal-stack
-bash infra/scripts/deploy.sh --phase data --wait
+nomad job run -detach infra/nomad/jobs/data/rabbitmq.nomad.hcl
+
+source /opt/personal-stack/.vault-keys
+export VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN="$VAULT_ROOT_TOKEN"
+
+for _ in $(seq 1 60); do
+  rmq_user="$(vault kv get -field=rabbitmq.user secret/platform/rabbitmq)"
+  rmq_password="$(vault kv get -field=rabbitmq.password secret/platform/rabbitmq)"
+  if curl -fsS --user "$rmq_user:$rmq_password" http://127.0.0.1:15672/api/overview >/dev/null; then
+    echo RABBITMQ_RESTORED
+    exit 0
+  fi
+  sleep 3
+done
+
+nomad job status rabbitmq || true
+exit 1
 EOF
 
 # Step 1: audit manifest coverage.
