@@ -111,6 +111,24 @@ install_command() {
     run rm -f /tmp/install-tailscale.sh
   fi
 
+  # Prevent NetworkManager/Netplan sync from creating duplicate connection
+  # profiles (90-NM-*.yaml) that race with NM's own profiles and cause
+  # interface flapping on USB ethernet dongles.
+  if [[ ! -f /etc/NetworkManager/conf.d/no-netplan.conf ]]; then
+    run mkdir -p /etc/NetworkManager/conf.d
+    cat <<'NMEOF' > /etc/NetworkManager/conf.d/no-netplan.conf
+[keyfile]
+unmanaged-devices=none
+
+[main]
+plugins=keyfile
+NMEOF
+    rm -f /etc/netplan/90-NM-*.yaml 2>/dev/null || true
+    run netplan generate
+    run systemctl restart NetworkManager
+    echo "Disabled Netplan/NetworkManager sync"
+  fi
+
   # AdGuard Home
   if [[ ! -f /opt/adguard-home/AdGuardHome ]]; then
     local arch="amd64"
