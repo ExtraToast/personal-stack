@@ -11,16 +11,18 @@ including Time Machine.
 ```
 Internet -> Cloudflare -> VPS Traefik -> Tailscale -> Home Node
                                                                        |
-LAN devices -> AdGuard DNS rewrite -> Home Node directly (no auth)     |
+LAN devices -> AdGuard DNS rewrite -> Jellyfin directly (8096)         |
                                                                        |
               +------------ PIA WireGuard (gluetun) ----------------+  |
               |  qBittorrent (8080)  |  Prowlarr (9696)             |  |
               |  Nomad bridge mode - shared network namespace       |  |
               +-----------------------------------------------------+  |
                                     |                                  |
-              +---------------------+---- host networking ----------+  |
-              |  Bazarr (6767)  Sonarr (8989)  Radarr (7878)       |  |
-              |  Jellyfin (8096)  Jellyseerr (5055)                |  |
+              +---------------------+---- bridge networking --------+  |
+              |  Bazarr  Sonarr  Radarr  Jellyseerr                |  |
+              |  Nomad bridge mode - dynamic host ports             |  |
+              +---------------------+------------------------------+   |
+              |  Jellyfin (8096)    host networking (GPU + LAN)    |   |
               +---------------------+------------------------------+   |
                                     |                                  |
                           /mnt/media (6TB HDD)                         |
@@ -31,6 +33,12 @@ LAN devices -> AdGuard DNS rewrite -> Home Node directly (no auth)     |
                           +-- Anime/         for guests)               |
                           +-- TimeMachine/   Samba [timemachine] 300GB |
 ```
+
+Media services (except Jellyfin and downloads) use Nomad bridge networking with
+dynamic host ports for zero-downtime rolling deploys. Traefik discovers the
+current port via Consul catalog. Inter-service communication (e.g., Bazarr →
+Sonarr) goes through Traefik domain URLs. Requests with an `X-Api-Key` header
+bypass forward-auth and are validated by the service itself.
 
 ## Part 1: VPS Preparation
 
@@ -175,34 +183,34 @@ Open `http://<home-ip>:8080` (default login: admin / adminadmin).
 
 ### 3.2 Prowlarr
 
-Open `http://<home-ip>:9696`.
+Open `https://prowlarr.jorisjonkers.dev`.
 
 - Add your indexers
-- Settings > Apps > Add Sonarr (host: `<home-ip>`, port: `8989`)
-- Settings > Apps > Add Radarr (host: `<home-ip>`, port: `7878`)
+- Settings > Apps > Add Sonarr (URL: `https://sonarr.jorisjonkers.dev`)
+- Settings > Apps > Add Radarr (URL: `https://radarr.jorisjonkers.dev`)
 
 ### 3.3 Sonarr
 
-Open `http://<home-ip>:8989`.
+Open `https://sonarr.jorisjonkers.dev`.
 
 - Settings > Media Management > Root Folders > Add `/media/Series`
 - Settings > Media Management > Root Folders > Add `/media/Anime` (if managing anime separately)
-- Settings > Download Clients > Add qBittorrent (host: `<home-ip>`, port: `8080`)
+- Settings > Download Clients > Add qBittorrent (URL: `https://qbittorrent.jorisjonkers.dev`)
 
 ### 3.4 Radarr
 
-Open `http://<home-ip>:7878`.
+Open `https://radarr.jorisjonkers.dev`.
 
 - Settings > Media Management > Root Folders > Add `/media/Films`
-- Settings > Download Clients > Add qBittorrent (host: `<home-ip>`, port: `8080`)
+- Settings > Download Clients > Add qBittorrent (URL: `https://qbittorrent.jorisjonkers.dev`)
 
 ### 3.5 Bazarr
 
-Open `http://<home-ip>:6767`.
+Open `https://bazarr.jorisjonkers.dev`.
 
 - Complete the setup wizard
-- Add Sonarr using `http://127.0.0.1:8989`
-- Add Radarr using `http://127.0.0.1:7878`
+- Add Sonarr using `https://sonarr.jorisjonkers.dev`
+- Add Radarr using `https://radarr.jorisjonkers.dev`
 - Keep media paths aligned with the shared `/media` mount
 
 ### 3.6 Jellyfin
@@ -217,12 +225,12 @@ Open `http://<home-ip>:8096`.
 
 ### 3.7 Jellyseerr
 
-Open `http://<home-ip>:5055`.
+Open `https://jellyseerr.jorisjonkers.dev`.
 
 - Complete the setup wizard
-- Connect Jellyfin using `http://<home-ip>:8096` and your Jellyfin admin account
-- Add Sonarr using `http://<home-ip>:8989`
-- Add Radarr using `http://<home-ip>:7878`
+- Connect Jellyfin using `https://jellyfin.jorisjonkers.dev` and your Jellyfin admin account
+- Add Sonarr using `https://sonarr.jorisjonkers.dev`
+- Add Radarr using `https://radarr.jorisjonkers.dev`
 
 ### 3.8 Time Machine
 
@@ -295,24 +303,26 @@ sudo chown 1000:1000 /srv/nomad/sonarr/sonarr.db /srv/nomad/radarr/radarr.db
 
 ## Access Patterns
 
-| Service      | LAN URL                                    | External URL                           |
-| ------------ | ------------------------------------------ | -------------------------------------- |
-| Jellyfin     | `http://jellyfin.jorisjonkers.dev:8096`    | `https://jellyfin.jorisjonkers.dev`    |
-| Jellyseerr   | `http://jellyseerr.jorisjonkers.dev:5055`  | `https://jellyseerr.jorisjonkers.dev`  |
-| Bazarr       | `http://bazarr.jorisjonkers.dev:6767`      | `https://bazarr.jorisjonkers.dev`      |
-| Sonarr       | `http://sonarr.jorisjonkers.dev:8989`      | `https://sonarr.jorisjonkers.dev`      |
-| Radarr       | `http://radarr.jorisjonkers.dev:7878`      | `https://radarr.jorisjonkers.dev`      |
-| Prowlarr     | `http://prowlarr.jorisjonkers.dev:9696`    | `https://prowlarr.jorisjonkers.dev`    |
-| qBittorrent  | `http://qbittorrent.jorisjonkers.dev:8080` | `https://qbittorrent.jorisjonkers.dev` |
-| Samba        | `smb://<home-ip>/databeast`                | not exposed                            |
-| Time Machine | `smb://media@<home-ip>/timemachine`        | not exposed                            |
-| AdGuard      | `http://127.0.0.1:3000` (SSH tunnel)       | not exposed                            |
+| Service      | LAN URL                                 | External URL                           |
+| ------------ | --------------------------------------- | -------------------------------------- |
+| Jellyfin     | `http://jellyfin.jorisjonkers.dev:8096` | `https://jellyfin.jorisjonkers.dev`    |
+| Jellyseerr   | `https://jellyseerr.jorisjonkers.dev`   | `https://jellyseerr.jorisjonkers.dev`  |
+| Bazarr       | `https://bazarr.jorisjonkers.dev`       | `https://bazarr.jorisjonkers.dev`      |
+| Sonarr       | `https://sonarr.jorisjonkers.dev`       | `https://sonarr.jorisjonkers.dev`      |
+| Radarr       | `https://radarr.jorisjonkers.dev`       | `https://radarr.jorisjonkers.dev`      |
+| Prowlarr     | `https://prowlarr.jorisjonkers.dev`     | `https://prowlarr.jorisjonkers.dev`    |
+| qBittorrent  | `https://qbittorrent.jorisjonkers.dev`  | `https://qbittorrent.jorisjonkers.dev` |
+| Samba        | `smb://<home-ip>/databeast`             | not exposed                            |
+| Time Machine | `smb://media@<home-ip>/timemachine`     | not exposed                            |
+| AdGuard      | `http://127.0.0.1:3000` (SSH tunnel)    | not exposed                            |
 
-LAN URLs work because AdGuard DNS rewrites resolve these subdomains to the home
-node's LAN IP. External URLs go through VPS Traefik. `Jellyfin` and
-`Jellyseerr` use their own auth; the admin tools stay behind Traefik
-forward-auth. Note: LAN URLs use HTTP with the service port since there's no
-Traefik on the home node.
+Most media services use Nomad bridge networking with dynamic ports, so direct
+LAN access via `<home-ip>:<port>` is no longer available. All access goes
+through VPS Traefik (HTTPS). The exception is Jellyfin, which keeps a static
+port (8096) with host networking for direct LAN streaming via AdGuard DNS
+rewrite. Jellyfin and Jellyseerr use their own auth; the admin tools
+(Sonarr, Radarr, Bazarr) stay behind Traefik forward-auth with an API key
+bypass for inter-service communication.
 
 ## Verification
 
@@ -328,15 +338,21 @@ nomad job status sonarr
 nomad job status radarr
 nomad job status jellyfin
 nomad job status jellyseerr
+nomad job status wireguard-check
 
 # VPN check - should show PIA IP, not your home IP
 ALLOC=$(nomad job allocs -json downloads | jq -r '.[0].ID')
 nomad alloc exec -task qbittorrent "$ALLOC" curl -s ifconfig.me
 
-# DNS rewrites (from a LAN device using AdGuard DNS)
-dig @<home-ip> jellyfin.jorisjonkers.dev    # -> home LAN IP
-dig @<home-ip> jellyseerr.jorisjonkers.dev  # -> home LAN IP
-dig @<home-ip> bazarr.jorisjonkers.dev      # -> home LAN IP
+# WireGuard validation job
+nomad job run infra/nomad/jobs/media/wireguard-check.nomad.hcl
+WG_ALLOC=$(nomad job allocs -json wireguard-check | jq -r '.[0].ID')
+nomad alloc logs -stderr -task gluetun "$WG_ALLOC"
+nomad alloc logs -task curl "$WG_ALLOC"
+nomad alloc exec -task curl "$WG_ALLOC" curl -fsS https://ifconfig.me/ip
+
+# DNS rewrite (from a LAN device using AdGuard DNS)
+dig @<home-ip> jellyfin.jorisjonkers.dev    # -> home LAN IP (direct LAN access)
 
 # Samba
 smbclient -L //<home-ip>/ -N               # lists media + timemachine
@@ -368,6 +384,7 @@ infra/home-node/
 
 infra/nomad/jobs/media/
   downloads.nomad.hcl         gluetun VPN + qBittorrent + Prowlarr
+  wireguard-check.nomad.hcl   gluetun WireGuard validation + curl
   bazarr.nomad.hcl            Subtitle management
   sonarr.nomad.hcl            TV show management
   radarr.nomad.hcl            Movie management
