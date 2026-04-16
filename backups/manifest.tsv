@@ -3,6 +3,7 @@ cloud	vault-raft	/opt/vault/data	true	Vault Raft storage
 cloud	consul-state	/opt/consul	true	Consul server data directory
 cloud	nomad-state	/opt/nomad	true	Nomad server/client state directory
 cloud	postgres	/srv/nomad/postgres	true	PostgreSQL data volume
+cloud	prometheus	/srv/nomad/prometheus	true	Prometheus TSDB volume
 cloud	valkey	/srv/nomad/valkey	true	Valkey data volume
 cloud	rabbitmq	/srv/nomad/rabbitmq	true	RabbitMQ data volume
 cloud	traefik	/srv/nomad/traefik	true	Traefik data and certificate state
