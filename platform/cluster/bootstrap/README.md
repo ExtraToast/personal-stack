@@ -18,6 +18,10 @@ The clean-install sequence for `enschede-t1000-1` and the Raspberry Pi worker
 wave lives in
 [home-install-playbook.md](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/cluster/bootstrap/home-install-playbook.md:1).
 
+Raspberry Pi worker nodes are flashed from host-specific SD images built with
+`platform/scripts/build/build-pi-image.sh <node-name>` instead of being
+reinstalled with `nixos-anywhere`.
+
 The `Tailscale` tailnet bootstrap sequence for new hosts lives in
 [tailscale-tailnet-playbook.md](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/cluster/bootstrap/tailscale-tailnet-playbook.md:1).
 

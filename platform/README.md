@@ -415,7 +415,7 @@ The next implementation steps should focus on real host bring-up and the first l
    first boot so the overlay join is explicit and repeatable.
    Then use `platform/scripts/bootstrap/bootstrap-k3s-worker.sh <node-name>` so
    the worker token copy is explicit and repeatable.
-2. Use `enschede-pi-1` as the first ARM worker install rehearsal, then fold in `enschede-pi-2` and `enschede-pi-3` once the join path is boring
+2. Use `enschede-pi-1` as the first ARM worker SD-image rehearsal, then fold in `enschede-pi-2` and `enschede-pi-3` once the flash-and-join path is boring
 3. Move one low-risk workload family onto the new home nodes before widening the wave
 4. Publish `Stalwart` mail protocols through the direct DNS model in [infra/dns/jorisjonkers.dev.zone](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/infra/dns/jorisjonkers.dev.zone:1) instead of trying to route them through Traefik
 5. Keep the admin UI on `stalwart.jorisjonkers.dev` behind forward-auth while the protocol endpoint stays on `mail.jorisjonkers.dev`
@@ -429,16 +429,19 @@ For clean machines, the expected sequence is:
 2. Keep the inventory `ssh` metadata pointed at the desired `NixOS` end state: `deploy@<host>:2222`
 3. For a first install on an existing machine, add `bootstrap_ssh` with whatever admin SSH endpoint the current OS already exposes today
 4. Make sure that `bootstrap_ssh` user has SSH-key access and passwordless `sudo`; you do not need to move the old OS to `deploy@<host>:2222` before install
-5. Run `platform/scripts/install/install-host.sh <node-name>` to install `NixOS` from the flake with `nixos-anywhere`
+5. For VPSes and x86 hosts, run `platform/scripts/install/install-host.sh <node-name>` to install `NixOS` from the flake with `nixos-anywhere`
    If the current machine still needs explicit bootstrap auth, pass it directly at runtime with either
    `platform/scripts/install/install-host.sh --ssh-key ~/.ssh/ps-t1000 <node-name>`
    or
    `platform/scripts/install/install-host.sh --ssh-password '<bootstrap-password>' <node-name>`
-6. Reboot into the installed `NixOS` system and verify base host health
-7. Use a one-off `Tailscale` auth key from the admin console and run `platform/scripts/bootstrap/bootstrap-tailnet.sh <node-name>` so the node joins the shared private overlay
-8. For worker nodes, run `platform/scripts/bootstrap/bootstrap-k3s-worker.sh <node-name>` so the join token is copied from the bootstrap control plane onto the new host
-9. Use `platform/scripts/deploy/deploy-host.sh <node-name>` for steady-state config updates over `deploy@<host>:2222`
-10. Only then let the node act as a real `k3s` worker/utility host and start receiving Flux-managed workloads
+6. For Raspberry Pi nodes, build a host-specific SD card image instead of using `nixos-anywhere`
+   `platform/scripts/build/build-pi-image.sh enschede-pi-1`
+   Flash the resulting `sd-image/*.img.zst`, boot it, and use the inventory `bootstrap_ssh.host` as the first-LAN address until the tailnet join is done.
+7. Reboot or first-boot into the installed `NixOS` system and verify base host health
+8. Use a one-off `Tailscale` auth key from the admin console and run `platform/scripts/bootstrap/bootstrap-tailnet.sh <node-name>` so the node joins the shared private overlay
+9. For worker nodes, run `platform/scripts/bootstrap/bootstrap-k3s-worker.sh <node-name>` so the join token is copied from the bootstrap control plane onto the new host
+10. Use `platform/scripts/deploy/deploy-host.sh <node-name>` for steady-state config updates over `deploy@<host>:2222`
+11. Only then let the node act as a real `k3s` worker/utility host and start receiving Flux-managed workloads
 
 ## Bring-up Log
 

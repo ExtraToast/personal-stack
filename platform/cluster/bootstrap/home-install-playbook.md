@@ -36,28 +36,31 @@ For each node, the sequence is:
    `sudo chmod 440 /etc/sudoers.d/90-deploy-nopasswd`
    Verify with:
    `ssh -p <bootstrap-port> <bootstrap-user>@<host> 'sudo -n true'`
-5. Run:
+5. For VPSes and x86 hosts, run:
    `platform/scripts/install/install-host.sh <node-name>`
    or pass the bootstrap auth explicitly for the current OS session:
    `platform/scripts/install/install-host.sh --ssh-key ~/.ssh/ps-t1000 <node-name>`
    `platform/scripts/install/install-host.sh --ssh-password '<bootstrap-password>' <node-name>`
-6. Reboot into the installed `NixOS` system.
-7. Validate the base host:
+6. For Raspberry Pi nodes, build and flash a host-specific SD image instead of running `nixos-anywhere` against the generic installer image:
+   `platform/scripts/build/build-pi-image.sh enschede-pi-1`
+   Then flash the resulting `result-enschede-pi-1-sd-image/sd-image/*.img.zst` and boot the Pi.
+7. Reboot or first-boot into the installed `NixOS` system.
+8. Validate the base host:
    `hostnamectl`
    `systemctl status tailscaled`
    `systemctl status k3s`
    On freshly installed workers this may still be `failed` until the node has
    joined the tailnet and the worker join token has been copied in the next
    steps.
-8. Join the node to the `Tailscale` tailnet:
+9. Join the node to the `Tailscale` tailnet:
    `platform/scripts/bootstrap/bootstrap-tailnet.sh <node-name>`
    Then verify:
    `tailscale status`
-9. Copy the worker join token from the bootstrap control plane:
-   `platform/scripts/bootstrap/bootstrap-k3s-worker.sh <node-name>`
-10. Run:
+10. Copy the worker join token from the bootstrap control plane:
+    `platform/scripts/bootstrap/bootstrap-k3s-worker.sh <node-name>`
+11. Run:
     `platform/scripts/deploy/deploy-host.sh <node-name>`
-11. Verify node registration and labels:
+12. Verify node registration and labels:
     `kubectl get nodes -o wide`
     `kubectl get node <node-name> --show-labels`
 
@@ -91,6 +94,16 @@ install wave, so the new node is proven with real reconciliation and scheduling.
 ## Raspberry Pi Wave
 
 Use `enschede-pi-1` as the first ARM rehearsal.
+
+The expected command flow for each Pi is:
+
+1. `platform/scripts/build/build-pi-image.sh enschede-pi-1`
+2. Flash `result-enschede-pi-1-sd-image/sd-image/*.img.zst`
+3. Boot the Pi and wait for it to appear on the LAN at the `bootstrap_ssh.host`
+   recorded in [fleet.yaml](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/inventory/fleet.yaml:1)
+4. `TS_AUTH_KEY=... platform/scripts/bootstrap/bootstrap-tailnet.sh enschede-pi-1`
+5. `platform/scripts/bootstrap/bootstrap-k3s-worker.sh enschede-pi-1`
+6. `platform/scripts/deploy/deploy-host.sh enschede-pi-1`
 
 Validate these points:
 
