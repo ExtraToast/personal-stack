@@ -30,10 +30,6 @@ EOF
   exit 1
 }
 
-shell_quote() {
-  printf "'%s'" "${1//\'/\'\"\'\"\'}"
-}
-
 sha256_file() {
   local file="$1"
 
@@ -86,6 +82,7 @@ group_sudo() {
 
 SSH_CMD=()
 SSH_TARGET=""
+REMOTE_SUDO=""
 
 build_ssh_command() {
   local port identity extra_opts
@@ -117,9 +114,14 @@ build_ssh_command() {
 }
 
 remote_stream() {
-  local remote_command="$1"
+  local remote_script="$1" remote_runner
   build_ssh_command
-  "${SSH_CMD[@]}" "${SSH_TARGET}" "bash -lc $(shell_quote "${remote_command}")"
+  if [[ -n "${REMOTE_SUDO}" ]]; then
+    remote_runner="${REMOTE_SUDO} bash -s"
+  else
+    remote_runner="bash -s"
+  fi
+  "${SSH_CMD[@]}" "${SSH_TARGET}" "${remote_runner}" <<< "${remote_script}"
 }
 
 matches_filters() {
@@ -228,34 +230,84 @@ prepare_output_dir
 
 REMOTE_SUDO="$(group_sudo)"
 
+vault_snapshot_script="$(cat <<'EOF'
+set -euo pipefail
+source /opt/personal-stack/.vault-keys
+export VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN="$VAULT_ROOT_TOKEN"
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+vault operator raft snapshot save "$tmp/vault.snap" >/dev/null
+cat "$tmp/vault.snap"
+EOF
+)"
+
+consul_snapshot_script="$(cat <<'EOF'
+set -euo pipefail
+export CONSUL_HTTP_ADDR=http://127.0.0.1:8500
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+consul snapshot save "$tmp/consul.snap" >/dev/null
+cat "$tmp/consul.snap"
+EOF
+)"
+
+nomad_snapshot_script="$(cat <<'EOF'
+set -euo pipefail
+source /opt/personal-stack/.nomad-keys
+export NOMAD_ADDR=http://127.0.0.1:4646 NOMAD_TOKEN="$NOMAD_BOOTSTRAP_TOKEN"
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+nomad operator snapshot save "$tmp/nomad.snap" >/dev/null
+cat "$tmp/nomad.snap"
+EOF
+)"
+
+nomad_job_status_script="$(cat <<'EOF'
+set -euo pipefail
+source /opt/personal-stack/.nomad-keys
+export NOMAD_ADDR=http://127.0.0.1:4646 NOMAD_TOKEN="$NOMAD_BOOTSTRAP_TOKEN"
+nomad job status -json
+EOF
+)"
+
+rabbitmq_definitions_script="$(cat <<'EOF'
+set -euo pipefail
+source /opt/personal-stack/.vault-keys
+export VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN="$VAULT_ROOT_TOKEN"
+rmq_user="$(vault kv get -field=rabbitmq.user secret/platform/rabbitmq)"
+rmq_password="$(vault kv get -field=rabbitmq.password secret/platform/rabbitmq)"
+curl -fsS --user "$rmq_user:$rmq_password" http://127.0.0.1:15672/api/definitions
+EOF
+)"
+
 capture_artifact \
   "vault-raft-snapshot" \
   "vault-raft.snapshot" \
   "Vault integrated storage snapshot" \
-  "${REMOTE_SUDO} bash -lc 'set -euo pipefail; source /opt/personal-stack/.vault-keys; export VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN=\"\$VAULT_ROOT_TOKEN\"; tmp=\$(mktemp -d); trap \"rm -rf \\\"\$tmp\\\"\" EXIT; vault operator raft snapshot save \"\$tmp/vault.snap\" >/dev/null; cat \"\$tmp/vault.snap\"'"
+  "${vault_snapshot_script}"
 
 capture_artifact \
   "consul-snapshot" \
   "consul.snapshot" \
   "Consul atomic point-in-time snapshot" \
-  "${REMOTE_SUDO} bash -lc 'set -euo pipefail; export CONSUL_HTTP_ADDR=http://127.0.0.1:8500; tmp=\$(mktemp -d); trap \"rm -rf \\\"\$tmp\\\"\" EXIT; consul snapshot save \"\$tmp/consul.snap\" >/dev/null; cat \"\$tmp/consul.snap\"'"
+  "${consul_snapshot_script}"
 
 capture_artifact \
   "nomad-snapshot" \
   "nomad.snapshot" \
   "Nomad atomic point-in-time snapshot" \
-  "${REMOTE_SUDO} bash -lc 'set -euo pipefail; source /opt/personal-stack/.nomad-keys; export NOMAD_ADDR=http://127.0.0.1:4646 NOMAD_TOKEN=\"\$NOMAD_BOOTSTRAP_TOKEN\"; tmp=\$(mktemp -d); trap \"rm -rf \\\"\$tmp\\\"\" EXIT; nomad operator snapshot save \"\$tmp/nomad.snap\" >/dev/null; cat \"\$tmp/nomad.snap\"'"
+  "${nomad_snapshot_script}"
 
 capture_artifact \
   "nomad-job-status" \
   "nomad-job-status.json" \
   "Live Nomad job status export" \
-  "${REMOTE_SUDO} bash -lc 'set -euo pipefail; source /opt/personal-stack/.nomad-keys; export NOMAD_ADDR=http://127.0.0.1:4646 NOMAD_TOKEN=\"\$NOMAD_BOOTSTRAP_TOKEN\"; nomad job status -json'"
+  "${nomad_job_status_script}"
 
 capture_artifact \
   "rabbitmq-definitions" \
   "rabbitmq-definitions.json" \
   "RabbitMQ schema, users, vhosts, queues, exchanges, bindings, and runtime parameters" \
-  "${REMOTE_SUDO} bash -lc 'set -euo pipefail; source /opt/personal-stack/.vault-keys; export VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN=\"\$VAULT_ROOT_TOKEN\"; rmq_user=\$(vault kv get -field=rabbitmq.user secret/platform/rabbitmq); rmq_password=\$(vault kv get -field=rabbitmq.password secret/platform/rabbitmq); curl -fsS --user \"\$rmq_user:\$rmq_password\" http://127.0.0.1:15672/api/definitions'"
+  "${rabbitmq_definitions_script}"
 
 echo "Service-native snapshots written to ${OUTPUT_DIR}"
