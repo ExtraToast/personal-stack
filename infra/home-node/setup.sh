@@ -226,7 +226,18 @@ configure_command() {
   install -m 0755 "${ROOT_DIR}/infra/scripts/nomad-advertise.sh" /usr/local/bin/nomad-advertise.sh
 
   # Systemd ordering: ensure correct boot sequence
-  # AdGuard (DNS) → Tailscale → Consul → Nomad
+  # Network ready → AdGuard (DNS) → Tailscale → Consul → Nomad
+  #
+  # USB ethernet dongles are slower to get a DHCP lease than built-in NICs.
+  # network-online.target can fire before the adapter has connectivity.
+  # The tailscaled drop-in waits for actual internet reachability so Tailscale
+  # doesn't fail DNS resolution and write a broken MagicDNS resolv.conf.
+  mkdir -p /etc/systemd/system/tailscaled.service.d
+  cat <<'EOF' > /etc/systemd/system/tailscaled.service.d/override.conf
+[Service]
+ExecStartPre=/bin/bash -c 'for i in $(seq 1 60); do ping -c1 -W1 1.1.1.1 >/dev/null 2>&1 && exit 0; sleep 1; done; echo "Warning: no internet connectivity after 60s, starting tailscaled anyway"'
+EOF
+
   mkdir -p /etc/systemd/system/consul.service.d
   cat <<'EOF' > /etc/systemd/system/consul.service.d/override.conf
 [Unit]
@@ -250,11 +261,9 @@ ExecStartPre=/usr/local/bin/nomad-advertise.sh
 EOF
 
   # Firewall
-  # Nomad bridge allocations use the default host-local subnet 172.26.64.0/20.
-  # Allow the LAN to reach user-facing media apps directly, while keeping the
-  # Arr ports reachable only from the internal Nomad bridge so Prowlarr can
-  # call Sonarr/Radarr without exposing those ports to the LAN.
-  local nomad_bridge_subnet="172.26.64.0/20"
+  # Media services (except Jellyfin) use Nomad bridge mode with dynamic ports,
+  # accessed exclusively via VPS Traefik over the Tailscale mesh. Only Jellyfin
+  # keeps a static port for direct LAN streaming.
   if command -v ufw >/dev/null 2>&1; then
     run ufw default deny incoming
     run ufw default allow outgoing
@@ -264,10 +273,6 @@ EOF
     run ufw allow in on tailscale0                                    comment 'tailscale mesh traffic'
     run ufw allow proto tcp from 192.168.0.0/16 to any port 445      comment 'samba'
     run ufw allow proto tcp from 192.168.0.0/16 to any port 8096     comment 'jellyfin'
-    run ufw allow proto tcp from 192.168.0.0/16 to any port 5055     comment 'jellyseerr'
-    run ufw allow proto tcp from 192.168.0.0/16 to any port 6767     comment 'bazarr'
-    run ufw allow proto tcp from "${nomad_bridge_subnet}" to any port 8989 comment 'sonarr from nomad bridge'
-    run ufw allow proto tcp from "${nomad_bridge_subnet}" to any port 7878 comment 'radarr from nomad bridge'
     run ufw --force enable
   fi
 

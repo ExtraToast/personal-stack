@@ -23,18 +23,6 @@ dns:
   rewrites:
     - domain: jellyfin.jorisjonkers.dev
       answer: __HOME_LAN_IP__
-    - domain: jellyseerr.jorisjonkers.dev
-      answer: __HOME_LAN_IP__
-    - domain: bazarr.jorisjonkers.dev
-      answer: __HOME_LAN_IP__
-    - domain: sonarr.jorisjonkers.dev
-      answer: __HOME_LAN_IP__
-    - domain: radarr.jorisjonkers.dev
-      answer: __HOME_LAN_IP__
-    - domain: prowlarr.jorisjonkers.dev
-      answer: __HOME_LAN_IP__
-    - domain: qbittorrent.jorisjonkers.dev
-      answer: __HOME_LAN_IP__
 
 filtering:
   protection_enabled: true
