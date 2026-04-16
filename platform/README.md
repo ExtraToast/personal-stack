@@ -423,6 +423,8 @@ The next implementation steps should focus on real host bring-up and the first l
 For clean machines, the expected sequence is:
 
 1. Put your SSH public key into a local `platform/nix/authorized-keys.nix` file based on [platform/nix/authorized-keys.nix.example](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/nix/authorized-keys.nix.example:1)
+   That local file is what gets baked into post-install `deploy@<host>:2222` access.
+   If the exact key you plan to use is missing there at install time, the new machine will boot successfully but reject your SSH access after the reboot.
 2. Keep the inventory `ssh` metadata pointed at the desired `NixOS` end state: `deploy@<host>:2222`
 3. For a first install on an existing machine, add `bootstrap_ssh` with whatever admin SSH endpoint the current OS already exposes today
 4. Make sure that `bootstrap_ssh` user has SSH-key access and passwordless `sudo`; you do not need to move the old OS to `deploy@<host>:2222` before install
