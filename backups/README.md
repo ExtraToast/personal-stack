@@ -145,3 +145,7 @@ infra/scripts/backup-service-state.sh
   `.vault-keys` or another secure copy of the unseal/root-token information.
 - `RabbitMQ` definitions export complements the data directory backup; it does
   not replace the broker data volume if you need queued messages and on-disk state.
+- The live snapshot script now needs only:
+  - a current Vault token in `/opt/personal-stack/.vault-keys`
+  - a current Nomad management token in `/opt/personal-stack/.nomad-keys`
+    RabbitMQ credentials are resolved from `secret/platform/rabbitmq` in Vault.

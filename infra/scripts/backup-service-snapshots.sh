@@ -256,6 +256,6 @@ capture_artifact \
   "rabbitmq-definitions" \
   "rabbitmq-definitions.json" \
   "RabbitMQ schema, users, vhosts, queues, exchanges, bindings, and runtime parameters" \
-  "${REMOTE_SUDO} bash -lc 'set -euo pipefail; source /opt/personal-stack/.nomad-bootstrap.env; curl -fsS --user \"\$RABBITMQ_USER:\$RABBITMQ_PASSWORD\" http://127.0.0.1:15672/api/definitions'"
+  "${REMOTE_SUDO} bash -lc 'set -euo pipefail; source /opt/personal-stack/.vault-keys; export VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN=\"\$VAULT_ROOT_TOKEN\"; rmq_user=\$(vault kv get -field=rabbitmq.user secret/platform/rabbitmq); rmq_password=\$(vault kv get -field=rabbitmq.password secret/platform/rabbitmq); curl -fsS --user \"\$rmq_user:\$rmq_password\" http://127.0.0.1:15672/api/definitions'"
 
 echo "Service-native snapshots written to ${OUTPUT_DIR}"
