@@ -22,8 +22,8 @@ job "sonarr" {
     }
 
     network {
-      mode = "host"
-      port "http" { static = 8989 }
+      mode = "bridge"
+      port "http" { to = 8989 }
     }
 
     volume "media_data" {
@@ -47,6 +47,11 @@ job "sonarr" {
         "traefik.http.routers.sonarr.entrypoints=websecure",
         "traefik.http.routers.sonarr.tls=true",
         "traefik.http.routers.sonarr.middlewares=forward-auth@file,media-security-headers@file",
+        "traefik.http.routers.sonarr-api.rule=Host(`sonarr.${var.domain}`) && HeadersRegexp(`X-Api-Key`, `.+`)",
+        "traefik.http.routers.sonarr-api.entrypoints=websecure",
+        "traefik.http.routers.sonarr-api.tls=true",
+        "traefik.http.routers.sonarr-api.priority=110",
+        "traefik.http.routers.sonarr-api.middlewares=rate-limit@file,media-security-headers@file",
       ]
 
       check {
@@ -67,8 +72,7 @@ job "sonarr" {
       }
 
       config {
-        image        = "linuxserver/sonarr:latest"
-        network_mode = "host"
+        image = "linuxserver/sonarr:latest"
       }
 
       volume_mount {

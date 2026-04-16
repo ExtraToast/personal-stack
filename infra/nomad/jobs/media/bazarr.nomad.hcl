@@ -22,8 +22,8 @@ job "bazarr" {
     }
 
     network {
-      mode = "host"
-      port "http" { static = 6767 }
+      mode = "bridge"
+      port "http" { to = 6767 }
     }
 
     volume "media_data" {
@@ -47,6 +47,11 @@ job "bazarr" {
         "traefik.http.routers.bazarr.entrypoints=websecure",
         "traefik.http.routers.bazarr.tls=true",
         "traefik.http.routers.bazarr.middlewares=forward-auth@file,media-security-headers@file",
+        "traefik.http.routers.bazarr-api.rule=Host(`bazarr.${var.domain}`) && HeadersRegexp(`X-Api-Key`, `.+`)",
+        "traefik.http.routers.bazarr-api.entrypoints=websecure",
+        "traefik.http.routers.bazarr-api.tls=true",
+        "traefik.http.routers.bazarr-api.priority=110",
+        "traefik.http.routers.bazarr-api.middlewares=rate-limit@file,media-security-headers@file",
       ]
 
       check {
@@ -67,8 +72,7 @@ job "bazarr" {
       }
 
       config {
-        image        = "linuxserver/bazarr:latest"
-        network_mode = "host"
+        image = "linuxserver/bazarr:latest"
       }
 
       volume_mount {

@@ -22,8 +22,8 @@ job "radarr" {
     }
 
     network {
-      mode = "host"
-      port "http" { static = 7878 }
+      mode = "bridge"
+      port "http" { to = 7878 }
     }
 
     volume "media_data" {
@@ -47,6 +47,11 @@ job "radarr" {
         "traefik.http.routers.radarr.entrypoints=websecure",
         "traefik.http.routers.radarr.tls=true",
         "traefik.http.routers.radarr.middlewares=forward-auth@file,media-security-headers@file",
+        "traefik.http.routers.radarr-api.rule=Host(`radarr.${var.domain}`) && HeadersRegexp(`X-Api-Key`, `.+`)",
+        "traefik.http.routers.radarr-api.entrypoints=websecure",
+        "traefik.http.routers.radarr-api.tls=true",
+        "traefik.http.routers.radarr-api.priority=110",
+        "traefik.http.routers.radarr-api.middlewares=rate-limit@file,media-security-headers@file",
       ]
 
       check {
@@ -67,8 +72,7 @@ job "radarr" {
       }
 
       config {
-        image        = "linuxserver/radarr:latest"
-        network_mode = "host"
+        image = "linuxserver/radarr:latest"
       }
 
       volume_mount {

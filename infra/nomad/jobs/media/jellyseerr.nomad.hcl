@@ -22,8 +22,8 @@ job "jellyseerr" {
     }
 
     network {
-      mode = "host"
-      port "http" { static = 5055 }
+      mode = "bridge"
+      port "http" { to = 5055 }
     }
 
     volume "jellyseerr_config" {
@@ -60,8 +60,7 @@ job "jellyseerr" {
       }
 
       config {
-        image        = "ghcr.io/seerr-team/seerr:latest"
-        network_mode = "host"
+        image = "ghcr.io/seerr-team/seerr:latest"
       }
 
       volume_mount {
