@@ -44,6 +44,27 @@ homehost() {
 vps 'sudo systemctl start consul vault nomad'
 homehost 'sudo systemctl start consul nomad smbd adguard-home'
 
+# Unseal Vault on the VPS before any Vault-backed checks or job restores.
+vps 'sudo bash -s' <<'EOF'
+set -euo pipefail
+source /opt/personal-stack/.vault-keys
+export VAULT_ADDR=http://127.0.0.1:8200
+
+for _ in $(seq 1 30); do
+  if vault status >/dev/null 2>&1; then
+    break
+  fi
+  sleep 2
+done
+
+if vault status -format=json | jq -e '.sealed == true' >/dev/null; then
+  vault operator unseal "$VAULT_UNSEAL_KEY" >/dev/null
+fi
+
+vault status >/dev/null
+echo VAULT_UNSEALED
+EOF
+
 # Re-submit only the RabbitMQ job so the live definitions export can run again.
 # Avoid touching PostgreSQL or the rest of the old stack during a backup rerun.
 vps 'sudo bash -s' <<'EOF'
