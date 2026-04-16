@@ -22,7 +22,6 @@ home	nomad-client-state	/opt/nomad	true	Nomad client state directory
 home	consul-client-state	/opt/consul	true	Consul client state directory
 home	adguard-home	/opt/adguard-home	true	AdGuard Home working directory and state
 home	samba-state	/var/lib/samba	true	Samba account and state database
-home	media-library	/mnt/media	true	Home media library and Time Machine data
 home	qbittorrent-config	/srv/nomad/qbittorrent	true	qBittorrent config/state
 home	prowlarr-config	/srv/nomad/prowlarr	true	Prowlarr config/state
 home	bazarr-config	/srv/nomad/bazarr	true	Bazarr config/state

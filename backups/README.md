@@ -22,7 +22,7 @@ The current list includes:
 - `Prometheus`
 - `Traefik`, `Grafana`, `Loki`, `Tempo`, `Alloy`, `n8n`
 - `Vault`, `Consul`, and `Nomad` data directories
-- home-media application configs and `/mnt/media`
+- home-media application configs only; bulk media storage is excluded from default backups
 - host-local `AdGuard`, `Samba`, and legacy bootstrap env/key files
 
 ## Critical Order
