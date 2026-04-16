@@ -38,6 +38,22 @@ homehost() {
   ssh -i "$HOME/.ssh/ps-gtx960m" -p 22 extratoast@100.64.0.2 "$@"
 }
 
+# Step 0: restore the old environment so a fresh rerun can capture live state.
+# This uses the VPS's own checked-out repo under /opt/personal-stack so the
+# backup reflects the currently deployed old stack, not newer local changes.
+vps 'sudo systemctl start consul vault nomad'
+homehost 'sudo systemctl start consul nomad smbd adguard-home'
+
+# Re-submit the Nomad data jobs so RabbitMQ is live again for the definitions
+# export. Avoid re-deploying the full old stack just for backup collection.
+vps 'sudo bash -s' <<'EOF'
+set -euo pipefail
+source /opt/personal-stack/.nomad-keys
+export NOMAD_ADDR=http://127.0.0.1:4646 NOMAD_TOKEN="$NOMAD_BOOTSTRAP_TOKEN"
+cd /opt/personal-stack
+bash infra/scripts/deploy.sh --phase data --wait
+EOF
+
 # Step 1: audit manifest coverage.
 # Check that the manifest still covers every declared Nomad host volume.
 # Note: the script will also print system-service paths such as /opt/consul,
