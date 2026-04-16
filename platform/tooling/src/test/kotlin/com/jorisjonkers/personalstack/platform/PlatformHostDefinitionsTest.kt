@@ -45,6 +45,18 @@ class PlatformHostDefinitionsTest {
     }
 
     @Test
+    fun `raspberry pi hosts override efi boot with generic extlinux`() {
+        listOf("enschede-pi-1", "enschede-pi-2", "enschede-pi-3").forEach { nodeName ->
+            val hostDefinition = repositoryRoot.resolve("platform/nix/hosts/${nodeName}/default.nix").toFile().readText()
+
+            assertThat(hostDefinition)
+                .contains("systemd-boot.enable = lib.mkForce false")
+                .contains("efi.canTouchEfiVariables = lib.mkForce false")
+                .contains("generic-extlinux-compatible.enable = true")
+        }
+    }
+
+    @Test
     fun `flake exports every inventory node with the correct architecture`() {
         val flake = repositoryRoot.resolve("platform/flake.nix").toFile().readText()
 
