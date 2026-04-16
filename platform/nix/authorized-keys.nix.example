@@ -1,7 +1,0 @@
-[
-  # Add one or more SSH public keys here and save the real file as:
-  #   platform/nix/authorized-keys.nix
-  #
-  # Example:
-  # "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... you@example"
-]

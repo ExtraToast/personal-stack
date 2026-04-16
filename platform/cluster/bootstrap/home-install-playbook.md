@@ -19,7 +19,8 @@ The intended order is:
 
 For each node, the sequence is:
 
-1. Create `platform/nix/authorized-keys.nix` from [authorized-keys.nix.example](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/nix/authorized-keys.nix.example:1).
+1. Create exactly one local deploy key file per host in [platform/nix/authorized-keys/README.md](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/nix/authorized-keys/README.md:1).
+   Example: `platform/nix/authorized-keys/enschede-t1000-1.pub`.
 2. Keep `ssh` in [fleet.yaml](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/inventory/fleet.yaml:1) pointed at the desired `NixOS` end state, which is `deploy@<node-name>:2222`.
 3. Before the first install, add `bootstrap_ssh` for the node with whatever SSH endpoint the current OS already exposes today.
    That can be `root@<node-name>:22`, an existing admin user on another port, or a temporary bootstrap account if you prefer.
