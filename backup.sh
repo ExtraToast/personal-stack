@@ -11,8 +11,10 @@ trap 'printf "backup.sh failed at line %s\n" "$LINENO" >&2' ERR
 # Move into the repo root first.
 cd /Users/j.w.jonkers/IDEAProjects/personal-stack-2
 
-# Define one backup output directory for this entire run.
-export RUN_DIR="$PWD/backups/run-$(date -u +%Y%m%dT%H%M%SZ)"
+# Define one backup output directory per local calendar day so repeated reruns
+# on the same day reuse the same folder instead of creating many timestamped
+# runs. Override RUN_DIR manually if you want a separate run folder.
+export RUN_DIR="${RUN_DIR:-$PWD/backups/run-$(date +%Y%m%d)}"
 
 # Cloud/VPS backup connection settings.
 export BACKUP_CLOUD_SSH_HOST=100.64.0.1
