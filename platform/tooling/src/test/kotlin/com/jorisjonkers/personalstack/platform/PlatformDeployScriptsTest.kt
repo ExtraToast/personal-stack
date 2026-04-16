@@ -160,8 +160,23 @@ class PlatformDeployScriptsTest {
                 printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
                 """.trimIndent(),
             )
+        val authorizedKeys =
+            tempDir.resolve("authorized-keys.nix").also {
+                Files.writeString(
+                    it,
+                    """
+                    [
+                      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey install-test"
+                    ]
+                    """.trimIndent(),
+                )
+            }
         val sshKey = tempDir.resolve("ps-t1000")
         Files.writeString(sshKey, "private-key")
+        Files.writeString(
+            tempDir.resolve("ps-t1000.pub"),
+            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey install-test",
+        )
 
         val result =
             runScript(
@@ -171,7 +186,7 @@ class PlatformDeployScriptsTest {
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
                         "PLATFORM_NIX" to nixStub,
-                        "PLATFORM_AUTHORIZED_KEYS_FILE" to authorizedKeysFile(),
+                        "PLATFORM_AUTHORIZED_KEYS_FILE" to authorizedKeys.toAbsolutePath().toString(),
                     ),
             )
 
@@ -192,6 +207,69 @@ class PlatformDeployScriptsTest {
                 "-i",
                 sshKey.toAbsolutePath().toString(),
             )
+    }
+
+    @Test
+    fun `install-host rejects ssh identity files that are not authorized post install`() {
+        val gradlewStub =
+            tempDir.resolve("gradlew-ssh-key-mismatch").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                cat <<'EOF'
+                NODE_NAME=frankfurt-contabo-1
+                NODE_STATUS=active
+                NODE_SITE=frankfurt
+                NODE_ARCH=amd64
+                NIX_SYSTEM=x86_64-linux
+                HAS_SSH=true
+                SSH_HOST=167.86.79.203
+                SSH_USER=deploy
+                SSH_PORT=2222
+                EOF
+                """.trimIndent(),
+            )
+        val nixStub =
+            tempDir.resolve("nix-ssh-key-mismatch-stub").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                echo should-not-run >&2
+                exit 99
+                """.trimIndent(),
+            )
+        val authorizedKeys =
+            tempDir.resolve("authorized-keys.nix").also {
+                Files.writeString(
+                    it,
+                    """
+                    [
+                      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBakedInKey baked-in"
+                    ]
+                    """.trimIndent(),
+                )
+            }
+        val sshKey = tempDir.resolve("ps-vps-1")
+        Files.writeString(sshKey, "private-key")
+        Files.writeString(
+            tempDir.resolve("ps-vps-1.pub"),
+            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMissingKey missing",
+        )
+
+        val result =
+            runScript(
+                repositoryRoot.resolve("platform/scripts/install/install-host.sh"),
+                listOf("--ssh-key", sshKey.toAbsolutePath().toString(), "frankfurt-contabo-1"),
+                environment =
+                    mapOf(
+                        "PLATFORM_GRADLEW" to gradlewStub,
+                        "PLATFORM_NIX" to nixStub,
+                        "PLATFORM_AUTHORIZED_KEYS_FILE" to authorizedKeys.toAbsolutePath().toString(),
+                    ),
+            )
+
+        assertThat(result.exitCode).isEqualTo(1)
+        assertThat(result.stderr)
+            .contains("is not present in")
+            .contains("would reject that key after the first reboot")
     }
 
     @Test

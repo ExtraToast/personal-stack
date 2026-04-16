@@ -188,6 +188,31 @@ require_authorized_keys_file() {
   fi
 }
 
+require_install_ssh_key_in_authorized_keys() {
+  local identity_file="$1"
+  local authorized_keys_file public_key_file public_key
+
+  [[ -n "${identity_file}" ]] || return 0
+
+  authorized_keys_file="$(platform_authorized_keys_file)"
+  public_key_file="${identity_file}.pub"
+
+  if [[ ! -f "${public_key_file}" ]]; then
+    echo "Missing public key for install identity: ${public_key_file}" >&2
+    echo "The install workflow must be able to verify that the post-install NixOS config authorizes the same key." >&2
+    exit 1
+  fi
+
+  public_key="$(<"${public_key_file}")"
+
+  if ! grep -Fq -- "\"${public_key}\"" "${authorized_keys_file}"; then
+    echo "Install identity ${identity_file} is not present in ${authorized_keys_file}" >&2
+    echo "Post-install SSH on deploy@<host>:2222 would reject that key after the first reboot." >&2
+    echo "Add ${public_key_file} to platform/nix/authorized-keys.nix before installing." >&2
+    exit 1
+  fi
+}
+
 require_platform_ssh_identity_file_if_set() {
   local identity_file
   identity_file="$(platform_ssh_identity_file)"
