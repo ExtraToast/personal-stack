@@ -27,6 +27,22 @@ platform_nix_experimental_features() {
   printf '%s\n' "${PLATFORM_NIX_EXPERIMENTAL_FEATURES:-nix-command flakes}"
 }
 
+platform_nix_config() {
+  local features existing
+  features="$(platform_nix_experimental_features)"
+  existing="${NIX_CONFIG:-}"
+
+  if [[ -n "${features}" ]]; then
+    if [[ -n "${existing}" ]]; then
+      printf '%s\nexperimental-features = %s\n' "${existing}" "${features}"
+    else
+      printf 'experimental-features = %s\n' "${features}"
+    fi
+  else
+    printf '%s\n' "${existing}"
+  fi
+}
+
 platform_current_system() {
   if [[ -n "${PLATFORM_CURRENT_SYSTEM:-}" ]]; then
     printf '%s\n' "${PLATFORM_CURRENT_SYSTEM}"
@@ -71,14 +87,19 @@ platform_install_build_on() {
 }
 
 run_platform_nix() {
-  local nix_bin features
+  local nix_bin features nix_config
   nix_bin="$(platform_nix)"
   features="$(platform_nix_experimental_features)"
+  nix_config="$(platform_nix_config)"
 
   if [[ -n "${features}" ]]; then
-    "${nix_bin}" --extra-experimental-features "${features}" "$@"
+    NIX_CONFIG="${nix_config}" "${nix_bin}" --extra-experimental-features "${features}" "$@"
   else
-    "${nix_bin}" "$@"
+    if [[ -n "${nix_config}" ]]; then
+      NIX_CONFIG="${nix_config}" "${nix_bin}" "$@"
+    else
+      "${nix_bin}" "$@"
+    fi
   fi
 }
 

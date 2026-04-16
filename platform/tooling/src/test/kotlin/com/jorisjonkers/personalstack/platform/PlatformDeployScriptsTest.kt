@@ -524,6 +524,58 @@ class PlatformDeployScriptsTest {
             )
     }
 
+    @Test
+    fun `deploy-host exports flake features for nested nix invocations`() {
+        val gradlewStub =
+            tempDir.resolve("gradlew-deploy-nix-config").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                cat <<'EOF'
+                NODE_NAME=frankfurt-contabo-1
+                NODE_STATUS=active
+                NODE_SITE=frankfurt
+                NODE_ARCH=amd64
+                NIX_SYSTEM=x86_64-linux
+                HAS_SSH=true
+                SSH_HOST=167.86.79.203
+                SSH_USER=deploy
+                SSH_PORT=2222
+                EOF
+                """.trimIndent(),
+            )
+        val nixLog = tempDir.resolve("nix-deploy-nix-config.log")
+        val nixConfigLog = tempDir.resolve("nix-config.log")
+        val nixStub =
+            tempDir.resolve("nix-deploy-nix-config-stub").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
+                printf '%s' "${'$'}{NIX_CONFIG:-}" > "${nixConfigLog.toAbsolutePath()}"
+                """.trimIndent(),
+            )
+
+        val result =
+            runScript(
+                repositoryRoot.resolve("platform/scripts/deploy/deploy-host.sh"),
+                listOf("frankfurt-contabo-1"),
+                environment =
+                    mapOf(
+                        "PLATFORM_GRADLEW" to gradlewStub,
+                        "PLATFORM_NIX" to nixStub,
+                        "NIX_CONFIG" to "substituters = https://cache.nixos.org",
+                    ),
+            )
+
+        assertThat(result.exitCode).isEqualTo(0)
+        assertThat(Files.readString(nixConfigLog))
+            .isEqualTo(
+                """
+                substituters = https://cache.nixos.org
+                experimental-features = nix-command flakes
+                """.trimIndent(),
+            )
+    }
+
     private fun runScript(
         script: Path,
         arguments: List<String>,
