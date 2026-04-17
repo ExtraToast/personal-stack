@@ -101,14 +101,12 @@ nodes:
     status: install-ready
     site: enschede
     arch: arm64
+    # Pi nodes come up via the SD-image flow (platform/scripts/build/build-pi-image.sh).
+    # No bootstrap_ssh is needed; once flashed and booted the node already answers on ssh below.
     ssh:
       host: enschede-pi-1
       user: deploy
       port: 2222
-    bootstrap_ssh:
-      host: 192.168.0.131
-      user: deploy
-      port: 22
     target_roles:
       - k3s-worker
     capacity:

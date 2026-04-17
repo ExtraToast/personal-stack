@@ -422,21 +422,20 @@ The next implementation steps should focus on real host bring-up and the first l
 
 For clean machines, the expected sequence is:
 
-1. Create exactly one local deploy key file per host in [platform/nix/authorized-keys/README.md](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/nix/authorized-keys/README.md:1)
-   Use the node name as the filename, for example `platform/nix/authorized-keys/frankfurt-contabo-1.pub`.
-   That host-specific file is what gets baked into post-install `deploy@<host>:2222` access.
-   If the exact key you plan to use is missing there at install time, the new machine will boot successfully but reject your SSH access after the reboot.
+1. Put the fleet deploy public key into [platform/nix/authorized-keys/deploy.pub](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/nix/authorized-keys/README.md:1)
+   A single file with one or more public-key lines authorizes SSH as `deploy` on every host on port 2222. See the README in that directory for the recommended `ssh-keygen` one-liner.
 2. Keep the inventory `ssh` metadata pointed at the desired `NixOS` end state: `deploy@<host>:2222`
-3. For a first install on an existing machine, add `bootstrap_ssh` with whatever admin SSH endpoint the current OS already exposes today
+3. For an x86 host's first install on an existing OS, add `bootstrap_ssh` with whatever admin SSH endpoint the current OS already exposes today
 4. Make sure that `bootstrap_ssh` user has SSH-key access and passwordless `sudo`; you do not need to move the old OS to `deploy@<host>:2222` before install
 5. For VPSes and x86 hosts, run `platform/scripts/install/install-host.sh <node-name>` to install `NixOS` from the flake with `nixos-anywhere`
    If the current machine still needs explicit bootstrap auth, pass it directly at runtime with either
-   `platform/scripts/install/install-host.sh --ssh-key ~/.ssh/ps-t1000 <node-name>`
+   `platform/scripts/install/install-host.sh --ssh-key ~/.ssh/ps-fleet <node-name>`
    or
    `platform/scripts/install/install-host.sh --ssh-password '<bootstrap-password>' <node-name>`
 6. For Raspberry Pi nodes, build a host-specific SD card image instead of using `nixos-anywhere`
    `platform/scripts/build/build-pi-image.sh enschede-pi-1`
-   Flash the resulting `sd-image/*.img.zst`, boot it, and use the inventory `bootstrap_ssh.host` as the first-LAN address until the tailnet join is done.
+   Flash the resulting `sd-image/*.img.zst`, boot it, and reach the node with `ssh -p 2222 -o IdentitiesOnly=yes -i ~/.ssh/ps-fleet deploy@<host>` once first-boot finishes.
+   `install-host.sh` refuses `arm64` by default to avoid the footgun where `nixos-anywhere` targets `/dev/mmcblk0` on a Pi booted from the SD card. Pass `--force-arm64` only when reinstalling onto a real block device (USB-SSD, NVMe) that isn't the booted SD.
 7. Reboot or first-boot into the installed `NixOS` system and verify base host health
 8. Use a one-off `Tailscale` auth key from the admin console and run `platform/scripts/bootstrap/bootstrap-tailnet.sh <node-name>` so the node joins the shared private overlay
 9. For worker nodes, run `platform/scripts/bootstrap/bootstrap-k3s-worker.sh <node-name>` so the join token is copied from the bootstrap control plane onto the new host
