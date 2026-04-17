@@ -35,7 +35,41 @@
     };
   };
 
-  networking.hostName = "frankfurt-contabo-1";
+  networking = {
+    hostName = "frankfurt-contabo-1";
+
+    # Contabo doesn't run DHCP. Their cloud-init cidata ISO ships static v4/v6
+    # config that Debian picks up on first boot. We don't run cloud-init on
+    # NixOS, so bake the values from the cidata file directly.
+    useDHCP = lib.mkForce false;
+    interfaces.ens18 = {
+      useDHCP = false;
+      ipv4.addresses = [
+        {
+          address = "167.86.79.203";
+          prefixLength = 24;
+        }
+      ];
+      ipv6.addresses = [
+        {
+          address = "2a02:c207:2318:0569::1";
+          prefixLength = 64;
+        }
+      ];
+    };
+    defaultGateway = {
+      address = "167.86.79.1";
+      interface = "ens18";
+    };
+    defaultGateway6 = {
+      address = "fe80::1";
+      interface = "ens18";
+    };
+    nameservers = [
+      "213.136.95.10"
+      "213.136.95.11"
+    ];
+  };
   personalStack.k3sNodeLabels = {
     "personal-stack/site" = "frankfurt";
     "personal-stack/node" = "frankfurt-contabo-1";
