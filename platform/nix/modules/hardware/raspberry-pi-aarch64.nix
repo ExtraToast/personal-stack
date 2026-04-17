@@ -10,7 +10,6 @@
   boot.initrd.availableKernelModules = [
     "mmc_block"
     "sdhci_iproc"
-    "mmc_bcm2835"
     "dwc2"
     "pcie_brcmstb"
     "usbhid"
