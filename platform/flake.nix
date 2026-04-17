@@ -70,17 +70,24 @@
           system = "x86_64-linux";
           hostModule = ./nix/hosts/enschede-t1000-1/default.nix;
         };
+        # Pi host modules reference `imageBuild` in their imports list, which
+        # forces the flag through specialArgs — otherwise NixOS resolves module
+        # args lazily through `_module.args` and `nix flake check` loops on
+        # infinite recursion. SD-image builds override to `true` below.
         enschede-pi-1 = mkHost {
           system = "aarch64-linux";
           hostModule = ./nix/hosts/enschede-pi-1/default.nix;
+          extraSpecialArgs = { imageBuild = false; };
         };
         enschede-pi-2 = mkHost {
           system = "aarch64-linux";
           hostModule = ./nix/hosts/enschede-pi-2/default.nix;
+          extraSpecialArgs = { imageBuild = false; };
         };
         enschede-pi-3 = mkHost {
           system = "aarch64-linux";
           hostModule = ./nix/hosts/enschede-pi-3/default.nix;
+          extraSpecialArgs = { imageBuild = false; };
         };
       };
 

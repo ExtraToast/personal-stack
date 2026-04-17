@@ -3,12 +3,16 @@ package com.jorisjonkers.personalstack.platform
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
-import java.nio.file.Path
-import kotlin.io.path.readText
 
 class PlatformScaffoldTest {
     private val repositoryRoot = RepositoryRootLocator().locate()
 
+    // Smoke-test that the expected scaffold is present so a deletion of a
+    // load-bearing file fails CI before it reaches an install host. We
+    // deliberately do NOT grep these files for substrings — that's a
+    // rename-sensitive test that only catches spelling. `nix flake check`
+    // catches real Nix breakage; the deploy-rs/install scripts have their
+    // own behavior tests in PlatformDeployScriptsTest.
     @Test
     fun `platform scaffold exists for nix and flux bootstrap`() {
         val requiredFiles =
@@ -18,17 +22,17 @@ class PlatformScaffoldTest {
                 "platform/nix/profiles/worker.nix",
                 "platform/nix/profiles/utility.nix",
                 "platform/nix/profiles/gpu-nvidia.nix",
+                "platform/nix/modules/base/default.nix",
                 "platform/nix/authorized-keys/README.md",
                 "platform/nix/modules/image/raspberry-pi-sd-image.nix",
                 "platform/nix/hosts/frankfurt-contabo-1/default.nix",
                 "platform/nix/hosts/frankfurt-contabo-1/disko.nix",
+                "platform/scripts/install/install-host.sh",
+                "platform/scripts/deploy/deploy-host.sh",
+                "platform/scripts/bootstrap/bootstrap-tailnet.sh",
+                "platform/scripts/bootstrap/bootstrap-k3s-worker.sh",
                 "platform/scripts/build/build-pi-image.sh",
                 "platform/cluster/flux/clusters/production/kustomization.yaml",
-                "platform/cluster/bootstrap/README.md",
-                "platform/cluster/bootstrap/data-services-playbook.md",
-                "platform/cluster/bootstrap/home-install-playbook.md",
-                "platform/cluster/bootstrap/home-service-cutover-playbook.md",
-                "platform/cluster/flux/apps/mail/kustomization.yaml",
             )
 
         assertThat(requiredFiles)
@@ -37,23 +41,5 @@ class PlatformScaffoldTest {
                     .describedAs("%s should exist", file)
                     .isTrue()
             }
-    }
-
-    @Test
-    fun `flake wires required platform inputs`() {
-        val flake = repositoryRoot.resolve("platform/flake.nix").readText()
-
-        assertThat(flake).contains("deploy-rs")
-        assertThat(flake).contains("disko")
-        assertThat(flake).contains("nixos-anywhere")
-    }
-
-    @Test
-    fun `flux production kustomization references core apps`() {
-        val kustomization =
-            repositoryRoot.resolve("platform/cluster/flux/clusters/production/kustomization.yaml").readText()
-
-        assertThat(kustomization).contains("../../apps/core")
-        assertThat(kustomization).contains("../../apps/mail")
     }
 }

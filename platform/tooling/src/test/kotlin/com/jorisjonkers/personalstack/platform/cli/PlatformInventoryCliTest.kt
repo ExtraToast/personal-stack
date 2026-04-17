@@ -42,6 +42,9 @@ class PlatformInventoryCliTest {
 
     @Test
     fun `show-host-env prints steady state ssh metadata for install ready nodes`() {
+        // Pi install-ready hosts no longer carry bootstrap_ssh (SD-image flow);
+        // enschede-t1000-1 is the remaining x86 install-ready node with both
+        // steady-state ssh and bootstrap_ssh declared in fleet.yaml.
         val stdout = ByteArrayOutputStream()
         val stderr = ByteArrayOutputStream()
 
@@ -50,22 +53,22 @@ class PlatformInventoryCliTest {
                 repositoryRoot = repositoryRoot,
                 stdout = stdout.writer(StandardCharsets.UTF_8),
                 stderr = stderr.writer(StandardCharsets.UTF_8),
-            ).run("show-host-env", "enschede-pi-1")
+            ).run("show-host-env", "enschede-t1000-1")
 
         assertThat(exitCode).isEqualTo(0)
         assertThat(stdout.toString(StandardCharsets.UTF_8))
-            .contains("NODE_NAME=enschede-pi-1")
+            .contains("NODE_NAME=enschede-t1000-1")
             .contains("NODE_STATUS=install-ready")
-            .contains("NIX_SYSTEM=aarch64-linux")
+            .contains("NIX_SYSTEM=x86_64-linux")
             .contains("K3S_BOOTSTRAP_CONTROL_PLANE_NODE=frankfurt-contabo-1")
             .contains("K3S_API_SERVER_ENDPOINT=https://167.86.79.203:6443")
             .contains("HAS_BOOTSTRAP_SSH=true")
             .contains("HAS_SSH=true")
-            .contains("SSH_HOST=enschede-pi-1")
+            .contains("SSH_HOST=enschede-t1000-1")
             .contains("SSH_USER=deploy")
             .contains("SSH_PORT=2222")
-            .contains("BOOTSTRAP_SSH_HOST=192.168.0.131")
-            .contains("BOOTSTRAP_SSH_USER=deploy")
+            .contains("BOOTSTRAP_SSH_HOST=192.168.0.100")
+            .contains("BOOTSTRAP_SSH_USER=extratoat")
             .contains("BOOTSTRAP_SSH_PORT=22")
         assertThat(stderr.toString(StandardCharsets.UTF_8)).isBlank()
     }
@@ -80,19 +83,19 @@ class PlatformInventoryCliTest {
                 repositoryRoot = repositoryRoot,
                 stdout = stdout.writer(StandardCharsets.UTF_8),
                 stderr = stderr.writer(StandardCharsets.UTF_8),
-            ).run("show-install-host-env", "enschede-pi-1")
+            ).run("show-install-host-env", "enschede-t1000-1")
 
         assertThat(exitCode).isEqualTo(0)
         assertThat(stdout.toString(StandardCharsets.UTF_8))
-            .contains("NODE_NAME=enschede-pi-1")
+            .contains("NODE_NAME=enschede-t1000-1")
             .contains("NODE_STATUS=install-ready")
             .contains("K3S_BOOTSTRAP_CONTROL_PLANE_NODE=frankfurt-contabo-1")
             .contains("HAS_BOOTSTRAP_SSH=true")
             .contains("HAS_SSH=true")
-            .contains("SSH_HOST=192.168.0.131")
-            .contains("SSH_USER=deploy")
+            .contains("SSH_HOST=192.168.0.100")
+            .contains("SSH_USER=extratoat")
             .contains("SSH_PORT=22")
-            .contains("BOOTSTRAP_SSH_HOST=192.168.0.131")
+            .contains("BOOTSTRAP_SSH_HOST=192.168.0.100")
         assertThat(stderr.toString(StandardCharsets.UTF_8)).isBlank()
     }
 
