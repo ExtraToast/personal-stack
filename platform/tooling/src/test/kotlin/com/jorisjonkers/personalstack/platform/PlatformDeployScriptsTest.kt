@@ -16,11 +16,10 @@ class PlatformDeployScriptsTest {
     private fun authorizedKeysDir(): Path =
         tempDir.resolve("authorized-keys").also { Files.createDirectories(it) }
 
-    private fun writeAuthorizedKey(
-        nodeName: String,
-        publicKey: String = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey ${nodeName}",
+    private fun writeDeployAuthorizedKey(
+        publicKey: String = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey fleet-deploy",
     ): String {
-        val keyFile = authorizedKeysDir().resolve("${nodeName}.pub")
+        val keyFile = authorizedKeysDir().resolve("deploy.pub")
         Files.writeString(keyFile, "${publicKey}\n")
         return publicKey
     }
@@ -52,7 +51,7 @@ class PlatformDeployScriptsTest {
                 printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
                 """.trimIndent(),
             )
-        writeAuthorizedKey("frankfurt-contabo-1")
+        writeDeployAuthorizedKey()
 
         val result =
             runScript(
@@ -110,7 +109,7 @@ class PlatformDeployScriptsTest {
                 printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
                 """.trimIndent(),
             )
-        writeAuthorizedKey("enschede-t1000-1")
+        writeDeployAuthorizedKey()
 
         val result =
             runScript(
@@ -168,13 +167,9 @@ class PlatformDeployScriptsTest {
                 printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
                 """.trimIndent(),
             )
-        writeAuthorizedKey("enschede-t1000-1", "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey install-test")
+        writeDeployAuthorizedKey()
         val sshKey = tempDir.resolve("ps-t1000")
         Files.writeString(sshKey, "private-key")
-        Files.writeString(
-            tempDir.resolve("ps-t1000.pub"),
-            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey install-test",
-        )
 
         val result =
             runScript(
@@ -208,59 +203,6 @@ class PlatformDeployScriptsTest {
     }
 
     @Test
-    fun `install-host rejects ssh identity files that are not authorized post install`() {
-        val gradlewStub =
-            tempDir.resolve("gradlew-ssh-key-mismatch").writeExecutable(
-                """
-                #!/usr/bin/env bash
-                cat <<'EOF'
-                NODE_NAME=frankfurt-contabo-1
-                NODE_STATUS=active
-                NODE_SITE=frankfurt
-                NODE_ARCH=amd64
-                NIX_SYSTEM=x86_64-linux
-                HAS_SSH=true
-                SSH_HOST=167.86.79.203
-                SSH_USER=deploy
-                SSH_PORT=2222
-                EOF
-                """.trimIndent(),
-            )
-        val nixStub =
-            tempDir.resolve("nix-ssh-key-mismatch-stub").writeExecutable(
-                """
-                #!/usr/bin/env bash
-                echo should-not-run >&2
-                exit 99
-                """.trimIndent(),
-            )
-        writeAuthorizedKey("frankfurt-contabo-1", "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBakedInKey baked-in")
-        val sshKey = tempDir.resolve("ps-vps-1")
-        Files.writeString(sshKey, "private-key")
-        Files.writeString(
-            tempDir.resolve("ps-vps-1.pub"),
-            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMissingKey missing",
-        )
-
-        val result =
-            runScript(
-                repositoryRoot.resolve("platform/scripts/install/install-host.sh"),
-                listOf("--ssh-key", sshKey.toAbsolutePath().toString(), "frankfurt-contabo-1"),
-                environment =
-                    mapOf(
-                        "PLATFORM_GRADLEW" to gradlewStub,
-                        "PLATFORM_NIX" to nixStub,
-                        "PLATFORM_AUTHORIZED_KEYS_DIR" to authorizedKeysDir().toAbsolutePath().toString(),
-                    ),
-            )
-
-        assertThat(result.exitCode).isEqualTo(1)
-        assertThat(result.stderr)
-            .contains("does not match")
-            .contains("would reject that key after the first reboot")
-    }
-
-    @Test
     fun `install-host forwards an explicit ssh password to nixos-anywhere`() {
         val gradlewStub =
             tempDir.resolve("gradlew-password").writeExecutable(
@@ -289,7 +231,7 @@ class PlatformDeployScriptsTest {
                 printf '%s' "${'$'}{SSHPASS:-}" > "${sshPassLog.toAbsolutePath()}"
                 """.trimIndent(),
             )
-        writeAuthorizedKey("enschede-t1000-1")
+        writeDeployAuthorizedKey()
 
         val result =
             runScript(
@@ -320,6 +262,112 @@ class PlatformDeployScriptsTest {
                 "--env-password",
             )
         assertThat(Files.readString(sshPassLog)).isEqualTo("bootstrap-secret")
+    }
+
+    @Test
+    fun `install-host refuses arm64 nodes without --force-arm64`() {
+        val gradlewStub =
+            tempDir.resolve("gradlew-arm64-default").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                cat <<'EOF'
+                NODE_NAME=enschede-pi-1
+                NODE_STATUS=install-ready
+                NODE_SITE=enschede
+                NODE_ARCH=arm64
+                NIX_SYSTEM=aarch64-linux
+                HAS_SSH=true
+                SSH_HOST=enschede-pi-1
+                SSH_USER=deploy
+                SSH_PORT=2222
+                EOF
+                """.trimIndent(),
+            )
+        val nixLog = tempDir.resolve("nix-arm64-default.log")
+        val nixStub =
+            tempDir.resolve("nix-arm64-default-stub").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
+                """.trimIndent(),
+            )
+        writeDeployAuthorizedKey()
+
+        val result =
+            runScript(
+                repositoryRoot.resolve("platform/scripts/install/install-host.sh"),
+                listOf("enschede-pi-1"),
+                environment =
+                    mapOf(
+                        "PLATFORM_GRADLEW" to gradlewStub,
+                        "PLATFORM_NIX" to nixStub,
+                        "PLATFORM_AUTHORIZED_KEYS_DIR" to authorizedKeysDir().toAbsolutePath().toString(),
+                    ),
+            )
+
+        assertThat(result.exitCode).isEqualTo(1)
+        assertThat(result.stderr)
+            .contains("build-pi-image.sh enschede-pi-1")
+            .contains("--force-arm64")
+        assertThat(Files.exists(nixLog)).isFalse()
+    }
+
+    @Test
+    fun `install-host proceeds on arm64 when --force-arm64 is set`() {
+        val gradlewStub =
+            tempDir.resolve("gradlew-arm64-force").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                cat <<'EOF'
+                NODE_NAME=enschede-pi-1
+                NODE_STATUS=install-ready
+                NODE_SITE=enschede
+                NODE_ARCH=arm64
+                NIX_SYSTEM=aarch64-linux
+                HAS_SSH=true
+                SSH_HOST=enschede-pi-1
+                SSH_USER=deploy
+                SSH_PORT=2222
+                EOF
+                """.trimIndent(),
+            )
+        val nixLog = tempDir.resolve("nix-arm64-force.log")
+        val nixStub =
+            tempDir.resolve("nix-arm64-force-stub").writeExecutable(
+                """
+                #!/usr/bin/env bash
+                printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
+                """.trimIndent(),
+            )
+        writeDeployAuthorizedKey()
+
+        val result =
+            runScript(
+                repositoryRoot.resolve("platform/scripts/install/install-host.sh"),
+                listOf("--force-arm64", "enschede-pi-1"),
+                environment =
+                    mapOf(
+                        "PLATFORM_GRADLEW" to gradlewStub,
+                        "PLATFORM_NIX" to nixStub,
+                        "PLATFORM_AUTHORIZED_KEYS_DIR" to authorizedKeysDir().toAbsolutePath().toString(),
+                    ),
+            )
+
+        assertThat(result.exitCode).isEqualTo(0)
+        assertThat(Files.readAllLines(nixLog))
+            .containsExactly(
+                "--extra-experimental-features",
+                "nix-command flakes",
+                "run",
+                "${platformFlakeRef}#nixos-anywhere",
+                "--",
+                "--flake",
+                "${platformFlakeRef}#enschede-pi-1",
+                "--target-host",
+                "deploy@enschede-pi-1",
+                "--ssh-port",
+                "2222",
+            )
     }
 
     @Test
@@ -355,12 +403,12 @@ class PlatformDeployScriptsTest {
                 printf '%s' "${'$'}{SSHPASS:-}" > "${sshPassLog.toAbsolutePath()}"
                 """.trimIndent(),
             )
-        writeAuthorizedKey("enschede-pi-1")
+        writeDeployAuthorizedKey()
 
         val result =
             runScript(
                 repositoryRoot.resolve("platform/scripts/install/install-host.sh"),
-                listOf("--ssh-password", "nixos-installer", "enschede-pi-1"),
+                listOf("--ssh-password", "nixos-installer", "--force-arm64", "enschede-pi-1"),
                 environment =
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
@@ -418,7 +466,7 @@ class PlatformDeployScriptsTest {
                 printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
                 """.trimIndent(),
             )
-        writeAuthorizedKey("enschede-t1000-1")
+        writeDeployAuthorizedKey()
 
         val result =
             runScript(
@@ -484,7 +532,7 @@ class PlatformDeployScriptsTest {
         val result =
             runScript(
                 repositoryRoot.resolve("platform/scripts/install/install-host.sh"),
-                listOf("enschede-pi-1"),
+                listOf("--force-arm64", "enschede-pi-1"),
                 environment =
                     mapOf(
                         "PLATFORM_GRADLEW" to gradlewStub,
@@ -498,7 +546,7 @@ class PlatformDeployScriptsTest {
     }
 
     @Test
-    fun `install-host rejects missing authorized keys file for key only hosts`() {
+    fun `install-host rejects missing deploy authorized keys file`() {
         val gradlewStub =
             tempDir.resolve("gradlew-missing-authorized-keys").writeExecutable(
                 """
@@ -538,7 +586,7 @@ class PlatformDeployScriptsTest {
             )
 
         assertThat(result.exitCode).isEqualTo(1)
-        assertThat(result.stderr).contains("Create platform/nix/authorized-keys/enschede-t1000-1.pub")
+        assertThat(result.stderr).contains("platform/nix/authorized-keys/deploy.pub")
         assertThat(Files.exists(nixLog)).isFalse()
     }
 
@@ -571,7 +619,7 @@ class PlatformDeployScriptsTest {
                 printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
                 """.trimIndent(),
             )
-        writeAuthorizedKey("frankfurt-contabo-1")
+        writeDeployAuthorizedKey()
 
         val result =
             runScript(
@@ -629,7 +677,7 @@ class PlatformDeployScriptsTest {
                 printf '%s\n' "$@" > "${nixLog.toAbsolutePath()}"
                 """.trimIndent(),
             )
-        writeAuthorizedKey("enschede-t1000-1")
+        writeDeployAuthorizedKey()
 
         val result =
             runScript(
@@ -692,7 +740,7 @@ class PlatformDeployScriptsTest {
                 printf '%s' "${'$'}{NIX_CONFIG:-}" > "${nixConfigLog.toAbsolutePath()}"
                 """.trimIndent(),
             )
-        writeAuthorizedKey("frankfurt-contabo-1")
+        writeDeployAuthorizedKey()
 
         val result =
             runScript(
@@ -718,7 +766,7 @@ class PlatformDeployScriptsTest {
     }
 
     @Test
-    fun `deploy-host rejects missing per-node authorized key files`() {
+    fun `deploy-host rejects missing deploy authorized keys file`() {
         val gradlewStub =
             tempDir.resolve("gradlew-deploy-missing-key").writeExecutable(
                 """
@@ -760,7 +808,7 @@ class PlatformDeployScriptsTest {
             )
 
         assertThat(result.exitCode).isEqualTo(1)
-        assertThat(result.stderr).contains("Create platform/nix/authorized-keys/frankfurt-contabo-1.pub")
+        assertThat(result.stderr).contains("platform/nix/authorized-keys/deploy.pub")
         assertThat(Files.exists(nixLog)).isFalse()
     }
 

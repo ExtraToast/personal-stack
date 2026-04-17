@@ -19,8 +19,8 @@ class PlatformBaseModuleTest {
             .contains("PermitRootLogin = \"no\"")
             .contains("PubkeyAuthentication = true")
             .contains("authorizedKeysDir = ../../authorized-keys")
-            .contains("hostAuthorizedKeyPath = authorizedKeysDir + \"/\${config.networking.hostName}.pub\"")
-            .contains("openssh.authorizedKeys.keys = lib.optional (hostAuthorizedKey != null) hostAuthorizedKey")
+            .contains("deployAuthorizedKeysPath = authorizedKeysDir + \"/deploy.pub\"")
+            .contains("openssh.authorizedKeys.keys = deployAuthorizedKeys")
             .doesNotContain("users.users.root.openssh.authorizedKeys.keys")
     }
 }
