@@ -1,5 +1,8 @@
 { ... }:
 {
+  # Contabo's SeaBIOS does BIOS/legacy boot only. GPT with a tiny bios_grub
+  # partition at the front is the BIOS-friendly layout disko supports in the
+  # pinned nixpkgs (the msdos content type is not available).
   disko.devices = {
     disk.main = {
       type = "disk";
@@ -7,8 +10,7 @@
       content = {
         type = "gpt";
         partitions = {
-          # GRUB on GPT needs a tiny BIOS boot partition to stage its core.
-          # Must be first so BIOS firmware can chain from the PMBR.
+          # 1 MiB bios_grub for GRUB core.img on GPT+BIOS.
           bios = {
             size = "1M";
             type = "EF02";
