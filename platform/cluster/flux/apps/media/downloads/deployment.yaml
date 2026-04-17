@@ -1,0 +1,191 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: downloads
+  namespace: media-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: downloads
+  namespace: media-system
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: downloads
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: downloads
+      annotations:
+        vault.hashicorp.com/agent-inject: 'true'
+        vault.hashicorp.com/agent-inject-token: 'true'
+        vault.hashicorp.com/agent-pre-populate-only: 'true'
+        vault.hashicorp.com/role: downloads
+        vault.hashicorp.com/agent-inject-secret-gluetun.env: secret/data/platform/media
+        vault.hashicorp.com/agent-inject-template-gluetun.env: |
+          VPN_SERVICE_PROVIDER=private internet access
+          VPN_TYPE=openvpn
+          OPENVPN_USER={{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.username" }}{{ end }}
+          OPENVPN_PASSWORD={{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.password" }}{{ end }}
+          SERVER_REGIONS={{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.server_regions" }}{{ end }}
+          FIREWALL_OUTBOUND_SUBNETS=100.64.0.0/10,192.168.0.0/16,172.16.0.0/12
+          FIREWALL_INPUT_PORTS=8080,9696
+    spec:
+      serviceAccountName: downloads
+      nodeSelector:
+        personal-stack/site: enschede
+        personal-stack/role-utility-host: 'true'
+        personal-stack/capability-samba: 'true'
+      initContainers:
+        - name: tailscale-local-route
+          image: busybox:1.37
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -ec
+            - |
+              gw="$(ip route | awk '$1 == "default" && $5 == "eth0" { print $3; exit }')"
+              test -n "$gw"
+              ip route replace 100.64.0.0/10 via "$gw" dev eth0
+              ip route | grep '^100\.64\.0\.0/10 '
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+      containers:
+        - name: gluetun
+          image: qmcgaw/gluetun:v3.40
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              set -a
+              . /vault/secrets/gluetun.env
+              set +a
+              export TZ=Europe/Amsterdam
+              export UPDATER_PERIOD=24h
+              export HEALTH_VPN_DURATION_INITIAL=30s
+              export FIREWALL_VPN_INPUT_PORTS=8080,9696
+              exec /gluetun-entrypoint
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+                - NET_RAW
+          resources:
+            requests:
+              cpu: 400m
+              memory: 256Mi
+            limits:
+              cpu: 800m
+              memory: 512Mi
+        - name: qbittorrent
+          image: linuxserver/qbittorrent:5.0.4
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PUID
+              value: '1000'
+            - name: PGID
+              value: '1000'
+            - name: TZ
+              value: Europe/Amsterdam
+            - name: WEBUI_PORT
+              value: '8080'
+          ports:
+            - containerPort: 8080
+              name: qbittorrent-http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: qbittorrent-http
+          livenessProbe:
+            httpGet:
+              path: /
+              port: qbittorrent-http
+          volumeMounts:
+            - name: media-library
+              mountPath: /media
+            - name: qbittorrent-config
+              mountPath: /config
+          resources:
+            requests:
+              cpu: 500m
+              memory: 768Mi
+            limits:
+              cpu: 1500m
+              memory: 1536Mi
+        - name: prowlarr
+          image: linuxserver/prowlarr:1.32.2
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PUID
+              value: '1000'
+            - name: PGID
+              value: '1000'
+            - name: TZ
+              value: Europe/Amsterdam
+          ports:
+            - containerPort: 9696
+              name: prowlarr-http
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: prowlarr-http
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: prowlarr-http
+          volumeMounts:
+            - name: prowlarr-config
+              mountPath: /config
+          resources:
+            requests:
+              cpu: 250m
+              memory: 384Mi
+            limits:
+              cpu: 500m
+              memory: 768Mi
+      volumes:
+        - name: media-library
+          hostPath:
+            path: /srv/media
+            type: Directory
+        - name: qbittorrent-config
+          hostPath:
+            path: /var/lib/personal-stack/media/qbittorrent
+            type: DirectoryOrCreate
+        - name: prowlarr-config
+          hostPath:
+            path: /var/lib/personal-stack/media/prowlarr
+            type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent
+  namespace: media-system
+spec:
+  selector:
+    app.kubernetes.io/name: downloads
+  ports:
+    - name: http
+      port: 8080
+      targetPort: qbittorrent-http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prowlarr
+  namespace: media-system
+spec:
+  selector:
+    app.kubernetes.io/name: downloads
+  ports:
+    - name: http
+      port: 9696
+      targetPort: prowlarr-http

@@ -1,0 +1,50 @@
+{ config, lib, ... }:
+let
+  cfg = config.personalStack.k3sBootstrap;
+  tokenDirectory = builtins.dirOf cfg.workerJoinTokenFile;
+  isK3sAgent = config.services.k3s.enable && config.services.k3s.role == "agent";
+  isK3sServer = config.services.k3s.enable && config.services.k3s.role == "server";
+in
+{
+  options.personalStack.k3sBootstrap = {
+    apiServerEndpoint = lib.mkOption {
+      type = lib.types.str;
+      default = "";
+      description = "Bootstrap k3s API server endpoint used by worker nodes during cluster join.";
+    };
+
+    workerJoinTokenFile = lib.mkOption {
+      type = lib.types.str;
+      default = "/var/lib/personal-stack/secrets/k3s/agent-token";
+      description = "Runtime path of the worker join token copied onto k3s agent nodes.";
+    };
+  };
+
+  config = lib.mkIf config.services.k3s.enable {
+    assertions = lib.optionals isK3sAgent [
+      {
+        assertion = cfg.apiServerEndpoint != "";
+        message = "k3s agent nodes require personalStack.k3sBootstrap.apiServerEndpoint";
+      }
+      {
+        assertion = cfg.workerJoinTokenFile != "";
+        message = "k3s agent nodes require personalStack.k3sBootstrap.workerJoinTokenFile";
+      }
+    ];
+
+    networking.firewall.allowedTCPPorts =
+      [ 10250 ]
+      ++ lib.optionals isK3sServer [ 6443 ];
+    networking.firewall.allowedUDPPorts = [ 8472 ];
+
+    systemd.tmpfiles.rules = [
+      "d ${tokenDirectory} 0700 root root - -"
+    ];
+
+    services.k3s =
+      lib.mkIf isK3sAgent {
+        serverAddr = lib.mkDefault cfg.apiServerEndpoint;
+        extraFlags = lib.mkAfter [ "--token-file=${cfg.workerJoinTokenFile}" ];
+      };
+  };
+}

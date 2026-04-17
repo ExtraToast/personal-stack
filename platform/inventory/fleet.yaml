@@ -1,0 +1,369 @@
+version: 1
+
+cluster:
+  name: personal-stack
+  public_domain: jorisjonkers.dev
+  kubernetes:
+    bootstrap_control_plane: frankfurt-contabo-1
+    # Bootstrap with the public endpoint first, then switch this to the
+    # Frankfurt control-plane Tailscale or MagicDNS address once the tailnet is
+    # the primary inter-node network.
+    api_server_endpoint: https://167.86.79.203:6443
+    control_plane_token_file: /var/lib/rancher/k3s/server/node-token
+    worker_join_token_file: /var/lib/personal-stack/secrets/k3s/agent-token
+
+sites:
+  frankfurt:
+    kind: vps
+    purpose: primary_cluster_site
+  enschede:
+    kind: home
+    purpose: home_lan_and_media_site
+    networking:
+      lan_ingress_ip: 192.168.1.240
+
+nodes:
+  frankfurt-contabo-1:
+    status: active
+    site: frankfurt
+    arch: amd64
+    ssh:
+      host: 167.86.79.203
+      user: deploy
+      port: 2222
+    target_roles:
+      - k3s-control-plane
+      - k3s-worker
+    capacity:
+      cpu_millicores: 16000
+      memory_mib: 32768
+    capabilities:
+      - tailscale
+      - public-ingress
+
+  enschede-gtx-960m-1:
+    status: active
+    site: enschede
+    arch: amd64
+    ssh:
+      host: enschede-gtx-960m-1
+      user: deploy
+      port: 2222
+    target_roles:
+      - k3s-worker
+      - utility-host
+    capacity:
+      cpu_millicores: 28800
+      memory_mib: 16384
+    gpus:
+      - vendor: nvidia
+        model: gtx960m
+        class: transcode
+    capabilities:
+      - tailscale
+      - lan-ingress
+      - samba
+      - adguard
+      - nvidia
+
+  enschede-t1000-1:
+    status: install-ready
+    site: enschede
+    arch: amd64
+    # `ssh` is the intended post-install NixOS endpoint.
+    # Add `bootstrap_ssh` with the current OS access path before first install.
+    ssh:
+      host: enschede-t1000-1
+      user: deploy
+      port: 2222
+    bootstrap_ssh:
+      host: 192.168.0.100
+      user: extratoat
+      port: 22
+    target_roles:
+      - k3s-worker
+      - utility-host
+    capacity:
+      cpu_millicores: 54000
+      memory_mib: 32000
+    gpus:
+      - vendor: nvidia
+        model: t1000
+        class: transcode
+    capabilities:
+      - tailscale
+      - lan-ingress
+      - samba
+      - adguard
+      - nvidia
+
+  enschede-pi-1:
+    status: install-ready
+    site: enschede
+    arch: arm64
+    # Pi nodes come up via the SD-image flow (platform/scripts/build/build-pi-image.sh).
+    # No bootstrap_ssh is needed; once flashed and booted the node already answers on ssh below.
+    ssh:
+      host: enschede-pi-1
+      user: deploy
+      port: 2222
+    target_roles:
+      - k3s-worker
+    capacity:
+      cpu_millicores: 6000
+      memory_mib: 8192
+    capabilities:
+      - tailscale
+
+  enschede-pi-2:
+    status: install-ready
+    site: enschede
+    arch: arm64
+    ssh:
+      host: enschede-pi-2
+      user: deploy
+      port: 2222
+    target_roles:
+      - k3s-worker
+    capacity:
+      cpu_millicores: 6000
+      memory_mib: 4096
+    capabilities:
+      - tailscale
+
+  enschede-pi-3:
+    status: install-ready
+    site: enschede
+    arch: arm64
+    ssh:
+      host: enschede-pi-3
+      user: deploy
+      port: 2222
+    target_roles:
+      - k3s-worker
+    capacity:
+      cpu_millicores: 6000
+      memory_mib: 4096
+    capabilities:
+      - tailscale
+
+service_intent:
+  kubernetes:
+    public_apps:
+      - app-ui
+      - auth-ui
+      - auth-api
+      - assistant-ui
+      - assistant-api
+      - stalwart
+      - n8n
+      - uptime-kuma
+      - grafana
+    internal_platform:
+      - postgres
+      - rabbitmq
+      - valkey
+      - prometheus
+      - loki
+      - tempo
+      - alloy
+      - flaresolverr
+      - vault
+    home_media:
+      - downloads
+      - qbittorrent
+      - prowlarr
+      - radarr
+      - sonarr
+      - jellyfin
+      - jellyseerr
+      - bazarr
+      - wireguard-check
+
+  host_native:
+    enschede-gtx-960m-1:
+      - adguard
+      - samba
+      - tailscale
+
+placement_intent:
+  frankfurt_only:
+    - app-ui
+    - auth-ui
+    - auth-api
+    - assistant-ui
+    - assistant-api
+    - stalwart
+    - postgres
+    - rabbitmq
+    - valkey
+    - grafana
+    - prometheus
+    - loki
+    - tempo
+    - alloy
+    - flaresolverr
+    - n8n
+    - uptime-kuma
+    - vault
+
+  enschede_only:
+    - downloads
+    - qbittorrent
+    - prowlarr
+    - radarr
+    - sonarr
+    - jellyfin
+    - jellyseerr
+    - bazarr
+    - wireguard-check
+    - adguard
+    - samba
+
+  gpu_specific:
+    jellyfin:
+      preferred_gpu_model: t1000
+      temporary_gpu_model: gtx960m
+
+exposure_intent:
+  public:
+    - app-ui
+    - auth-ui
+    - auth-api
+    - assistant-ui
+    - assistant-api
+    - stalwart
+    - grafana
+    - n8n
+    - uptime-kuma
+    - rabbitmq
+    - vault
+
+  public_and_lan:
+    - bazarr
+    - jellyfin
+    - jellyseerr
+    - prowlarr
+    - qbittorrent
+    - radarr
+    - sonarr
+
+  internal_only:
+    - postgres
+    - valkey
+    - prometheus
+    - loki
+    - tempo
+    - alloy
+    - flaresolverr
+    - wireguard-check
+
+  lan_only:
+    - adguard
+    - samba
+
+access_intent:
+  sso_protected:
+    - assistant-api
+    - stalwart
+    - bazarr
+    - prowlarr
+    - qbittorrent
+    - rabbitmq
+    - vault
+  host_labels:
+    app-ui: root
+    auth-ui: auth
+    auth-api: auth
+    assistant-ui: assistant
+    assistant-api: assistant
+    stalwart: stalwart
+    grafana: grafana
+    n8n: n8n
+    uptime-kuma: status
+    rabbitmq: rabbitmq
+    vault: vault
+    bazarr: bazarr
+    jellyfin: jellyfin
+    jellyseerr: jellyseerr
+    prowlarr: prowlarr
+    qbittorrent: qbittorrent
+    radarr: radarr
+    sonarr: sonarr
+    adguard: adguard
+    samba: samba
+
+ingress_intent:
+  kubernetes_backends:
+    app-ui:
+      namespace: app-system
+      service: app-ui
+      port: 80
+    auth-api:
+      namespace: auth-system
+      service: auth-api
+      port: 8081
+    auth-ui:
+      namespace: auth-system
+      service: auth-ui
+      port: 80
+    assistant-api:
+      namespace: assistant-system
+      service: assistant-api
+      port: 8082
+    assistant-ui:
+      namespace: assistant-system
+      service: assistant-ui
+      port: 80
+    stalwart:
+      namespace: mail-system
+      service: stalwart
+      port: 8080
+    grafana:
+      namespace: observability
+      service: grafana
+      port: 3000
+    bazarr:
+      namespace: media-system
+      service: bazarr
+      port: 6767
+    jellyfin:
+      namespace: media-system
+      service: jellyfin
+      port: 8096
+    jellyseerr:
+      namespace: media-system
+      service: jellyseerr
+      port: 5055
+    n8n:
+      namespace: automation-system
+      service: n8n
+      port: 5678
+    prowlarr:
+      namespace: media-system
+      service: prowlarr
+      port: 9696
+    qbittorrent:
+      namespace: media-system
+      service: qbittorrent
+      port: 8080
+    rabbitmq:
+      namespace: data-system
+      service: rabbitmq
+      port: 15672
+    radarr:
+      namespace: media-system
+      service: radarr
+      port: 7878
+    sonarr:
+      namespace: media-system
+      service: sonarr
+      port: 8989
+    uptime-kuma:
+      namespace: observability
+      service: uptime-kuma
+      port: 3001
+    vault:
+      namespace: data-system
+      service: vault
+      port: 8200
