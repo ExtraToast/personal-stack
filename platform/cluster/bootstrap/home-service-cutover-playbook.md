@@ -30,9 +30,9 @@ Plan the move explicitly.
    Preferred path:
    Move the existing disk physically to the T1000 so the actual media files do not need a full LAN copy.
 3. Verify the disk identity before install.
-   The current host definition expects [disko.nix](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/nix/hosts/enschede-t1000-1/disko.nix:1) to mount `/dev/disk/by-label/media` at `/srv/media`.
+   The current host definition expects [disko.nix](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/nix/hosts/enschede-t1000-1/disko.nix:1) to mount `/dev/disk/by-label/DataBeast` at `/srv/media`.
    The current home media hosts assume `ntfs3` with compatibility mount options matching the existing home-node setup.
-   If the current disk is not labeled `media`, patch the host definition to use the real UUID or relabel the filesystem before the cutover.
+   If the current disk is not labeled `DataBeast`, patch the host definition to use the real UUID or relabel the filesystem before the cutover (`sudo ntfslabel /dev/sdX DataBeast`).
 4. Export or snapshot the old media config directories before you stop anything:
    `sudo rsync -a /srv/nomad/qbittorrent/ /tmp/home-cutover/qbittorrent/`
    `sudo rsync -a /srv/nomad/prowlarr/ /tmp/home-cutover/prowlarr/`

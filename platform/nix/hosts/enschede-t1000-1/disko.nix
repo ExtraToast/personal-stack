@@ -30,7 +30,10 @@
   };
 
   fileSystems."/srv/media" = {
-    device = "/dev/disk/by-label/media";
+    # The 6 TB NTFS drive ships from the old home node labeled "DataBeast".
+    # If you relabel it (sudo ntfslabel /dev/sdX <new>) make sure to update
+    # this line to match.
+    device = "/dev/disk/by-label/DataBeast";
     fsType = "ntfs3";
     options = [
       "defaults"
