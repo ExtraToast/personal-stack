@@ -49,11 +49,17 @@ control_plane_ssh=(
 )
 
 if [[ -n "${ssh_identity_file}" ]]; then
+  # IdentitiesOnly=yes stops ssh-agent from offering other loaded keys first
+  # and tripping the remote sshd's MaxAuthTries limit.
   worker_ssh+=(
+    -o
+    IdentitiesOnly=yes
     -i
     "${ssh_identity_file}"
   )
   control_plane_ssh+=(
+    -o
+    IdentitiesOnly=yes
     -i
     "${ssh_identity_file}"
   )

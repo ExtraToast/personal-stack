@@ -27,7 +27,11 @@ ssh_args=(
 )
 
 if [[ -n "$(platform_ssh_identity_file)" ]]; then
+  # Pair -i with IdentitiesOnly=yes so ssh-agent doesn't offer every loaded
+  # key first and trip the remote sshd's MaxAuthTries limit.
   ssh_args+=(
+    -o
+    IdentitiesOnly=yes
     -i
     "$(platform_ssh_identity_file)"
   )
