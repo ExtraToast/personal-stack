@@ -50,10 +50,15 @@ printf '%s\n' "${TS_AUTH_KEY}" |
   "${ssh_args[@]}" "${ssh_target}" '
     read -r TS_AUTH_KEY
     sudo systemctl enable --now tailscaled >/dev/null
+    # accept-dns=false: otherwise MagicDNS overwrites /etc/resolv.conf with
+    # 100.100.100.100 only, which k3s then passes to pods — and the pod
+    # subnet cannot reach the Tailscale kernel resolver, so every pod DNS
+    # lookup times out. We keep tailnet hostnames resolvable on the host
+    # via `tailscale status` / explicit `100.64.*.*` use instead.
     sudo env TS_AUTH_KEY="${TS_AUTH_KEY}" tailscale up \
       --auth-key="${TS_AUTH_KEY}" \
       --hostname="'"${NODE_NAME}"'" \
-      --accept-dns=true
+      --accept-dns=false
   '
 
 "${ssh_args[@]}" "${ssh_target}" "tailscale status"
