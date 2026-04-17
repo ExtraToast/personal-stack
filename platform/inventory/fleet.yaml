@@ -103,8 +103,9 @@ nodes:
     arch: arm64
     # Pi nodes come up via the SD-image flow (platform/scripts/build/build-pi-image.sh).
     # No bootstrap_ssh is needed; once flashed and booted the node already answers on ssh below.
+    # Pinned to the DHCP-assigned LAN IP until Tailscale MagicDNS is on and pi-1 publishes a stable name.
     ssh:
-      host: enschede-pi-1
+      host: 192.168.0.131
       user: deploy
       port: 2222
     target_roles:
