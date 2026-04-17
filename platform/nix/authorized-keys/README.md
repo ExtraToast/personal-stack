@@ -1,20 +1,20 @@
 # Deploy SSH Keys
 
-Create one local public key file per node in this directory.
+Put the fleet deploy public key(s) in `deploy.pub`.
 
-Naming rule:
+Path: `platform/nix/authorized-keys/deploy.pub`
 
-- `<node-name>.pub`
+- Any non-empty, non-comment line is treated as an authorized key for the `deploy` user on every host.
+- A single key is the default; multiple lines are supported for key rotation.
+- The NixOS base module fails the build if this file is missing or empty.
 
-Examples:
+Example:
 
-- `platform/nix/authorized-keys/frankfurt-contabo-1.pub`
-- `platform/nix/authorized-keys/enschede-gtx-960m-1.pub`
-- `platform/nix/authorized-keys/enschede-t1000-1.pub`
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/ps-fleet -C ps-fleet
+cp ~/.ssh/ps-fleet.pub platform/nix/authorized-keys/deploy.pub
+```
 
-Each file must contain exactly one SSH public key line.
+After editing, rebuild and redeploy each host (or rebuild and reflash the SD image for Pi nodes) for the new key to take effect.
 
-The NixOS base module reads the file that matches `networking.hostName` and
-assigns only that key to `users.users.deploy.openssh.authorizedKeys.keys`.
-
-These `.pub` files are gitignored on purpose.
+`deploy.pub` is gitignored on purpose.

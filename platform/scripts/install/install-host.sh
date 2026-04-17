@@ -6,13 +6,14 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${script_dir}/../lib/host-env.sh"
 
 usage() {
-  echo "Usage: $(basename "$0") [--ssh-key <identity-file> | --ssh-password <password>] <node-name>" >&2
+  echo "Usage: $(basename "$0") [--ssh-key <identity-file> | --ssh-password <password>] [--force-arm64] <node-name>" >&2
   echo "Optional env overrides: PLATFORM_INSTALL_SSH_HOST PLATFORM_INSTALL_SSH_USER [PLATFORM_INSTALL_SSH_PORT]" >&2
   exit 1
 }
 
 INSTALL_SSH_KEY=""
 INSTALL_SSH_PASSWORD=""
+INSTALL_FORCE_ARM64=false
 INSTALL_NODE_NAME=""
 
 while [[ "$#" -gt 0 ]]; do
@@ -26,6 +27,9 @@ while [[ "$#" -gt 0 ]]; do
       shift
       [[ "$#" -gt 0 ]] || usage
       INSTALL_SSH_PASSWORD="$1"
+      ;;
+    --force-arm64)
+      INSTALL_FORCE_ARM64=true
       ;;
     -h|--help)
       usage
@@ -57,10 +61,17 @@ if [[ -n "${INSTALL_SSH_KEY}" && ! -f "${INSTALL_SSH_KEY}" ]]; then
 fi
 
 load_install_host_env "${INSTALL_NODE_NAME}"
+
+if [[ "${NODE_ARCH:-}" == "arm64" && "${INSTALL_FORCE_ARM64}" != "true" ]]; then
+  echo "Node ${INSTALL_NODE_NAME} is arm64; install-host.sh is not the default path for Raspberry Pi nodes." >&2
+  echo "Use platform/scripts/build/build-pi-image.sh ${INSTALL_NODE_NAME} to produce a flashable SD image." >&2
+  echo "Pass --force-arm64 only when reinstalling onto a real block device (USB-SSD, NVMe) that isn't the booted SD card." >&2
+  exit 1
+fi
+
 apply_install_ssh_overrides
 require_host_ssh
-require_authorized_key_file_for_node "${INSTALL_NODE_NAME}"
-require_install_ssh_key_matches_node_authorized_key "${INSTALL_NODE_NAME}" "${INSTALL_SSH_KEY}"
+require_deploy_authorized_keys_file
 
 cd "$(platform_flake_dir)"
 flake_ref="$(platform_flake_ref)"

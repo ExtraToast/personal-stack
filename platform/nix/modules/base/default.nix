@@ -1,19 +1,14 @@
 { config, lib, pkgs, ... }:
 let
   authorizedKeysDir = ../../authorized-keys;
-  hostAuthorizedKeyPath = authorizedKeysDir + "/${config.networking.hostName}.pub";
-  hostAuthorizedKeyLines =
-    if builtins.pathExists hostAuthorizedKeyPath then
+  deployAuthorizedKeysPath = authorizedKeysDir + "/deploy.pub";
+  deployAuthorizedKeys =
+    if builtins.pathExists deployAuthorizedKeysPath then
       lib.filter (line: line != "" && !(lib.hasPrefix "#" line)) (
-        lib.splitString "\n" (builtins.readFile hostAuthorizedKeyPath)
+        lib.splitString "\n" (builtins.readFile deployAuthorizedKeysPath)
       )
     else
       [ ];
-  hostAuthorizedKey =
-    if hostAuthorizedKeyLines == [ ] then
-      null
-    else
-      builtins.head hostAuthorizedKeyLines;
 in
 {
   boot.loader.systemd-boot.enable = true;
@@ -43,16 +38,18 @@ in
     vim
   ];
 
-  assertions = lib.optional (builtins.pathExists hostAuthorizedKeyPath) {
-    assertion = lib.length hostAuthorizedKeyLines == 1;
-    message =
-      "Expected exactly one deploy SSH public key in ${toString hostAuthorizedKeyPath}; found ${toString (lib.length hostAuthorizedKeyLines)}";
-  };
+  assertions = [
+    {
+      assertion = deployAuthorizedKeys != [ ];
+      message =
+        "Expected at least one deploy SSH public key in ${toString deployAuthorizedKeysPath}";
+    }
+  ];
 
   users.users.deploy = {
     isNormalUser = true;
     extraGroups = [ "wheel" ];
-    openssh.authorizedKeys.keys = lib.optional (hostAuthorizedKey != null) hostAuthorizedKey;
+    openssh.authorizedKeys.keys = deployAuthorizedKeys;
   };
   security.sudo.wheelNeedsPassword = false;
   time.timeZone = "Europe/Amsterdam";

@@ -127,9 +127,8 @@ platform_authorized_keys_dir() {
   printf '%s\n' "${PLATFORM_AUTHORIZED_KEYS_DIR:-$(platform_flake_dir)/nix/authorized-keys}"
 }
 
-platform_authorized_key_file_for_node() {
-  local node_name="$1"
-  printf '%s/%s.pub\n' "$(platform_authorized_keys_dir)" "${node_name}"
+platform_deploy_authorized_keys_file() {
+  printf '%s/deploy.pub\n' "$(platform_authorized_keys_dir)"
 }
 
 require_single_node_arg() {
@@ -183,41 +182,19 @@ require_bootstrap_ssh() {
   fi
 }
 
-require_authorized_key_file_for_node() {
-  local node_name="$1"
-  local authorized_key_file
-  authorized_key_file="$(platform_authorized_key_file_for_node "${node_name}")"
+require_deploy_authorized_keys_file() {
+  local authorized_keys_file
+  authorized_keys_file="$(platform_deploy_authorized_keys_file)"
 
-  if [[ ! -f "${authorized_key_file}" ]]; then
-    echo "Missing deploy SSH public key for ${node_name}: ${authorized_key_file}" >&2
-    echo "Create platform/nix/authorized-keys/${node_name}.pub with exactly one SSH public key before installing or deploying that host." >&2
-    exit 1
-  fi
-}
-
-require_install_ssh_key_matches_node_authorized_key() {
-  local node_name="$1"
-  local identity_file="$2"
-  local authorized_key_file public_key_file public_key expected_key
-
-  [[ -n "${identity_file}" ]] || return 0
-
-  authorized_key_file="$(platform_authorized_key_file_for_node "${node_name}")"
-  public_key_file="${identity_file}.pub"
-
-  if [[ ! -f "${public_key_file}" ]]; then
-    echo "Missing public key for install identity: ${public_key_file}" >&2
-    echo "The install workflow must be able to verify that the target node authorizes the same post-install SSH key." >&2
+  if [[ ! -f "${authorized_keys_file}" ]]; then
+    echo "Missing deploy SSH public key file: ${authorized_keys_file}" >&2
+    echo "Create platform/nix/authorized-keys/deploy.pub with at least one SSH public key before installing or deploying." >&2
     exit 1
   fi
 
-  public_key="$(<"${public_key_file}")"
-  expected_key="$(<"${authorized_key_file}")"
-
-  if [[ "${public_key}" != "${expected_key}" ]]; then
-    echo "Install identity ${identity_file} does not match ${authorized_key_file}" >&2
-    echo "Post-install SSH on deploy@<host>:2222 would reject that key after the first reboot." >&2
-    echo "Use the node's configured deploy key or update ${authorized_key_file} before installing." >&2
+  if ! grep -q '^[^#[:space:]]' "${authorized_keys_file}"; then
+    echo "Deploy SSH public key file is empty: ${authorized_keys_file}" >&2
+    echo "Add at least one SSH public key line to platform/nix/authorized-keys/deploy.pub." >&2
     exit 1
   fi
 }
