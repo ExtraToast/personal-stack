@@ -124,7 +124,7 @@
       };
 
       deploy.nodes.enschede-pi-1 = {
-        hostname = "enschede-pi-1";
+        hostname = "192.168.0.131";
         profiles.system = {
           sshUser = "deploy";
           user = "root";
