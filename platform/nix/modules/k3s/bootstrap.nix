@@ -41,6 +41,19 @@ in
       "d ${tokenDirectory} 0700 root root - -"
     ];
 
+    # Flannel has to tunnel over the tailnet because frankfurt (public VPS)
+    # and the enschede LAN hosts cannot reach each other's primary interface
+    # directly. Every node is already on tailscale0, so pinning flannel to
+    # that iface gives the cluster a single routable overlay network.
+    services.k3s.extraFlags = [ "--flannel-iface=tailscale0" ];
+
+    # tailscale0 must exist before k3s starts, otherwise flannel fails to
+    # bind and the node comes up without cluster networking.
+    systemd.services.k3s = {
+      after = [ "tailscaled.service" ];
+      requires = [ "tailscaled.service" ];
+    };
+
     services.k3s =
       lib.mkIf isK3sAgent {
         serverAddr = lib.mkDefault cfg.apiServerEndpoint;
