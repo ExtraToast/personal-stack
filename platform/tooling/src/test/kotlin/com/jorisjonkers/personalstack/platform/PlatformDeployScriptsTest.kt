@@ -644,6 +644,8 @@ class PlatformDeployScriptsTest {
                 "--skip-checks",
                 "--hostname",
                 "167.86.79.203",
+                "--ssh-opts",
+                "-p 2222",
                 "${platformFlakeRef}#frankfurt-contabo-1",
             )
     }
@@ -704,6 +706,8 @@ class PlatformDeployScriptsTest {
                 "--skip-checks",
                 "--hostname",
                 "192.168.0.100",
+                "--ssh-opts",
+                "-p 2222",
                 "--remote-build",
                 "${platformFlakeRef}#enschede-t1000-1",
             )
