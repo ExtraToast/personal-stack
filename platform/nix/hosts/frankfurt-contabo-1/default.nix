@@ -14,9 +14,11 @@
   boot.loader = {
     systemd-boot.enable = lib.mkForce false;
     efi.canTouchEfiVariables = lib.mkForce false;
+    # grub.devices is injected by disko from disk.main.device ("/dev/sda"),
+    # so we don't set it here — doing so duplicates the entry and trips
+    # the `mirroredBoots` assertion.
     grub = {
       enable = true;
-      device = "/dev/sda";
       efiSupport = false;
     };
   };
