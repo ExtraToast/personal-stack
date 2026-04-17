@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
+  - helm-repositories.yaml
   - metrics-stack
   - grafana
   - loki
