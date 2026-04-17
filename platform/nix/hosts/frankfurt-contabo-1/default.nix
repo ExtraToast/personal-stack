@@ -1,6 +1,12 @@
-{ lib, ... }:
+{ lib, modulesPath, ... }:
 {
   imports = [
+    # Provides virtio_scsi / virtio_blk / virtio_net in the initrd plus the
+    # qemu-guest agent. Without this the initrd cannot mount /dev/sda on
+    # Contabo's virtio-scsi host, the kernel panics on "unable to mount root"
+    # before serial console or journald are up, and the machine appears alive
+    # to the hypervisor but never comes back on the network.
+    (modulesPath + "/profiles/qemu-guest.nix")
     ../../profiles/worker.nix
     ../../profiles/control-plane.nix
     ../../modules/k3s/node-labels.nix
