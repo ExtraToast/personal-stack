@@ -98,15 +98,15 @@ spec:
               value: '8080'
           ports:
             - containerPort: 8080
-              name: qbittorrent-http
+              name: qbit-http
           readinessProbe:
             httpGet:
               path: /
-              port: qbittorrent-http
+              port: qbit-http
           livenessProbe:
             httpGet:
               path: /
-              port: qbittorrent-http
+              port: qbit-http
           volumeMounts:
             - name: media-library
               mountPath: /media
@@ -175,7 +175,7 @@ spec:
   ports:
     - name: http
       port: 8080
-      targetPort: qbittorrent-http
+      targetPort: qbit-http
 ---
 apiVersion: v1
 kind: Service
