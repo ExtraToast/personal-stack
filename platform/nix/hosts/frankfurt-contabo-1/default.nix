@@ -1,4 +1,4 @@
-{ ... }:
+{ lib, ... }:
 {
   imports = [
     ../../profiles/worker.nix
@@ -6,6 +6,20 @@
     ../../modules/k3s/node-labels.nix
     ./disko.nix
   ];
+
+  # Contabo's KVM firmware is BIOS-only (no /sys/firmware/efi in rescue),
+  # so the base module's systemd-boot can't be executed by the firmware.
+  # Switch this host to GRUB in BIOS mode and rely on the bios_grub
+  # partition defined in disko.nix.
+  boot.loader = {
+    systemd-boot.enable = lib.mkForce false;
+    efi.canTouchEfiVariables = lib.mkForce false;
+    grub = {
+      enable = true;
+      device = "/dev/sda";
+      efiSupport = false;
+    };
+  };
 
   networking.hostName = "frankfurt-contabo-1";
   personalStack.k3sNodeLabels = {
