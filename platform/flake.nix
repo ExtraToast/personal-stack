@@ -114,7 +114,7 @@
       };
 
       deploy.nodes.enschede-t1000-1 = {
-        hostname = "enschede-t1000-1";
+        hostname = "100.103.175.110";
         profiles.system = {
           sshUser = "deploy";
           user = "root";
@@ -124,7 +124,7 @@
       };
 
       deploy.nodes.enschede-pi-1 = {
-        hostname = "192.168.0.131";
+        hostname = "100.65.192.22";
         profiles.system = {
           sshUser = "deploy";
           user = "root";
