@@ -136,6 +136,30 @@ fun buildRabbitMqClient(): RegisteredClient =
         .tokenSettings(defaultTokenSettings())
         .build()
 
+fun buildHeadlampClient(secret: String): RegisteredClient =
+    RegisteredClient
+        .withId(deterministicId("headlamp"))
+        .clientId("headlamp")
+        .clientSecret("{noop}$secret")
+        .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+        .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
+        .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+        .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+        .redirectUri("https://dashboard.jorisjonkers.dev/oidc-callback")
+        .redirectUri("https://dashboard.jorisjonkers.test/oidc-callback")
+        .scope(OidcScopes.OPENID)
+        .scope(OidcScopes.PROFILE)
+        .scope(OidcScopes.EMAIL)
+        // `groups` is a non-standard scope the token customizer recognises
+        // and populates with the Kubernetes group membership the k3s API
+        // server reads via --oidc-groups-claim. The chain is: DASHBOARD
+        // ServicePermission -> `k8s-admin` in the groups claim ->
+        // cluster-admin via the oidc:k8s-admin ClusterRoleBinding.
+        .scope("groups")
+        .clientSettings(noConsentSettings(requirePkce = false))
+        .tokenSettings(defaultTokenSettings())
+        .build()
+
 fun buildVaultClient(secret: String): RegisteredClient =
     RegisteredClient
         .withId(deterministicId("vault"))

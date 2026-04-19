@@ -89,6 +89,9 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
         private const val VAULT_CLIENT_ID = "vault"
         private const val VAULT_REDIRECT_URI = "https://vault.jorisjonkers.test/ui/vault/auth/oidc/oidc/callback"
         private const val VAULT_CLIENT_SECRET = "vault-secret"
+        private const val HEADLAMP_CLIENT_ID = "headlamp"
+        private const val HEADLAMP_REDIRECT_URI = "https://dashboard.jorisjonkers.test/oidc-callback"
+        private const val HEADLAMP_CLIENT_SECRET = "headlamp-secret"
     }
 
     @BeforeEach
@@ -557,6 +560,7 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
                 Triple(VAULT_CLIENT_ID, VAULT_REDIRECT_URI, "openid profile email"),
                 Triple("n8n", N8N_REDIRECT_URI, "openid profile email"),
                 Triple("rabbitmq", RABBITMQ_REDIRECT_URI, "openid profile email"),
+                Triple(HEADLAMP_CLIENT_ID, HEADLAMP_REDIRECT_URI, "openid profile email groups"),
             )
 
         requests.forEach { (clientId, redirectUri, scope) ->
@@ -638,6 +642,58 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
+    fun `user with DASHBOARD permission gets k8s-admin group claim on headlamp id token`() {
+        val username = uniqueUsername()
+        val password = "securepass123"
+        registerAndConfirmUser(username, password)
+        grantServicePermission(username, ServicePermission.DASHBOARD)
+
+        val loginResult = doSessionLogin(username, password)
+        val session = extractSession(loginResult)!!
+
+        val authorizeResult =
+            mockMvc
+                .get("/api/oauth2/authorize") {
+                    param("response_type", "code")
+                    param("client_id", HEADLAMP_CLIENT_ID)
+                    param("redirect_uri", HEADLAMP_REDIRECT_URI)
+                    param("scope", "openid profile email groups")
+                    param("state", "allow-headlamp")
+                    accept = MediaType.TEXT_HTML
+                    this.session = session
+                }.andReturn()
+
+        val location = authorizeResult.response.getHeader("Location")
+        assertThat(authorizeResult.response.status)
+            .describedAs("headlamp client should be allowed for a SERVICE_DASHBOARD session")
+            .isEqualTo(302)
+        assertThat(location).isNotNull().startsWith(HEADLAMP_REDIRECT_URI).contains("code=")
+        val code = location!!.substringAfter("code=").substringBefore("&")
+
+        val tokenResult =
+            mockMvc
+                .post("/api/oauth2/token") {
+                    contentType = MediaType.APPLICATION_FORM_URLENCODED
+                    content =
+                        "grant_type=authorization_code" +
+                        "&code=${URLEncoder.encode(code, StandardCharsets.UTF_8)}" +
+                        "&redirect_uri=${URLEncoder.encode(HEADLAMP_REDIRECT_URI, StandardCharsets.UTF_8)}" +
+                        "&client_id=$HEADLAMP_CLIENT_ID" +
+                        "&client_secret=${URLEncoder.encode(HEADLAMP_CLIENT_SECRET, StandardCharsets.UTF_8)}"
+                }.andExpect { status { isOk() } }
+                .andReturn()
+
+        val tokenJson = objectMapper.readTree(tokenResult.response.contentAsString)
+        val idToken = tokenJson["id_token"].asText()
+        val decodedIdToken = jwtDecoder.decode(idToken)
+
+        assertThat(decodedIdToken.getClaimAsStringList("groups"))
+            .describedAs("ID token must carry the k8s-admin group for cluster-admin binding")
+            .contains("k8s-admin")
+        assertThat(decodedIdToken.getClaimAsString("preferred_username")).isEqualTo(username)
+    }
+
+    @Test
     fun `admin users can authorize downstream oidc clients`() {
         val username = uniqueUsername()
         val password = "securepass123"
@@ -661,6 +717,12 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
                     RABBITMQ_REDIRECT_URI,
                     "openid profile email",
                     true,
+                ),
+                OidcClientRequest(
+                    HEADLAMP_CLIENT_ID,
+                    HEADLAMP_REDIRECT_URI,
+                    "openid profile email groups",
+                    false,
                 ),
             )
 
