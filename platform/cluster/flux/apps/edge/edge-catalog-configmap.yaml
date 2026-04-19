@@ -49,7 +49,7 @@ data:
     - name: "headlamp"
       exposure: "public"
       access: "sso_protected"
-      host: "nomad.jorisjonkers.dev"
+      host: "dashboard.jorisjonkers.dev"
     - name: "jellyfin"
       exposure: "public_and_lan"
       access: "direct"

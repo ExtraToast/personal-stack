@@ -269,7 +269,7 @@ class AuthorizationServerConfig(
                 "grafana" to ServicePermission.GRAFANA,
                 "vault" to ServicePermission.VAULT,
                 "n8n" to ServicePermission.N8N,
-                "nomad" to ServicePermission.NOMAD,
+                "dashboard" to ServicePermission.DASHBOARD,
                 "rabbitmq" to ServicePermission.RABBITMQ,
             )
     }

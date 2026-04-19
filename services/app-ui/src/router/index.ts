@@ -27,4 +27,12 @@ const routes: RouteRecordRaw[] = [
 export const router = createRouter({
   history: createWebHistory(),
   routes,
+  // When a RouterLink targets an in-page hash (e.g. { path: '/', hash: '#about' })
+  // from any route, scroll the destination element into view after navigation.
+  // The top offset accounts for the sticky nav bar.
+  scrollBehavior(to, _from, savedPosition) {
+    if (savedPosition) return savedPosition
+    if (to.hash) return { el: to.hash, behavior: 'smooth', top: 80 }
+    return { left: 0, top: 0 }
+  },
 })

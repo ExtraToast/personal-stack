@@ -15,11 +15,22 @@ enum class ServicePermission(
     MAIL("stalwart"),
     N8N("n8n"),
     GRAFANA("grafana"),
-    NOMAD("nomad"),
+    // Replaces the legacy NOMAD entry; the Headlamp kubernetes dashboard now lives at
+    // dashboard.jorisjonkers.dev. Existing rows in user_service_permissions are moved
+    // across in migration V7.
+    DASHBOARD("dashboard"),
     RABBITMQ("rabbitmq"),
     ASSISTANT("assistant"),
-    TRAEFIK_DASHBOARD("traefik"),
     STATUS("status"),
+    // Media stack. Surfaced in the app-ui MyApps grid so grantees can land on their
+    // Jellyfin / *arr / qBittorrent URLs without memorising subdomains.
+    JELLYFIN("jellyfin"),
+    JELLYSEERR("jellyseerr"),
+    SONARR("sonarr"),
+    RADARR("radarr"),
+    BAZARR("bazarr"),
+    PROWLARR("prowlarr"),
+    QBITTORRENT("qbittorrent"),
     ;
 
     val subdomains: Set<String> = subdomains.toSet()
@@ -32,8 +43,8 @@ enum class ServicePermission(
 
         /**
          * Resolves a [ServicePermission] from a hostname such as "vault.jorisjonkers.dev",
-         * "nomad.jorisjonkers.dev", or "stalwart.jorisjonkers.test". Returns null when the host is
-         * blank or unrecognised.
+         * "dashboard.jorisjonkers.dev", or "stalwart.jorisjonkers.test". Returns null when the
+         * host is blank or unrecognised.
          */
         fun fromHost(host: String?): ServicePermission? {
             if (host.isNullOrBlank()) return null

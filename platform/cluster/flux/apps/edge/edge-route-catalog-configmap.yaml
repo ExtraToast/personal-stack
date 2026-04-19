@@ -71,7 +71,7 @@ data:
       access: "direct"
     - name: "headlamp"
       service: "headlamp"
-      host: "nomad.jorisjonkers.dev"
+      host: "dashboard.jorisjonkers.dev"
       access: "sso_protected"
     - name: "jellyfin"
       service: "jellyfin"

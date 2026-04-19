@@ -45,15 +45,21 @@ describe('appsGrid', () => {
       'SERVICE_N8N',
       'SERVICE_GRAFANA',
       'SERVICE_ASSISTANT',
-      'SERVICE_NOMAD',
+      'SERVICE_DASHBOARD',
       'SERVICE_RABBITMQ',
-      'SERVICE_TRAEFIK_DASHBOARD',
       'SERVICE_STATUS',
+      'SERVICE_JELLYFIN',
+      'SERVICE_JELLYSEERR',
+      'SERVICE_SONARR',
+      'SERVICE_RADARR',
+      'SERVICE_BAZARR',
+      'SERVICE_PROWLARR',
+      'SERVICE_QBITTORRENT',
     ]
 
     const wrapper = mountGrid()
     const cards = wrapper.findAll('a')
-    expect(cards).toHaveLength(9)
+    expect(cards).toHaveLength(15)
   })
 
   it('renders nothing when user has no service permissions', () => {

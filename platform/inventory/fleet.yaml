@@ -300,9 +300,8 @@ access_intent:
     sonarr: sonarr
     adguard: adguard
     samba: samba
-    # Kubernetes dashboard published at the old nomad.* hostname so the
-    # existing DNS + muscle memory keep working.
-    headlamp: nomad
+    # Kubernetes dashboard (Headlamp) at dashboard.jorisjonkers.dev.
+    headlamp: dashboard
 
 ingress_intent:
   kubernetes_backends:

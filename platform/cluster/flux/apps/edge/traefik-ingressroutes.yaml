@@ -207,7 +207,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: 'Host(`nomad.jorisjonkers.dev`)'
+      match: 'Host(`dashboard.jorisjonkers.dev`)'
       middlewares:
         - name: forward-auth
           namespace: edge-system
