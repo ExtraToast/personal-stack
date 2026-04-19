@@ -26,6 +26,17 @@ spec:
           chunks: chunks
           ruler: ruler
           admin: admin
+      # Loki 3.x requires an explicit schema_config. Single TSDB schema
+      # over the filesystem object store is enough for SingleBinary.
+      schemaConfig:
+        configs:
+          - from: '2024-04-01'
+            store: tsdb
+            object_store: filesystem
+            schema: v13
+            index:
+              prefix: index_
+              period: 24h
     singleBinary:
       replicas: 1
       persistence:
