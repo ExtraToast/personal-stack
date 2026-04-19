@@ -37,3 +37,16 @@ spec:
       spec:
         externalTrafficPolicy: Local
       type: LoadBalancer
+    # Cloudflare proxies jorisjonkers.dev at the apex to 167.86.79.203:443,
+    # which is frankfurt-contabo-1. MetalLB only hands out IPs on the
+    # enschede LAN, so the LoadBalancer service alone binds nothing
+    # reachable from the public internet. Bind web/websecure on hostPort
+    # 80/443 directly and pin the pod to frankfurt so Cloudflare has an
+    # actual TCP endpoint to reach.
+    ports:
+      web:
+        hostPort: 80
+      websecure:
+        hostPort: 443
+    nodeSelector:
+      personal-stack/site: frankfurt
