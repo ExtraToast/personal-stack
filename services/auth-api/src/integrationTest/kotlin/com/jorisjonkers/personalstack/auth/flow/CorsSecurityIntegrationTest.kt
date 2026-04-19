@@ -80,14 +80,14 @@ class CorsSecurityIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
-    fun `nomad origin receives CORS headers on login endpoint`() {
+    fun `dashboard origin receives CORS headers on login endpoint`() {
         mockMvc
             .post("/api/v1/auth/login") {
-                header(HttpHeaders.ORIGIN, "https://nomad.jorisjonkers.test")
+                header(HttpHeaders.ORIGIN, "https://dashboard.jorisjonkers.test")
                 header(HttpHeaders.CONTENT_TYPE, "application/json")
                 content = """{"username":"nouser","password":"nopass"}"""
             }.andExpect {
-                header { string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://nomad.jorisjonkers.test") }
+                header { string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://dashboard.jorisjonkers.test") }
                 header { string(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true") }
             }
     }
@@ -110,16 +110,16 @@ class CorsSecurityIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
-    fun `forward auth preflight allows nomad origin`() {
+    fun `forward auth preflight allows dashboard origin`() {
         val response =
             mockMvc
                 .options("/api/v1/auth/verify") {
-                    header(HttpHeaders.ORIGIN, "https://nomad.jorisjonkers.test")
+                    header(HttpHeaders.ORIGIN, "https://dashboard.jorisjonkers.test")
                     header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "GET")
                     header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "Content-Type")
                 }.andExpect {
                     status { isOk() }
-                    header { string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://nomad.jorisjonkers.test") }
+                    header { string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://dashboard.jorisjonkers.test") }
                     header { string(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true") }
                 }.andReturn()
 
