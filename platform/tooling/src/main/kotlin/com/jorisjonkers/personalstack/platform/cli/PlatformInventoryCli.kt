@@ -241,6 +241,21 @@ private fun PlatformFleet.toEdgeRouteCatalog(): EdgeRouteCatalog {
         toEdgeCatalog().services
             .filter { it.host != null }
             .associateBy { it.name }
+    // Services whose host gets split into two IngressRoutes: one catches
+    // the *arr-style `/api/*` API and bypasses forward-auth (so other
+    // services -- jellyseerr calling sonarr, bazarr calling radarr, etc
+    // -- can authenticate with the app's own X-Api-Key header without
+    // being redirected to the SSO login page), the other catches the
+    // rest of the host (UI, websocket, static assets) and goes through
+    // forward-auth as usual.
+    val mediaApiSplitServices =
+        setOf(
+            "sonarr",
+            "radarr",
+            "bazarr",
+            "prowlarr",
+            "qbittorrent",
+        )
     val specialCasedServices =
         setOf(
             "app-ui",
@@ -248,7 +263,7 @@ private fun PlatformFleet.toEdgeRouteCatalog(): EdgeRouteCatalog {
             "auth-ui",
             "assistant-api",
             "assistant-ui",
-        )
+        ) + mediaApiSplitServices
 
     val routes =
         buildList {
@@ -300,6 +315,28 @@ private fun PlatformFleet.toEdgeRouteCatalog(): EdgeRouteCatalog {
                     ),
                 )
             }
+
+            mediaApiSplitServices
+                .asSequence()
+                .sorted()
+                .mapNotNull { serviceName -> externalServices[serviceName] }
+                .forEach { entry ->
+                    // UI half: inherits the fleet-level access (expected
+                    // to be sso_protected for the media stack), excludes
+                    // /api/ so the API calls don't bounce off forward-auth.
+                    add(entry.toRoute(excludedPathPrefixes = listOf("/api/")))
+                    // API half: always direct so service-to-service calls
+                    // with X-Api-Key work without a browser session. The
+                    // app itself enforces the api-key check; forward-auth
+                    // would only get in the way.
+                    add(
+                        entry.toRoute(
+                            name = "${entry.name}-api",
+                            access = "direct",
+                            pathPrefixes = listOf("/api/"),
+                        ),
+                    )
+                }
 
             externalServices.keys
                 .asSequence()
