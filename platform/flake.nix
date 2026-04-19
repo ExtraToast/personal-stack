@@ -104,7 +104,7 @@
       };
 
       deploy.nodes.enschede-gtx-960m-1 = {
-        hostname = "enschede-gtx-960m-1";
+        hostname = "100.89.41.92";
         profiles.system = {
           sshUser = "deploy";
           user = "root";
