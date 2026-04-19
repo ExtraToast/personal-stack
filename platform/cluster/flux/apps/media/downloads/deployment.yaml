@@ -27,13 +27,13 @@ spec:
         vault.hashicorp.com/role: downloads
         vault.hashicorp.com/agent-inject-secret-gluetun.env: secret/data/platform/media
         vault.hashicorp.com/agent-inject-template-gluetun.env: |
-          VPN_SERVICE_PROVIDER=private internet access
-          VPN_TYPE=openvpn
-          OPENVPN_USER={{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.username" }}{{ end }}
-          OPENVPN_PASSWORD={{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.password" }}{{ end }}
-          SERVER_REGIONS={{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.server_regions" }}{{ end }}
-          FIREWALL_OUTBOUND_SUBNETS=100.64.0.0/10,192.168.0.0/16,172.16.0.0/12
-          FIREWALL_INPUT_PORTS=8080,9696
+          VPN_SERVICE_PROVIDER='private internet access'
+          VPN_TYPE='openvpn'
+          OPENVPN_USER='{{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.username" }}{{ end }}'
+          OPENVPN_PASSWORD='{{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.password" }}{{ end }}'
+          SERVER_REGIONS='{{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.server_regions" }}{{ end }}'
+          FIREWALL_OUTBOUND_SUBNETS='100.64.0.0/10,192.168.0.0/16,172.16.0.0/12'
+          FIREWALL_INPUT_PORTS='8080,9696'
     spec:
       serviceAccountName: downloads
       nodeSelector:
