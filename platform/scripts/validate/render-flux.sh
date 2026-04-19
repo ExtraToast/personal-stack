@@ -20,7 +20,11 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/../../.." && pwd)"
 cluster_path="${repo_root}/platform/cluster/flux/clusters/production"
 flux_root="${repo_root}/platform/cluster/flux"
-render_output="$(mktemp)"
+# kubeconform only picks up files whose extension matches .yaml / .yml
+# / .json, so use an explicit .yaml suffix on the tempfile. Without it
+# the render tree is silently skipped and the Summary reports 0
+# resources in 0 files (which reads like success).
+render_output="$(mktemp).yaml"
 trap 'rm -f "${render_output}"' EXIT
 
 require_command() {
