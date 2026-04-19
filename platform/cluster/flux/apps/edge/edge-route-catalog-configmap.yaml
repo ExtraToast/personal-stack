@@ -11,7 +11,7 @@ data:
     - name: "adguard"
       service: "adguard"
       host: "adguard.jorisjonkers.dev"
-      access: "direct"
+      access: "sso_protected"
     - name: "app-ui"
       service: "app-ui"
       host: "jorisjonkers.dev"

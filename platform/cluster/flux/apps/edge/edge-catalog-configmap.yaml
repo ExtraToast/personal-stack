@@ -9,8 +9,8 @@ data:
     cluster: "personal-stack"
     services:
     - name: "adguard"
-      exposure: "lan_only"
-      access: "direct"
+      exposure: "public"
+      access: "sso_protected"
       host: "adguard.jorisjonkers.dev"
     - name: "alloy"
       exposure: "internal_only"

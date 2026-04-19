@@ -63,7 +63,6 @@ nodes:
       - tailscale
       - lan-ingress
       - samba
-      - adguard
       - nvidia
 
   enschede-t1000-1:
@@ -164,6 +163,13 @@ service_intent:
       - uptime-kuma
       - grafana
       - headlamp
+      # AdGuard itself is host-native (see host_native below and
+      # platform/nix/modules/services/adguard.nix), but we expose it
+      # through a k8s Service + Endpoints in utility-system so
+      # traefik sees it as any other in-cluster backend. Listing it
+      # here lets the fleet validator accept its ingress_intent
+      # entry without a special case.
+      - adguard
     internal_platform:
       - postgres
       - rabbitmq
@@ -187,9 +193,10 @@ service_intent:
 
   host_native:
     enschede-gtx-960m-1:
-      - adguard
       - samba
       - tailscale
+    enschede-t1000-1:
+      - adguard
 
 placement_intent:
   frankfurt_only:
@@ -245,6 +252,7 @@ exposure_intent:
     - rabbitmq
     - vault
     - headlamp
+    - adguard
 
   public_and_lan:
     - bazarr
@@ -266,7 +274,6 @@ exposure_intent:
     - wireguard-check
 
   lan_only:
-    - adguard
     - samba
 
 access_intent:
@@ -281,6 +288,7 @@ access_intent:
     - rabbitmq
     - vault
     - headlamp
+    - adguard
   host_labels:
     app-ui: root
     auth-ui: auth
@@ -307,6 +315,15 @@ access_intent:
 
 ingress_intent:
   kubernetes_backends:
+    # AdGuard is NOT a Kubernetes Deployment -- it runs host-native
+    # on enschede-t1000-1 (NixOS module). The Service + Endpoints at
+    # platform/cluster/flux/apps/utility-system/adguard-gateway/ stand
+    # in as the k8s-level backend so traefik can route to it like any
+    # other in-cluster app.
+    adguard:
+      namespace: utility-system
+      service: adguard
+      port: 3000
     app-ui:
       namespace: app-system
       service: app-ui

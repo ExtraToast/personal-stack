@@ -18,7 +18,8 @@
     "personal-stack/capability-tailscale" = "true";
     "personal-stack/capability-lan-ingress" = "true";
     "personal-stack/capability-samba" = "true";
-    "personal-stack/capability-adguard" = "true";
+    # capability-adguard deliberately absent: AdGuard runs only on
+    # enschede-t1000-1.
     "personal-stack/capability-nvidia" = "true";
     "personal-stack/gpu-vendor-nvidia" = "true";
     "personal-stack/gpu-model-gtx960m" = "true";
