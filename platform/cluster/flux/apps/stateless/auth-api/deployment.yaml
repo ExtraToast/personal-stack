@@ -116,9 +116,15 @@ spec:
           ports:
             - containerPort: 8081
               name: http
-          readinessProbe:
+          startupProbe:
             httpGet:
               path: /api/actuator/health/liveness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /api/actuator/health/readiness
               port: http
           livenessProbe:
             httpGet:

@@ -42,9 +42,14 @@ spec:
           DB_POSTGRESDB_PASSWORD={{ .Data.password }}
           {{ end }}
           OIDC_CLIENT_SECRET={{ with secret "secret/data/platform/automation" }}{{ index .Data.data "n8n.oauth_client_secret" }}{{ end }}
-          N8N_ENCRYPTION_KEY={{ with secret "secret/data/platform/automation" }}{{ index .Data.data "n8n.oauth_client_secret" }}{{ end }}
+          N8N_ENCRYPTION_KEY={{ with secret "secret/data/platform/automation" }}{{ index .Data.data "n8n.encryption_key" }}{{ end }}
     spec:
       serviceAccountName: n8n
+      # Kubernetes auto-injects env vars for every Service in the pod's
+      # namespace (service NAME_PORT=tcp://ip:port). With a Service also
+      # named "n8n", that sets N8N_PORT=tcp://..., which n8n parses as the
+      # HTTP port and crashes with "Invalid number value for N8N_PORT".
+      enableServiceLinks: false
       securityContext:
         fsGroup: 1000
       nodeSelector:
