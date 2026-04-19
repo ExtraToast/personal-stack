@@ -45,8 +45,11 @@ nodes:
     status: install-ready
     site: enschede
     arch: amd64
+    # Pinned to the tailnet IP post-install (matches enschede-t1000-1
+    # pattern). MagicDNS is off fleet-wide (--accept-dns=false), so the
+    # bare hostname would not resolve.
     ssh:
-      host: enschede-gtx-960m-1
+      host: 100.89.41.92
       user: deploy
       port: 2222
     bootstrap_ssh:
