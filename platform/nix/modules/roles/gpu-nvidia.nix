@@ -12,6 +12,24 @@
   };
   hardware.nvidia-container-toolkit.enable = true;
 
+  # Skip CDI spec generation on activations where the NVIDIA kernel
+  # module isn't loaded. This happens every time the driver package
+  # changes: switch-to-configuration places the new userspace, but the
+  # running kernel still uses the booted generation's module path, so
+  # modprobe can't load the new `nvidia` module — and nvidia-cdi-
+  # generator calls NVML which returns "Driver Not Loaded", the unit
+  # fails, switch-to-configuration exits non-zero, and deploy-rs rolls
+  # back the whole generation. That turns every driver bump into a
+  # manual dance (auto-rollback off, reboot, reinstall CDI state).
+  # With this condition the unit is skipped at activation time (not
+  # "failed"), the deploy succeeds, the user reboots into the new
+  # generation, and on the next boot the module loads and this unit
+  # runs normally. For steady-state deploys (driver version
+  # unchanged, module already loaded) the path exists and behaviour
+  # is identical to upstream.
+  systemd.services.nvidia-container-toolkit-cdi-generator.unitConfig.ConditionPathExists =
+    "/proc/driver/nvidia/version";
+
   environment.systemPackages = with pkgs; [
     libva
     pciutils
