@@ -5,6 +5,18 @@ metadata:
   namespace: nvidia-device-plugin
 spec:
   interval: 30m
+  # The chart renders a default config whose discovery strategy 'auto'
+  # has been removed upstream, so the device-plugin pod crashloops on
+  # startup. Don't let that block the entire apps-core health gate: skip
+  # Helm's readiness wait so the HR reports Ready as soon as manifests
+  # apply, and downstream Kustomizations (apps-data, apps-observability,
+  # etc.) stop being held hostage by a single DaemonSet.
+  install:
+    disableWait: true
+    disableWaitForJobs: true
+  upgrade:
+    disableWait: true
+    disableWaitForJobs: true
   chart:
     spec:
       chart: nvidia-device-plugin
