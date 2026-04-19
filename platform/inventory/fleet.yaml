@@ -163,6 +163,7 @@ service_intent:
       - n8n
       - uptime-kuma
       - grafana
+      - headlamp
     internal_platform:
       - postgres
       - rabbitmq
@@ -210,6 +211,7 @@ placement_intent:
     - n8n
     - uptime-kuma
     - vault
+    - headlamp
 
   enschede_only:
     - downloads
@@ -242,6 +244,7 @@ exposure_intent:
     - uptime-kuma
     - rabbitmq
     - vault
+    - headlamp
 
   public_and_lan:
     - bazarr
@@ -275,6 +278,7 @@ access_intent:
     - qbittorrent
     - rabbitmq
     - vault
+    - headlamp
   host_labels:
     app-ui: root
     auth-ui: auth
@@ -296,6 +300,9 @@ access_intent:
     sonarr: sonarr
     adguard: adguard
     samba: samba
+    # Kubernetes dashboard published at the old nomad.* hostname so the
+    # existing DNS + muscle memory keep working.
+    headlamp: nomad
 
 ingress_intent:
   kubernetes_backends:
@@ -371,3 +378,7 @@ ingress_intent:
       namespace: data-system
       service: vault
       port: 8200
+    headlamp:
+      namespace: utility-system
+      service: headlamp
+      port: 80
