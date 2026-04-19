@@ -10,13 +10,16 @@ metadata:
   name: auth-api
   namespace: auth-system
   annotations:
-    # Keel.sh watches the :latest tag in ghcr and rolls this Deployment
-    # when the digest changes. `match-tag: latest` is critical: without
-    # it, Keel's `force` policy sorts every tag in the repository and
-    # picks whatever is lexicographically highest, which for our SHA
-    # tags picked up an ancient PR #27 image and pinned every app to it.
+    # Keel.sh watches this Deployment's :latest tag in ghcr and triggers
+    # a rollout when the digest changes. Two non-obvious knobs are load
+    # bearing: `policy: force` is the only policy that works for
+    # non-semver tags, and `match-tag: "true"` scopes Keel to the tag
+    # currently on the Deployment (i.e. :latest) instead of listing
+    # every tag in the registry and picking whichever sorts highest.
+    # Without match-tag Keel pinned every app to an ancient :<sha>
+    # tag that sorted above the others.
     keel.sh/policy: force
-    keel.sh/match-tag: latest
+    keel.sh/match-tag: 'true'
     keel.sh/trigger: poll
     keel.sh/pollSchedule: '@every 2m'
 spec:

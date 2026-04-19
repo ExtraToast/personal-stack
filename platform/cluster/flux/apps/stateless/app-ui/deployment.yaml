@@ -5,7 +5,7 @@ metadata:
   namespace: app-system
   annotations:
     keel.sh/policy: force
-    keel.sh/match-tag: latest
+    keel.sh/match-tag: 'true'
     keel.sh/trigger: poll
     keel.sh/pollSchedule: '@every 2m'
 spec:
