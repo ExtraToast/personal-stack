@@ -1,4 +1,5 @@
 import { mount } from '@vue/test-utils'
+import { createPinia } from 'pinia'
 import { describe, expect, it } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import App from '../App.vue'
@@ -14,8 +15,11 @@ describe('app', () => {
   it('renders without crashing', () => {
     const wrapper = mount(App, {
       global: {
-        plugins: [i18n],
-        stubs: ['RouterView'],
+        plugins: [createPinia(), i18n],
+        // Nav entries now use RouterLink with { path, hash } targets, which
+        // would require a full router. Stub both RouterLink and RouterView so
+        // the component mounts without one.
+        stubs: ['RouterView', 'RouterLink'],
       },
     })
     expect(wrapper.exists()).toBe(true)

@@ -1,21 +1,33 @@
-import type { ProblemDetail } from '@private-stack/vue-common'
-import { useAuth } from '@private-stack/vue-common'
+import type { ProblemDetail } from '@personal-stack/vue-common'
+import { useAuth } from '@personal-stack/vue-common'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { login as apiLogin, refresh as apiRefresh, register as apiRegister } from '@/features/auth/services/authService'
+import { register as apiRegister, sessionLogin } from '@/features/auth/services/authService'
 
 export const useAuthStore = defineStore('auth', () => {
-  const { user, isAuthenticated, setTokens, getAccessToken, getRefreshToken, logout: authLogout } = useAuth()
+  const { user, isAuthenticated, setUser, fetchUser, logout: authLogout } = useAuth()
 
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  const totpRequired = ref(false)
 
-  async function login(username: string, password: string): Promise<void> {
+  async function login(username: string, password: string, totpCode?: string): Promise<void> {
     isLoading.value = true
     error.value = null
+    totpRequired.value = false
     try {
-      const tokens = await apiLogin({ username, password })
-      setTokens(tokens)
+      const response = await sessionLogin(username, password, totpCode)
+
+      if (response.totpRequired) {
+        totpRequired.value = true
+        return
+      }
+
+      if (response.success && response.user) {
+        const { id, username, role: rawRole } = response.user
+        const role = (['ADMIN', 'USER', 'READONLY'] as const).find((r) => r === rawRole) ?? 'USER'
+        setUser({ id, username, email: '', role })
+      }
     } catch (e: unknown) {
       const msg = isProblemDetail(e) ? (e.detail ?? e.title) : 'Login failed'
       error.value = msg
@@ -25,11 +37,17 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function register(username: string, email: string, password: string): Promise<void> {
+  async function register(
+    username: string,
+    email: string,
+    firstName: string,
+    lastName: string,
+    password: string,
+  ): Promise<void> {
     isLoading.value = true
     error.value = null
     try {
-      await apiRegister({ username, email, password })
+      await apiRegister({ username, email, firstName, lastName, password })
     } catch (e: unknown) {
       const msg = isProblemDetail(e) ? (e.detail ?? e.title) : 'Registration failed'
       error.value = msg
@@ -39,21 +57,13 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function refreshTokens(): Promise<boolean> {
-    const refreshToken = getRefreshToken()
-    if (!refreshToken) return false
-    try {
-      const tokens = await apiRefresh(refreshToken)
-      setTokens(tokens)
-      return true
-    } catch {
-      authLogout()
-      return false
-    }
+  async function checkSession(): Promise<void> {
+    await fetchUser()
   }
 
   function logout(): void {
     authLogout()
+    totpRequired.value = false
   }
 
   return {
@@ -61,11 +71,11 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     isLoading,
     error,
+    totpRequired,
     login,
     register,
     logout,
-    refreshTokens,
-    getAccessToken,
+    checkSession,
   }
 })
 

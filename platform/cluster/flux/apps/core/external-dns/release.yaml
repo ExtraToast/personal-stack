@@ -1,0 +1,30 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: external-dns
+  namespace: external-dns
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: external-dns
+      sourceRef:
+        kind: HelmRepository
+        name: external-dns
+        namespace: external-dns
+  values:
+    provider:
+      name: cloudflare
+    sources:
+      - service
+      - traefik-proxy
+    env:
+      - name: CF_API_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: cloudflare-api-key
+            key: apiKey
+    extraArgs:
+      - --annotation-filter=kubernetes.io/ingress.class=traefik-public
+      - --domain-filter=jorisjonkers.dev
+      - --txt-owner-id=personal-stack-production

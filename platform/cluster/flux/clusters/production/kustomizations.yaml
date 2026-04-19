@@ -1,0 +1,157 @@
+---
+# Split the single root Kustomization into layers so Helm-owned CRDs
+# install before any CR that depends on them. apps-core installs charts
+# (cert-manager, MetalLB, ingress, external-dns, nvidia-device-plugin)
+# and waits for the HelmReleases to report Ready. Every other domain
+# dependsOn apps-core.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: apps-core
+  namespace: flux-system
+spec:
+  interval: 10m0s
+  path: ./platform/cluster/flux/apps/core
+  prune: true
+  wait: true
+  timeout: 15m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: apps-metallb-config
+  namespace: flux-system
+spec:
+  interval: 10m0s
+  path: ./platform/cluster/flux/apps/metallb-config
+  prune: true
+  dependsOn:
+    - name: apps-core
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: apps-edge
+  namespace: flux-system
+spec:
+  interval: 10m0s
+  path: ./platform/cluster/flux/apps/edge
+  prune: true
+  dependsOn:
+    - name: apps-core
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: apps-data
+  namespace: flux-system
+spec:
+  interval: 10m0s
+  path: ./platform/cluster/flux/apps/data
+  prune: true
+  dependsOn:
+    - name: apps-core
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: apps-mail
+  namespace: flux-system
+spec:
+  interval: 10m0s
+  path: ./platform/cluster/flux/apps/mail
+  prune: true
+  dependsOn:
+    - name: apps-core
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: apps-observability
+  namespace: flux-system
+spec:
+  interval: 10m0s
+  path: ./platform/cluster/flux/apps/observability
+  prune: true
+  wait: true
+  timeout: 15m
+  dependsOn:
+    - name: apps-core
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: apps-observability-rules
+  namespace: flux-system
+spec:
+  interval: 10m0s
+  path: ./platform/cluster/flux/apps/observability-rules
+  prune: true
+  dependsOn:
+    - name: apps-observability
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: apps-media
+  namespace: flux-system
+spec:
+  interval: 10m0s
+  path: ./platform/cluster/flux/apps/media
+  prune: true
+  dependsOn:
+    - name: apps-core
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: apps-stateless
+  namespace: flux-system
+spec:
+  interval: 10m0s
+  path: ./platform/cluster/flux/apps/stateless
+  prune: true
+  dependsOn:
+    - name: apps-core
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: apps-utility-system
+  namespace: flux-system
+spec:
+  interval: 10m0s
+  path: ./platform/cluster/flux/apps/utility-system
+  prune: true
+  dependsOn:
+    - name: apps-core
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Applied by its own Flux Kustomization (apps-metallb-config) that
+# dependsOn apps-core, so the MetalLB chart has installed the
+# metallb.io CRDs by the time these CRs are applied.
+resources:
+  - config.yaml

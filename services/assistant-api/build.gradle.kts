@@ -8,7 +8,7 @@ plugins {
 
 jooqCodegen {
     schemaName = "public"
-    packageName = "com.jorisjonkers.privatestack.assistant.jooq"
+    packageName = "com.jorisjonkers.personalstack.assistant.jooq"
     migrationLocations = listOf("filesystem:src/main/resources/db/migration")
 }
 

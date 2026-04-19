@@ -22,15 +22,16 @@ Single GitHub private repository containing everything.
 ### Directory Structure
 
 ```
-private-stack/
+personal-stack/
 ├── docs/
 │   ├── architecture/          # Architecture guide (ARCHITECTURE.md)
 │   └── adr/                   # Architecture Decision Records (this directory)
 ├── infra/
 │   ├── cloud-init/            # Server provisioning scripts
-│   ├── docker/                # Swarm stack files, shared Dockerfiles
-│   ├── traefik/               # Traefik static + dynamic config
-│   └── vault/                 # Vault config, policies, AppRole definitions
+│   ├── docker/                # Local container assets, shared Dockerfiles
+│   ├── nomad/                 # Production Nomad jobs, templates, Vault roles
+│   ├── scripts/               # Deploy/bootstrap helpers
+│   └── traefik/               # Traefik dev + shared dynamic config
 ├── services/
 │   ├── auth-api/              # Kotlin Spring Boot — OAuth2/OIDC auth server
 │   ├── auth-ui/               # Vue — login/register/MFA frontend
@@ -46,7 +47,6 @@ private-stack/
 ├── .editorconfig              # Editor configuration
 ├── .gitignore
 ├── docker-compose.yml         # Local development stack
-├── docker-compose.prod.yml    # Production Swarm stack
 ├── settings.gradle.kts        # Gradle composite build root
 └── pnpm-workspace.yaml        # Frontend workspace configuration
 ```
@@ -57,16 +57,16 @@ CLAUDE.md exists locally only (gitignored). It is not committed to the repositor
 
 ### Naming Conventions
 
-| Item                  | Convention                              | Example                              |
-| --------------------- | --------------------------------------- | ------------------------------------ |
-| Directories           | kebab-case                              | `auth-api`, `vue-common`             |
-| Kotlin packages       | com.jorisjonkers.privatestack.{service} | `com.jorisjonkers.privatestack.auth` |
-| Vue component files   | PascalCase.vue                          | `LoginForm.vue`                      |
-| TypeScript files      | camelCase.ts                            | `useAuth.ts`                         |
-| Docker service names  | kebab-case                              | `auth-api`, `assistant-ui`           |
-| Database names        | snake_case                              | `auth_db`, `assistant_db`            |
-| API endpoints         | /kebab-case                             | `/api/v1/user-profile`               |
-| Environment variables | SCREAMING_SNAKE_CASE                    | `DATABASE_URL`                       |
+| Item                  | Convention                               | Example                               |
+| --------------------- | ---------------------------------------- | ------------------------------------- |
+| Directories           | kebab-case                               | `auth-api`, `vue-common`              |
+| Kotlin packages       | com.jorisjonkers.personalstack.{service} | `com.jorisjonkers.personalstack.auth` |
+| Vue component files   | PascalCase.vue                           | `LoginForm.vue`                       |
+| TypeScript files      | camelCase.ts                             | `useAuth.ts`                          |
+| Docker service names  | kebab-case                               | `auth-api`, `assistant-ui`            |
+| Database names        | snake_case                               | `auth_db`, `assistant_db`             |
+| API endpoints         | /kebab-case                              | `/api/v1/user-profile`                |
+| Environment variables | SCREAMING_SNAKE_CASE                     | `DATABASE_URL`                        |
 
 ### Gradle Configuration
 

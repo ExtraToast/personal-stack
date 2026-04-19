@@ -1,0 +1,160 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: stalwart
+  namespace: mail-system
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: stalwart-data
+  namespace: mail-system
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stalwart
+  namespace: mail-system
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: stalwart
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: stalwart
+      annotations:
+        vault.hashicorp.com/agent-inject: 'true'
+        vault.hashicorp.com/agent-inject-token: 'true'
+        vault.hashicorp.com/agent-pre-populate-only: 'true'
+        vault.hashicorp.com/role: stalwart
+        vault.hashicorp.com/agent-inject-secret-stalwart.env: secret/data/platform/mail
+        vault.hashicorp.com/agent-inject-template-stalwart.env: |
+          STALWART_ADMIN_USER={{ with secret "secret/data/platform/mail" }}{{ index .Data.data "stalwart.admin_user" }}{{ end }}
+          STALWART_ADMIN_SECRET={{ with secret "secret/data/platform/mail" }}{{ index .Data.data "stalwart.admin_password" }}{{ end }}
+          CF_DNS_API_TOKEN={{ with secret "secret/data/platform/edge" }}{{ index .Data.data "cloudflare.dns_api_token" }}{{ end }}
+          STALWART_HOSTNAME=mail.jorisjonkers.dev
+          STALWART_DOMAIN=jorisjonkers.dev
+    spec:
+      serviceAccountName: stalwart
+      nodeSelector:
+        personal-stack/site: frankfurt
+      containers:
+        - name: stalwart
+          image: stalwartlabs/stalwart:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              set -a
+              . /vault/secrets/stalwart.env
+              set +a
+              mkdir -p /opt/stalwart/etc
+              cp /config/config.toml /opt/stalwart/etc/config.toml
+              exec /usr/local/bin/entrypoint.sh /usr/local/bin/stalwart
+          # Mail protocols are raw TCP (SMTP, IMAP, POP3, ManageSieve) and
+          # cannot traverse Cloudflare's HTTP proxy, so mail.jorisjonkers.dev
+          # is a non-proxied A record pointing directly at 167.86.79.203.
+          # Bind each mail port on the frankfurt host via hostPort so the
+          # stalwart pod actually answers on the VPS. The admin UI (http,
+          # 8080) stays internal — it's fronted by traefik ingress.
+          ports:
+            - containerPort: 25
+              hostPort: 25
+              name: smtp
+            - containerPort: 110
+              hostPort: 110
+              name: pop3
+            - containerPort: 143
+              hostPort: 143
+              name: imap
+            - containerPort: 465
+              hostPort: 465
+              name: submissions
+            - containerPort: 587
+              hostPort: 587
+              name: submission
+            - containerPort: 993
+              hostPort: 993
+              name: imaptls
+            - containerPort: 995
+              hostPort: 995
+              name: pop3s
+            - containerPort: 4190
+              hostPort: 4190
+              name: sieve
+            - containerPort: 8080
+              name: http
+          readinessProbe:
+            tcpSocket:
+              port: http
+          livenessProbe:
+            tcpSocket:
+              port: http
+          volumeMounts:
+            - name: stalwart-data
+              mountPath: /opt/stalwart
+            - name: stalwart-config-template
+              mountPath: /config/config.toml
+              subPath: config.toml
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 1536Mi
+            limits:
+              cpu: 2000m
+              memory: 3Gi
+      volumes:
+        - name: stalwart-data
+          persistentVolumeClaim:
+            claimName: stalwart-data
+        - name: stalwart-config-template
+          configMap:
+            name: stalwart-config-template
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stalwart
+  namespace: mail-system
+spec:
+  selector:
+    app.kubernetes.io/name: stalwart
+  ports:
+    - name: smtp
+      port: 25
+      targetPort: smtp
+    - name: pop3
+      port: 110
+      targetPort: pop3
+    - name: imap
+      port: 143
+      targetPort: imap
+    - name: submissions
+      port: 465
+      targetPort: submissions
+    - name: submission
+      port: 587
+      targetPort: submission
+    - name: imaptls
+      port: 993
+      targetPort: imaptls
+    - name: pop3s
+      port: 995
+      targetPort: pop3s
+    - name: sieve
+      port: 4190
+      targetPort: sieve
+    - name: http
+      port: 8080
+      targetPort: http

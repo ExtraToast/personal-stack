@@ -14,25 +14,51 @@ read_secret() {
     fi
 }
 
-AUTH_DB_PASSWORD=$(read_secret auth_db_password auth_password)
-ASSISTANT_DB_PASSWORD=$(read_secret assistant_db_password assistant_password)
-N8N_DB_PASSWORD=$(read_secret n8n_db_password n8n_password)
+resolve_value() {
+    local env_name="$1"
+    local secret_name="$2"
+    local fallback="$3"
+    local current="${!env_name:-}"
+
+    if [ -n "$current" ]; then
+        echo "$current"
+    else
+        read_secret "$secret_name" "$fallback"
+    fi
+}
+
+AUTH_DB_USER=$(resolve_value AUTH_DB_USER auth_db_user auth_user)
+AUTH_DB_PASSWORD=$(resolve_value AUTH_DB_PASSWORD auth_db_password auth_password)
+ASSISTANT_DB_USER=$(resolve_value ASSISTANT_DB_USER assistant_db_user assistant_user)
+ASSISTANT_DB_PASSWORD=$(resolve_value ASSISTANT_DB_PASSWORD assistant_db_password assistant_password)
+N8N_DB_USER=$(resolve_value N8N_DB_USER n8n_db_user n8n_user)
+N8N_DB_PASSWORD=$(resolve_value N8N_DB_PASSWORD n8n_db_password n8n_password)
 
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
     -- Auth service database
-    CREATE USER auth_user WITH PASSWORD '${AUTH_DB_PASSWORD}';
-    CREATE DATABASE auth_db OWNER auth_user;
-    GRANT ALL PRIVILEGES ON DATABASE auth_db TO auth_user;
+    CREATE USER ${AUTH_DB_USER} WITH PASSWORD '${AUTH_DB_PASSWORD}';
+    CREATE DATABASE auth_db OWNER ${AUTH_DB_USER};
+    GRANT ALL PRIVILEGES ON DATABASE auth_db TO ${AUTH_DB_USER};
 
     -- Assistant service database
-    CREATE USER assistant_user WITH PASSWORD '${ASSISTANT_DB_PASSWORD}';
-    CREATE DATABASE assistant_db OWNER assistant_user;
-    GRANT ALL PRIVILEGES ON DATABASE assistant_db TO assistant_user;
+    CREATE USER ${ASSISTANT_DB_USER} WITH PASSWORD '${ASSISTANT_DB_PASSWORD}';
+    CREATE DATABASE assistant_db OWNER ${ASSISTANT_DB_USER};
+    GRANT ALL PRIVILEGES ON DATABASE assistant_db TO ${ASSISTANT_DB_USER};
 
     -- n8n database
-    CREATE USER n8n_user WITH PASSWORD '${N8N_DB_PASSWORD}';
-    CREATE DATABASE n8n_db OWNER n8n_user;
-    GRANT ALL PRIVILEGES ON DATABASE n8n_db TO n8n_user;
+    CREATE USER ${N8N_DB_USER} WITH PASSWORD '${N8N_DB_PASSWORD}';
+    CREATE DATABASE n8n_db OWNER ${N8N_DB_USER};
+    GRANT ALL PRIVILEGES ON DATABASE n8n_db TO ${N8N_DB_USER};
 EOSQL
+
+# PostgreSQL 15+ revoked default CREATE on the public schema for non-superusers.
+# Transfer public schema ownership so each service can run migrations.
+for db_and_user in "auth_db:${AUTH_DB_USER}" "assistant_db:${ASSISTANT_DB_USER}" "n8n_db:${N8N_DB_USER}"; do
+    db="${db_and_user%%:*}"
+    user="${db_and_user##*:}"
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$db" <<-EOSQL
+        ALTER SCHEMA public OWNER TO ${user};
+EOSQL
+done
 
 echo "==> All databases and users created successfully."

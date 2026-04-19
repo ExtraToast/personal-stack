@@ -14,7 +14,7 @@ const year = new Date().getFullYear()
       </p>
       <a
         class="text-gray-500 transition-colors hover:text-terminal-green"
-        href="https://github.com/ExtraToast"
+        href="https://github.com/ExtraToast/personal-stack"
         rel="noopener noreferrer"
         target="_blank"
       >

@@ -1,0 +1,54 @@
+name: Platform Validate
+
+on:
+  pull_request:
+    paths:
+      - 'platform/**'
+      - '.github/workflows/platform-validate.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'platform/**'
+      - '.github/workflows/platform-validate.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Install kustomize
+        uses: imranismail/setup-kustomize@v2
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Install kubeconform
+        run: |
+          set -euo pipefail
+          version="v0.6.7"
+          curl -sSL -o /tmp/kubeconform.tar.gz \
+            "https://github.com/yannh/kubeconform/releases/download/${version}/kubeconform-linux-amd64.tar.gz"
+          tar -xzf /tmp/kubeconform.tar.gz -C /tmp
+          sudo install /tmp/kubeconform /usr/local/bin/kubeconform
+
+      - name: Install Flux CLI
+        # flux-local shells out to `flux build ks` under the hood, so the
+        # upstream CLI has to be on PATH.
+        uses: fluxcd/flux2/action@main
+
+      - name: Install flux-local
+        # flux-local expands every HelmRelease CR against its real chart
+        # + values, which is what exposes remote-chart template errors
+        # (loki's schema_config, nvidia plugin config shape, SingleBinary
+        # + scalable replicas clash) before merge.
+        run: pipx install flux-local
+
+      - name: Validate platform render
+        run: platform/scripts/validate/render-platform.sh

@@ -1,0 +1,164 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: auth-api
+  namespace: auth-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-api
+  namespace: auth-system
+  annotations:
+    # Keel.sh watches this Deployment's :latest tag in ghcr and triggers
+    # a rollout when the digest changes. Two non-obvious knobs are load
+    # bearing: `policy: force` is the only policy that works for
+    # non-semver tags, and `match-tag: "true"` scopes Keel to the tag
+    # currently on the Deployment (i.e. :latest) instead of listing
+    # every tag in the registry and picking whichever sorts highest.
+    # Without match-tag Keel pinned every app to an ancient :<sha>
+    # tag that sorted above the others.
+    keel.sh/policy: force
+    keel.sh/match-tag: 'true'
+    keel.sh/trigger: poll
+    keel.sh/pollSchedule: '@every 2m'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: auth-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: auth-api
+      annotations:
+        vault.hashicorp.com/agent-inject: 'true'
+        vault.hashicorp.com/agent-inject-token: 'true'
+        vault.hashicorp.com/agent-pre-populate-only: 'true'
+        vault.hashicorp.com/role: auth-api
+        vault.hashicorp.com/agent-inject-secret-auth-api.env: secret/data/auth-api
+        vault.hashicorp.com/agent-inject-template-auth-api.env: |
+          AUTH_TRANSIT_ENABLED=true
+          AUTH_TRANSIT_KEY_NAME=auth-api-jwt
+          AUTH_CLIENTS_GRAFANA_SECRET={{ with secret "secret/data/auth-api" }}{{ index .Data.data "auth.clients.grafana.secret" }}{{ end }}
+          AUTH_CLIENTS_N8N_SECRET={{ with secret "secret/data/auth-api" }}{{ index .Data.data "auth.clients.n8n.secret" }}{{ end }}
+          AUTH_CLIENTS_VAULT_SECRET={{ with secret "secret/data/auth-api" }}{{ index .Data.data "auth.clients.vault.secret" }}{{ end }}
+          MAIL_USERNAME={{ with secret "secret/data/auth-api" }}{{ index .Data.data "mail.username" }}{{ end }}
+          MAIL_PASSWORD={{ with secret "secret/data/auth-api" }}{{ index .Data.data "mail.password" }}{{ end }}
+          {{ with secret "rabbitmq/creds/app-consumer" }}
+          SPRING_RABBITMQ_USERNAME={{ .Data.username }}
+          SPRING_RABBITMQ_PASSWORD={{ .Data.password }}
+          {{ end }}
+    spec:
+      serviceAccountName: auth-api
+      nodeSelector:
+        personal-stack/site: frankfurt
+      containers:
+        - name: auth-api
+          image: ghcr.io/extratoast/personal-stack/auth-api:latest
+          imagePullPolicy: Always
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              export SPRING_CLOUD_VAULT_TOKEN="$(cat /vault/secrets/token)"
+              set -a
+              . /vault/secrets/auth-api.env
+              set +a
+              exec java -javaagent:/app/otel-javaagent.jar -jar /app/app.jar
+          env:
+            - name: SERVER_PORT
+              value: '8081'
+            - name: SPRING_PROFILES_ACTIVE
+              value: prod
+            - name: SPRING_CONFIG_IMPORT
+              value: vault://
+            - name: VAULT_ENABLED
+              value: 'true'
+            - name: VAULT_ADDR
+              value: http://vault.data-system.svc.cluster.local:8200
+            - name: VAULT_DB_ENABLED
+              value: 'true'
+            - name: DB_HOST
+              value: postgres.data-system.svc.cluster.local
+            - name: DB_PORT
+              value: '5432'
+            - name: VALKEY_HOST
+              value: valkey.data-system.svc.cluster.local
+            - name: VALKEY_PORT
+              value: '6379'
+            - name: SPRING_RABBITMQ_HOST
+              value: rabbitmq.data-system.svc.cluster.local
+            - name: SPRING_RABBITMQ_PORT
+              value: '5672'
+            - name: MAIL_HOST
+              value: stalwart.mail-system.svc.cluster.local
+            - name: MAIL_PORT
+              value: '587'
+            - name: AUTH_LOGIN_URL
+              value: https://auth.jorisjonkers.dev/login
+            - name: AUTH_ISSUER
+              value: https://auth.jorisjonkers.dev
+            - name: SESSION_COOKIE_DOMAIN
+              value: jorisjonkers.dev
+            - name: SESSION_COOKIE_SECURE
+              value: 'true'
+            - name: CONFIRMATION_URL
+              value: https://auth.jorisjonkers.dev/confirm-email
+            - name: AUTH_CORS_ALLOWED_ORIGINS
+              value: https://jorisjonkers.dev,https://auth.jorisjonkers.dev,https://assistant.jorisjonkers.dev,https://vault.jorisjonkers.dev,https://n8n.jorisjonkers.dev,https://grafana.jorisjonkers.dev,https://dashboard.jorisjonkers.dev,https://rabbitmq.jorisjonkers.dev,https://status.jorisjonkers.dev
+            - name: DEPLOYMENT_ENVIRONMENT
+              value: production
+            - name: SERVICE_VERSION
+              value: latest
+            - name: OTEL_SERVICE_NAME
+              value: auth-api
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: deployment.environment=production,service.version=latest
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://alloy.observability.svc.cluster.local:4318
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: http/protobuf
+            - name: OTEL_LOGS_EXPORTER
+              value: none
+            - name: OTEL_METRICS_EXPORTER
+              value: none
+            - name: OTEL_TRACES_EXPORTER
+              value: otlp
+          ports:
+            - containerPort: 8081
+              name: http
+          startupProbe:
+            httpGet:
+              path: /api/actuator/health/liveness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /api/actuator/health/readiness
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /api/actuator/health/liveness
+              port: http
+          resources:
+            requests:
+              cpu: 750m
+              memory: 1536Mi
+            limits:
+              cpu: 1500m
+              memory: 3Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-api
+  namespace: auth-system
+spec:
+  selector:
+    app.kubernetes.io/name: auth-api
+  ports:
+    - name: http
+      port: 8081
+      targetPort: http

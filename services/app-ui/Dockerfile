@@ -7,7 +7,8 @@ COPY services/app-ui/package.json services/app-ui/
 RUN pnpm install --frozen-lockfile
 COPY libs/vue-common/ libs/vue-common/
 COPY services/app-ui/ services/app-ui/
-RUN pnpm --filter @private-stack/app-ui build
+ARG VITE_AUTH_URL=https://auth.jorisjonkers.dev
+RUN VITE_AUTH_URL=${VITE_AUTH_URL} pnpm --filter @personal-stack/app-ui build
 
 FROM nginx:alpine
 COPY services/app-ui/nginx.conf /etc/nginx/conf.d/default.conf

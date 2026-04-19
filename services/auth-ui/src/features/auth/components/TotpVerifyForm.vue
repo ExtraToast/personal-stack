@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { nextTick, onMounted, ref } from 'vue'
 import { z } from 'zod'
 
 const emit = defineEmits<{
@@ -10,6 +10,17 @@ const codeSchema = z.string().regex(/^\d{6}$/, 'Must be exactly 6 digits')
 
 const code = ref('')
 const error = ref<string | null>(null)
+const codeInput = ref<HTMLInputElement | null>(null)
+
+async function focusCodeInput(): Promise<void> {
+  await nextTick()
+  codeInput.value?.focus()
+  codeInput.value?.select()
+}
+
+onMounted(() => {
+  void focusCodeInput()
+})
 
 function onSubmit(): void {
   const result = codeSchema.safeParse(code.value)
@@ -30,6 +41,7 @@ function onSubmit(): void {
       </label>
       <input
         id="totp-code"
+        ref="codeInput"
         v-model="code"
         autocomplete="one-time-code"
         class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 text-center font-mono text-xl tracking-widest text-gray-200 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
