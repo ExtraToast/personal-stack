@@ -76,8 +76,6 @@ class AuthorizationServerConfig(
     private val n8nClientSecret: String,
     @param:Value("\${auth.clients.vault.secret:vault-secret}")
     private val vaultClientSecret: String,
-    @param:Value("\${auth.clients.headlamp.secret:headlamp-secret}")
-    private val headlampClientSecret: String,
 ) {
     @Bean
     @Order(1)
@@ -124,7 +122,7 @@ class AuthorizationServerConfig(
             buildN8nClient(n8nClientSecret),
             buildRabbitMqClient(),
             buildVaultClient(vaultClientSecret),
-            buildHeadlampClient(headlampClientSecret),
+            buildHeadlampClient(),
         )
 
     @Bean
