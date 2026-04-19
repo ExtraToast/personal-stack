@@ -31,16 +31,27 @@ spec:
         namespace: nvidia-device-plugin
   values:
     compatWithCPUManager: true
-    # Run the plugin pod under the `nvidia` RuntimeClass (registered by
-    # k3s when NixOS's `hardware.nvidia-container-toolkit.enable = true`
-    # lands). The nvidia container runtime injects libnvidia-ml.so +
-    # /dev/nvidia* into the container; without that the binary's
-    # infolib.HasNvml() returns false and it aborts with
-    #   "CDI --device-list-strategy options are only supported on
-    #    NVML-based systems"
-    # since `deviceListStrategy: cdi-annotations` in the config below
-    # requires NVML to enumerate GPUs at plugin startup.
-    runtimeClassName: nvidia
+    # Run the plugin pod under the `nvidia-cdi` RuntimeClass, not the
+    # `nvidia` one. k3s's runtimes addon auto-registers both containerd
+    # runtime handlers (once `nvidia-container-runtime` is on k3s's
+    # systemd PATH, see platform/nix/modules/roles/gpu-nvidia.nix), but:
+    #
+    #   - The `nvidia` handler uses the legacy hook wrapper, which
+    #     shells out to `nvidia-container-cli`. That binary lives in
+    #     the `libnvidia-container` derivation, which NixOS's
+    #     `hardware.nvidia-container-toolkit.enable` does not install,
+    #     so every pod start fails with
+    #         nvidia-container-runtime did not terminate successfully:
+    #         exit status 2
+    #   - The `nvidia-cdi` handler consumes the CDI spec NixOS already
+    #     emits at /var/run/cdi/nvidia-container-toolkit.json, has no
+    #     nvidia-container-cli dependency, and produces the same
+    #     NVML-visible environment the plugin needs for
+    #     `deviceListStrategy: cdi-annotations`.
+    #
+    # Smoke-tested with a one-off cuda:12.4-base pod on the t1000: the
+    # nvidia-cdi handler runs nvidia-smi and sees the Quadro T1000.
+    runtimeClassName: nvidia-cdi
     # Provide an explicit default config so the plugin does not fall back
     # to the compiled-in 'auto' discovery strategy (removed upstream).
     # NixOS hosts this with nvidia-container-toolkit.enable=true which
