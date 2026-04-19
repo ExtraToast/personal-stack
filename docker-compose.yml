@@ -495,7 +495,7 @@ services:
       SESSION_COOKIE_DOMAIN: jorisjonkers.test
       SESSION_COOKIE_SECURE: 'true'
       SESSION_COOKIE_SAME_SITE: Lax
-      AUTH_CORS_ALLOWED_ORIGINS: https://jorisjonkers.test,https://auth.jorisjonkers.test,https://assistant.jorisjonkers.test,https://vault.jorisjonkers.test,https://n8n.jorisjonkers.test,https://grafana.jorisjonkers.test,https://nomad.jorisjonkers.test,https://rabbitmq.jorisjonkers.test,https://stalwart.jorisjonkers.test,https://traefik.jorisjonkers.test,https://status.jorisjonkers.test
+      AUTH_CORS_ALLOWED_ORIGINS: https://jorisjonkers.test,https://auth.jorisjonkers.test,https://assistant.jorisjonkers.test,https://vault.jorisjonkers.test,https://n8n.jorisjonkers.test,https://grafana.jorisjonkers.test,https://dashboard.jorisjonkers.test,https://rabbitmq.jorisjonkers.test,https://stalwart.jorisjonkers.test,https://traefik.jorisjonkers.test,https://status.jorisjonkers.test
       DEPLOYMENT_ENVIRONMENT: local
       SERVICE_VERSION: latest
       OTEL_SERVICE_NAME: auth-api
@@ -570,12 +570,32 @@ services:
         }
         EOF
         vault auth enable oidc >/dev/null 2>&1 || true
-        vault write auth/oidc/config \
+        # auth-api reports healthy on /actuator/health before its OAuth2
+        # authorization-server filter chain (and therefore
+        # /.well-known/openid-configuration via the well-known router) is
+        # ready to serve. Retry the config write until the discovery URL
+        # responds, otherwise we occasionally race with traefik/auth-api
+        # startup and get a 404.
+        attempt=0
+        until vault write auth/oidc/config \
           oidc_discovery_url="$$AUTH_ISSUER" \
           oidc_discovery_ca_pem=@/tmp/auth.jorisjonkers.test.pem \
           oidc_client_id="vault" \
           oidc_client_secret="$$VAULT_OIDC_CLIENT_SECRET" \
-          default_role="default" >/dev/null
+          default_role="default" >/dev/null 2>&1; do
+          attempt=$$((attempt + 1))
+          if [ "$$attempt" -ge 30 ]; then
+            echo "vault-oidc-init: discovery URL $$AUTH_ISSUER never became ready" >&2
+            vault write auth/oidc/config \
+              oidc_discovery_url="$$AUTH_ISSUER" \
+              oidc_discovery_ca_pem=@/tmp/auth.jorisjonkers.test.pem \
+              oidc_client_id="vault" \
+              oidc_client_secret="$$VAULT_OIDC_CLIENT_SECRET" \
+              default_role="default"
+            exit 1
+          fi
+          sleep 2
+        done
         vault write auth/oidc/role/default @/tmp/vault-oidc-role.json >/dev/null
 
   assistant-api:

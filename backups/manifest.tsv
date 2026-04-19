@@ -1,0 +1,34 @@
+# host_group	service_name	source_path	required	description
+cloud	vault-raft	/opt/vault/data	true	Vault Raft storage
+cloud	consul-state	/opt/consul	true	Consul server data directory
+cloud	nomad-state	/opt/nomad	true	Nomad server/client state directory
+cloud	postgres	/srv/nomad/postgres	true	PostgreSQL data volume
+cloud	prometheus	/srv/nomad/prometheus	true	Prometheus TSDB volume
+cloud	valkey	/srv/nomad/valkey	true	Valkey data volume
+cloud	rabbitmq	/srv/nomad/rabbitmq	true	RabbitMQ data volume
+cloud	traefik	/srv/nomad/traefik	true	Traefik data and certificate state
+cloud	n8n	/srv/nomad/n8n	true	n8n data volume
+cloud	grafana	/srv/nomad/grafana	true	Grafana data volume
+cloud	alloy	/srv/nomad/alloy	true	Alloy state volume
+cloud	loki	/srv/nomad/loki	true	Loki data volume
+cloud	tempo	/srv/nomad/tempo	true	Tempo data volume
+cloud	uptime-kuma	/srv/nomad/uptime-kuma	true	Uptime Kuma state volume
+cloud	stalwart	/srv/nomad/stalwart	true	Stalwart state volume
+cloud	headscale	/srv/nomad/headscale	false	Headscale state volume if still deployed
+cloud	nomad-bootstrap-env	/opt/personal-stack/.nomad-bootstrap.env	false	Legacy Nomad bootstrap env file
+cloud	vault-keys-file	/opt/personal-stack/.vault-keys	false	Legacy Vault bootstrap keys file
+cloud	nomad-keys-file	/opt/personal-stack/.nomad-keys	false	Legacy Nomad bootstrap keys file
+home	nomad-client-state	/opt/nomad	true	Nomad client state directory
+home	consul-client-state	/opt/consul	true	Consul client state directory
+home	adguard-home	/opt/adguard-home	true	AdGuard Home working directory and state
+home	samba-state	/var/lib/samba	true	Samba account and state database
+home	qbittorrent-config	/srv/nomad/qbittorrent	true	qBittorrent config/state
+home	prowlarr-config	/srv/nomad/prowlarr	true	Prowlarr config/state
+home	bazarr-config	/srv/nomad/bazarr	true	Bazarr config/state
+home	sonarr-config	/srv/nomad/sonarr	true	Sonarr config/state
+home	radarr-config	/srv/nomad/radarr	true	Radarr config/state
+home	jellyfin-config	/srv/nomad/jellyfin	true	Jellyfin config/state
+home	jellyseerr-config	/srv/nomad/jellyseerr	true	Jellyseerr config/state
+home	lightrag-data	/srv/nomad/lightrag	false	LightRAG state if deployed
+home	alloy-data	/srv/nomad/alloy	false	Home Alloy state if deployed
+home	home-node-env	/opt/personal-stack/.home-node.env	false	Legacy home-node env file

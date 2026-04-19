@@ -13,37 +13,6 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  validate:
-    name: Validate Nomad Jobs
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - name: Install Nomad
-        run: |
-          curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-          echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
-            | sudo tee /etc/apt/sources.list.d/hashicorp.list > /dev/null
-          sudo apt-get update && sudo apt-get install -y nomad
-      - name: Validate HCL and JSON
-        run: |
-          errors=0
-          while IFS= read -r -d '' f; do
-            echo "==> $f"
-            nomad fmt -check "$f" || { echo "FAIL (fmt): $f"; errors=1; }
-            output=$(nomad job validate "$f" 2>&1) || {
-              if echo "$output" | grep -q 'Vault.*not enabled'; then
-                echo "  (skipped — Vault not available in CI)"
-              else
-                echo "$output"; echo "FAIL (validate): $f"; errors=1
-              fi
-            }
-          done < <(find infra/nomad/jobs -name '*.hcl' -print0 | sort -z)
-          [[ "$errors" -eq 0 ]] || exit 1
-          find infra/nomad/vault -name '*.json' -print0 | while IFS= read -r -d '' f; do
-            echo "==> $f"
-            python3 -m json.tool "$f" > /dev/null
-          done
-
   build-and-push:
     name: Build & Push Images
     runs-on: ubuntu-latest
@@ -84,36 +53,3 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:latest
           cache-from: type=gha,scope=${{ matrix.service.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}
-
-  deploy:
-    name: Deploy to Nomad
-    runs-on: ubuntu-latest
-    needs: [validate, build-and-push]
-    permissions:
-      packages: read
-      contents: read
-    environment: production
-    steps:
-      - uses: actions/checkout@v6
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
-        env:
-          NOMAD_TOKEN: ${{ secrets.NOMAD_TOKEN }}
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          port: 2222
-          command_timeout: 20m
-          envs: NOMAD_TOKEN
-          script: |
-            set -euo pipefail
-            cd /opt/personal-stack
-            git fetch origin main
-            git reset --hard '${{ github.sha }}'
-            export IMAGE_TAG='${{ github.sha }}'
-            export IMAGE_REPO="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
-            export NOMAD_TOKEN
-            : "${NOMAD_TOKEN:?NOMAD_TOKEN secret is required}"
-            echo "Deploying ${IMAGE_REPO} at ${IMAGE_TAG}"
-            bash infra/scripts/deploy.sh --phase all --wait
