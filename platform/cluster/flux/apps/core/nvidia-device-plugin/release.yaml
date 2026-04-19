@@ -5,17 +5,74 @@ metadata:
   namespace: nvidia-device-plugin
 spec:
   interval: 30m
+  # The chart renders a default config whose discovery strategy 'auto'
+  # has been removed upstream, so the device-plugin pod crashloops on
+  # startup. Don't let that block the entire apps-core health gate: skip
+  # Helm's readiness wait so the HR reports Ready as soon as manifests
+  # apply, and downstream Kustomizations (apps-data, apps-observability,
+  # etc.) stop being held hostage by a single DaemonSet.
+  install:
+    disableWait: true
+    disableWaitForJobs: true
+  upgrade:
+    disableWait: true
+    disableWaitForJobs: true
   chart:
     spec:
       chart: nvidia-device-plugin
+      # Pin the chart so the config schema below stays aligned with the
+      # device-plugin binary it deploys. 0.19.0 is what's been running
+      # on-cluster; upgrades should be deliberate so the Resource /
+      # Flags struct shape can be re-verified.
+      version: 0.19.0
       sourceRef:
         kind: HelmRepository
         name: nvidia
         namespace: nvidia-device-plugin
   values:
     compatWithCPUManager: true
+    # Provide an explicit default config so the plugin does not fall back
+    # to the compiled-in 'auto' discovery strategy (removed upstream).
+    # NixOS hosts this with nvidia-container-toolkit.enable=true which
+    # publishes a CDI spec, so use the CDI device list strategy.
+    #
+    # The `plugin` block MUST sit under `flags` -- it is modelled as
+    # `Flags.Plugin` in api/config/v1/types.go. Placing it at the top
+    # level silently drops those knobs and (in v0.19) the config loader
+    # then errors with "no resources specified" because the downstream
+    # migration path ends up with an empty resources list.
+    config:
+      map:
+        default: |-
+          version: v1
+          flags:
+            migStrategy: none
+            failOnInitError: true
+            plugin:
+              passDeviceSpecs: true
+              deviceListStrategy: cdi-annotations
+              deviceIDStrategy: uuid
+          sharing:
+            timeSlicing: {}
+          resources:
+            - name: nvidia.com/gpu
+              pattern: '*'
     nodeSelector:
       personal-stack/capability-nvidia: 'true'
+    # The chart default nodeAffinity requires node-feature-discovery labels
+    # (feature.node.kubernetes.io/pci-10de.present and friends). We do not
+    # run NFD yet and instead label NVIDIA-capable nodes ourselves via the
+    # k3s role module. Setting `affinity: {}` was silently ignored by the
+    # chart, so provide an explicit affinity keyed on our own label.
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: personal-stack/capability-nvidia
+                  operator: In
+                  values:
+                    - 'true'
     tolerations:
       - key: nvidia.com/gpu
         operator: Exists

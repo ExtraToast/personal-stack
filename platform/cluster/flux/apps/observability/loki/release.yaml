@@ -17,6 +17,26 @@ spec:
     deploymentMode: SingleBinary
     loki:
       auth_enabled: false
+      # The SingleBinary statefulset template requires bucketNames.chunks
+      # even though local filesystem storage is used; chart validation
+      # rejects the release otherwise. Names are unused placeholders.
+      storage:
+        type: filesystem
+        bucketNames:
+          chunks: chunks
+          ruler: ruler
+          admin: admin
+      # Loki 3.x requires an explicit schema_config. Single TSDB schema
+      # over the filesystem object store is enough for SingleBinary.
+      schemaConfig:
+        configs:
+          - from: '2024-04-01'
+            store: tsdb
+            object_store: filesystem
+            schema: v13
+            index:
+              prefix: index_
+              period: 24h
     singleBinary:
       replicas: 1
       persistence:
@@ -24,3 +44,15 @@ spec:
         size: 20Gi
       nodeSelector:
         personal-stack/site: frankfurt
+    # SingleBinary deployment: explicitly zero out the scalable-mode
+    # components so the chart's validate.yaml accepts the config.
+    write:
+      replicas: 0
+    read:
+      replicas: 0
+    backend:
+      replicas: 0
+    chunksCache:
+      enabled: false
+    resultsCache:
+      enabled: false

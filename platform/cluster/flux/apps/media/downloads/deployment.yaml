@@ -27,13 +27,13 @@ spec:
         vault.hashicorp.com/role: downloads
         vault.hashicorp.com/agent-inject-secret-gluetun.env: secret/data/platform/media
         vault.hashicorp.com/agent-inject-template-gluetun.env: |
-          VPN_SERVICE_PROVIDER=private internet access
-          VPN_TYPE=openvpn
-          OPENVPN_USER={{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.username" }}{{ end }}
-          OPENVPN_PASSWORD={{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.password" }}{{ end }}
-          SERVER_REGIONS={{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.server_regions" }}{{ end }}
-          FIREWALL_OUTBOUND_SUBNETS=100.64.0.0/10,192.168.0.0/16,172.16.0.0/12
-          FIREWALL_INPUT_PORTS=8080,9696
+          VPN_SERVICE_PROVIDER='private internet access'
+          VPN_TYPE='openvpn'
+          OPENVPN_USER='{{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.username" }}{{ end }}'
+          OPENVPN_PASSWORD='{{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.password" }}{{ end }}'
+          SERVER_REGIONS='{{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.server_regions" }}{{ end }}'
+          FIREWALL_OUTBOUND_SUBNETS='100.64.0.0/10,192.168.0.0/16,172.16.0.0/12'
+          FIREWALL_INPUT_PORTS='8080,9696'
     spec:
       serviceAccountName: downloads
       nodeSelector:
@@ -98,15 +98,15 @@ spec:
               value: '8080'
           ports:
             - containerPort: 8080
-              name: qbittorrent-http
+              name: qbit-http
           readinessProbe:
             httpGet:
               path: /
-              port: qbittorrent-http
+              port: qbit-http
           livenessProbe:
             httpGet:
               path: /
-              port: qbittorrent-http
+              port: qbit-http
           volumeMounts:
             - name: media-library
               mountPath: /media
@@ -118,7 +118,7 @@ spec:
               memory: 768Mi
             limits:
               cpu: 1500m
-              memory: 1536Mi
+              memory: 3Gi
         - name: prowlarr
           image: linuxserver/prowlarr:1.32.2
           imagePullPolicy: IfNotPresent
@@ -175,7 +175,7 @@ spec:
   ports:
     - name: http
       port: 8080
-      targetPort: qbittorrent-http
+      targetPort: qbit-http
 ---
 apiVersion: v1
 kind: Service

@@ -74,8 +74,6 @@ class AuthorizationServerConfig(
     private val grafanaClientSecret: String,
     @param:Value("\${auth.clients.n8n.secret:n8n-secret}")
     private val n8nClientSecret: String,
-    @param:Value("\${auth.clients.nomad.secret:nomad-secret}")
-    private val nomadClientSecret: String,
     @param:Value("\${auth.clients.vault.secret:vault-secret}")
     private val vaultClientSecret: String,
 ) {
@@ -122,7 +120,6 @@ class AuthorizationServerConfig(
             buildAssistantApiClient(),
             buildGrafanaClient(grafanaClientSecret),
             buildN8nClient(n8nClientSecret),
-            buildNomadClient(nomadClientSecret),
             buildRabbitMqClient(),
             buildVaultClient(vaultClientSecret),
         )
@@ -269,7 +266,7 @@ class AuthorizationServerConfig(
                 "grafana" to ServicePermission.GRAFANA,
                 "vault" to ServicePermission.VAULT,
                 "n8n" to ServicePermission.N8N,
-                "nomad" to ServicePermission.NOMAD,
+                "dashboard" to ServicePermission.DASHBOARD,
                 "rabbitmq" to ServicePermission.RABBITMQ,
             )
     }

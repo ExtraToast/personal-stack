@@ -28,6 +28,14 @@ The `Tailscale` tailnet bootstrap sequence for new hosts lives in
 The actual home service cutover for media data and Samba lives in
 [home-service-cutover-playbook.md](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/cluster/bootstrap/home-service-cutover-playbook.md:1).
 
+## Flux Bootstrap
+
+The first-time Flux install on a clean cluster is documented in
+[flux-bootstrap-playbook.md](/Users/j.w.jonkers/IDEAProjects/personal-stack-2/platform/cluster/bootstrap/flux-bootstrap-playbook.md:1).
+It covers the one-off `kubectl apply -k` of the committed controller manifests,
+the `flux create secret git` step that supplies a read-only PAT, and how to
+upgrade Flux later without bypassing `main`'s branch protection.
+
 ## Vault unseal
 
 The first `Vault` start on a fresh cluster is manual by design.

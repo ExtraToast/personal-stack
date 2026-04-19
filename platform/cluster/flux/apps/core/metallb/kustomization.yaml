@@ -5,4 +5,5 @@ resources:
   - namespace.yaml
   - source.yaml
   - release.yaml
-  - config.yaml
+# IPAddressPool and L2Advertisement now live in apps/metallb-config so
+# they apply only after the MetalLB chart has installed the CRDs.

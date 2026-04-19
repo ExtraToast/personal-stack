@@ -4,6 +4,7 @@
     [
       ../../profiles/worker.nix
       ../../modules/k3s/node-labels.nix
+      ../../modules/hardware/raspberry-pi-aarch64.nix
     ]
     ++ lib.optional (!imageBuild) ./disko.nix;
 

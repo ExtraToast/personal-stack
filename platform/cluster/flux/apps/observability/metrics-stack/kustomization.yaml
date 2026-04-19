@@ -5,4 +5,6 @@ kind: Kustomization
 # observability/helm-repositories.yaml and referenced by name from release.yaml.
 resources:
   - release.yaml
-  - platform-alerts.yaml
+# platform-alerts (PrometheusRule) now lives in apps/observability-rules
+# so it applies only after kube-prometheus-stack has installed the
+# monitoring.coreos.com CRDs.

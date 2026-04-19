@@ -68,6 +68,14 @@ data:
     EOF
 
     cat <<'EOF' >/tmp/assistant-api.hcl
+    path "secret/data/assistant-api" {
+      capabilities = ["read"]
+    }
+
+    path "secret/data/assistant-api/*" {
+      capabilities = ["read"]
+    }
+
     path "rabbitmq/creds/app-consumer" {
       capabilities = ["read"]
     }
@@ -168,3 +176,63 @@ data:
       bound_service_account_namespaces="mail-system" \
       policies="stalwart" \
       ttl="1h"
+
+    # RabbitMQ dynamic secrets engine. Reconfigure the connection on every
+    # bootstrap so the URI + admin creds always match the current cluster;
+    # without this, a raft-snapshot restore leaves the engine pointing at
+    # the snapshot-time URL and admin password, and every `creds/app-*`
+    # read 500s with "failed to create a new user".
+    if ! vault secrets list -format=json | grep -q '"rabbitmq/"'; then
+      vault secrets enable rabbitmq
+    fi
+    RMQ_USER=$(vault kv get -field=rabbitmq.user secret/platform/rabbitmq)
+    RMQ_PASS=$(vault kv get -field=rabbitmq.password secret/platform/rabbitmq)
+    vault write rabbitmq/config/connection \
+      connection_uri="http://rabbitmq.data-system.svc.cluster.local:15672" \
+      username="${RMQ_USER}" \
+      password="${RMQ_PASS}" \
+      verify_connection=true
+    unset RMQ_USER RMQ_PASS
+
+    if ! vault read rabbitmq/roles/app-consumer >/dev/null 2>&1; then
+      vault write rabbitmq/roles/app-consumer \
+        vhosts='{"/":{"configure":".*","write":".*","read":".*"}}'
+    fi
+
+    # Postgres dynamic secrets engine. n8n authenticates with creds issued
+    # by `database/creds/n8n`, which until now only existed because someone
+    # configured this engine by hand against the live Vault; a raft-snapshot
+    # restore loses that state and leaves n8n's pod authenticating as a
+    # role with zero grants ("permission denied for table user" on every
+    # request). Bootstrap it here so the setup self-heals on every re-run.
+    if ! vault secrets list -format=json | grep -q '"database/"'; then
+      vault secrets enable database
+    fi
+    PG_ADMIN_USER=$(vault kv get -field=postgres.user secret/platform/postgres)
+    PG_ADMIN_PASS=$(vault kv get -field=postgres.password secret/platform/postgres)
+    # The init-databases.sh script on the postgres StatefulSet creates a
+    # static `n8n_user` role that owns every table in n8n_db. We mint
+    # short-lived dynamic roles that are members of n8n_user with INHERIT,
+    # so they automatically pick up every privilege n8n_user has --
+    # including SELECT/INSERT/UPDATE on `user`, `workflow_entity`, etc.
+    # Without the IN ROLE clause the ephemeral role starts with no grants
+    # and the app 500s on every settings load.
+    N8N_PARENT_ROLE=$(vault kv get -field=n8n.user secret/platform/postgres)
+    vault write database/config/postgres \
+      plugin_name=postgresql-database-plugin \
+      allowed_roles="n8n" \
+      connection_url="postgres://{{username}}:{{password}}@postgres.data-system.svc.cluster.local:5432/postgres?sslmode=disable" \
+      username="${PG_ADMIN_USER}" \
+      password="${PG_ADMIN_PASS}" \
+      verify_connection=true
+    # Long-ish TTLs: n8n reads DB creds once at container start, so the
+    # lease must outlive the pod. 72h default / 168h max easily covers a
+    # normal update-driven restart cadence; Vault renews while the agent
+    # is still running, but n8n won't re-read the injected file.
+    vault write database/roles/n8n \
+      db_name=postgres \
+      default_ttl="72h" \
+      max_ttl="168h" \
+      creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}' IN ROLE \"${N8N_PARENT_ROLE}\" INHERIT;" \
+      revocation_statements="REASSIGN OWNED BY \"{{name}}\" TO \"${N8N_PARENT_ROLE}\"; DROP OWNED BY \"{{name}}\"; DROP ROLE \"{{name}}\";"
+    unset PG_ADMIN_USER PG_ADMIN_PASS N8N_PARENT_ROLE
