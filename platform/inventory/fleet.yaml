@@ -276,6 +276,8 @@ access_intent:
     - bazarr
     - prowlarr
     - qbittorrent
+    - radarr
+    - sonarr
     - rabbitmq
     - vault
     - headlamp

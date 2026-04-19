@@ -65,6 +65,14 @@ data:
       service: "bazarr"
       host: "bazarr.jorisjonkers.dev"
       access: "sso_protected"
+      excluded_path_prefixes:
+      - "/api/"
+    - name: "bazarr-api"
+      service: "bazarr"
+      host: "bazarr.jorisjonkers.dev"
+      access: "direct"
+      path_prefixes:
+      - "/api/"
     - name: "grafana"
       service: "grafana"
       host: "grafana.jorisjonkers.dev"
@@ -89,10 +97,26 @@ data:
       service: "prowlarr"
       host: "prowlarr.jorisjonkers.dev"
       access: "sso_protected"
+      excluded_path_prefixes:
+      - "/api/"
+    - name: "prowlarr-api"
+      service: "prowlarr"
+      host: "prowlarr.jorisjonkers.dev"
+      access: "direct"
+      path_prefixes:
+      - "/api/"
     - name: "qbittorrent"
       service: "qbittorrent"
       host: "qbittorrent.jorisjonkers.dev"
       access: "sso_protected"
+      excluded_path_prefixes:
+      - "/api/"
+    - name: "qbittorrent-api"
+      service: "qbittorrent"
+      host: "qbittorrent.jorisjonkers.dev"
+      access: "direct"
+      path_prefixes:
+      - "/api/"
     - name: "rabbitmq"
       service: "rabbitmq"
       host: "rabbitmq.jorisjonkers.dev"
@@ -100,7 +124,15 @@ data:
     - name: "radarr"
       service: "radarr"
       host: "radarr.jorisjonkers.dev"
+      access: "sso_protected"
+      excluded_path_prefixes:
+      - "/api/"
+    - name: "radarr-api"
+      service: "radarr"
+      host: "radarr.jorisjonkers.dev"
       access: "direct"
+      path_prefixes:
+      - "/api/"
     - name: "samba"
       service: "samba"
       host: "samba.jorisjonkers.dev"
@@ -108,7 +140,15 @@ data:
     - name: "sonarr"
       service: "sonarr"
       host: "sonarr.jorisjonkers.dev"
+      access: "sso_protected"
+      excluded_path_prefixes:
+      - "/api/"
+    - name: "sonarr-api"
+      service: "sonarr"
+      host: "sonarr.jorisjonkers.dev"
       access: "direct"
+      path_prefixes:
+      - "/api/"
     - name: "stalwart"
       service: "stalwart"
       host: "stalwart.jorisjonkers.dev"
