@@ -9,6 +9,13 @@ kind: Deployment
 metadata:
   name: auth-api
   namespace: auth-system
+  annotations:
+    # Keel.sh watches the :latest tag in ghcr and rolls this Deployment
+    # when the digest changes. Poll every 2m so a freshly-merged change
+    # lands within ~3m end-to-end (build-and-push + next poll tick).
+    keel.sh/policy: force
+    keel.sh/trigger: poll
+    keel.sh/pollSchedule: '@every 2m'
 spec:
   replicas: 1
   selector:
