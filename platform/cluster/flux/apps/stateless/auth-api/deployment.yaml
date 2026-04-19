@@ -11,9 +11,12 @@ metadata:
   namespace: auth-system
   annotations:
     # Keel.sh watches the :latest tag in ghcr and rolls this Deployment
-    # when the digest changes. Poll every 2m so a freshly-merged change
-    # lands within ~3m end-to-end (build-and-push + next poll tick).
+    # when the digest changes. `match-tag: latest` is critical: without
+    # it, Keel's `force` policy sorts every tag in the repository and
+    # picks whatever is lexicographically highest, which for our SHA
+    # tags picked up an ancient PR #27 image and pinned every app to it.
     keel.sh/policy: force
+    keel.sh/match-tag: latest
     keel.sh/trigger: poll
     keel.sh/pollSchedule: '@every 2m'
 spec:
