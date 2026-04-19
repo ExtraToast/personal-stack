@@ -140,6 +140,20 @@ export const SERVICE_REGISTRY: ServiceEntry[] = [
     iconUrl: '/icons/qbittorrent.png',
     description: 'Torrent client',
   },
+  {
+    permission: 'ADGUARD',
+    label: 'AdGuard Home',
+    url: buildServiceUrl('adguard'),
+    iconUrl: '/icons/adguard.svg',
+    description: 'DNS filter',
+  },
+  {
+    permission: 'ROUTER',
+    label: 'Router',
+    url: buildServiceUrl('router'),
+    iconUrl: '/icons/router.svg',
+    description: 'ASUS router UI',
+  },
 ]
 
 export function getAccessibleServices(permissions: string[]): ServiceEntry[] {
