@@ -38,7 +38,21 @@
   # separate derivation, `pkgs.nvidia-container-toolkit.tools` (shows
   # up in /nix/store as `...-nvidia-container-toolkit-<ver>-tools/`);
   # that's the one k3s needs on PATH.
+  # `nvidia-container-runtime` is a thin wrapper that injects the NVIDIA
+  # pre-start hook into the OCI spec and then re-execs a low-level
+  # runtime (runc or crun) looked up on PATH. k3s ships its own runc but
+  # calls it by absolute path internally, so nothing exposes `runc` on
+  # PATH for child processes. Without this the wrapper crashes the
+  # instant containerd invokes it, with
+  #   error locating runtime: no runtime binary found from
+  #     candidate list: [runc crun]
+  # and the kubelet event surfaces the opaque
+  #   .../nvidia-container-runtime did not terminate successfully:
+  #     exit status 2
+  # Put `pkgs.runc` on the k3s service PATH alongside the toolkit so the
+  # wrapper can resolve its low-level runtime.
   systemd.services.k3s.path = lib.mkIf config.services.k3s.enable [
     pkgs.nvidia-container-toolkit.tools
+    pkgs.runc
   ];
 }
