@@ -62,22 +62,36 @@ spec:
               mkdir -p /opt/stalwart/etc
               cp /config/config.toml /opt/stalwart/etc/config.toml
               exec /usr/local/bin/entrypoint.sh /usr/local/bin/stalwart
+          # Mail protocols are raw TCP (SMTP, IMAP, POP3, ManageSieve) and
+          # cannot traverse Cloudflare's HTTP proxy, so mail.jorisjonkers.dev
+          # is a non-proxied A record pointing directly at 167.86.79.203.
+          # Bind each mail port on the frankfurt host via hostPort so the
+          # stalwart pod actually answers on the VPS. The admin UI (http,
+          # 8080) stays internal — it's fronted by traefik ingress.
           ports:
             - containerPort: 25
+              hostPort: 25
               name: smtp
             - containerPort: 110
+              hostPort: 110
               name: pop3
             - containerPort: 143
+              hostPort: 143
               name: imap
             - containerPort: 465
+              hostPort: 465
               name: submissions
             - containerPort: 587
+              hostPort: 587
               name: submission
             - containerPort: 993
+              hostPort: 993
               name: imaptls
             - containerPort: 995
+              hostPort: 995
               name: pop3s
             - containerPort: 4190
+              hostPort: 4190
               name: sieve
             - containerPort: 8080
               name: http
