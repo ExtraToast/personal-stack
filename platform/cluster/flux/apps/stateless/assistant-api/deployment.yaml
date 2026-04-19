@@ -9,6 +9,11 @@ kind: Deployment
 metadata:
   name: assistant-api
   namespace: assistant-system
+  annotations:
+    keel.sh/policy: force
+    keel.sh/match-tag: 'true'
+    keel.sh/trigger: poll
+    keel.sh/pollSchedule: '@every 2m'
 spec:
   replicas: 1
   selector:

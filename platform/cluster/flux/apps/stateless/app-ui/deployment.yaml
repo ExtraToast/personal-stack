@@ -3,6 +3,11 @@ kind: Deployment
 metadata:
   name: app-ui
   namespace: app-system
+  annotations:
+    keel.sh/policy: force
+    keel.sh/match-tag: 'true'
+    keel.sh/trigger: poll
+    keel.sh/pollSchedule: '@every 2m'
 spec:
   replicas: 2
   selector:

@@ -9,6 +9,19 @@ kind: Deployment
 metadata:
   name: auth-api
   namespace: auth-system
+  annotations:
+    # Keel.sh watches this Deployment's :latest tag in ghcr and triggers
+    # a rollout when the digest changes. Two non-obvious knobs are load
+    # bearing: `policy: force` is the only policy that works for
+    # non-semver tags, and `match-tag: "true"` scopes Keel to the tag
+    # currently on the Deployment (i.e. :latest) instead of listing
+    # every tag in the registry and picking whichever sorts highest.
+    # Without match-tag Keel pinned every app to an ancient :<sha>
+    # tag that sorted above the others.
+    keel.sh/policy: force
+    keel.sh/match-tag: 'true'
+    keel.sh/trigger: poll
+    keel.sh/pollSchedule: '@every 2m'
 spec:
   replicas: 1
   selector:
