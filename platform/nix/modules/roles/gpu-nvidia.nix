@@ -16,43 +16,29 @@
 
   # GPU + k3s: make containerd aware of the `nvidia` OCI runtime.
   #
-  # `hardware.nvidia-container-toolkit.enable = true` only generates the
-  # CDI spec at /var/run/cdi/nvidia-container-toolkit.json; it does NOT
-  # put nvidia-container-runtime on any service's PATH, and k3s's
-  # auto-detection pass scans the k3s systemd unit's PATH at startup, so
-  # without both halves below the `nvidia` RuntimeClass remains
-  # unbacked -- pods using it fail sandbox creation with
-  #   "no runtime for \"nvidia\" is configured".
+  # With `pkgs.nvidia-container-toolkit.tools` on k3s's systemd PATH,
+  # k3s's built-in nvidia detection pass runs at startup, sees
+  # `nvidia-container-runtime` on PATH, and appends the correct
+  # containerd runtime blocks for both `nvidia` (legacy hook wrapper)
+  # and `nvidia-cdi` (CDI-based injection). Those live under the v2
+  # `plugins.\"io.containerd.grpc.v1.cri\"...` namespace that kubelet
+  # talks to, with `SystemdCgroup = true` to match k3s's default runc
+  # handler.
   #
-  # Two things are needed on a k3s node with a GPU:
-  #   1. `nvidia-container-runtime` reachable on the k3s service PATH so
-  #      k3s's containerd can exec it.
-  #   2. A containerd config template that registers the `nvidia`
-  #      runtime handler under the CRI runtimes block so containerd
-  #      routes pods with runtimeClassName: nvidia through it.
+  # We intentionally do NOT emit a containerd config template of our
+  # own. An earlier iteration added a duplicate `nvidia` block under
+  # the v3 `plugins.'io.containerd.cri.v1.runtime'` namespace; that
+  # collided with k3s's v2 entry and pods scheduled under
+  # `runtimeClassName: nvidia` failed with runc cgroupsPath errors
+  # because the v3 block wasn't participating in the v2 OCI-spec
+  # generator pipeline kubelet uses.
   #
-  # Guard both behind `services.k3s.enable` so this profile stays
-  # useful on non-k3s GPU hosts (e.g. a future workstation import).
   # `pkgs.nvidia-container-toolkit` is the default output and contains
-  # only `nvidia-ctk`. The OCI runtime binary lives in a separate
-  # derivation exposed as `pkgs.nvidia-container-toolkit.tools` (shows
-  # up in /nix/store as `...-nvidia-container-toolkit-<ver>-tools/`).
-  # Point both k3s's PATH and the containerd handler at `.tools`
-  # explicitly; using the base package makes containerd fail sandbox
-  # creation with
-  #   fork/exec .../nvidia-container-runtime: no such file or directory
+  # only `nvidia-ctk`. The OCI runtime binary itself lives in a
+  # separate derivation, `pkgs.nvidia-container-toolkit.tools` (shows
+  # up in /nix/store as `...-nvidia-container-toolkit-<ver>-tools/`);
+  # that's the one k3s needs on PATH.
   systemd.services.k3s.path = lib.mkIf config.services.k3s.enable [
     pkgs.nvidia-container-toolkit.tools
   ];
-
-  services.k3s.containerdConfigTemplate = lib.mkIf config.services.k3s.enable ''
-    {{ template "base" . }}
-
-    [plugins.'io.containerd.cri.v1.runtime'.containerd.runtimes.nvidia]
-      runtime_type = "io.containerd.runc.v2"
-
-    [plugins.'io.containerd.cri.v1.runtime'.containerd.runtimes.nvidia.options]
-      BinaryName = "${pkgs.nvidia-container-toolkit.tools}/bin/nvidia-container-runtime"
-      SystemdCgroup = true
-  '';
 }
