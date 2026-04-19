@@ -10,26 +10,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: 'Host(`bazarr.jorisjonkers.dev`) && !PathPrefix(`/api/`)'
-      services:
-        - name: bazarr
-          namespace: media-system
-          port: 6767
-  tls: {}
----
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: bazarr-api-lan
-  namespace: edge-system
-  annotations:
-    kubernetes.io/ingress.class: traefik-lan
-spec:
-  entryPoints:
-    - websecure
-  routes:
-    - kind: Rule
-      match: 'Host(`bazarr.jorisjonkers.dev`) && PathPrefix(`/api/`)'
+      match: 'Host(`bazarr.jorisjonkers.dev`)'
       services:
         - name: bazarr
           namespace: media-system
@@ -86,26 +67,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: 'Host(`prowlarr.jorisjonkers.dev`) && !PathPrefix(`/api/`)'
-      services:
-        - name: prowlarr
-          namespace: media-system
-          port: 9696
-  tls: {}
----
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: prowlarr-api-lan
-  namespace: edge-system
-  annotations:
-    kubernetes.io/ingress.class: traefik-lan
-spec:
-  entryPoints:
-    - websecure
-  routes:
-    - kind: Rule
-      match: 'Host(`prowlarr.jorisjonkers.dev`) && PathPrefix(`/api/`)'
+      match: 'Host(`prowlarr.jorisjonkers.dev`)'
       services:
         - name: prowlarr
           namespace: media-system
@@ -124,26 +86,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: 'Host(`qbittorrent.jorisjonkers.dev`) && !PathPrefix(`/api/`)'
-      services:
-        - name: qbittorrent
-          namespace: media-system
-          port: 8080
-  tls: {}
----
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: qbittorrent-api-lan
-  namespace: edge-system
-  annotations:
-    kubernetes.io/ingress.class: traefik-lan
-spec:
-  entryPoints:
-    - websecure
-  routes:
-    - kind: Rule
-      match: 'Host(`qbittorrent.jorisjonkers.dev`) && PathPrefix(`/api/`)'
+      match: 'Host(`qbittorrent.jorisjonkers.dev`)'
       services:
         - name: qbittorrent
           namespace: media-system
@@ -162,26 +105,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: 'Host(`radarr.jorisjonkers.dev`) && !PathPrefix(`/api/`)'
-      services:
-        - name: radarr
-          namespace: media-system
-          port: 7878
-  tls: {}
----
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: radarr-api-lan
-  namespace: edge-system
-  annotations:
-    kubernetes.io/ingress.class: traefik-lan
-spec:
-  entryPoints:
-    - websecure
-  routes:
-    - kind: Rule
-      match: 'Host(`radarr.jorisjonkers.dev`) && PathPrefix(`/api/`)'
+      match: 'Host(`radarr.jorisjonkers.dev`)'
       services:
         - name: radarr
           namespace: media-system
@@ -200,26 +124,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: 'Host(`sonarr.jorisjonkers.dev`) && !PathPrefix(`/api/`)'
-      services:
-        - name: sonarr
-          namespace: media-system
-          port: 8989
-  tls: {}
----
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: sonarr-api-lan
-  namespace: edge-system
-  annotations:
-    kubernetes.io/ingress.class: traefik-lan
-spec:
-  entryPoints:
-    - websecure
-  routes:
-    - kind: Rule
-      match: 'Host(`sonarr.jorisjonkers.dev`) && PathPrefix(`/api/`)'
+      match: 'Host(`sonarr.jorisjonkers.dev`)'
       services:
         - name: sonarr
           namespace: media-system
