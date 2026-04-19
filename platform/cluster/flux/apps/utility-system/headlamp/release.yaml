@@ -26,33 +26,16 @@ spec:
     config:
       # 'base URL' for the generated links shown in the UI.
       baseURL: ''
-      pluginsDir: /build/plugins
     service:
       type: ClusterIP
       port: 80
-    # Headlamp has an in-tree plugin catalogue that includes Flux and
-    # cert-manager. Enable them so the overview lists Kustomizations,
-    # HelmReleases, Certificates, and CertificateRequests alongside the
-    # normal workload views.
-    initContainers:
-      - name: headlamp-plugins
-        image: ghcr.io/headlamp-k8s/plugins/headlamp-plugins:latest
-        imagePullPolicy: IfNotPresent
-        command:
-          - /bin/sh
-          - -c
-          - |
-            cp -r /headlamp-plugins/flux /build/plugins/flux
-            cp -r /headlamp-plugins/cert-manager /build/plugins/cert-manager
-        volumeMounts:
-          - name: headlamp-plugins
-            mountPath: /build/plugins
-    volumeMounts:
-      - name: headlamp-plugins
-        mountPath: /build/plugins
-    volumes:
-      - name: headlamp-plugins
-        emptyDir: {}
+    # Headlamp has an in-tree plugin catalogue (Flux / cert-manager
+    # views, etc). We used to pull those plugins via an init container
+    # from ghcr.io/headlamp-k8s/plugins/headlamp-plugins:latest, but
+    # that package 403s on anonymous pulls and wedged the Deployment
+    # on ImagePullBackOff. Ship without plugins for now; Headlamp
+    # falls back to the generic Kubernetes resource views, which is
+    # all we need for cluster introspection today.
     persistentVolumeClaim:
       enabled: false
     # Read-only cluster-wide permissions; the service account is created

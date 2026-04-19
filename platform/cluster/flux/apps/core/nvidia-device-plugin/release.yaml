@@ -20,6 +20,11 @@ spec:
   chart:
     spec:
       chart: nvidia-device-plugin
+      # Pin the chart so the config schema below stays aligned with the
+      # device-plugin binary it deploys. 0.19.0 is what's been running
+      # on-cluster; upgrades should be deliberate so the Resource /
+      # Flags struct shape can be re-verified.
+      version: 0.19.0
       sourceRef:
         kind: HelmRepository
         name: nvidia
@@ -30,6 +35,12 @@ spec:
     # to the compiled-in 'auto' discovery strategy (removed upstream).
     # NixOS hosts this with nvidia-container-toolkit.enable=true which
     # publishes a CDI spec, so use the CDI device list strategy.
+    #
+    # The `plugin` block MUST sit under `flags` -- it is modelled as
+    # `Flags.Plugin` in api/config/v1/types.go. Placing it at the top
+    # level silently drops those knobs and (in v0.19) the config loader
+    # then errors with "no resources specified" because the downstream
+    # migration path ends up with an empty resources list.
     config:
       map:
         default: |-
@@ -37,10 +48,10 @@ spec:
           flags:
             migStrategy: none
             failOnInitError: true
-          plugin:
-            passDeviceSpecs: true
-            deviceListStrategy: cdi-annotations
-            deviceIDStrategy: uuid
+            plugin:
+              passDeviceSpecs: true
+              deviceListStrategy: cdi-annotations
+              deviceIDStrategy: uuid
           sharing:
             timeSlicing: {}
           resources:

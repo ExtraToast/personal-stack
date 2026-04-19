@@ -332,7 +332,10 @@ ingress_intent:
     grafana:
       namespace: observability
       service: grafana
-      port: 3000
+      # Grafana's chart Service is port: 80 -> targetPort: grafana
+      # (container 3000). IngressRoute must reference the Service port,
+      # not the container port, or traefik 404s.
+      port: 80
     bazarr:
       namespace: media-system
       service: bazarr
