@@ -9,7 +9,19 @@ spring:
       - org.springframework.cloud.autoconfigure.LifecycleMvcEndpointAutoConfiguration
   cloud:
     vault:
-      enabled: false
+      enabled: ${VAULT_ENABLED:false}
+      uri: ${VAULT_ADDR:http://localhost:8200}
+      authentication: ${VAULT_AUTHENTICATION:TOKEN}
+      config:
+        lifecycle:
+          enabled: true
+          min-renewal: 10s
+          expiry-threshold: 60s
+          lease-endpoints: Leases
+      database:
+        enabled: ${VAULT_DB_ENABLED:false}
+        role: assistant-api
+        backend: database
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/assistant_db
     username: ${DB_USER:assistant_user}
@@ -28,11 +40,15 @@ server:
 management:
   endpoints:
     web:
+      base-path: /api/actuator
       exposure:
         include: health,info,prometheus,metrics
   endpoint:
     health:
       show-details: when-authorized
+      group:
+        liveness:
+          include: ping
 
 springdoc:
   api-docs:

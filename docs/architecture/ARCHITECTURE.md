@@ -1,9 +1,10 @@
-# Private Stack -- Architecture Guide
+# Personal Stack -- Architecture Guide
 
 ## Overview
 
-Self-hosted private stack for jorisjonkers.dev on Contabo. Docker Swarm orchestration, Traefik edge router, HashiCorp
-Vault for secrets, custom auth, multiple Vue + Kotlin services, n8n automation, full Grafana observability stack.
+Self-hosted private stack for jorisjonkers.dev on Contabo. Nomad orchestration with Consul service discovery, Traefik
+edge routing, HashiCorp Vault for secrets, custom auth, multiple Vue + Kotlin services, n8n automation, and a full
+Grafana observability stack.
 
 ## Domain: jorisjonkers.dev
 
@@ -17,7 +18,7 @@ Vault for secrets, custom auth, multiple Vue + Kotlin services, n8n automation, 
 
 - Contabo Cloud VPS 20 (6 vCPU, 12 GB RAM, 400 GB SSD)
 - Ubuntu 24.04 LTS
-- Single-node Docker Swarm (expandable)
+- Single-node Nomad cluster with Consul (expandable)
 - Cloud-init for provisioning + Contabo API automation (no Terraform)
 
 ## Network Security
@@ -71,7 +72,7 @@ Vault for secrets, custom auth, multiple Vue + Kotlin services, n8n automation, 
 
 - Raft integrated storage
 - Manual unseal with Shamir keys (pending confirmation -- may switch to auto-unseal)
-- AppRole auth for services
+- Nomad-issued Vault tokens via workload identity for services
 - Manages: DB creds (dynamic), JWT signing keys, TLS certs (PKI), API keys, Docker registry creds, encryption keys, SSH
   CA
 
@@ -88,7 +89,7 @@ Vault for secrets, custom auth, multiple Vue + Kotlin services, n8n automation, 
 ### Hexagonal Package Structure
 
 ```
-com.jorisjonkers.privatestack.<service>/
+com.jorisjonkers.personalstack.<service>/
   domain/           # Pure domain logic, no framework dependencies
     model/          # Entities, value objects
     port/           # Interfaces (inbound + outbound)
@@ -185,7 +186,7 @@ Three stages:
 
 ## Inter-service Communication
 
-- Synchronous: REST over Docker Swarm overlay network
+- Synchronous: REST over Nomad networking with Consul-backed service discovery
 - Asynchronous: RabbitMQ for decoupled flows (notifications, background jobs)
 - Cross-domain: Spring Modulith domain events (within service), RabbitMQ (between services)
 
@@ -265,17 +266,18 @@ Dedicated Kotlin service that tests all apps together:
 
 - GitHub Actions
 - GitHub Container Registry (ghcr.io)
-- Deploy: CI pushes image -> SSH into Swarm manager -> docker stack deploy
-- Rolling updates (Swarm default)
+- Deploy: CI pushes image -> authenticated Nomad deploy via `infra/scripts/deploy.sh`
+- Rolling updates handled per job through Nomad `update` stanzas when capacity allows
 - Source: GitHub private repo
 
 ## Monitoring & Observability
 
-- Logging: Loki + Promtail + Grafana
-- Metrics: Prometheus + Grafana (Spring Boot Actuator)
-- Tracing: OpenTelemetry + Tempo + Grafana
+- Logging: Alloy + Loki + Grafana
+- Metrics: Prometheus + Grafana (Spring Boot Actuator plus Tempo trace-derived metrics where needed)
+- Tracing: OpenTelemetry + Alloy + Tempo + Grafana
 - Uptime: Uptime Kuma (self-hosted)
 - Alerting: Email + Discord
+- Detailed routing and platform defaults: `docs/architecture/OBSERVABILITY.md`
 
 ## n8n
 
@@ -286,15 +288,20 @@ Dedicated Kotlin service that tests all apps together:
 ## Repository Structure
 
 ```
-private-stack/
+personal-stack/
   docs/
     architecture/        # This guide
     adr/                 # Architecture Decision Records
   infra/
     cloud-init/
     docker/
+    nomad/
+      jobs/
+      templates/
+      vault/
+    observability/
+    scripts/
     traefik/
-    vault/
   services/
     auth-api/
     auth-ui/
@@ -318,16 +325,16 @@ CLAUDE.md exists locally only (not committed).
 
 ## Naming Conventions
 
-| Item                  | Convention                              |
-| --------------------- | --------------------------------------- |
-| Directories           | kebab-case                              |
-| Kotlin packages       | com.jorisjonkers.privatestack.{service} |
-| Vue components        | PascalCase.vue                          |
-| TypeScript files      | camelCase.ts                            |
-| Docker services       | kebab-case                              |
-| Databases             | snake_case                              |
-| API endpoints         | /kebab-case                             |
-| Environment variables | SCREAMING_SNAKE_CASE                    |
+| Item                  | Convention                               |
+| --------------------- | ---------------------------------------- |
+| Directories           | kebab-case                               |
+| Kotlin packages       | com.jorisjonkers.personalstack.{service} |
+| Vue components        | PascalCase.vue                           |
+| TypeScript files      | camelCase.ts                             |
+| Docker services       | kebab-case                               |
+| Databases             | snake_case                               |
+| API endpoints         | /kebab-case                              |
+| Environment variables | SCREAMING_SNAKE_CASE                     |
 
 ## ADR Index
 

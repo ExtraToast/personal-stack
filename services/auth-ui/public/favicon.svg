@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <rect width="100" height="100" rx="22" fill="#1a1a2e"/>
+  <text x="10.4" y="38" font-family="monospace,Courier New,monospace" font-size="18" font-weight="700" fill="#7c6af7">&gt;_</text>
+  <text x="12" y="76" font-family="monospace,Courier New,monospace" font-size="44" font-weight="700" fill="#ffffff" letter-spacing="-2">JJ</text>
+  <rect x="73" y="55" width="14" height="20" rx="3" fill="#7c6af7"/>
+  <rect x="10" y="83" width="76" height="2.5" rx="1.5" fill="#7c6af7" opacity="0.45"/>
+  <text x="13" y="97" font-family="monospace,Courier New,monospace" font-size="10" fill="#7c6af7" opacity="0.65">.dev</text>
+</svg>

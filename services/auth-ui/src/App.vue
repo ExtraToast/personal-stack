@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useTheme } from '@private-stack/vue-common'
+import { useTheme } from '@personal-stack/vue-common'
 import { RouterView } from 'vue-router'
 
 useTheme()

@@ -1,15 +1,45 @@
 <script setup lang="ts">
 import type { LoginFormData } from '../schemas/loginSchema'
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, nextTick, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { loginSchema } from '../schemas/loginSchema'
+import { resendConfirmation, sessionLogin } from '../services/authService'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 
 const form = ref<LoginFormData>({ username: '', password: '' })
+const totpCode = ref('')
+const totpInput = ref<HTMLInputElement | null>(null)
 const fieldErrors = ref<Partial<Record<keyof LoginFormData, string>>>({})
+
+const resendEmail = ref('')
+const resending = ref(false)
+const resendSuccess = ref('')
+const resendError = ref('')
+
+const isEmailNotConfirmed = computed(() => {
+  const err = authStore.error
+  if (!err) return false
+  return typeof err === 'string' && err.toLowerCase().includes('not been confirmed')
+})
+
+async function onResendConfirmation(): Promise<void> {
+  if (!resendEmail.value || resending.value) return
+  resending.value = true
+  resendSuccess.value = ''
+  resendError.value = ''
+  try {
+    await resendConfirmation(resendEmail.value)
+    resendSuccess.value = 'Confirmation email sent! Check your inbox.'
+  } catch {
+    resendError.value = 'Failed to resend confirmation email. Please try again.'
+  } finally {
+    resending.value = false
+  }
+}
 
 function validate(): boolean {
   const result = loginSchema.safeParse(form.value)
@@ -26,13 +56,111 @@ function validate(): boolean {
   return false
 }
 
+const sessionLoginLoading = ref(false)
+
+/** True when the login was initiated by an OAuth2 Authorization Code redirect. */
+const isOAuth2Context = computed(() => {
+  const redirect = route.query.redirect
+  return typeof redirect === 'string' && redirect.includes('oauth2/authorize')
+})
+
+const pendingRedirect = computed(() => {
+  const redirect = route.query.redirect
+  return typeof redirect === 'string' ? redirect : undefined
+})
+
+async function focusTotpInput(): Promise<void> {
+  await nextTick()
+  totpInput.value?.focus()
+  totpInput.value?.select()
+}
+
+watch(
+  () => authStore.totpRequired,
+  (totpRequired) => {
+    if (totpRequired) {
+      void focusTotpInput()
+    }
+  },
+  { immediate: true },
+)
+
+function redirectAfterLogin(destination: 'totp-setup' | 'app' = 'totp-setup'): void {
+  if (destination === 'app' && pendingRedirect.value) {
+    window.location.href = pendingRedirect.value
+  } else if (destination === 'app') {
+    window.location.href = window.location.origin.replace('auth.', '')
+  } else {
+    // TOTP not yet configured — store the pending redirect so TotpSetupView
+    // can resume the flow after enrollment.
+    if (pendingRedirect.value) {
+      sessionStorage.setItem('pendingRedirect', pendingRedirect.value)
+    }
+    router.push({ name: 'totp-setup' })
+  }
+}
+
+async function handleOAuth2SessionLogin(totpCodeValue?: string): Promise<void> {
+  sessionLoginLoading.value = true
+  try {
+    const result = await sessionLogin(form.value.username, form.value.password, totpCodeValue)
+    if (result.totpRequired) {
+      // TOTP is enabled — show the TOTP input.
+      // We use the store flag so the template switches to the TOTP form.
+      authStore.totpRequired = true
+      return
+    }
+    // Session established — redirect back to the OAuth2 authorize endpoint.
+    if (pendingRedirect.value) {
+      window.location.href = pendingRedirect.value
+    }
+  } catch (e: unknown) {
+    let msg = 'Login failed'
+    if (typeof e === 'object' && e !== null && 'detail' in e) {
+      const err: Record<string, unknown> = e
+      if (typeof err.detail === 'string') msg = err.detail
+    }
+    authStore.error = msg
+    if (totpCodeValue) totpCode.value = ''
+  } finally {
+    sessionLoginLoading.value = false
+  }
+}
+
 async function onSubmit(): Promise<void> {
   if (!validate()) return
+
+  if (isOAuth2Context.value) {
+    await handleOAuth2SessionLogin()
+    return
+  }
+
   try {
     await authStore.login(form.value.username, form.value.password)
-    await router.push({ name: 'dashboard' })
+    if (!authStore.totpRequired) {
+      // TOTP is NOT enabled — force user to set it up before proceeding.
+      redirectAfterLogin('totp-setup')
+    }
   } catch {
     // error is set on the store
+  }
+}
+
+async function onTotpSubmit(): Promise<void> {
+  if (totpCode.value.length !== 6) return
+
+  if (isOAuth2Context.value) {
+    await handleOAuth2SessionLogin(totpCode.value)
+    return
+  }
+
+  try {
+    await authStore.login(form.value.username, form.value.password, totpCode.value)
+    if (!authStore.totpRequired) {
+      redirectAfterLogin('app')
+    }
+  } catch {
+    totpCode.value = ''
   }
 }
 </script>
@@ -40,7 +168,7 @@ async function onSubmit(): Promise<void> {
 <template>
   <form
     class="w-full max-w-md space-y-5 rounded-xl border border-surface-border bg-surface-card p-8"
-    @submit.prevent="onSubmit"
+    @submit.prevent="authStore.totpRequired ? onTotpSubmit() : onSubmit()"
   >
     <!-- Terminal-style header -->
     <div class="flex items-center gap-2">
@@ -52,51 +180,104 @@ async function onSubmit(): Promise<void> {
       <span class="font-mono text-xs text-gray-600"> ~/auth/login </span>
     </div>
 
-    <h1 class="text-2xl font-bold text-gray-100">Sign in</h1>
+    <h1 class="text-2xl font-bold text-gray-100">
+      {{ authStore.totpRequired ? 'Two-factor authentication' : 'Sign in' }}
+    </h1>
 
-    <div>
-      <label class="block font-mono text-xs font-medium text-gray-400" for="username"> Username </label>
-      <input
-        id="username"
-        v-model="form.username"
-        autocomplete="username"
-        class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-        placeholder="your-username"
-        type="text"
-      />
-      <p v-if="fieldErrors.username" class="mt-1 text-sm text-red-400">
-        {{ fieldErrors.username }}
-      </p>
-    </div>
+    <!-- TOTP challenge step -->
+    <template v-if="authStore.totpRequired">
+      <p class="text-sm text-gray-400">Enter the 6-digit code from your authenticator app.</p>
+      <div>
+        <label class="block font-mono text-xs font-medium text-gray-400" for="totp-code"> Code </label>
+        <input
+          id="totp-code"
+          ref="totpInput"
+          v-model="totpCode"
+          autocomplete="one-time-code"
+          class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 text-center font-mono text-lg tracking-widest text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          inputmode="numeric"
+          maxlength="6"
+          pattern="\d{6}"
+          placeholder="000000"
+          type="text"
+        />
+      </div>
+    </template>
 
-    <div>
-      <label class="block font-mono text-xs font-medium text-gray-400" for="password"> Password </label>
-      <input
-        id="password"
-        v-model="form.password"
-        autocomplete="current-password"
-        class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-        placeholder="••••••••"
-        type="password"
-      />
-      <p v-if="fieldErrors.password" class="mt-1 text-sm text-red-400">
-        {{ fieldErrors.password }}
-      </p>
-    </div>
+    <!-- Login step -->
+    <template v-else>
+      <div>
+        <label class="block font-mono text-xs font-medium text-gray-400" for="username"> Username </label>
+        <input
+          id="username"
+          v-model="form.username"
+          autocomplete="username"
+          class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          placeholder="your-username"
+          type="text"
+        />
+        <p v-if="fieldErrors.username" class="mt-1 text-sm text-red-400">
+          {{ fieldErrors.username }}
+        </p>
+      </div>
+
+      <div>
+        <label class="block font-mono text-xs font-medium text-gray-400" for="password"> Password </label>
+        <input
+          id="password"
+          v-model="form.password"
+          autocomplete="current-password"
+          class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          placeholder="••••••••"
+          type="password"
+        />
+        <p v-if="fieldErrors.password" class="mt-1 text-sm text-red-400">
+          {{ fieldErrors.password }}
+        </p>
+      </div>
+    </template>
 
     <p v-if="authStore.error" class="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
       {{ authStore.error }}
     </p>
 
+    <!-- Resend confirmation when email not confirmed -->
+    <div v-if="isEmailNotConfirmed" class="space-y-3 rounded-md border border-surface-border bg-surface-elevated p-4">
+      <p class="text-sm text-gray-400">Enter your email to receive a new confirmation link.</p>
+      <input
+        v-model="resendEmail"
+        class="block w-full rounded-md border border-surface-border bg-surface-dark px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        placeholder="you@example.com"
+        type="email"
+      />
+      <p
+        v-if="resendSuccess"
+        class="rounded-md border border-terminal-green/20 bg-terminal-green/10 px-3 py-2 text-sm text-terminal-green"
+      >
+        {{ resendSuccess }}
+      </p>
+      <p v-if="resendError" class="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+        {{ resendError }}
+      </p>
+      <button
+        :disabled="resending || !resendEmail"
+        class="w-full rounded-md border border-accent bg-transparent px-4 py-2 font-mono text-sm font-semibold text-accent transition-colors hover:bg-accent/10 disabled:opacity-50"
+        type="button"
+        @click="onResendConfirmation"
+      >
+        {{ resending ? 'Sending...' : 'Resend confirmation email' }}
+      </button>
+    </div>
+
     <button
-      :disabled="authStore.isLoading"
+      :disabled="authStore.isLoading || sessionLoginLoading"
       class="glow-accent w-full rounded-md bg-accent px-4 py-2 font-mono text-sm font-semibold text-white transition-colors hover:bg-accent-light disabled:opacity-50"
       type="submit"
     >
-      {{ authStore.isLoading ? 'Signing in...' : 'Sign in' }}
+      {{ authStore.isLoading || sessionLoginLoading ? 'Verifying...' : authStore.totpRequired ? 'Verify' : 'Sign in' }}
     </button>
 
-    <p class="text-center text-sm text-gray-500">
+    <p v-if="!authStore.totpRequired" class="text-center text-sm text-gray-500">
       Don't have an account?
       <router-link class="font-medium text-accent-light hover:underline" to="/register"> Register </router-link>
     </p>

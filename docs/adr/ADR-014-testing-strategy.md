@@ -80,7 +80,7 @@ that all need verification at appropriate levels.
 - Verifies cloud-init provisioned correctly:
   - SSH on port 2222, password auth disabled
   - UFW rules active
-  - Docker installed and Swarm initialized
+  - Docker installed and Nomad/Consul/Vault services available
   - Users and groups created
   - GPG keys registered
   - Fail2ban running
@@ -89,7 +89,7 @@ that all need verification at appropriate levels.
 
 Dedicated Kotlin Spring Boot test service (services/system-tests):
 
-- Uses RestAssured + Testcontainers (Docker Compose for full stack in CI)
+- Uses RestAssured against the CI-brought-up Nomad stack or the live deployment
 - Can also run against live deployment
 
 **What it tests:**
@@ -126,4 +126,4 @@ Dedicated Kotlin Spring Boot test service (services/system-tests):
 - Pitest + Stryker are slow — nightly only
 - OWASP ZAP dynamic testing is noisy — may need baseline tuning
 - 80% coverage is a minimum, not a target — critical paths should be higher
-- System tests require maintaining a Docker Compose file that mirrors production
+- System tests require keeping the Nomad/bootstrap test environment aligned with production behavior

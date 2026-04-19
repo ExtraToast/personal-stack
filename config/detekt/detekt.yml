@@ -5,6 +5,9 @@ complexity:
   LongMethod:
     active: true
     allowedLines: 30
+    excludes:
+      - '**/test/**'
+      - '**/integrationTest/**'
   LongParameterList:
     active: true
     allowedFunctionParameters: 6
@@ -12,6 +15,9 @@ complexity:
   LargeClass:
     active: true
     allowedLines: 300
+    excludes:
+      - '**/test/**'
+      - '**/integrationTest/**'
   TooManyFunctions:
     active: true
     allowedFunctionsPerFile: 15

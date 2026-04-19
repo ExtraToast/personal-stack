@@ -1,0 +1,45 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Application and infrastructure metrics are scraped directly by Prometheus.
+# Tempo adds trace-derived service graphs and span metrics through remote_write.
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: auth-api
+    metrics_path: /api/actuator/prometheus
+    static_configs:
+      - targets: ['auth-api:8081']
+
+  - job_name: assistant-api
+    metrics_path: /api/actuator/prometheus
+    static_configs:
+      - targets: ['assistant-api:8082']
+
+  - job_name: traefik
+    static_configs:
+      - targets: ['traefik:8080']
+
+  - job_name: grafana
+    static_configs:
+      - targets: ['grafana:3000']
+
+  - job_name: loki
+    static_configs:
+      - targets: ['loki:3100']
+
+  - job_name: tempo
+    static_configs:
+      - targets: ['tempo:3200']
+
+  - job_name: rabbitmq
+    static_configs:
+      - targets: ['rabbitmq:15692']
+
+  - job_name: stalwart
+    metrics_path: /metrics/prometheus
+    static_configs:
+      - targets: ['stalwart:8080']

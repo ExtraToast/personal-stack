@@ -1,5 +1,5 @@
 import type { RouteRecordRaw } from 'vue-router'
-import { useAuth } from '@private-stack/vue-common'
+import { useAuth } from '@personal-stack/vue-common'
 import { createRouter, createWebHistory } from 'vue-router'
 
 declare module 'vue-router' {
@@ -23,6 +23,18 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: false },
   },
   {
+    path: '/check-email',
+    name: 'check-email',
+    component: () => import('@/features/auth/views/CheckEmailView.vue'),
+    meta: { requiresAuth: false },
+  },
+  {
+    path: '/confirm-email',
+    name: 'confirm-email',
+    component: () => import('@/features/auth/views/ConfirmEmailView.vue'),
+    meta: { requiresAuth: false },
+  },
+  {
     path: '/totp-setup',
     name: 'totp-setup',
     component: () => import('@/features/auth/views/TotpSetupView.vue'),
@@ -31,8 +43,12 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'dashboard',
-    component: () => import('@/features/auth/views/LoginView.vue'), // placeholder until dashboard exists
     meta: { requiresAuth: true },
+    beforeEnter: () => {
+      window.location.href = window.location.origin.replace('auth.', '')
+      return false
+    },
+    component: () => import('@/features/auth/views/LoginView.vue'), // never rendered, kept for route definition
   },
 ]
 

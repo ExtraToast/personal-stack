@@ -1,0 +1,2 @@
+# Paths intentionally excluded from the default backup scope.
+/mnt/media

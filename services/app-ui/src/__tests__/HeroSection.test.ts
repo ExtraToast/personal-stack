@@ -46,4 +46,15 @@ describe('heroSection', () => {
     const wrapper = mountHero()
     expect(wrapper.text()).toContain('Jr. Software Engineer')
   })
+
+  it('uses responsive high-priority hero image markup', () => {
+    const wrapper = mountHero()
+    const image = wrapper.get('img[alt="Joris Jonkers"]')
+
+    expect(image.attributes('src')).toBe('/joris-192.jpg')
+    expect(image.attributes('srcset')).toBe('/joris-192.jpg 192w, /joris-384.jpg 384w')
+    expect(image.attributes('sizes')).toBe('(min-width: 640px) 192px, 144px')
+    expect(image.attributes('fetchpriority')).toBe('high')
+    expect(image.attributes('loading')).toBe('eager')
+  })
 })

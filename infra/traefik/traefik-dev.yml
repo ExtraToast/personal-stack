@@ -1,17 +1,48 @@
 entryPoints:
   web:
     address: ':80'
-  dashboard:
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ':443'
+    forwardedHeaders:
+      insecure: true
+  traefik:
     address: ':8080'
 
 providers:
   docker:
     endpoint: 'unix:///var/run/docker.sock'
     exposedByDefault: false
+  file:
+    directory: /etc/traefik/dynamic/
+    watch: true
+
+ping: {}
 
 api:
   dashboard: true
-  insecure: true
+
+metrics:
+  prometheus:
+    entryPoint: traefik
+
+accessLog:
+  filters:
+    statusCodes:
+      - '400-599'
+
+tracing:
+  otlp:
+    http:
+      endpoint: http://alloy:4318/v1/traces
+
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
 
 log:
-  level: DEBUG
+  level: INFO

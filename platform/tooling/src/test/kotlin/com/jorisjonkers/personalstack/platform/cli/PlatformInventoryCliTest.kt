@@ -1,0 +1,142 @@
+package com.jorisjonkers.personalstack.platform.cli
+
+import com.jorisjonkers.personalstack.platform.RepositoryRootLocator
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
+import java.io.ByteArrayOutputStream
+import java.nio.charset.StandardCharsets
+
+class PlatformInventoryCliTest {
+    private val repositoryRoot = RepositoryRootLocator().locate()
+
+    @Test
+    fun `show-host-env prints ssh and nix metadata for active nodes`() {
+        val stdout = ByteArrayOutputStream()
+        val stderr = ByteArrayOutputStream()
+
+        val exitCode =
+            PlatformInventoryCli(
+                repositoryRoot = repositoryRoot,
+                stdout = stdout.writer(StandardCharsets.UTF_8),
+                stderr = stderr.writer(StandardCharsets.UTF_8),
+            ).run("show-host-env", "frankfurt-contabo-1")
+
+        assertThat(exitCode).isEqualTo(0)
+        assertThat(stdout.toString(StandardCharsets.UTF_8))
+            .contains("NODE_NAME=frankfurt-contabo-1")
+            .contains("NODE_STATUS=active")
+            .contains("NIX_SYSTEM=x86_64-linux")
+            .contains("K3S_BOOTSTRAP_CONTROL_PLANE_NODE=frankfurt-contabo-1")
+            .contains("K3S_API_SERVER_ENDPOINT=https://167.86.79.203:6443")
+            .contains("K3S_CONTROL_PLANE_TOKEN_FILE=/var/lib/rancher/k3s/server/node-token")
+            .contains("K3S_WORKER_JOIN_TOKEN_FILE=/var/lib/personal-stack/secrets/k3s/agent-token")
+            .contains("HAS_BOOTSTRAP_SSH=false")
+            .contains("SSH_HOST=167.86.79.203")
+            .contains("SSH_USER=deploy")
+            .contains("SSH_PORT=2222")
+            .contains("HAS_SSH=true")
+            .contains("IS_CONTROL_PLANE=true")
+            .contains("IS_WORKER=true")
+        assertThat(stderr.toString(StandardCharsets.UTF_8)).isBlank()
+    }
+
+    @Test
+    fun `show-host-env prints steady state ssh metadata for install ready nodes`() {
+        // Pi install-ready hosts no longer carry bootstrap_ssh (SD-image flow);
+        // enschede-t1000-1 is the remaining x86 install-ready node with both
+        // steady-state ssh and bootstrap_ssh declared in fleet.yaml.
+        val stdout = ByteArrayOutputStream()
+        val stderr = ByteArrayOutputStream()
+
+        val exitCode =
+            PlatformInventoryCli(
+                repositoryRoot = repositoryRoot,
+                stdout = stdout.writer(StandardCharsets.UTF_8),
+                stderr = stderr.writer(StandardCharsets.UTF_8),
+            ).run("show-host-env", "enschede-t1000-1")
+
+        assertThat(exitCode).isEqualTo(0)
+        assertThat(stdout.toString(StandardCharsets.UTF_8))
+            .contains("NODE_NAME=enschede-t1000-1")
+            .contains("NODE_STATUS=install-ready")
+            .contains("NIX_SYSTEM=x86_64-linux")
+            .contains("K3S_BOOTSTRAP_CONTROL_PLANE_NODE=frankfurt-contabo-1")
+            .contains("K3S_API_SERVER_ENDPOINT=https://167.86.79.203:6443")
+            .contains("HAS_BOOTSTRAP_SSH=true")
+            .contains("HAS_SSH=true")
+            .contains("SSH_HOST=enschede-t1000-1")
+            .contains("SSH_USER=deploy")
+            .contains("SSH_PORT=2222")
+            .contains("BOOTSTRAP_SSH_HOST=192.168.0.100")
+            .contains("BOOTSTRAP_SSH_USER=extratoat")
+            .contains("BOOTSTRAP_SSH_PORT=22")
+        assertThat(stderr.toString(StandardCharsets.UTF_8)).isBlank()
+    }
+
+    @Test
+    fun `show-install-host-env uses bootstrap ssh metadata for install ready nodes`() {
+        val stdout = ByteArrayOutputStream()
+        val stderr = ByteArrayOutputStream()
+
+        val exitCode =
+            PlatformInventoryCli(
+                repositoryRoot = repositoryRoot,
+                stdout = stdout.writer(StandardCharsets.UTF_8),
+                stderr = stderr.writer(StandardCharsets.UTF_8),
+            ).run("show-install-host-env", "enschede-t1000-1")
+
+        assertThat(exitCode).isEqualTo(0)
+        assertThat(stdout.toString(StandardCharsets.UTF_8))
+            .contains("NODE_NAME=enschede-t1000-1")
+            .contains("NODE_STATUS=install-ready")
+            .contains("K3S_BOOTSTRAP_CONTROL_PLANE_NODE=frankfurt-contabo-1")
+            .contains("HAS_BOOTSTRAP_SSH=true")
+            .contains("HAS_SSH=true")
+            .contains("SSH_HOST=192.168.0.100")
+            .contains("SSH_USER=extratoat")
+            .contains("SSH_PORT=22")
+            .contains("BOOTSTRAP_SSH_HOST=192.168.0.100")
+        assertThat(stderr.toString(StandardCharsets.UTF_8)).isBlank()
+    }
+
+    @Test
+    fun `show-install-host-env leaves ssh blank when install ready node has no bootstrap ssh yet`() {
+        val stdout = ByteArrayOutputStream()
+        val stderr = ByteArrayOutputStream()
+
+        val exitCode =
+            PlatformInventoryCli(
+                repositoryRoot = repositoryRoot,
+                stdout = stdout.writer(StandardCharsets.UTF_8),
+                stderr = stderr.writer(StandardCharsets.UTF_8),
+            ).run("show-install-host-env", "enschede-pi-2")
+
+        assertThat(exitCode).isEqualTo(0)
+        assertThat(stdout.toString(StandardCharsets.UTF_8))
+            .contains("NODE_NAME=enschede-pi-2")
+            .contains("NODE_STATUS=install-ready")
+            .contains("HAS_BOOTSTRAP_SSH=false")
+            .contains("HAS_SSH=false")
+            .contains("SSH_HOST=")
+            .contains("SSH_USER=")
+            .contains("SSH_PORT=")
+        assertThat(stderr.toString(StandardCharsets.UTF_8)).isBlank()
+    }
+
+    @Test
+    fun `unknown host returns non-zero with a helpful error`() {
+        val stdout = ByteArrayOutputStream()
+        val stderr = ByteArrayOutputStream()
+
+        val exitCode =
+            PlatformInventoryCli(
+                repositoryRoot = repositoryRoot,
+                stdout = stdout.writer(StandardCharsets.UTF_8),
+                stderr = stderr.writer(StandardCharsets.UTF_8),
+            ).run("show-host-env", "missing-node")
+
+        assertThat(exitCode).isEqualTo(1)
+        assertThat(stdout.toString(StandardCharsets.UTF_8)).isBlank()
+        assertThat(stderr.toString(StandardCharsets.UTF_8)).contains("Unknown node: missing-node")
+    }
+}

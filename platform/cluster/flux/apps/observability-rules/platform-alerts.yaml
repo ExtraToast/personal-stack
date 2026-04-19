@@ -1,0 +1,25 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-alerts
+  namespace: observability
+spec:
+  groups:
+    - name: platform
+      rules:
+        - alert: PlatformIngressErrorsHigh
+          expr: sum(rate(traefik_service_requests_total{code=~"5.."}[5m])) > 0.05
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Elevated ingress 5xx rate
+            description: Traefik is returning sustained 5xx responses.
+        - alert: PlatformNodeDiskPressure
+          expr: max(kube_node_status_condition{condition="DiskPressure",status="true"}) > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Node reports disk pressure
+            description: At least one Kubernetes node is under disk pressure.
