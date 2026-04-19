@@ -68,6 +68,14 @@ data:
     EOF
 
     cat <<'EOF' >/tmp/assistant-api.hcl
+    path "secret/data/assistant-api" {
+      capabilities = ["read"]
+    }
+
+    path "secret/data/assistant-api/*" {
+      capabilities = ["read"]
+    }
+
     path "rabbitmq/creds/app-consumer" {
       capabilities = ["read"]
     }
