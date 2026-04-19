@@ -42,13 +42,17 @@ nodes:
       - public-ingress
 
   enschede-gtx-960m-1:
-    status: active
+    status: install-ready
     site: enschede
     arch: amd64
     ssh:
       host: enschede-gtx-960m-1
       user: deploy
       port: 2222
+    bootstrap_ssh:
+      host: 192.168.0.101
+      user: extratoast
+      port: 22
     target_roles:
       - k3s-worker
       - utility-host

@@ -27,6 +27,8 @@ class ServicePermissionTest {
         "bazarr.jorisjonkers.dev, BAZARR",
         "prowlarr.jorisjonkers.dev, PROWLARR",
         "qbittorrent.jorisjonkers.dev, QBITTORRENT",
+        "adguard.jorisjonkers.dev, ADGUARD",
+        "router.jorisjonkers.dev, ROUTER",
     )
     fun `fromHost resolves production and local dev hostnames`(
         host: String,
