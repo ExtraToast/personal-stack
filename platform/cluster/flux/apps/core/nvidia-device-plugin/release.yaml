@@ -16,11 +16,20 @@ spec:
     compatWithCPUManager: true
     nodeSelector:
       personal-stack/capability-nvidia: 'true'
-    # The chart default nodeAffinity requires a node-feature-discovery label
-    # (feature.node.kubernetes.io/pci-10de.present). We do not run NFD yet
-    # and instead label NVIDIA-capable nodes ourselves via the k3s role
-    # module, so clear the chart's nodeAffinity to rely on nodeSelector only.
-    affinity: {}
+    # The chart default nodeAffinity requires node-feature-discovery labels
+    # (feature.node.kubernetes.io/pci-10de.present and friends). We do not
+    # run NFD yet and instead label NVIDIA-capable nodes ourselves via the
+    # k3s role module. Setting `affinity: {}` was silently ignored by the
+    # chart, so provide an explicit affinity keyed on our own label.
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: personal-stack/capability-nvidia
+                  operator: In
+                  values:
+                    - 'true'
     tolerations:
       - key: nvidia.com/gpu
         operator: Exists
