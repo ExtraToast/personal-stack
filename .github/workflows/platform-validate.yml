@@ -38,6 +38,11 @@ jobs:
           tar -xzf /tmp/kubeconform.tar.gz -C /tmp
           sudo install /tmp/kubeconform /usr/local/bin/kubeconform
 
+      - name: Install Flux CLI
+        # flux-local shells out to `flux build ks` under the hood, so the
+        # upstream CLI has to be on PATH.
+        uses: fluxcd/flux2/action@main
+
       - name: Install flux-local
         # flux-local expands every HelmRelease CR against its real chart
         # + values, which is what exposes remote-chart template errors
