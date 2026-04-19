@@ -1,0 +1,32 @@
+---
+# Traefik's own dashboard + API is served by the internal `api@internal`
+# provider (activated via `--api.dashboard=true` on the traefik HelmRelease).
+# It has no in-cluster Service, so it can't be expressed in fleet.yaml's
+# `ingress_intent.kubernetes_backends` and isn't rendered by the usual
+# path. Keep this manifest hand-written alongside the other edge edge
+# wiring.
+#
+# Gated by the standard forward-auth middleware so only stack users with
+# the SERVICE_TRAEFIK permission (or ROLE_ADMIN) see it.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: traefik-dashboard
+  namespace: edge-system
+  annotations:
+    external-dns.alpha.kubernetes.io/target: ingress.jorisjonkers.dev
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: 'true'
+    kubernetes.io/ingress.class: traefik-public
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: 'Host(`traefik.jorisjonkers.dev`) && (PathPrefix(`/dashboard`) || PathPrefix(`/api`))'
+      middlewares:
+        - name: forward-auth
+          namespace: edge-system
+      services:
+        - name: api@internal
+          kind: TraefikService
+  tls: {}
