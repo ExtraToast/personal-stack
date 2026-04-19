@@ -33,3 +33,15 @@ spec:
         size: 20Gi
       nodeSelector:
         personal-stack/site: frankfurt
+    # SingleBinary deployment: explicitly zero out the scalable-mode
+    # components so the chart's validate.yaml accepts the config.
+    write:
+      replicas: 0
+    read:
+      replicas: 0
+    backend:
+      replicas: 0
+    chunksCache:
+      enabled: false
+    resultsCache:
+      enabled: false
