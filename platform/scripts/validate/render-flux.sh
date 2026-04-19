@@ -43,8 +43,8 @@ echo "==> flux-local expand HelmReleases against remote charts"
 # release's spec.values, which is exactly what the cluster's helm-
 # controller does post-merge.
 flux-local build all \
-  --path "${flux_root}" \
   --enable-helm \
+  "${flux_root}" \
   >> "${render_output}"
 
 # Render any in-repo Chart.yaml directly too (covers anything that
