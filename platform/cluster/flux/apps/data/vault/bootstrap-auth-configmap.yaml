@@ -168,3 +168,25 @@ data:
       bound_service_account_namespaces="mail-system" \
       policies="stalwart" \
       ttl="1h"
+
+    # RabbitMQ dynamic secrets engine. Reconfigure the connection on every
+    # bootstrap so the URI + admin creds always match the current cluster;
+    # without this, a raft-snapshot restore leaves the engine pointing at
+    # the snapshot-time URL and admin password, and every `creds/app-*`
+    # read 500s with "failed to create a new user".
+    if ! vault secrets list -format=json | grep -q '"rabbitmq/"'; then
+      vault secrets enable rabbitmq
+    fi
+    RMQ_USER=$(vault kv get -field=rabbitmq.user secret/platform/rabbitmq)
+    RMQ_PASS=$(vault kv get -field=rabbitmq.password secret/platform/rabbitmq)
+    vault write rabbitmq/config/connection \
+      connection_uri="http://rabbitmq.data-system.svc.cluster.local:15672" \
+      username="${RMQ_USER}" \
+      password="${RMQ_PASS}" \
+      verify_connection=true
+    unset RMQ_USER RMQ_PASS
+
+    if ! vault read rabbitmq/roles/app-consumer >/dev/null 2>&1; then
+      vault write rabbitmq/roles/app-consumer \
+        vhosts='{"/":{"configure":".*","write":".*","read":".*"}}'
+    fi
