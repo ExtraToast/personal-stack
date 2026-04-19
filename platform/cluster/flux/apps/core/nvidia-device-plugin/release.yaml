@@ -26,6 +26,25 @@ spec:
         namespace: nvidia-device-plugin
   values:
     compatWithCPUManager: true
+    # Provide an explicit default config so the plugin does not fall back
+    # to the compiled-in 'auto' discovery strategy (removed upstream).
+    # NixOS hosts this with nvidia-container-toolkit.enable=true which
+    # publishes a CDI spec, so use the CDI device list strategy.
+    config:
+      map:
+        default: |-
+          version: v1
+          flags:
+            migStrategy: none
+            failOnInitError: true
+            deviceListStrategy: cdi-annotations
+            deviceIDStrategy: uuid
+            plugin:
+              passDeviceSpecs: true
+              deviceListStrategy: cdi-annotations
+              deviceIDStrategy: uuid
+          sharing:
+            timeSlicing: {}
     nodeSelector:
       personal-stack/capability-nvidia: 'true'
     # The chart default nodeAffinity requires node-feature-discovery labels
