@@ -22,7 +22,11 @@ EOF
 }
 
 shell_quote() {
-  printf "'%s'" "${1//\'/\'\"\'\"\'}"
+  # Escape every embedded single quote as '\'' so the wrapped result is
+  # safe to pass as a single-quoted argument over SSH. Parameter
+  # expansion runs outside double quotes so \' resolves to a literal '.
+  local quoted=${1//\'/\'\\\'\'}
+  printf "'%s'" "$quoted"
 }
 
 SSH_TARGET=""

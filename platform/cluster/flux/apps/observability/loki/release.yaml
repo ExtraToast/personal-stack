@@ -17,6 +17,15 @@ spec:
     deploymentMode: SingleBinary
     loki:
       auth_enabled: false
+      # The SingleBinary statefulset template requires bucketNames.chunks
+      # even though local filesystem storage is used; chart validation
+      # rejects the release otherwise. Names are unused placeholders.
+      storage:
+        type: filesystem
+        bucketNames:
+          chunks: chunks
+          ruler: ruler
+          admin: admin
     singleBinary:
       replicas: 1
       persistence:
