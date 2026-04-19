@@ -118,7 +118,7 @@ spec:
               memory: 768Mi
             limits:
               cpu: 1500m
-              memory: 1536Mi
+              memory: 3Gi
         - name: prowlarr
           image: linuxserver/prowlarr:1.32.2
           imagePullPolicy: IfNotPresent
