@@ -29,7 +29,6 @@ spec:
           AUTH_TRANSIT_KEY_NAME=auth-api-jwt
           AUTH_CLIENTS_GRAFANA_SECRET={{ with secret "secret/data/auth-api" }}{{ index .Data.data "auth.clients.grafana.secret" }}{{ end }}
           AUTH_CLIENTS_N8N_SECRET={{ with secret "secret/data/auth-api" }}{{ index .Data.data "auth.clients.n8n.secret" }}{{ end }}
-          AUTH_CLIENTS_NOMAD_SECRET={{ with secret "secret/data/auth-api" }}{{ index .Data.data "auth.clients.nomad.secret" }}{{ end }}
           AUTH_CLIENTS_VAULT_SECRET={{ with secret "secret/data/auth-api" }}{{ index .Data.data "auth.clients.vault.secret" }}{{ end }}
           MAIL_USERNAME={{ with secret "secret/data/auth-api" }}{{ index .Data.data "mail.username" }}{{ end }}
           MAIL_PASSWORD={{ with secret "secret/data/auth-api" }}{{ index .Data.data "mail.password" }}{{ end }}
@@ -94,7 +93,7 @@ spec:
             - name: CONFIRMATION_URL
               value: https://auth.jorisjonkers.dev/confirm-email
             - name: AUTH_CORS_ALLOWED_ORIGINS
-              value: https://jorisjonkers.dev,https://auth.jorisjonkers.dev,https://assistant.jorisjonkers.dev,https://vault.jorisjonkers.dev,https://n8n.jorisjonkers.dev,https://grafana.jorisjonkers.dev,https://rabbitmq.jorisjonkers.dev,https://status.jorisjonkers.dev
+              value: https://jorisjonkers.dev,https://auth.jorisjonkers.dev,https://assistant.jorisjonkers.dev,https://vault.jorisjonkers.dev,https://n8n.jorisjonkers.dev,https://grafana.jorisjonkers.dev,https://dashboard.jorisjonkers.dev,https://rabbitmq.jorisjonkers.dev,https://status.jorisjonkers.dev
             - name: DEPLOYMENT_ENVIRONMENT
               value: production
             - name: SERVICE_VERSION

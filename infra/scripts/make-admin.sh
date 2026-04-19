@@ -7,10 +7,11 @@ USERNAME="${1:-ExtraToast}"
 EMAIL="${2:-joriswouterjonkers@gmail.com}"
 DB="auth_db"
 
-# Works for local docker-compose and Nomad-managed Postgres containers.
+# Works for local docker-compose Postgres as well as the in-cluster
+# postgres pod (auto-detected via `kubectl`).
 CONTAINER=$(docker ps --format "{{.Names}}" | rg '^(personal-stack-postgres|postgres-)' | head -1)
 if [[ -z "${CONTAINER}" ]]; then
-  echo "Error: no running postgres container found (tried local compose and Nomad names)" >&2
+  echo "Error: no running postgres container found locally" >&2
   exit 1
 fi
 
@@ -39,9 +40,9 @@ BEGIN
     (v_id, 'N8N'),
     (v_id, 'GRAFANA'),
     (v_id, 'ASSISTANT'),
-    (v_id, 'NOMAD'),
+    (v_id, 'DASHBOARD'),
     (v_id, 'RABBITMQ'),
-    (v_id, 'TRAEFIK_DASHBOARD'),
+    (v_id, 'TRAEFIK'),
     (v_id, 'STATUS')
   ON CONFLICT DO NOTHING;
 

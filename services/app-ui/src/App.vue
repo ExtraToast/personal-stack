@@ -25,41 +25,51 @@ function cycleTheme(): void {
   <div class="min-h-screen bg-surface-dark text-gray-200">
     <nav class="fixed top-0 z-50 w-full border-b border-surface-border/50 bg-surface-dark/90 backdrop-blur-md">
       <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-        <a class="font-mono text-sm font-bold tracking-tight text-terminal-green" href="#">
+        <RouterLink
+          class="font-mono text-sm font-bold tracking-tight text-terminal-green"
+          :to="{ path: '/', hash: '' }"
+        >
           <span class="text-gray-600">~/</span>joris<span class="text-accent-light">.dev</span>
-        </a>
+        </RouterLink>
 
+        <!--
+          Nav links target anchors on the home page. Previously these were bare
+          `<a href="#about">` which, when clicked from any non-root route like
+          /admin, produced /admin#about and landed on a dead URL. Use RouterLink
+          with an explicit `path: '/'` so the router navigates home first and
+          then resolves the hash anchor.
+        -->
         <div class="hidden items-center gap-1 font-mono text-xs sm:flex">
-          <a
+          <RouterLink
             class="rounded-md px-3 py-1.5 text-gray-400 transition-colors hover:bg-surface-elevated hover:text-terminal-green"
-            href="#about"
+            :to="{ path: '/', hash: '#about' }"
           >
             {{ t('nav.about') }}
-          </a>
-          <a
+          </RouterLink>
+          <RouterLink
             class="rounded-md px-3 py-1.5 text-gray-400 transition-colors hover:bg-surface-elevated hover:text-terminal-green"
-            href="#experience"
+            :to="{ path: '/', hash: '#experience' }"
           >
             {{ t('nav.experience') }}
-          </a>
-          <a
+          </RouterLink>
+          <RouterLink
             class="rounded-md px-3 py-1.5 text-gray-400 transition-colors hover:bg-surface-elevated hover:text-terminal-green"
-            href="#projects"
+            :to="{ path: '/', hash: '#projects' }"
           >
             {{ t('nav.projects') }}
-          </a>
-          <a
+          </RouterLink>
+          <RouterLink
             class="rounded-md px-3 py-1.5 text-gray-400 transition-colors hover:bg-surface-elevated hover:text-terminal-green"
-            href="#skills"
+            :to="{ path: '/', hash: '#skills' }"
           >
             {{ t('nav.skills') }}
-          </a>
-          <a
+          </RouterLink>
+          <RouterLink
             class="rounded-md px-3 py-1.5 text-gray-400 transition-colors hover:bg-surface-elevated hover:text-terminal-green"
-            href="#contact"
+            :to="{ path: '/', hash: '#contact' }"
           >
             {{ t('nav.contact') }}
-          </a>
+          </RouterLink>
         </div>
 
         <div class="flex items-center gap-1">

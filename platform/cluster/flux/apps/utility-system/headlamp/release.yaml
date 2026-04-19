@@ -1,0 +1,64 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: headlamp
+  namespace: utility-system
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: headlamp
+      sourceRef:
+        kind: HelmRepository
+        name: headlamp
+        namespace: utility-system
+  values:
+    # Single replica pinned to the frankfurt control plane — Headlamp
+    # proxies to the kube-apiserver via the in-cluster ServiceAccount, so
+    # it's convenient to run next to the API server.
+    replicaCount: 1
+    nodeSelector:
+      personal-stack/site: frankfurt
+    # The ClusterRole below (headlamp-cluster-admin) is mounted via the
+    # bundled chart. Traefik forward-auth sits in front, so we don't add
+    # per-user authn in Headlamp itself; the ServiceAccount it runs as
+    # talks to the API server with read permissions.
+    config:
+      # 'base URL' for the generated links shown in the UI.
+      baseURL: ''
+      pluginsDir: /build/plugins
+    service:
+      type: ClusterIP
+      port: 80
+    # Headlamp has an in-tree plugin catalogue that includes Flux and
+    # cert-manager. Enable them so the overview lists Kustomizations,
+    # HelmReleases, Certificates, and CertificateRequests alongside the
+    # normal workload views.
+    initContainers:
+      - name: headlamp-plugins
+        image: ghcr.io/headlamp-k8s/plugins/headlamp-plugins:latest
+        imagePullPolicy: IfNotPresent
+        command:
+          - /bin/sh
+          - -c
+          - |
+            cp -r /headlamp-plugins/flux /build/plugins/flux
+            cp -r /headlamp-plugins/cert-manager /build/plugins/cert-manager
+        volumeMounts:
+          - name: headlamp-plugins
+            mountPath: /build/plugins
+    volumeMounts:
+      - name: headlamp-plugins
+        mountPath: /build/plugins
+    volumes:
+      - name: headlamp-plugins
+        emptyDir: {}
+    persistentVolumeClaim:
+      enabled: false
+    # Read-only cluster-wide permissions; the service account is created
+    # by the chart but the binding defaults to view. Override to
+    # cluster-admin *only* if you explicitly want write capability —
+    # leave view as default for safety.
+    clusterRoleBinding:
+      create: true
+      clusterRoleName: view

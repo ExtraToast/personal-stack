@@ -52,17 +52,17 @@ class AuthVerificationControllerTest {
         val user = buildUserWithUuid(roles = listOf("ROLE_ADMIN"))
         val session = MockHttpSession()
 
-        val response = controller.verify(user, session, "nomad.jorisjonkers.dev")
+        val response = controller.verify(user, session, "dashboard.jorisjonkers.dev")
 
         assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
     }
 
     @Test
-    fun `verify returns 200 when USER has nomad service permission`() {
-        val user = buildUserWithUuid(roles = listOf("ROLE_USER", "SERVICE_NOMAD"))
+    fun `verify returns 200 when USER has dashboard service permission`() {
+        val user = buildUserWithUuid(roles = listOf("ROLE_USER", "SERVICE_DASHBOARD"))
         val session = MockHttpSession()
 
-        val response = controller.verify(user, session, "nomad.jorisjonkers.dev")
+        val response = controller.verify(user, session, "dashboard.jorisjonkers.dev")
 
         assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
     }

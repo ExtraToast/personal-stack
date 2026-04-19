@@ -16,7 +16,10 @@ describe('app', () => {
     const wrapper = mount(App, {
       global: {
         plugins: [createPinia(), i18n],
-        stubs: ['RouterView'],
+        // Nav entries now use RouterLink with { path, hash } targets, which
+        // would require a full router. Stub both RouterLink and RouterView so
+        // the component mounts without one.
+        stubs: ['RouterView', 'RouterLink'],
       },
     })
     expect(wrapper.exists()).toBe(true)
