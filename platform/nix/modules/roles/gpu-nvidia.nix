@@ -33,8 +33,16 @@
   #
   # Guard both behind `services.k3s.enable` so this profile stays
   # useful on non-k3s GPU hosts (e.g. a future workstation import).
+  # `pkgs.nvidia-container-toolkit` is the default output and contains
+  # only `nvidia-ctk`. The OCI runtime binary lives in a separate
+  # derivation exposed as `pkgs.nvidia-container-toolkit.tools` (shows
+  # up in /nix/store as `...-nvidia-container-toolkit-<ver>-tools/`).
+  # Point both k3s's PATH and the containerd handler at `.tools`
+  # explicitly; using the base package makes containerd fail sandbox
+  # creation with
+  #   fork/exec .../nvidia-container-runtime: no such file or directory
   systemd.services.k3s.path = lib.mkIf config.services.k3s.enable [
-    pkgs.nvidia-container-toolkit
+    pkgs.nvidia-container-toolkit.tools
   ];
 
   services.k3s.containerdConfigTemplate = lib.mkIf config.services.k3s.enable ''
@@ -44,7 +52,7 @@
       runtime_type = "io.containerd.runc.v2"
 
     [plugins.'io.containerd.cri.v1.runtime'.containerd.runtimes.nvidia.options]
-      BinaryName = "${pkgs.nvidia-container-toolkit}/bin/nvidia-container-runtime"
+      BinaryName = "${pkgs.nvidia-container-toolkit.tools}/bin/nvidia-container-runtime"
       SystemdCgroup = true
   '';
 }
