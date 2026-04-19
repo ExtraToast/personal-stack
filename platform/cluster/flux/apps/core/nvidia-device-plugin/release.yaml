@@ -104,7 +104,17 @@ spec:
             plugin:
               passDeviceSpecs: true
               deviceListStrategy: envvar
-              deviceIDStrategy: uuid
+              # Use `index`, not `uuid`. The NixOS-generated CDI spec at
+              # /var/run/cdi/nvidia-container-toolkit.json names devices
+              # by index (`"0"`, `"all"`). `deviceIDStrategy: uuid` asks
+              # the runtime for `nvidia.com/gpu=GPU-<uuid>`, which does
+              # not exist in that spec and the CDI runtime rejects the
+              # sandbox with
+              #   failed to inject CDI devices: unresolvable CDI devices
+              #     nvidia.com/gpu=GPU-a97ebe4d-...
+              # `index` makes the plugin request `nvidia.com/gpu=0` on
+              # allocate, matching the spec.
+              deviceIDStrategy: index
     nodeSelector:
       personal-stack/capability-nvidia: 'true'
     # The chart default nodeAffinity requires node-feature-discovery labels
