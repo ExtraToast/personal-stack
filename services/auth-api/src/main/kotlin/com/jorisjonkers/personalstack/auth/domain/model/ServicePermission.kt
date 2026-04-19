@@ -15,6 +15,7 @@ enum class ServicePermission(
     MAIL("stalwart"),
     N8N("n8n"),
     GRAFANA("grafana"),
+
     // Replaces the legacy NOMAD entry; the Headlamp kubernetes dashboard now lives at
     // dashboard.jorisjonkers.dev. Existing rows in user_service_permissions are moved
     // across in migration V7.
@@ -22,6 +23,7 @@ enum class ServicePermission(
     RABBITMQ("rabbitmq"),
     ASSISTANT("assistant"),
     STATUS("status"),
+
     // Media stack. Surfaced in the app-ui MyApps grid so grantees can land on their
     // Jellyfin / *arr / qBittorrent URLs without memorising subdomains.
     JELLYFIN("jellyfin"),
