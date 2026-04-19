@@ -10,3 +10,4 @@ resources:
   - traefik-forward-auth-middleware.yaml
   - traefik-ingressroutes.yaml
   - traefik-lan-ingressroutes.yaml
+  - traefik-dashboard-ingressroute.yaml
