@@ -29,17 +29,15 @@ spec:
       # The user's RBAC is decided by the `groups` claim:
       # DASHBOARD permission -> oidc:k8s-admin group -> cluster-admin.
       #
-      # The clientID and clientSecret live in an externally-managed Secret
-      # named `headlamp-oidc` so rotations don't require a chart reconcile.
+      # Public client with PKCE — there is no client secret anywhere, so
+      # nothing to rotate, bootstrap, or leak. The chart creates a small
+      # Secret from values with only clientID (no secret key).
       oidc:
-        secret:
-          create: false
-        externalSecret:
-          enabled: true
-          name: headlamp-oidc
+        clientID: headlamp
         issuerURL: https://auth.jorisjonkers.dev
         scopes: openid profile email groups
         callbackURL: https://dashboard.jorisjonkers.dev/oidc-callback
+        usePKCE: true
     service:
       type: ClusterIP
       port: 80

@@ -91,7 +91,6 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
         private const val VAULT_CLIENT_SECRET = "vault-secret"
         private const val HEADLAMP_CLIENT_ID = "headlamp"
         private const val HEADLAMP_REDIRECT_URI = "https://dashboard.jorisjonkers.test/oidc-callback"
-        private const val HEADLAMP_CLIENT_SECRET = "headlamp-secret"
     }
 
     @BeforeEach
@@ -656,6 +655,9 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
         val loginResult = doSessionLogin(username, password)
         val session = extractSession(loginResult)!!
 
+        val codeVerifier = generateCodeVerifier()
+        val codeChallenge = generateCodeChallenge(codeVerifier)
+
         val authorizeResult =
             mockMvc
                 .get("/api/oauth2/authorize") {
@@ -663,6 +665,8 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
                     param("client_id", HEADLAMP_CLIENT_ID)
                     param("redirect_uri", HEADLAMP_REDIRECT_URI)
                     param("scope", "openid profile email groups")
+                    param("code_challenge", codeChallenge)
+                    param("code_challenge_method", "S256")
                     param("state", "allow-headlamp")
                     accept = MediaType.TEXT_HTML
                     this.session = session
@@ -692,7 +696,7 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
                         "&code=${URLEncoder.encode(code, StandardCharsets.UTF_8)}" +
                         "&redirect_uri=${URLEncoder.encode(HEADLAMP_REDIRECT_URI, StandardCharsets.UTF_8)}" +
                         "&client_id=$HEADLAMP_CLIENT_ID" +
-                        "&client_secret=${URLEncoder.encode(HEADLAMP_CLIENT_SECRET, StandardCharsets.UTF_8)}"
+                        "&code_verifier=$codeVerifier"
                 }.andExpect { status { isOk() } }
                 .andReturn()
 
@@ -735,7 +739,7 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
                     HEADLAMP_CLIENT_ID,
                     HEADLAMP_REDIRECT_URI,
                     "openid profile email groups",
-                    false,
+                    true,
                 ),
             )
 
