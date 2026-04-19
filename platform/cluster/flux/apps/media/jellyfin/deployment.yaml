@@ -15,6 +15,13 @@ spec:
       labels:
         app.kubernetes.io/name: jellyfin
     spec:
+      # Schedule under the nvidia-cdi runtime handler so containerd
+      # picks up the CDI spec NixOS emits at
+      # /var/run/cdi/nvidia-container-toolkit.json and injects the GPU
+      # device nodes + driver libs into the container. The device
+      # plugin sets NVIDIA_VISIBLE_DEVICES on us (envvar strategy),
+      # which the CDI runtime translates to the CDI device request.
+      runtimeClassName: nvidia-cdi
       nodeSelector:
         personal-stack/site: enschede
         personal-stack/role-utility-host: 'true'
