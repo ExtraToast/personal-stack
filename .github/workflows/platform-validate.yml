@@ -38,5 +38,12 @@ jobs:
           tar -xzf /tmp/kubeconform.tar.gz -C /tmp
           sudo install /tmp/kubeconform /usr/local/bin/kubeconform
 
+      - name: Install flux-local
+        # flux-local expands every HelmRelease CR against its real chart
+        # + values, which is what exposes remote-chart template errors
+        # (loki's schema_config, nvidia plugin config shape, SingleBinary
+        # + scalable replicas clash) before merge.
+        run: pipx install flux-local
+
       - name: Validate platform render
         run: platform/scripts/validate/render-platform.sh
