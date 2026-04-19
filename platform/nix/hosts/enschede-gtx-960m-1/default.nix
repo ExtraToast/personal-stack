@@ -1,4 +1,4 @@
-{ ... }:
+{ config, ... }:
 {
   imports = [
     ../../profiles/worker.nix
@@ -9,6 +9,13 @@
   ];
 
   networking.hostName = "enschede-gtx-960m-1";
+
+  # GTX 960M is Maxwell 2.0 (GM107). NVIDIA dropped Maxwell/Pascal/Volta
+  # from the mainline branch at R575; the 580.x legacy branch continues
+  # to support them. Without this override the default 595.x driver
+  # does not bind to the GPU and nvidia-container-toolkit-cdi-generator
+  # fails at activation with "NVML: Driver Not Loaded".
+  hardware.nvidia.package = config.boot.kernelPackages.nvidiaPackages.legacy_580;
   personalStack.k3sNodeLabels = {
     "personal-stack/site" = "enschede";
     "personal-stack/node" = "enschede-gtx-960m-1";

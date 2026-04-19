@@ -5,7 +5,10 @@
   hardware.nvidia = {
     open = false;
     modesetting.enable = true;
-    package = config.boot.kernelPackages.nvidiaPackages.stable;
+    # Default to the current mainline driver; hosts with cards the
+    # mainline has dropped (e.g. Maxwell on enschede-gtx-960m-1) override
+    # this to a legacy branch.
+    package = lib.mkDefault config.boot.kernelPackages.nvidiaPackages.stable;
   };
   hardware.nvidia-container-toolkit.enable = true;
 
