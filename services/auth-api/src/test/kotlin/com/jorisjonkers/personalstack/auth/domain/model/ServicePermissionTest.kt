@@ -16,6 +16,8 @@ class ServicePermissionTest {
         "grafana.jorisjonkers.dev, GRAFANA",
         "dashboard.jorisjonkers.dev, DASHBOARD",
         "dashboard.jorisjonkers.test, DASHBOARD",
+        "traefik.jorisjonkers.dev, TRAEFIK",
+        "traefik.jorisjonkers.test, TRAEFIK",
         "assistant.jorisjonkers.dev, ASSISTANT",
         "status.jorisjonkers.dev, STATUS",
         "jellyfin.jorisjonkers.dev, JELLYFIN",

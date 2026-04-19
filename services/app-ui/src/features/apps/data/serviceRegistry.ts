@@ -71,6 +71,13 @@ export const SERVICE_REGISTRY: ServiceEntry[] = [
     description: 'Headlamp kubernetes dashboard',
   },
   {
+    permission: 'TRAEFIK',
+    label: 'Traefik',
+    url: buildServiceUrl('traefik'),
+    iconUrl: '/icons/traefik.svg',
+    description: 'Edge router dashboard',
+  },
+  {
     permission: 'RABBITMQ',
     label: 'RabbitMQ',
     url: buildServiceUrl('rabbitmq'),

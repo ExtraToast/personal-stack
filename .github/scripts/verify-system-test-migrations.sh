@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verify that the expected database migrations ran in the CI Nomad stack.
+# Verify that the expected database migrations ran in the CI compose stack.
 
 set -Eeuo pipefail
 

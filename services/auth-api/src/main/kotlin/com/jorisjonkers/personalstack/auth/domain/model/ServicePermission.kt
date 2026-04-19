@@ -20,6 +20,7 @@ enum class ServicePermission(
     // dashboard.jorisjonkers.dev. Existing rows in user_service_permissions are moved
     // across in migration V7.
     DASHBOARD("dashboard"),
+    TRAEFIK("traefik"),
     RABBITMQ("rabbitmq"),
     ASSISTANT("assistant"),
     STATUS("status"),
