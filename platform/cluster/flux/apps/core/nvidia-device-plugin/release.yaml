@@ -36,11 +36,24 @@ spec:
     # NixOS hosts this with nvidia-container-toolkit.enable=true which
     # publishes a CDI spec, so use the CDI device list strategy.
     #
-    # The `plugin` block MUST sit under `flags` -- it is modelled as
-    # `Flags.Plugin` in api/config/v1/types.go. Placing it at the top
-    # level silently drops those knobs and (in v0.19) the config loader
-    # then errors with "no resources specified" because the downstream
-    # migration path ends up with an empty resources list.
+    # Config shape comes from api/config/v1/{config,flags,resources,
+    # sharing,replicas}.go at the pinned plugin version (v0.19.0):
+    #
+    #   - `plugin` lives under `flags` (it's modelled as `Flags.Plugin`,
+    #     not a sibling of `flags`).
+    #   - `resources:` is NOT user-settable in v0.19. The plugin calls
+    #     `DisableResourceNamingInConfig` which warns "Customizing the
+    #     'resources' field is not yet supported in the config" and
+    #     nils whatever we pass. Since that nil propagates into the
+    #     downstream replicas/timeSlicing unmarshal path it's cleanest
+    #     to just not set it at all -- the plugin auto-discovers
+    #     `nvidia.com/gpu` from the CDI spec.
+    #   - Don't set `sharing.timeSlicing: {}` either. The TimeSlicing
+    #     unmarshaler in replicas.go hard-fails with the literal
+    #     "no resources specified" error whenever timeSlicing is
+    #     present without a non-empty `resources` key, even when the
+    #     block is an empty map. We don't time-slice, so leave the
+    #     whole `sharing:` section out.
     config:
       map:
         default: |-
@@ -52,11 +65,6 @@ spec:
               passDeviceSpecs: true
               deviceListStrategy: cdi-annotations
               deviceIDStrategy: uuid
-          sharing:
-            timeSlicing: {}
-          resources:
-            - name: nvidia.com/gpu
-              pattern: '*'
     nodeSelector:
       personal-stack/capability-nvidia: 'true'
     # The chart default nodeAffinity requires node-feature-discovery labels
