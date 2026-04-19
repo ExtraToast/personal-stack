@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  # flux-system namespace is declared once in
+  # platform/cluster/flux/clusters/production/flux-system/gotk-components.yaml
+  # and must not be duplicated here.
+  - cert-manager
+  - external-dns
+  - ingress-controller
+  - nvidia-device-plugin
+  - metallb
+  - lan-ingress-controller

@@ -1,64 +1,43 @@
 package com.jorisjonkers.personalstack.systemtests
 
-import io.restassured.RestAssured.given
-import io.restassured.http.ContentType
+import org.assertj.core.api.Assertions.assertThat
 import org.hamcrest.Matchers.containsString
-import org.hamcrest.Matchers.not
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
-import java.util.UUID
 
 /**
  * System tests that go through Traefik (port 80) using virtual-host URLs.
  * Each service URL resolves to 127.0.0.1 (Traefik), which routes by Host header.
- * Verifies UI routes are accessible and that forward-auth protects
- * vault, n8n, and grafana — redirecting unauthenticated requests to the
- * auth login page and passing authenticated requests through.
+ * Verifies UI routes are accessible, that mail-oriented services stay behind forward-auth,
+ * and that native OIDC services are reachable without Traefik redirecting them to the auth
+ * login page first.
  */
 @Tag("system")
 class TraefikSystemTest {
-    private val authBaseUrl = System.getProperty("test.auth-api.url", "http://localhost:8081")
+    private fun traefikRequest() = TestHelper.givenApi()
 
     // UI services
-    private val appUiUrl = "http://localhost"
-    private val authUiUrl = "http://auth.localhost"
-    private val assistantUiUrl = "http://app.localhost"
+    private val appUiUrl = "https://jorisjonkers.test"
+    private val authUiUrl = "https://auth.jorisjonkers.test"
+    private val assistantUiUrl = "https://assistant.jorisjonkers.test"
+
+    // Native OIDC services
+    private val vaultUrl = "https://vault.jorisjonkers.test"
+    private val n8nUrl = "https://n8n.jorisjonkers.test"
+    private val grafanaUrl = "https://grafana.jorisjonkers.test"
 
     // Forward-auth protected services
-    private val vaultUrl = "http://vault.localhost"
-    private val n8nUrl = "http://n8n.localhost"
-    private val grafanaUrl = "http://grafana.localhost"
+    private val rabbitMqUrl = "https://rabbitmq.jorisjonkers.test"
+    private val mailUrl = "https://stalwart.jorisjonkers.test"
+    private val stalwartUrl = "https://stalwart.jorisjonkers.test"
 
-    private fun obtainToken(): String {
-        val username = "traefik_${UUID.randomUUID().toString().take(8)}"
-
-        given()
-            .baseUri(authBaseUrl)
-            .contentType(ContentType.JSON)
-            .body("""{"username":"$username","email":"$username@test.com","password":"Test1234!"}""")
-            .`when`()
-            .post("/api/v1/users/register")
-            .then()
-            .statusCode(201)
-
-        return given()
-            .baseUri(authBaseUrl)
-            .contentType(ContentType.JSON)
-            .body("""{"username":"$username","password":"Test1234!"}""")
-            .`when`()
-            .post("/api/v1/auth/login")
-            .then()
-            .statusCode(200)
-            .extract()
-            .jsonPath()
-            .getString("accessToken")
-    }
+    private fun obtainAdminSession(): TestHelper.SessionUser = TestHelper.registerConfirmAndGetAdminSession()
 
     // ── UI routes (no authentication required) ───────────────────────────────
 
     @Test
     fun `app-ui responds at localhost`() {
-        given()
+        traefikRequest()
             .baseUri(appUiUrl)
             .`when`()
             .get("/")
@@ -68,7 +47,7 @@ class TraefikSystemTest {
 
     @Test
     fun `auth-ui responds at auth dot localhost`() {
-        given()
+        traefikRequest()
             .baseUri(authUiUrl)
             .`when`()
             .get("/")
@@ -78,7 +57,7 @@ class TraefikSystemTest {
 
     @Test
     fun `assistant-ui responds at app dot localhost`() {
-        given()
+        traefikRequest()
             .baseUri(assistantUiUrl)
             .`when`()
             .get("/")
@@ -86,82 +65,139 @@ class TraefikSystemTest {
             .statusCode(200)
     }
 
-    // ── Unauthenticated: protected services redirect to auth login ────────────
+    // ── Unauthenticated: native OIDC services stay reachable ──────────────────
 
     @Test
-    fun `vault unauthenticated redirects to auth login`() {
-        given()
-            .baseUri(vaultUrl)
-            .redirects().follow(false)
-            .`when`()
-            .get("/")
-            .then()
-            .statusCode(302)
-            .header("Location", containsString("auth.localhost/login"))
+    fun `vault unauthenticated does not redirect to auth login`() {
+        val response =
+            traefikRequest()
+                .baseUri(vaultUrl)
+                .redirects()
+                .follow(false)
+                .`when`()
+                .get("/")
+
+        assertThat(response.statusCode).isNotIn(401, 403)
+        assertThat(response.header("Location").orEmpty()).doesNotContain("auth.jorisjonkers.test/login")
     }
 
     @Test
-    fun `n8n unauthenticated redirects to auth login`() {
-        given()
-            .baseUri(n8nUrl)
-            .redirects().follow(false)
+    fun `rabbitmq unauthenticated redirects to auth login`() {
+        traefikRequest()
+            .baseUri(rabbitMqUrl)
+            .redirects()
+            .follow(false)
             .`when`()
             .get("/")
             .then()
             .statusCode(302)
-            .header("Location", containsString("auth.localhost/login"))
+            .header("Location", containsString("auth.jorisjonkers.test/login"))
     }
 
     @Test
-    fun `grafana unauthenticated redirects to auth login`() {
-        given()
-            .baseUri(grafanaUrl)
-            .redirects().follow(false)
+    fun `rabbitmq authenticated passes forward-auth`() {
+        val session = obtainAdminSession()
+        val response =
+            traefikRequest()
+                .baseUri(rabbitMqUrl)
+                .cookie("SESSION", session.sessionCookie)
+                .redirects()
+                .follow(false)
+                .`when`()
+                .get("/")
+
+        assertThat(response.statusCode).isNotIn(401, 403)
+        assertThat(response.header("Location").orEmpty()).doesNotContain("auth.jorisjonkers.test/login")
+    }
+
+    @Test
+    fun `n8n unauthenticated does not redirect to auth login`() {
+        val response =
+            traefikRequest()
+                .baseUri(n8nUrl)
+                .redirects()
+                .follow(false)
+                .`when`()
+                .get("/")
+
+        assertThat(response.statusCode).isNotIn(401, 403)
+        assertThat(response.header("Location").orEmpty()).doesNotContain("auth.jorisjonkers.test/login")
+    }
+
+    @Test
+    fun `grafana unauthenticated does not redirect to auth login`() {
+        val response =
+            traefikRequest()
+                .baseUri(grafanaUrl)
+                .redirects()
+                .follow(false)
+                .`when`()
+                .get("/")
+
+        assertThat(response.statusCode).isNotIn(401, 403)
+        assertThat(response.header("Location").orEmpty()).doesNotContain("auth.jorisjonkers.test/login")
+    }
+
+    // ── Unauthenticated: forward-auth services still redirect to auth login ───
+
+    @Test
+    fun `mail unauthenticated redirects to auth login`() {
+        traefikRequest()
+            .baseUri(mailUrl)
+            .redirects()
+            .follow(false)
             .`when`()
             .get("/")
             .then()
             .statusCode(302)
-            .header("Location", containsString("auth.localhost/login"))
+            .header("Location", containsString("auth.jorisjonkers.test/login"))
+    }
+
+    @Test
+    fun `stalwart unauthenticated redirects to auth login`() {
+        traefikRequest()
+            .baseUri(stalwartUrl)
+            .redirects()
+            .follow(false)
+            .`when`()
+            .get("/")
+            .then()
+            .statusCode(302)
+            .header("Location", containsString("auth.jorisjonkers.test/login"))
     }
 
     // ── Authenticated: forward-auth passes, downstream service responds ───────
 
     @Test
-    fun `vault authenticated passes forward-auth`() {
-        val token = obtainToken()
-        given()
-            .baseUri(vaultUrl)
-            .header("Authorization", "Bearer $token")
-            .redirects().follow(false)
-            .`when`()
-            .get("/")
-            .then()
-            .header("Location", not(containsString("auth.localhost/login")))
+    fun `mail authenticated passes forward-auth`() {
+        val session = obtainAdminSession()
+        val response =
+            traefikRequest()
+                .baseUri(mailUrl)
+                .cookie("SESSION", session.sessionCookie)
+                .redirects()
+                .follow(false)
+                .`when`()
+                .get("/")
+
+        assertThat(response.statusCode).isNotIn(401, 403)
+        assertThat(response.header("Location").orEmpty()).doesNotContain("auth.jorisjonkers.test/login")
     }
 
     @Test
-    fun `n8n authenticated passes forward-auth`() {
-        val token = obtainToken()
-        given()
-            .baseUri(n8nUrl)
-            .header("Authorization", "Bearer $token")
-            .redirects().follow(false)
-            .`when`()
-            .get("/")
-            .then()
-            .header("Location", not(containsString("auth.localhost/login")))
+    fun `stalwart authenticated passes forward-auth`() {
+        val session = obtainAdminSession()
+        val response =
+            traefikRequest()
+                .baseUri(stalwartUrl)
+                .cookie("SESSION", session.sessionCookie)
+                .redirects()
+                .follow(false)
+                .`when`()
+                .get("/")
+
+        assertThat(response.statusCode).isNotIn(401, 403)
+        assertThat(response.header("Location").orEmpty()).doesNotContain("auth.jorisjonkers.test/login")
     }
 
-    @Test
-    fun `grafana authenticated passes forward-auth`() {
-        val token = obtainToken()
-        given()
-            .baseUri(grafanaUrl)
-            .header("Authorization", "Bearer $token")
-            .redirects().follow(false)
-            .`when`()
-            .get("/")
-            .then()
-            .header("Location", not(containsString("auth.localhost/login")))
-    }
 }

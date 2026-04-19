@@ -14,12 +14,15 @@ interface TotpData {
 
 const totpData = ref<TotpData | null>(null)
 const isLoading = ref(true)
+const enrollError = ref<string | null>(null)
 const verifying = ref(false)
 const verifyError = ref<string | null>(null)
 
 onMounted(async () => {
   try {
     totpData.value = await enrollTotp()
+  } catch {
+    enrollError.value = 'Failed to load TOTP setup. Please log in again.'
   } finally {
     isLoading.value = false
   }
@@ -30,6 +33,13 @@ async function onVerify(code: string): Promise<void> {
   verifyError.value = null
   try {
     await verifyTotp(code)
+    // Resume pending redirect (e.g. OAuth2 authorize URL) if stored by LoginForm.
+    const pendingRedirect = sessionStorage.getItem('pendingRedirect')
+    if (pendingRedirect) {
+      sessionStorage.removeItem('pendingRedirect')
+      window.location.href = pendingRedirect
+      return
+    }
     await router.push({ name: 'dashboard' })
   } catch {
     verifyError.value = 'Code verification failed. Please try again.'
@@ -56,6 +66,10 @@ async function onVerify(code: string): Promise<void> {
       <p class="mb-6 text-sm text-gray-500">Protect your account with a TOTP authenticator app.</p>
 
       <div v-if="isLoading" class="py-8 text-center font-mono text-sm text-gray-500">Loading...</div>
+
+      <div v-else-if="enrollError" class="py-8 text-center">
+        <p class="text-sm text-red-400">{{ enrollError }}</p>
+      </div>
 
       <template v-else-if="totpData">
         <TotpQrCode :qr-uri="totpData.qrUri" :secret="totpData.secret" />

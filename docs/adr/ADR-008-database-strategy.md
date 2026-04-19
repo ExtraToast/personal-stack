@@ -17,7 +17,7 @@ isolation and choose appropriate data access patterns.
 
 ### Database Engine
 
-- **PostgreSQL 17** — single instance running in Docker Swarm
+- **PostgreSQL 17** — single instance scheduled by Nomad
 
 ### Isolation
 

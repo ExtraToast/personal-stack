@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: assistant-ui
+  namespace: assistant-system
+  annotations:
+    keel.sh/policy: force
+    keel.sh/match-tag: 'true'
+    keel.sh/trigger: poll
+    keel.sh/pollSchedule: '@every 2m'
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: assistant-ui
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: assistant-ui
+    spec:
+      nodeSelector:
+        personal-stack/site: frankfurt
+      containers:
+        - name: assistant-ui
+          image: ghcr.io/extratoast/personal-stack/assistant-ui:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            requests:
+              cpu: 100m
+              memory: 96Mi
+            limits:
+              cpu: 300m
+              memory: 192Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: assistant-ui
+  namespace: assistant-system
+spec:
+  selector:
+    app.kubernetes.io/name: assistant-ui
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

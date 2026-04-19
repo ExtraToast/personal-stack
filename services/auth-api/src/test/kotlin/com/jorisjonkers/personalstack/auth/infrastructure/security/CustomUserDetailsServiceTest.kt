@@ -25,6 +25,7 @@ class CustomUserDetailsServiceTest {
                 passwordHash = "\$2a\$10\$hashed",
                 totpSecret = null,
                 totpEnabled = false,
+                emailConfirmed = true,
                 role = Role.USER,
             )
         every { userRepository.findCredentialsByUsername("alice") } returns credentials
@@ -33,7 +34,7 @@ class CustomUserDetailsServiceTest {
 
         assertThat(userDetails.username).isEqualTo("alice")
         assertThat(userDetails.password).isEqualTo("\$2a\$10\$hashed")
-        assertThat(userDetails.authorities.map { it.authority }).containsExactly("ROLE_USER")
+        assertThat(userDetails.authorities.map { it.authority!! }).containsExactly("ROLE_USER")
     }
 
     @Test
@@ -53,12 +54,37 @@ class CustomUserDetailsServiceTest {
                 passwordHash = "\$2a\$10\$hashed",
                 totpSecret = null,
                 totpEnabled = false,
+                emailConfirmed = true,
                 role = Role.ADMIN,
             )
         every { userRepository.findCredentialsByUsername("admin") } returns credentials
 
         val userDetails = service.loadUserByUsername("admin")
 
-        assertThat(userDetails.authorities.map { it.authority }).containsExactly("ROLE_ADMIN")
+        val authorities = userDetails.authorities.map { it.authority!! }
+        assertThat(authorities).contains("ROLE_ADMIN")
+        // ADMIN gets all service permissions
+        assertThat(authorities.filter { it.startsWith("SERVICE_") }).isNotEmpty()
+    }
+
+    @Test
+    fun `loadUserByUsername returns AuthenticatedUser with userId`() {
+        val id = UserId(UUID.randomUUID())
+        val credentials =
+            UserCredentials(
+                userId = id,
+                username = "bob",
+                passwordHash = "\$2a\$10\$hashed",
+                totpSecret = null,
+                totpEnabled = false,
+                emailConfirmed = true,
+                role = Role.USER,
+            )
+        every { userRepository.findCredentialsByUsername("bob") } returns credentials
+
+        val userDetails = service.loadUserByUsername("bob") as AuthenticatedUser
+
+        assertThat(userDetails.userId).isEqualTo(id.value)
+        assertThat(userDetails.username).isEqualTo("bob")
     }
 }

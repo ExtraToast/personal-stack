@@ -14,7 +14,7 @@ kotlin {
     jvmToolchain(21)
 
     compilerOptions {
-        freeCompilerArgs.add("-Xjsr305=strict")
+        freeCompilerArgs.addAll("-Xjsr305=strict", "-Werror")
         jvmTarget.set(JvmTarget.JVM_21)
     }
 }

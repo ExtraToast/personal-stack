@@ -5,6 +5,9 @@ export default {
     projects: 'Projecten',
     skills: 'Vaardigheden',
     contact: 'Contact',
+    admin: 'Beheer',
+    login: 'Inloggen',
+    logout: 'Uitloggen',
   },
   hero: {
     subtitle: 'Jr. Software Ingenieur',
@@ -68,7 +71,7 @@ export default {
       {
         role: 'Secretaris & Commissaris Externe Zaken',
         company: 'ESA Blueshell',
-        period: 'September 2024 – Heden',
+        period: 'September 2024 – September 2025',
         description:
           'Sponsorbenaderingsproces vernieuwd met webscraping en gerichte mailcampagnes, wat heeft geleid tot contact met meer dan 100 bedrijven. Verantwoordelijk voor officiële communicatie, notulen en maandelijkse nieuwsbrieven. Sinds april 2024 ook de primaire ontwikkelaar van de full-stack verenigingswebsite, gebouwd met Spring Boot 4 (Kotlin) en Vue.js 3 (TypeScript) en uitgerold als Docker Swarm-stack.',
         technologies: ['Spring Boot', 'Kotlin', 'Vue.js', 'Docker Swarm', 'Traefik'],
@@ -82,8 +85,8 @@ export default {
       {
         title: 'Personal Stack',
         description:
-          'Een zelfgehost infrastructuurplatform op Docker Swarm met Traefik, Vault en observability tooling. Bevat een auth-service (Spring Authorization Server + TOTP MFA), een AI-assistent en Vue.js-frontends, allemaal gebouwd met hexagonale architectuur en afgedwongen door ArchUnit.',
-        technologies: ['Kotlin', 'Spring Boot', 'Vue.js', 'Docker Swarm', 'Traefik', 'Vault', 'PostgreSQL'],
+          'Een zelfgehost infrastructuurplatform op Nomad met Consul, Traefik, Vault en observability tooling. Bevat een auth-service (Spring Authorization Server + TOTP MFA), een AI-assistent en Vue.js-frontends, allemaal gebouwd met hexagonale architectuur en afgedwongen door ArchUnit.',
+        technologies: ['Kotlin', 'Spring Boot', 'Vue.js', 'Nomad', 'Consul', 'Traefik', 'Vault', 'PostgreSQL'],
         githubUrl: 'https://github.com/ExtraToast/personal-stack',
       },
       {

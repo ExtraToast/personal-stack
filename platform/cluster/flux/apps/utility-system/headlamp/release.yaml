@@ -1,0 +1,47 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: headlamp
+  namespace: utility-system
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: headlamp
+      sourceRef:
+        kind: HelmRepository
+        name: headlamp
+        namespace: utility-system
+  values:
+    # Single replica pinned to the frankfurt control plane — Headlamp
+    # proxies to the kube-apiserver via the in-cluster ServiceAccount, so
+    # it's convenient to run next to the API server.
+    replicaCount: 1
+    nodeSelector:
+      personal-stack/site: frankfurt
+    # The ClusterRole below (headlamp-cluster-admin) is mounted via the
+    # bundled chart. Traefik forward-auth sits in front, so we don't add
+    # per-user authn in Headlamp itself; the ServiceAccount it runs as
+    # talks to the API server with read permissions.
+    config:
+      # 'base URL' for the generated links shown in the UI.
+      baseURL: ''
+    service:
+      type: ClusterIP
+      port: 80
+    # Headlamp has an in-tree plugin catalogue (Flux / cert-manager
+    # views, etc). We used to pull those plugins via an init container
+    # from ghcr.io/headlamp-k8s/plugins/headlamp-plugins:latest, but
+    # that package 403s on anonymous pulls and wedged the Deployment
+    # on ImagePullBackOff. Ship without plugins for now; Headlamp
+    # falls back to the generic Kubernetes resource views, which is
+    # all we need for cluster introspection today.
+    persistentVolumeClaim:
+      enabled: false
+    # Read-only cluster-wide permissions; the service account is created
+    # by the chart but the binding defaults to view. Override to
+    # cluster-admin *only* if you explicitly want write capability —
+    # leave view as default for safety.
+    clusterRoleBinding:
+      create: true
+      clusterRoleName: view

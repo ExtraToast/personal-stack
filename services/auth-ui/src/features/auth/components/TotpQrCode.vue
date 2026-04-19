@@ -1,22 +1,33 @@
 <script setup lang="ts">
-defineProps<{
+import QRCode from 'qrcode'
+import { onMounted, ref, watch } from 'vue'
+
+const props = defineProps<{
   secret: string
   qrUri: string
 }>()
+
+const canvas = ref<HTMLCanvasElement | null>(null)
+
+async function renderQr(): Promise<void> {
+  if (canvas.value && props.qrUri) {
+    await QRCode.toCanvas(canvas.value, props.qrUri, {
+      width: 200,
+      margin: 2,
+      color: { dark: '#000000', light: '#ffffff' },
+    })
+  }
+}
+
+onMounted(renderQr)
+watch(() => props.qrUri, renderQr)
 </script>
 
 <template>
   <div class="space-y-4 text-center">
     <p class="text-sm text-gray-400">Scan the QR code with Google Authenticator, Authy, or any TOTP app.</p>
 
-    <!-- QR code rendered via a free QR API -->
-    <img
-      alt="QR code for TOTP setup"
-      :src="`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrUri)}&size=200x200`"
-      class="mx-auto rounded-lg border border-surface-border bg-white p-2"
-      height="200"
-      width="200"
-    />
+    <canvas ref="canvas" class="mx-auto rounded-lg border border-surface-border bg-white p-2" />
 
     <details class="text-left">
       <summary class="cursor-pointer font-mono text-sm text-gray-500 hover:text-gray-300">

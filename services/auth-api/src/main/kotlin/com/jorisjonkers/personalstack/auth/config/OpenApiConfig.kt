@@ -35,9 +35,9 @@ class OpenApiConfig {
                     .flows(
                         OAuthFlows().authorizationCode(
                             OAuthFlow()
-                                .authorizationUrl("https://auth.jorisjonkers.dev/oauth2/authorize")
-                                .tokenUrl("https://auth.jorisjonkers.dev/oauth2/token")
-                                .refreshUrl("https://auth.jorisjonkers.dev/oauth2/token"),
+                                .authorizationUrl("https://auth.jorisjonkers.dev/api/oauth2/authorize")
+                                .tokenUrl("https://auth.jorisjonkers.dev/api/oauth2/token")
+                                .refreshUrl("https://auth.jorisjonkers.dev/api/oauth2/token"),
                         ),
                     ),
             ).addSecuritySchemes(

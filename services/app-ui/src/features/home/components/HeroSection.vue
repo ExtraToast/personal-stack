@@ -25,8 +25,13 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll))
         <img
           alt="Joris Jonkers"
           class="mx-auto h-36 w-36 rounded-full object-cover ring-2 ring-accent/40 ring-offset-4 ring-offset-surface-dark sm:h-48 sm:w-48"
+          decoding="async"
+          fetchpriority="high"
           height="192"
-          src="/joris.jpg"
+          loading="eager"
+          sizes="(min-width: 640px) 192px, 144px"
+          src="/joris-192.jpg"
+          srcset="/joris-192.jpg 192w, /joris-384.jpg 384w"
           width="192"
         />
       </div>

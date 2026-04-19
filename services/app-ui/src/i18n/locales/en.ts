@@ -5,6 +5,9 @@ export default {
     projects: 'Projects',
     skills: 'Skills',
     contact: 'Contact',
+    admin: 'Admin',
+    login: 'Login',
+    logout: 'Logout',
   },
   hero: {
     subtitle: 'Jr. Software Engineer',
@@ -68,7 +71,7 @@ export default {
       {
         role: 'Secretary & Commissioner of External Affairs',
         company: 'ESA Blueshell',
-        period: 'September 2024 – Present',
+        period: 'September 2024 – September 2025',
         description:
           "Overhauled sponsor outreach using scraping techniques and targeted email templates, resulting in contact with over 100 companies. Handles official communications, meeting minutes, and monthly newsletters. Since April 2024, has been the primary developer of the association's full-stack website, built with Spring Boot 4 (Kotlin) and Vue.js 3 (TypeScript) and deployed as a Docker Swarm stack.",
         technologies: ['Spring Boot', 'Kotlin', 'Vue.js', 'Docker Swarm', 'Traefik'],
@@ -82,8 +85,8 @@ export default {
       {
         title: 'Personal Stack',
         description:
-          'A self-hosted infrastructure platform running on Docker Swarm with Traefik, Vault, and observability tooling. Includes an auth service (Spring Authorization Server + TOTP MFA), an AI assistant service, and Vue.js frontends — all built with hexagonal architecture and enforced by ArchUnit.',
-        technologies: ['Kotlin', 'Spring Boot', 'Vue.js', 'Docker Swarm', 'Traefik', 'Vault', 'PostgreSQL'],
+          'A self-hosted infrastructure platform running on Nomad with Consul, Traefik, Vault, and observability tooling. Includes an auth service (Spring Authorization Server + TOTP MFA), an AI assistant service, and Vue.js frontends — all built with hexagonal architecture and enforced by ArchUnit.',
+        technologies: ['Kotlin', 'Spring Boot', 'Vue.js', 'Nomad', 'Consul', 'Traefik', 'Vault', 'PostgreSQL'],
         githubUrl: 'https://github.com/ExtraToast/personal-stack',
       },
       {

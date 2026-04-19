@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { AppsGrid } from '@/features/apps'
+import { useAuthStore } from '@/features/auth'
 import AboutSection from '../components/AboutSection.vue'
 import ContactSection from '../components/ContactSection.vue'
 import ExperienceTimeline from '../components/ExperienceTimeline.vue'
@@ -6,11 +8,14 @@ import FooterSection from '../components/FooterSection.vue'
 import HeroSection from '../components/HeroSection.vue'
 import ProjectShowcase from '../components/ProjectShowcase.vue'
 import SkillsSection from '../components/SkillsSection.vue'
+
+const authStore = useAuthStore()
 </script>
 
 <template>
   <div>
     <HeroSection />
+    <AppsGrid v-if="authStore.isAuthenticated" />
     <AboutSection />
     <ExperienceTimeline />
     <ProjectShowcase />

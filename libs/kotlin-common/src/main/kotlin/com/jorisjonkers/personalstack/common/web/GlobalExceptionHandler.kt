@@ -5,6 +5,8 @@ import com.jorisjonkers.personalstack.common.exception.NotFoundException
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.http.converter.HttpMessageNotReadableException
+import org.springframework.web.HttpMediaTypeNotSupportedException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
@@ -63,6 +65,31 @@ open class GlobalExceptionHandler {
                 errors = fieldErrors,
             )
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(body)
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException::class)
+    fun handleMediaTypeNotSupported(ex: HttpMediaTypeNotSupportedException): ResponseEntity<ProblemDetail> {
+        val body =
+            ProblemDetail(
+                type = URI.create("https://jorisjonkers.dev/errors/unsupported-media-type"),
+                title = "Unsupported Media Type",
+                status = HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(),
+                detail = ex.message,
+            )
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(body)
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException::class)
+    fun handleMessageNotReadable(ex: HttpMessageNotReadableException): ResponseEntity<ProblemDetail> {
+        log.debug("Unreadable request body: {}", ex.message)
+        val body =
+            ProblemDetail(
+                type = URI.create("https://jorisjonkers.dev/errors/bad-request"),
+                title = "Bad Request",
+                status = HttpStatus.BAD_REQUEST.value(),
+                detail = "Malformed or unreadable request body",
+            )
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body)
     }
 
     @ExceptionHandler(Exception::class)

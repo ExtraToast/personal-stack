@@ -17,8 +17,8 @@ asynchronous (notifications, background processing). We need patterns that keep 
 
 ### Synchronous Communication
 
-- **REST over Docker Swarm overlay network**
-- Services address each other by Swarm service name (DNS-based service discovery)
+- **REST over Nomad networking with service discovery**
+- Services address each other by service DNS / Consul-registered names
 - Authenticated via Vault-issued mTLS certificates
 - Used for: queries that need immediate response
 

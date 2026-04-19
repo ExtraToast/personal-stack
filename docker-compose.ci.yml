@@ -1,93 +1,60 @@
+# CI override for system tests.
+# Usage: bootstrap with .github/scripts/start-system-test-stack.sh
+
 services:
+  # ── Use CI-built images ──────────────────────────────────────────
   auth-api:
     image: personal-stack/auth-api:ci
+    pull_policy: never
     environment:
-      AUTH_LOGIN_URL: http://auth.localhost/login
+      DB_PASSWORD: ci_auth_pass
+      OTEL_TRACES_EXPORTER: none
+      OTEL_EXPORTER_OTLP_ENDPOINT: ''
 
   assistant-api:
     image: personal-stack/assistant-api:ci
+    pull_policy: never
+    environment:
+      DB_PASSWORD: ci_assistant_pass
+      OTEL_TRACES_EXPORTER: none
+      OTEL_EXPORTER_OTLP_ENDPOINT: ''
 
   auth-ui:
     image: personal-stack/auth-ui:ci
-    healthcheck:
-      test: ['CMD-SHELL', 'wget -qO /dev/null http://127.0.0.1/ || exit 1']
-      interval: 5s
-      timeout: 3s
-      retries: 5
-      start_period: 5s
+    pull_policy: never
 
   assistant-ui:
     image: personal-stack/assistant-ui:ci
-    healthcheck:
-      test: ['CMD-SHELL', 'wget -qO /dev/null http://127.0.0.1/ || exit 1']
-      interval: 5s
-      timeout: 3s
-      retries: 5
-      start_period: 5s
+    pull_policy: never
 
   app-ui:
     image: personal-stack/app-ui:ci
-    healthcheck:
-      test: ['CMD-SHELL', 'wget -qO /dev/null http://127.0.0.1/ || exit 1']
-      interval: 5s
-      timeout: 3s
-      retries: 5
-      start_period: 5s
+    pull_policy: never
 
-  traefik:
-    volumes:
-      - ./infra/traefik/traefik-ci.yml:/etc/traefik/traefik.yml:ro
-    healthcheck:
-      test: ['CMD', 'traefik', 'healthcheck', '--ping']
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
-
-  vault:
-    healthcheck:
-      test: ['CMD', 'vault', 'status', '-address=http://127.0.0.1:8200']
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
-    labels:
-      - 'traefik.enable=true'
-      - 'traefik.http.routers.vault.rule=Host(`vault.localhost`)'
-      - 'traefik.http.routers.vault.middlewares=forward-auth@docker'
-      - 'traefik.http.services.vault.loadbalancer.server.port=8200'
-      - 'traefik.http.middlewares.forward-auth.forwardauth.address=http://auth-api:8081/api/v1/auth/verify'
-      - 'traefik.http.middlewares.forward-auth.forwardauth.trustForwardHeader=true'
-      - 'traefik.http.middlewares.forward-auth.forwardauth.authResponseHeaders=X-User-Id,X-User-Email,X-User-Roles'
-
-  n8n:
-    image: n8nio/n8n:2.13.4
+  # ── CI-specific credentials ──────────────────────────────────────
+  postgres:
     environment:
-      N8N_HOST: n8n.localhost
-      N8N_PROTOCOL: http
-      N8N_PORT: '5678'
-    healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:5678/healthz || exit 1']
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-    labels:
-      - 'traefik.enable=true'
-      - 'traefik.http.routers.n8n.rule=Host(`n8n.localhost`)'
-      - 'traefik.http.routers.n8n.middlewares=forward-auth@docker'
-      - 'traefik.http.services.n8n.loadbalancer.server.port=5678'
+      AUTH_DB_PASSWORD: ci_auth_pass
+      ASSISTANT_DB_PASSWORD: ci_assistant_pass
+      N8N_DB_PASSWORD: ci_n8n_pass
 
-  grafana:
-    image: grafana/grafana:11.6.0
-    healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/api/health || exit 1']
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-    labels:
-      - 'traefik.enable=true'
-      - 'traefik.http.routers.grafana.rule=Host(`grafana.localhost`)'
-      - 'traefik.http.routers.grafana.middlewares=forward-auth@docker'
-      - 'traefik.http.services.grafana.loadbalancer.server.port=3000'
+  # ── Disable OTEL on traefik (alloy is disabled) ─────────────────
+  traefik:
+    environment:
+      OTEL_TRACES_EXPORTER: none
+
+  # ── Disable services not needed for system tests ─────────────────
+  vault-oidc-init:
+    profiles: [bootstrap]
+  prometheus:
+    profiles: [disabled]
+  loki:
+    profiles: [disabled]
+  alloy:
+    profiles: [disabled]
+  tempo:
+    profiles: [disabled]
+  uptime-kuma:
+    profiles: [disabled]
+  uptime-kuma-init:
+    profiles: [disabled]

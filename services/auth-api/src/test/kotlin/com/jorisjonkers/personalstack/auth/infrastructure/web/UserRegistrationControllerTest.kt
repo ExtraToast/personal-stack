@@ -31,7 +31,10 @@ class UserRegistrationControllerTest {
             id = UserId(UUID.randomUUID()),
             username = "alice",
             email = "alice@example.com",
+            firstName = "",
+            lastName = "",
             role = Role.USER,
+            emailConfirmed = false,
             totpEnabled = false,
             createdAt = Instant.now(),
             updatedAt = Instant.now(),
@@ -53,6 +56,8 @@ class UserRegistrationControllerTest {
             RegisterUserRequest(
                 username = "alice",
                 email = "alice@example.com",
+                firstName = "Test",
+                lastName = "User",
                 password = "securepass123",
             )
 
@@ -78,6 +83,8 @@ class UserRegistrationControllerTest {
             RegisterUserRequest(
                 username = "bob",
                 email = "bob@example.com",
+                firstName = "Test",
+                lastName = "User",
                 password = "securepass123",
             )
 

@@ -46,8 +46,27 @@ class TokenService(
         return jwtEncoder.encode(JwtEncoderParameters.from(claims)).tokenValue
     }
 
+    fun createTotpChallengeToken(
+        userId: String,
+        username: String,
+    ): String {
+        val now = Instant.now()
+        val claims =
+            JwtClaimsSet
+                .builder()
+                .issuer(authorizationServerSettings.issuer)
+                .subject(userId)
+                .claim("type", "totp_challenge")
+                .claim("username", username)
+                .issuedAt(now)
+                .expiresAt(now.plus(TOTP_CHALLENGE_MINUTES, ChronoUnit.MINUTES))
+                .build()
+        return jwtEncoder.encode(JwtEncoderParameters.from(claims)).tokenValue
+    }
+
     companion object {
         private const val ACCESS_TOKEN_MINUTES = 15L
         private const val REFRESH_TOKEN_DAYS = 7L
+        private const val TOTP_CHALLENGE_MINUTES = 5L
     }
 }

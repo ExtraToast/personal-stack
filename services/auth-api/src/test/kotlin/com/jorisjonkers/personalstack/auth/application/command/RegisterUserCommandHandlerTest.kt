@@ -5,6 +5,7 @@ import com.jorisjonkers.personalstack.auth.domain.exception.DuplicateUsernameExc
 import com.jorisjonkers.personalstack.auth.domain.model.Role
 import com.jorisjonkers.personalstack.auth.domain.model.User
 import com.jorisjonkers.personalstack.auth.domain.model.UserId
+import com.jorisjonkers.personalstack.auth.domain.port.EmailConfirmationTokenRepository
 import com.jorisjonkers.personalstack.auth.domain.port.PasswordEncoder
 import com.jorisjonkers.personalstack.auth.domain.port.UserRepository
 import com.jorisjonkers.personalstack.common.messaging.RabbitMqEventPublisher
@@ -24,6 +25,7 @@ class RegisterUserCommandHandlerTest {
     private val passwordEncoder = mockk<PasswordEncoder>()
     private val eventPublisher = mockk<ApplicationEventPublisher>(relaxed = true)
     private val rabbitMqEventPublisher = mockk<RabbitMqEventPublisher>(relaxed = true)
+    private val emailConfirmationTokenRepository = mockk<EmailConfirmationTokenRepository>(relaxed = true)
 
     private val handler =
         RegisterUserCommandHandler(
@@ -31,6 +33,7 @@ class RegisterUserCommandHandlerTest {
             passwordEncoder,
             eventPublisher,
             rabbitMqEventPublisher,
+            emailConfirmationTokenRepository,
         )
 
     @Test
@@ -39,6 +42,8 @@ class RegisterUserCommandHandlerTest {
             RegisterUserCommand(
                 username = "alice",
                 email = "alice@example.com",
+                firstName = "Alice",
+                lastName = "Smith",
                 password = "secret123",
             )
         val userSlot = slot<User>()
@@ -66,7 +71,7 @@ class RegisterUserCommandHandlerTest {
         every { userRepository.existsByUsername("alice") } returns true
 
         assertThatThrownBy {
-            handler.handle(RegisterUserCommand("alice", "alice@example.com", "pass"))
+            handler.handle(RegisterUserCommand("alice", "alice@example.com", "Alice", "Smith", "pass"))
         }.isInstanceOf(DuplicateUsernameException::class.java)
     }
 
@@ -76,7 +81,7 @@ class RegisterUserCommandHandlerTest {
         every { userRepository.existsByEmail("alice@example.com") } returns true
 
         assertThatThrownBy {
-            handler.handle(RegisterUserCommand("alice", "alice@example.com", "pass"))
+            handler.handle(RegisterUserCommand("alice", "alice@example.com", "Alice", "Smith", "pass"))
         }.isInstanceOf(DuplicateEmailException::class.java)
     }
 
@@ -89,7 +94,10 @@ class RegisterUserCommandHandlerTest {
             id = UserId(UUID.randomUUID()),
             username = username,
             email = email,
+            firstName = "",
+            lastName = "",
             role = Role.USER,
+            emailConfirmed = false,
             totpEnabled = false,
             createdAt = now,
             updatedAt = now,

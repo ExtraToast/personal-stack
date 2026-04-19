@@ -1,6 +1,8 @@
 # Gradle
 .gradle/
 build/
+!platform/scripts/build/
+!platform/scripts/build/*.sh
 
 # Java/Kotlin
 *.class
@@ -10,6 +12,7 @@ build/
 *.ear
 *.log
 hs_err_pid*
+.kotlin
 
 # jOOQ generated
 **/generated-jooq/
@@ -50,9 +53,17 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+platform/nix/authorized-keys.nix
+platform/nix/authorized-keys/*.pub
 acme.json
+*.crt
+*.cer
 *.pem
 *.key
+*.p12
+*.pfx
+.vault-keys
+.vault-app-secrets
 
 # Cloud-init rendered output
 infra/cloud-init/cloud-init.rendered.yml
@@ -67,3 +78,4 @@ CLAUDE.md
 tmp/
 tmp.txt
 *.bak
+/infra/n8n/worfklows/.rental-scraper.env

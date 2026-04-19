@@ -11,6 +11,8 @@ const authStore = useAuthStore()
 const form = ref<RegisterFormData>({
   username: '',
   email: '',
+  firstName: '',
+  lastName: '',
   password: '',
   confirmPassword: '',
 })
@@ -34,9 +36,9 @@ function validate(): boolean {
 async function onSubmit(): Promise<void> {
   if (!validate()) return
   try {
-    await authStore.register(form.value.username, form.value.email, form.value.password)
-    await authStore.login(form.value.username, form.value.password)
-    await router.push({ name: 'totp-setup' })
+    const { username, email, firstName, lastName, password } = form.value
+    await authStore.register(username, email, firstName, lastName, password)
+    await router.push({ name: 'check-email', query: { email: form.value.email } })
   } catch {
     // error is set on the store
   }
@@ -88,6 +90,37 @@ async function onSubmit(): Promise<void> {
       <p v-if="fieldErrors.email" class="mt-1 text-sm text-red-400">
         {{ fieldErrors.email }}
       </p>
+    </div>
+
+    <div class="flex gap-4">
+      <div class="flex-1">
+        <label class="block font-mono text-xs font-medium text-gray-400" for="firstName"> First name </label>
+        <input
+          id="firstName"
+          v-model="form.firstName"
+          autocomplete="given-name"
+          class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          placeholder="First"
+          type="text"
+        />
+        <p v-if="fieldErrors.firstName" class="mt-1 text-sm text-red-400">
+          {{ fieldErrors.firstName }}
+        </p>
+      </div>
+      <div class="flex-1">
+        <label class="block font-mono text-xs font-medium text-gray-400" for="lastName"> Last name </label>
+        <input
+          id="lastName"
+          v-model="form.lastName"
+          autocomplete="family-name"
+          class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          placeholder="Last"
+          type="text"
+        />
+        <p v-if="fieldErrors.lastName" class="mt-1 text-sm text-red-400">
+          {{ fieldErrors.lastName }}
+        </p>
+      </div>
     </div>
 
     <div>

@@ -11,7 +11,7 @@ This directory contains all Architecture Decision Records (ADRs) for the persona
 | [ADR-001](ADR-001-infrastructure-platform.md) | Infrastructure Platform — Contabo, Docker Swarm, Ubuntu 24.04  | Accepted |
 | [ADR-002](ADR-002-network-security.md)        | Network Security — UFW, SSH hardening, Fail2ban, rate limiting | Accepted |
 | [ADR-003](ADR-003-tls-dns.md)                 | TLS & DNS — Traefik ACME, Cloudflare DNS-01, wildcard cert     | Accepted |
-| [ADR-004](ADR-004-secrets-management.md)      | Secrets Management — HashiCorp Vault, Raft, AppRole            | Accepted |
+| [ADR-004](ADR-004-secrets-management.md)      | Secrets Management — HashiCorp Vault, Raft, workload identity  | Accepted |
 
 ### Authentication & Architecture
 
@@ -42,12 +42,12 @@ This directory contains all Architecture Decision Records (ADRs) for the persona
 
 ### Operations
 
-| ADR                                            | Title                                                           | Status   |
-| ---------------------------------------------- | --------------------------------------------------------------- | -------- |
-| [ADR-017](ADR-017-ci-cd-pipeline.md)           | CI/CD Pipeline — GitHub Actions, ghcr.io, Swarm rolling deploys | Accepted |
-| [ADR-018](ADR-018-monitoring-observability.md) | Monitoring & Observability — Grafana stack, Uptime Kuma         | Accepted |
-| [ADR-019](ADR-019-n8n-workflow-automation.md)  | n8n Workflow Automation                                         | Accepted |
-| [ADR-020](ADR-020-repository-structure.md)     | Repository Structure — Monorepo, naming conventions             | Accepted |
+| ADR                                            | Title                                                   | Status   |
+| ---------------------------------------------- | ------------------------------------------------------- | -------- |
+| [ADR-017](ADR-017-ci-cd-pipeline.md)           | CI/CD Pipeline — GitHub Actions, ghcr.io, Nomad deploys | Accepted |
+| [ADR-018](ADR-018-monitoring-observability.md) | Monitoring & Observability — Grafana stack, Uptime Kuma | Accepted |
+| [ADR-019](ADR-019-n8n-workflow-automation.md)  | n8n Workflow Automation                                 | Accepted |
+| [ADR-020](ADR-020-repository-structure.md)     | Repository Structure — Monorepo, naming conventions     | Accepted |
 
 ## How to Add a New ADR
 

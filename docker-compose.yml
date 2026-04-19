@@ -42,11 +42,21 @@ services:
       RABBITMQ_DEFAULT_PASS: guest
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
+      - ./infra/rabbitmq/rabbitmq.dev.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./infra/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+      - ./infra/traefik/dynamic-dev/certs/jorisjonkers.test.crt:/etc/rabbitmq/issuer-ca.pem:ro
     healthcheck:
       test: ['CMD', 'rabbitmq-diagnostics', 'check_running']
       interval: 10s
       timeout: 5s
       retries: 5
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.jorisjonkers.test`)'
+      - 'traefik.http.routers.rabbitmq.entrypoints=websecure'
+      - 'traefik.http.routers.rabbitmq.tls=true'
+      - 'traefik.http.routers.rabbitmq.middlewares=forward-auth@file,rabbitmq-security-headers@file'
+      - 'traefik.http.services.rabbitmq.loadbalancer.server.port=15672'
 
   vault:
     image: hashicorp/vault:1.19
@@ -60,6 +70,19 @@ services:
       - IPC_LOCK
     volumes:
       - vault-data:/vault/data
+    healthcheck:
+      test: ['CMD', 'vault', 'status', '-address=http://127.0.0.1:8200']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.vault.rule=Host(`vault.jorisjonkers.test`)'
+      - 'traefik.http.routers.vault.entrypoints=websecure'
+      - 'traefik.http.routers.vault.tls=true'
+      - 'traefik.http.routers.vault.middlewares=security-headers@file'
+      - 'traefik.http.services.vault.loadbalancer.server.port=8200'
 
   traefik:
     image: traefik:v3.6
@@ -68,13 +91,384 @@ services:
       - '80:80'
       - '443:443'
       - '8080:8080'
+    environment:
+      OTEL_SERVICE_NAME: traefik
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=local,service.version=3.6
+      DEPLOYMENT_ENVIRONMENT: local
+      SERVICE_VERSION: '3.6'
+    networks:
+      default:
+        aliases:
+          - auth.jorisjonkers.test
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./infra/traefik/traefik-dev.yml:/etc/traefik/traefik.yml:ro
+      - ./infra/traefik/dynamic-dev:/etc/traefik/dynamic:ro
+    healthcheck:
+      test: ['CMD', 'traefik', 'healthcheck', '--ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.middlewares.forward-auth.forwardauth.address=http://auth-api:8081/api/v1/auth/verify'
+      - 'traefik.http.middlewares.forward-auth.forwardauth.trustForwardHeader=true'
+      - 'traefik.http.middlewares.forward-auth.forwardauth.authResponseHeaders=X-User-Id,X-User-Email,X-User-Roles'
+      - 'traefik.http.routers.traefik-dashboard.rule=Host(`traefik.jorisjonkers.test`)'
+      - 'traefik.http.routers.traefik-dashboard.entrypoints=websecure'
+      - 'traefik.http.routers.traefik-dashboard.tls=true'
+      - 'traefik.http.routers.traefik-dashboard.service=api@internal'
+      - 'traefik.http.routers.traefik-dashboard.middlewares=forward-auth@docker,security-headers@file'
+
+  n8n:
+    image: n8nio/n8n:2.13.4
+    container_name: personal-stack-n8n
+    environment:
+      N8N_HOST: n8n.jorisjonkers.test
+      N8N_PROTOCOL: https
+      N8N_PORT: '5678'
+      N8N_EDITOR_BASE_URL: https://n8n.jorisjonkers.test
+      N8N_TRUST_PROXY: 'true'
+      NODE_EXTRA_CA_CERTS: /etc/ssl/certs/personal-stack-issuer.pem
+      EXTERNAL_HOOK_FILES: /data/n8n/hooks.js
+      EXTERNAL_FRONTEND_HOOKS_URLS: /assets/oidc-frontend-hook.js
+      N8N_ADDITIONAL_NON_UI_ROUTES: auth
+      OIDC_ISSUER_URL: https://auth.jorisjonkers.test
+      OIDC_CLIENT_ID: n8n
+      OIDC_CLIENT_SECRET: n8n-secret
+      OIDC_REDIRECT_URI: https://n8n.jorisjonkers.test/auth/oidc/callback
+      OIDC_SCOPES: openid email profile
+    volumes:
+      - n8n-data:/home/node/.n8n
+      - ./infra/n8n/hooks.js:/data/n8n/hooks.js:ro
+      - ./infra/traefik/dynamic-dev/certs/jorisjonkers.test.crt:/etc/ssl/certs/personal-stack-issuer.pem:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:5678/healthz || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.n8n.rule=Host(`n8n.jorisjonkers.test`)'
+      - 'traefik.http.routers.n8n.entrypoints=websecure'
+      - 'traefik.http.routers.n8n.tls=true'
+      - 'traefik.http.routers.n8n.middlewares=n8n-security-headers@file'
+      - 'traefik.http.services.n8n.loadbalancer.server.port=5678'
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    container_name: personal-stack-grafana
+    environment:
+      GF_SERVER_ROOT_URL: https://grafana.jorisjonkers.test
+      GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: 'false'
+      GF_AUTH_GENERIC_OAUTH_ENABLED: 'true'
+      GF_AUTH_GENERIC_OAUTH_NAME: personal-stack
+      GF_AUTH_GENERIC_OAUTH_CLIENT_ID: grafana
+      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: grafana-secret
+      GF_AUTH_GENERIC_OAUTH_SCOPES: openid profile email
+      GF_AUTH_GENERIC_OAUTH_AUTH_URL: https://auth.jorisjonkers.test/api/oauth2/authorize
+      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: https://auth.jorisjonkers.test/api/oauth2/token
+      GF_AUTH_GENERIC_OAUTH_API_URL: https://auth.jorisjonkers.test/api/userinfo
+      GF_AUTH_GENERIC_OAUTH_LOGIN_ATTRIBUTE_PATH: preferred_username
+      GF_AUTH_GENERIC_OAUTH_NAME_ATTRIBUTE_PATH: name
+      GF_AUTH_GENERIC_OAUTH_EMAIL_ATTRIBUTE_PATH: email
+      GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH: "contains(roles[*], 'ROLE_ADMIN') && 'GrafanaAdmin' || 'Viewer'"
+      GF_AUTH_GENERIC_OAUTH_ALLOW_ASSIGN_GRAFANA_ADMIN: 'true'
+      GF_AUTH_GENERIC_OAUTH_AUTO_LOGIN: 'true'
+      GF_AUTH_GENERIC_OAUTH_USE_PKCE: 'true'
+      GF_AUTH_GENERIC_OAUTH_TLS_SKIP_VERIFY_INSECURE: 'true'
+      GF_PLUGINS_PREINSTALL_DISABLED: 'true'
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./infra/observability/grafana/provisioning/datasources/datasources.compose.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - ./infra/observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./infra/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/api/health || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.grafana.rule=Host(`grafana.jorisjonkers.test`)'
+      - 'traefik.http.routers.grafana.entrypoints=websecure'
+      - 'traefik.http.routers.grafana.tls=true'
+      - 'traefik.http.routers.grafana.middlewares=grafana-security-headers@file'
+      - 'traefik.http.services.grafana.loadbalancer.server.port=3000'
+
+  prometheus:
+    image: prom/prometheus:v3.3.1
+    container_name: personal-stack-prometheus
+    volumes:
+      - ./infra/observability/prometheus/prometheus.dev.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=7d'
+      - '--web.enable-remote-write-receiver'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:9090/-/healthy || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  loki:
+    image: grafana/loki:3.5.0
+    container_name: personal-stack-loki
+    volumes:
+      - ./infra/observability/loki/loki.yaml:/etc/loki/loki.yaml:ro
+      - loki-data:/loki
+    command: -config.file=/etc/loki/loki.yaml
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3100/ready || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  alloy:
+    image: grafana/alloy:v1.12.1
+    container_name: personal-stack-alloy
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - --disable-reporting
+      - /etc/alloy/config.alloy
+    ports:
+      - '12345:12345'
+    volumes:
+      - alloy-data:/var/lib/alloy/data
+      - ./infra/observability/alloy/config.compose.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  tempo:
+    image: grafana/tempo:2.10.3
+    container_name: personal-stack-tempo
+    volumes:
+      - ./infra/observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    command: -config.file=/etc/tempo/tempo.yaml
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3200/ready || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:2
+    container_name: personal-stack-uptime-kuma
+    environment:
+      UPTIME_KUMA_DB_TYPE: sqlite
+    volumes:
+      - uptime-kuma-data:/app/data
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -f http://localhost:3001 || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.uptime-kuma.rule=Host(`status.jorisjonkers.test`)'
+      - 'traefik.http.routers.uptime-kuma.entrypoints=websecure'
+      - 'traefik.http.routers.uptime-kuma.tls=true'
+      - 'traefik.http.routers.uptime-kuma.middlewares=security-headers@file'
+      - 'traefik.http.services.uptime-kuma.loadbalancer.server.port=3001'
+
+  uptime-kuma-init:
+    image: louislam/uptime-kuma:2
+    container_name: personal-stack-uptime-kuma-init
+    restart: 'no'
+    depends_on:
+      uptime-kuma:
+        condition: service_healthy
+    entrypoint:
+      - sh
+      - -ec
+      - |
+        node <<'EOF'
+        const { io } = require('/app/node_modules/socket.io-client')
+
+        const baseUrl = 'http://uptime-kuma:3001'
+        const adminUsername = 'admin'
+        const adminPassword = 'Test1234!'
+        const socketOptions = {
+          transports: ['polling', 'websocket'],
+          timeout: 5000,
+          reconnection: false,
+        }
+
+        function wait(ms) {
+          return new Promise((resolve) => setTimeout(resolve, ms))
+        }
+
+        function log(message) {
+          console.log('[uptime-kuma-init] ' + message)
+        }
+
+        function withTimeout(promise, timeoutMs, label) {
+          return Promise.race([
+            promise,
+            new Promise((_, reject) => {
+              setTimeout(() => reject(new Error(label + ' timed out after ' + timeoutMs + 'ms')), timeoutMs)
+            }),
+          ])
+        }
+
+        async function waitForSocketServer() {
+          log('Waiting for socket server')
+
+          for (let attempt = 0; attempt < 60; attempt += 1) {
+            let socket
+            try {
+              socket = io(baseUrl, socketOptions)
+              await withTimeout(
+                new Promise((resolve, reject) => {
+                  socket.once('connect', resolve)
+                  socket.once('connect_error', reject)
+                }),
+                7000,
+                'socket connect',
+              )
+              socket.close()
+              log('Socket server is reachable')
+              return
+            } catch (error) {
+              if (socket) {
+                socket.close()
+              }
+              await wait(1000)
+            }
+          }
+
+          throw new Error('Timed out waiting for Uptime Kuma socket server')
+        }
+
+        function connectSocket() {
+          const socket = io(baseUrl, socketOptions)
+          return withTimeout(
+            new Promise((resolve, reject) => {
+              socket.once('connect', () => resolve(socket))
+              socket.once('connect_error', reject)
+            }),
+            7000,
+            'socket connect',
+          )
+        }
+
+        function emitWithAck(socket, event, ...args) {
+          return withTimeout(
+            new Promise((resolve, reject) => {
+              socket.emit(event, ...args, (response) => {
+                if (response && response.ok === false) {
+                  reject(new Error(response.msg || (event + ' failed')))
+                  return
+                }
+                resolve(response)
+              })
+            }),
+            10000,
+            event + ' ack',
+          )
+        }
+
+        function emitValue(socket, event) {
+          return withTimeout(
+            new Promise((resolve) => {
+              socket.emit(event, resolve)
+            }),
+            10000,
+            event + ' response',
+          )
+        }
+
+        async function ensureInitialized() {
+          await waitForSocketServer()
+          const socket = await connectSocket()
+
+          try {
+            log('Checking setup state')
+            const needSetup = await emitValue(socket, 'needSetup')
+
+            if (needSetup) {
+              log('Running initial setup')
+              await emitWithAck(socket, 'setup', adminUsername, adminPassword)
+            }
+
+            log('Logging in')
+            await emitWithAck(socket, 'login', { username: adminUsername, password: adminPassword, token: '' })
+
+            try {
+              log('Ensuring status page exists')
+              await emitWithAck(socket, 'addStatusPage', 'jorisjonkers.test Status', 'default')
+            } catch (error) {
+              const message = error.message.toLowerCase()
+              if (!message.includes('slug') && !message.includes('exist') && !message.includes('added')) {
+                throw error
+              }
+            }
+
+            log('Setting entry page')
+            await emitWithAck(
+              socket,
+              'setSettings',
+              {
+                entryPage: 'statusPage-default',
+              },
+              '',
+            )
+          } finally {
+            socket.close()
+          }
+        }
+
+        ensureInitialized()
+          .then(() => {
+            console.log('Uptime Kuma initialized for system tests')
+          })
+          .catch((error) => {
+            console.error('Failed to initialize Uptime Kuma', error)
+            process.exit(1)
+          })
+        EOF
+
+  stalwart:
+    image: stalwartlabs/stalwart:latest
+    container_name: personal-stack-stalwart
+    volumes:
+      - stalwart-data:/opt/stalwart
+      - ./infra/stalwart/config.toml:/opt/stalwart/etc/config.toml
+    environment:
+      STALWART_ADMIN_USER: admin
+      STALWART_ADMIN_SECRET: stalwart-dev-admin
+      STALWART_HOSTNAME: stalwart.jorisjonkers.test
+      STALWART_DOMAIN: jorisjonkers.test
+      CF_DNS_API_TOKEN: ''
+    healthcheck:
+      test: ['CMD', 'bash', '-c', 'echo >/dev/tcp/localhost/8080']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.stalwart.rule=Host(`stalwart.jorisjonkers.test`)'
+      - 'traefik.http.routers.stalwart.entrypoints=websecure'
+      - 'traefik.http.routers.stalwart.tls=true'
+      - 'traefik.http.services.stalwart.loadbalancer.server.port=8080'
+      - 'traefik.http.routers.stalwart.middlewares=forward-auth@docker,stalwart-security-headers@file'
 
   # ── Backend Services ────────────────────────────────────────────
 
   auth-api:
+    image: personal-stack/auth-api:latest
     build:
       context: .
       dockerfile: services/auth-api/Dockerfile
@@ -90,9 +484,27 @@ services:
       VALKEY_PORT: 6379
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
+      MAIL_HOST: stalwart
+      MAIL_PORT: 587
+      MANAGEMENT_HEALTH_MAIL_ENABLED: 'false'
+      AUTH_LOGIN_URL: https://auth.jorisjonkers.test/login
+      AUTH_ISSUER: https://auth.jorisjonkers.test
+      AUTH_CLIENTS_GRAFANA_SECRET: grafana-secret
+      AUTH_CLIENTS_N8N_SECRET: n8n-secret
+      AUTH_CLIENTS_VAULT_SECRET: vault-secret
+      SESSION_COOKIE_DOMAIN: jorisjonkers.test
+      SESSION_COOKIE_SECURE: 'true'
+      SESSION_COOKIE_SAME_SITE: Lax
+      AUTH_CORS_ALLOWED_ORIGINS: https://jorisjonkers.test,https://auth.jorisjonkers.test,https://assistant.jorisjonkers.test,https://vault.jorisjonkers.test,https://n8n.jorisjonkers.test,https://grafana.jorisjonkers.test,https://dashboard.jorisjonkers.test,https://rabbitmq.jorisjonkers.test,https://stalwart.jorisjonkers.test,https://traefik.jorisjonkers.test,https://status.jorisjonkers.test
+      DEPLOYMENT_ENVIRONMENT: local
+      SERVICE_VERSION: latest
       OTEL_SERVICE_NAME: auth-api
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=local,service.version=latest
       OTEL_LOGS_EXPORTER: none
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: none
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
     depends_on:
       postgres:
         condition: service_healthy
@@ -101,17 +513,93 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:8081/actuator/health || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:8081/api/actuator/health || exit 1']
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.auth-api.rule=Host(`auth.localhost`) && PathPrefix(`/api`)'
+      - 'traefik.http.routers.auth-api-well-known.rule=Host(`auth.jorisjonkers.test`) && PathPrefix(`/.well-known/`)'
+      - 'traefik.http.routers.auth-api-well-known.entrypoints=websecure'
+      - 'traefik.http.routers.auth-api-well-known.tls=true'
+      - 'traefik.http.routers.auth-api-well-known.middlewares=security-headers@file'
+      - 'traefik.http.routers.auth-api-well-known.service=auth-api'
+      - 'traefik.http.routers.auth-api-well-known.priority=100'
+      - 'traefik.http.routers.auth-api.rule=Host(`auth.jorisjonkers.test`) && PathPrefix(`/api/`)'
+      - 'traefik.http.routers.auth-api.entrypoints=websecure'
+      - 'traefik.http.routers.auth-api.tls=true'
+      - 'traefik.http.routers.auth-api.middlewares=security-headers@file'
       - 'traefik.http.services.auth-api.loadbalancer.server.port=8081'
 
+  vault-oidc-init:
+    image: hashicorp/vault:1.19
+    container_name: personal-stack-vault-oidc-init
+    restart: 'no'
+    depends_on:
+      vault:
+        condition: service_healthy
+      auth-api:
+        condition: service_healthy
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: dev-root-token
+      AUTH_ISSUER: https://auth.jorisjonkers.test
+      VAULT_OIDC_CLIENT_SECRET: vault-secret
+    volumes:
+      - ./infra/traefik/dynamic-dev/certs/jorisjonkers.test.crt:/tmp/auth.jorisjonkers.test.pem:ro
+    entrypoint:
+      - sh
+      - -ec
+      - |
+        until vault status >/dev/null 2>&1; do sleep 2; done
+        cat >/tmp/vault-oidc-role.json <<'EOF'
+        {
+          "bound_audiences": "vault",
+          "allowed_redirect_uris": [
+            "https://vault.jorisjonkers.test/ui/vault/auth/oidc/oidc/callback",
+            "http://localhost:8250/oidc/callback"
+          ],
+          "user_claim": "sub",
+          "groups_claim": "roles",
+          "oidc_scopes": ["openid", "profile", "email"],
+          "bound_claims": {
+            "roles": ["ROLE_ADMIN", "SERVICE_VAULT"]
+          },
+          "token_policies": ["admin"]
+        }
+        EOF
+        vault auth enable oidc >/dev/null 2>&1 || true
+        # auth-api reports healthy on /actuator/health before its OAuth2
+        # authorization-server filter chain (and therefore
+        # /.well-known/openid-configuration via the well-known router) is
+        # ready to serve. Retry the config write until the discovery URL
+        # responds, otherwise we occasionally race with traefik/auth-api
+        # startup and get a 404.
+        attempt=0
+        until vault write auth/oidc/config \
+          oidc_discovery_url="$$AUTH_ISSUER" \
+          oidc_discovery_ca_pem=@/tmp/auth.jorisjonkers.test.pem \
+          oidc_client_id="vault" \
+          oidc_client_secret="$$VAULT_OIDC_CLIENT_SECRET" \
+          default_role="default" >/dev/null 2>&1; do
+          attempt=$$((attempt + 1))
+          if [ "$$attempt" -ge 30 ]; then
+            echo "vault-oidc-init: discovery URL $$AUTH_ISSUER never became ready" >&2
+            vault write auth/oidc/config \
+              oidc_discovery_url="$$AUTH_ISSUER" \
+              oidc_discovery_ca_pem=@/tmp/auth.jorisjonkers.test.pem \
+              oidc_client_id="vault" \
+              oidc_client_secret="$$VAULT_OIDC_CLIENT_SECRET" \
+              default_role="default"
+            exit 1
+          fi
+          sleep 2
+        done
+        vault write auth/oidc/role/default @/tmp/vault-oidc-role.json >/dev/null
+
   assistant-api:
+    image: personal-stack/assistant-api:latest
     build:
       context: .
       dockerfile: services/assistant-api/Dockerfile
@@ -127,9 +615,15 @@ services:
       VALKEY_PORT: 6379
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
+      DEPLOYMENT_ENVIRONMENT: local
+      SERVICE_VERSION: latest
       OTEL_SERVICE_NAME: assistant-api
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=local,service.version=latest
       OTEL_LOGS_EXPORTER: none
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: none
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
     depends_on:
       postgres:
         condition: service_healthy
@@ -138,52 +632,104 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:8082/actuator/health || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:8082/api/actuator/health || exit 1']
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.assistant-api.rule=Host(`app.localhost`) && PathPrefix(`/api`)'
+      - 'traefik.http.routers.assistant-api.rule=Host(`assistant.jorisjonkers.test`) && PathPrefix(`/api/`) && !PathPrefix(`/api/actuator/health`) && !Path(`/api/v1/health`)'
+      - 'traefik.http.routers.assistant-api.entrypoints=websecure'
+      - 'traefik.http.routers.assistant-api.tls=true'
+      - 'traefik.http.routers.assistant-api.middlewares=forward-auth@docker,security-headers@file'
+      - 'traefik.http.routers.assistant-api.service=assistant-api'
+      - 'traefik.http.routers.assistant-api-health.rule=Host(`assistant.jorisjonkers.test`) && (Path(`/api/actuator/health`) || PathPrefix(`/api/actuator/health/`) || Path(`/api/v1/health`))'
+      - 'traefik.http.routers.assistant-api-health.entrypoints=websecure'
+      - 'traefik.http.routers.assistant-api-health.tls=true'
+      - 'traefik.http.routers.assistant-api-health.middlewares=security-headers@file'
+      - 'traefik.http.routers.assistant-api-health.priority=100'
+      - 'traefik.http.routers.assistant-api-health.service=assistant-api'
       - 'traefik.http.services.assistant-api.loadbalancer.server.port=8082'
 
   # ── Frontend Services ───────────────────────────────────────────
 
   auth-ui:
+    image: personal-stack/auth-ui:latest
     build:
       context: .
       dockerfile: services/auth-ui/Dockerfile
     container_name: personal-stack-auth-ui
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO /dev/null http://127.0.0.1/ || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.auth-ui.rule=Host(`auth.localhost`)'
+      - 'traefik.http.routers.auth-ui.rule=Host(`auth.jorisjonkers.test`) && !PathPrefix(`/api/`) && !PathPrefix(`/.well-known/`)'
+      - 'traefik.http.routers.auth-ui.entrypoints=websecure'
+      - 'traefik.http.routers.auth-ui.tls=true'
       - 'traefik.http.routers.auth-ui.priority=1'
+      - 'traefik.http.routers.auth-ui.middlewares=security-headers@file'
       - 'traefik.http.services.auth-ui.loadbalancer.server.port=80'
 
   assistant-ui:
+    image: personal-stack/assistant-ui:latest
     build:
       context: .
       dockerfile: services/assistant-ui/Dockerfile
+      args:
+        VITE_AUTH_URL: https://auth.jorisjonkers.test
     container_name: personal-stack-assistant-ui
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO /dev/null http://127.0.0.1/ || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.assistant-ui.rule=Host(`app.localhost`)'
+      - 'traefik.http.routers.assistant-ui.rule=Host(`assistant.jorisjonkers.test`)'
+      - 'traefik.http.routers.assistant-ui.entrypoints=websecure'
+      - 'traefik.http.routers.assistant-ui.tls=true'
       - 'traefik.http.routers.assistant-ui.priority=1'
+      - 'traefik.http.routers.assistant-ui.middlewares=security-headers@file'
       - 'traefik.http.services.assistant-ui.loadbalancer.server.port=80'
 
   app-ui:
+    image: personal-stack/app-ui:latest
     build:
       context: .
       dockerfile: services/app-ui/Dockerfile
+      args:
+        VITE_AUTH_URL: https://auth.jorisjonkers.test
     container_name: personal-stack-app-ui
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO /dev/null http://127.0.0.1/ || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.app-ui.rule=Host(`localhost`)'
+      - 'traefik.http.routers.app-ui.rule=Host(`jorisjonkers.test`)'
+      - 'traefik.http.routers.app-ui.entrypoints=websecure'
+      - 'traefik.http.routers.app-ui.tls=true'
+      - 'traefik.http.routers.app-ui.middlewares=security-headers@file'
       - 'traefik.http.services.app-ui.loadbalancer.server.port=80'
 
 volumes:
+  alloy-data:
   postgres-data:
   valkey-data:
   rabbitmq-data:
   vault-data:
+  n8n-data:
+  grafana-data:
+  prometheus-data:
+  loki-data:
+  tempo-data:
+  stalwart-data:
+  uptime-kuma-data:

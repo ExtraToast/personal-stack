@@ -9,14 +9,36 @@ jacoco {
 }
 
 tasks.jacocoTestReport {
-    dependsOn(tasks.test)
+    dependsOn(tasks.test, tasks.named("integrationTest"))
+    // Aggregate coverage from both unit and integration tests
+    executionData.setFrom(
+        fileTree(layout.buildDirectory) { include("jacoco/*.exec") },
+    )
     reports {
         xml.required.set(true)
         html.required.set(true)
     }
+    classDirectories.setFrom(
+        classDirectories.files.map { dir ->
+            fileTree(dir) {
+                exclude("**/jooq/**", "**/generated/**")
+            }
+        },
+    )
 }
 
 tasks.jacocoTestCoverageVerification {
+    dependsOn(tasks.test, tasks.named("integrationTest"))
+    executionData.setFrom(
+        fileTree(layout.buildDirectory) { include("jacoco/*.exec") },
+    )
+    classDirectories.setFrom(
+        classDirectories.files.map { dir ->
+            fileTree(dir) {
+                exclude("**/jooq/**", "**/generated/**")
+            }
+        },
+    )
     violationRules {
         rule {
             limit {

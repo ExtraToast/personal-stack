@@ -53,26 +53,3 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:latest
           cache-from: type=gha,scope=${{ matrix.service.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}
-
-  deploy:
-    name: Deploy to Swarm
-    runs-on: ubuntu-latest
-    needs: [build-and-push]
-    permissions:
-      packages: read
-      contents: read
-    environment: production
-    steps:
-      - uses: actions/checkout@v6
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          port: 2222
-          script: |
-            cd /opt/personal-stack
-            git fetch origin main
-            git reset --hard origin/main
-            docker stack deploy -c docker-compose.prod.yml personal-stack --with-registry-auth
