@@ -1,0 +1,18 @@
+# The `nvidia-cdi` OCI runtime handler is registered in k3s's containerd
+# config by the auto-detection pass once `nvidia-container-runtime` is on
+# k3s's systemd PATH (see platform/nix/modules/roles/gpu-nvidia.nix).
+#
+# Unlike the sibling `nvidia` handler -- which uses the legacy hook
+# wrapper and wants `nvidia-container-cli` available at runtime -- the
+# `.cdi` variant consumes the CDI spec NixOS already emits at
+# /var/run/cdi/nvidia-container-toolkit.json, so it does NOT need
+# nvidia-container-cli. It's the one path that actually works on this
+# stack today.
+#
+# k3s's runtimes addon autoregisters a `nvidia` RuntimeClass (legacy)
+# but not a `nvidia-cdi` one. Declare it here so Flux owns it.
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: nvidia-cdi
+handler: nvidia-cdi
