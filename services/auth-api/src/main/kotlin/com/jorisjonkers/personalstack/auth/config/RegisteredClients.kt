@@ -136,6 +136,33 @@ fun buildRabbitMqClient(): RegisteredClient =
         .tokenSettings(defaultTokenSettings())
         .build()
 
+fun buildHeadlampClient(): RegisteredClient =
+    RegisteredClient
+        .withId(deterministicId("headlamp"))
+        .clientId("headlamp")
+        // Public client with PKCE — same pattern as rabbitmq. There is no
+        // client secret to manage anywhere (no Vault key, no K8s secret),
+        // which removes the one-time-bootstrap step from the OIDC flow.
+        // The Headlamp backend proves possession of the auth code via
+        // the PKCE verifier instead.
+        .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
+        .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+        .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+        .redirectUri("https://dashboard.jorisjonkers.dev/oidc-callback")
+        .redirectUri("https://dashboard.jorisjonkers.test/oidc-callback")
+        .scope(OidcScopes.OPENID)
+        .scope(OidcScopes.PROFILE)
+        .scope(OidcScopes.EMAIL)
+        // `groups` is a non-standard scope the token customizer recognises
+        // and populates with the Kubernetes group membership the k3s API
+        // server reads via --oidc-groups-claim. The chain is: DASHBOARD
+        // ServicePermission -> `k8s-admin` in the groups claim ->
+        // cluster-admin via the oidc:k8s-admin ClusterRoleBinding.
+        .scope("groups")
+        .clientSettings(noConsentSettings(requirePkce = true))
+        .tokenSettings(defaultTokenSettings())
+        .build()
+
 fun buildVaultClient(secret: String): RegisteredClient =
     RegisteredClient
         .withId(deterministicId("vault"))
