@@ -44,8 +44,7 @@ BEGIN
     (v_id, 'RABBITMQ'),
     (v_id, 'TRAEFIK'),
     (v_id, 'STATUS'),
-    (v_id, 'ADGUARD'),
-    (v_id, 'ROUTER')
+    (v_id, 'ADGUARD')
   ON CONFLICT DO NOTHING;
 
   RAISE NOTICE 'Done — user % (%) is now ADMIN', '${USERNAME}', v_id;
