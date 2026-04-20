@@ -39,5 +39,28 @@
   # advertiser is enough. Requires a one-time route approval in the
   # Tailscale admin console after the NixOS redeploy.
   services.tailscale.extraUpFlags = [ "--advertise-routes=192.168.0.0/24" ];
+
+  # Resolver with a strict failover order:
+  #
+  #   1. 127.0.0.1 — local AdGuard (systemd service or, after the k8s
+  #      migration, the pod with hostPort 53). Handles every query
+  #      in normal operation so filter lists / rewrites still apply.
+  #   2. 1.1.1.1 / 1.0.0.1 — Cloudflare, used ONLY when the entry
+  #      above hard-fails (port closed, process down, kernel returns
+  #      ICMP port-unreachable). glibc does not skip past an
+  #      entry that answers slowly, so a sluggish AdGuard does not
+  #      leak queries to Cloudflare.
+  #
+  # This closes the chicken-and-egg that bit us during the
+  # host-native → k8s migration: when the AdGuardHome service
+  # stopped during activation, t1000 itself lost resolution and
+  # couldn't pull the replacement container image. With this order,
+  # image pulls keep working through AdGuard outages of any length.
+  networking.nameservers = [
+    "127.0.0.1"
+    "1.1.1.1"
+    "1.0.0.1"
+  ];
+
   system.stateVersion = "25.05";
 }
