@@ -65,13 +65,13 @@ spec:
             - containerPort: 15692
               name: metrics
           readinessProbe:
-            httpGet:
-              path: /
-              port: management
+            tcpSocket:
+              port: amqp
+            timeoutSeconds: 5
           livenessProbe:
-            httpGet:
-              path: /
-              port: management
+            tcpSocket:
+              port: amqp
+            timeoutSeconds: 5
           volumeMounts:
             - name: rabbitmq-data
               mountPath: /var/lib/rabbitmq

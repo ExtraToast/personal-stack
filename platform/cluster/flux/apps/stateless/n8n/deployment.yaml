@@ -102,14 +102,23 @@ spec:
           ports:
             - containerPort: 5678
               name: http
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            failureThreshold: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
           readinessProbe:
             httpGet:
               path: /healthz
               port: http
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /healthz
               port: http
+            timeoutSeconds: 5
           volumeMounts:
             - name: n8n-data
               mountPath: /home/node/.n8n

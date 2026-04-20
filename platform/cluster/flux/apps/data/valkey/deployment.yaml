@@ -39,9 +39,11 @@ spec:
           readinessProbe:
             tcpSocket:
               port: db
+            timeoutSeconds: 5
           livenessProbe:
             tcpSocket:
               port: db
+            timeoutSeconds: 5
           volumeMounts:
             - name: valkey-data
               mountPath: /data
