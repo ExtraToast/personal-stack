@@ -51,27 +51,19 @@
   # Tailscale admin console after the NixOS redeploy.
   services.tailscale.extraUpFlags = [ "--advertise-routes=192.168.0.0/24" ];
 
-  # Resolver with a strict failover order:
+  # Intentionally NOT configuring networking.nameservers here:
   #
-  #   1. 127.0.0.1 — local AdGuard (systemd service or, after the k8s
-  #      migration, the pod with hostPort 53). Handles every query
-  #      in normal operation so filter lists / rewrites still apply.
-  #   2. 1.1.1.1 / 1.0.0.1 — Cloudflare, used ONLY when the entry
-  #      above hard-fails (port closed, process down, kernel returns
-  #      ICMP port-unreachable). glibc does not skip past an
-  #      entry that answers slowly, so a sluggish AdGuard does not
-  #      leak queries to Cloudflare.
+  # AdGuard is meant to serve *LAN clients* (devices on 192.168.0.0/24
+  # that the router points at 192.168.0.100 for DNS), not t1000's own
+  # syscall-level resolves. Routing the node's own queries through
+  # 127.0.0.1:53 means every kubelet image pull, nix fetch, and
+  # systemd-resolved lookup depends on the AdGuard pod — which creates
+  # an undeployable bootstrap when the pod itself is being (re)started
+  # by a NixOS activation.
   #
-  # This closes the chicken-and-egg that bit us during the
-  # host-native → k8s migration: when the AdGuardHome service
-  # stopped during activation, t1000 itself lost resolution and
-  # couldn't pull the replacement container image. With this order,
-  # image pulls keep working through AdGuard outages of any length.
-  networking.nameservers = [
-    "127.0.0.1"
-    "1.1.1.1"
-    "1.0.0.1"
-  ];
+  # t1000 uses its DHCP-supplied upstream resolver for its own traffic;
+  # the AdGuard pod binds 0.0.0.0:53 via hostNetwork so LAN clients
+  # still reach it at the node's LAN IP unchanged.
 
   system.stateVersion = "25.05";
 }
