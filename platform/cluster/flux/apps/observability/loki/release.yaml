@@ -39,6 +39,10 @@ spec:
               period: 24h
     singleBinary:
       replicas: 1
+      readinessProbe:
+        timeoutSeconds: 5
+      livenessProbe:
+        timeoutSeconds: 5
       persistence:
         enabled: true
         size: 20Gi

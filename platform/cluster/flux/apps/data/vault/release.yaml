@@ -20,6 +20,9 @@ spec:
     csi:
       enabled: true
     server:
+      readinessProbe:
+        enabled: true
+        timeoutSeconds: 10
       nodeSelector:
         personal-stack/site: frankfurt
       dataStorage:
