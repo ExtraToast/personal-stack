@@ -21,7 +21,7 @@ RUN gradle :services:auth-api:bootJar --no-daemon
 FROM eclipse-temurin:25-jre-alpine AS otel
 RUN apk add --no-cache curl && \
     curl -fsSL -o /otel-javaagent.jar \
-    "https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.11.0/opentelemetry-javaagent.jar"
+    "https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.26.1/opentelemetry-javaagent.jar"
 
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
