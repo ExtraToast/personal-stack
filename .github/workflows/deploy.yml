@@ -13,25 +13,111 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  detect-changes:
+    # Compare the merged-into-main commit against the previous main
+    # commit and only build the services whose code (or its shared
+    # dependencies) actually changed. The matrix feeds build-and-push
+    # dynamically; services that didn't change keep their existing
+    # ghcr :latest tag untouched, which is exactly what Keel polls on,
+    # so Flux-managed pods don't churn for no reason either.
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.compute.outputs.matrix }}
+      has-matrix: ${{ steps.compute.outputs.has-matrix }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+      - uses: dorny/paths-filter@v4.0.1
+        id: filter
+        with:
+          base: ${{ github.event.before }}
+          filters: |
+            workflow:
+              - '.github/workflows/deploy.yml'
+            auth-api:
+              - 'services/auth-api/**'
+            assistant-api:
+              - 'services/assistant-api/**'
+            kotlin-common:
+              - 'libs/kotlin-common/**'
+            build-logic:
+              - 'build-logic/**'
+            gradle-config:
+              - 'gradle/**'
+              - 'gradle.properties'
+              - 'build.gradle.kts'
+              - 'settings.gradle.kts'
+              - 'gradlew'
+              - 'gradlew.bat'
+            auth-ui:
+              - 'services/auth-ui/**'
+            assistant-ui:
+              - 'services/assistant-ui/**'
+            app-ui:
+              - 'services/app-ui/**'
+            vue-common:
+              - 'libs/vue-common/**'
+            frontend-config:
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'eslint.config.ts'
+      - name: Compute rebuild matrix
+        id: compute
+        env:
+          FILTER_WORKFLOW: ${{ steps.filter.outputs.workflow }}
+          FILTER_KOTLIN_COMMON: ${{ steps.filter.outputs.kotlin-common }}
+          FILTER_BUILD_LOGIC: ${{ steps.filter.outputs.build-logic }}
+          FILTER_GRADLE_CONFIG: ${{ steps.filter.outputs.gradle-config }}
+          FILTER_AUTH_API: ${{ steps.filter.outputs.auth-api }}
+          FILTER_ASSISTANT_API: ${{ steps.filter.outputs.assistant-api }}
+          FILTER_VUE_COMMON: ${{ steps.filter.outputs.vue-common }}
+          FILTER_FRONTEND_CONFIG: ${{ steps.filter.outputs.frontend-config }}
+          FILTER_AUTH_UI: ${{ steps.filter.outputs.auth-ui }}
+          FILTER_ASSISTANT_UI: ${{ steps.filter.outputs.assistant-ui }}
+          FILTER_APP_UI: ${{ steps.filter.outputs.app-ui }}
+        run: |
+          set -euo pipefail
+          any() { for v in "$@"; do [[ "$v" == "true" ]] && echo "true" && return; done; echo "false"; }
+
+          KOTLIN_SHARED=$(any "$FILTER_WORKFLOW" "$FILTER_KOTLIN_COMMON" "$FILTER_BUILD_LOGIC" "$FILTER_GRADLE_CONFIG")
+          FRONTEND_SHARED=$(any "$FILTER_WORKFLOW" "$FILTER_VUE_COMMON" "$FILTER_FRONTEND_CONFIG")
+
+          MATRIX="[]"
+          append() {
+            local name=$1 dockerfile=$2 build_arg=${3:-}
+            MATRIX=$(echo "$MATRIX" | jq -c --arg n "$name" --arg d "$dockerfile" --arg b "$build_arg" \
+              '. + [{"name":$n, "dockerfile":$d, "build_arg":$b}]')
+          }
+
+          [[ "$(any "$KOTLIN_SHARED"   "$FILTER_AUTH_API")"      == "true" ]] && append auth-api      services/auth-api/Dockerfile
+          [[ "$(any "$KOTLIN_SHARED"   "$FILTER_ASSISTANT_API")" == "true" ]] && append assistant-api services/assistant-api/Dockerfile
+          [[ "$(any "$FRONTEND_SHARED" "$FILTER_AUTH_UI")"       == "true" ]] && append auth-ui       services/auth-ui/Dockerfile
+          [[ "$(any "$FRONTEND_SHARED" "$FILTER_ASSISTANT_UI")"  == "true" ]] && append assistant-ui  services/assistant-ui/Dockerfile
+          [[ "$(any "$FRONTEND_SHARED" "$FILTER_APP_UI")"        == "true" ]] && append app-ui        services/app-ui/Dockerfile
+
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          if [[ "$MATRIX" == "[]" ]]; then
+            echo "has-matrix=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No service image needs rebuilding for this push."
+          else
+            echo "has-matrix=true" >> "$GITHUB_OUTPUT"
+            echo "Rebuild matrix: $MATRIX"
+          fi
+
   build-and-push:
     name: Build & Push Images
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has-matrix == 'true'
     runs-on: ubuntu-latest
     permissions:
       packages: write
       contents: read
     strategy:
       matrix:
-        service:
-          - name: auth-api
-            dockerfile: services/auth-api/Dockerfile
-          - name: assistant-api
-            dockerfile: services/assistant-api/Dockerfile
-          - name: auth-ui
-            dockerfile: services/auth-ui/Dockerfile
-          - name: assistant-ui
-            dockerfile: services/assistant-ui/Dockerfile
-          - name: app-ui
-            dockerfile: services/app-ui/Dockerfile
+        service: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v6
       - name: Set image prefix (lowercase)
@@ -48,6 +134,7 @@ jobs:
           context: .
           file: ${{ matrix.service.dockerfile }}
           push: true
+          build-args: ${{ matrix.service.build_arg }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:${{ github.sha }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:latest

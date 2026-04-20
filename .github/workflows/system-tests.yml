@@ -10,6 +10,16 @@ on:
         description: 'Fail the workflow if system tests fail (false = continue-on-error)'
         type: boolean
         default: true
+      changed-services:
+        description: >-
+          Space-separated list of service names whose images need to be
+          rebuilt from the PR source. Any service NOT in this list is
+          pulled from ghcr :latest and re-tagged for CI, saving the
+          build round-trip when nothing that affects that image changed
+          on the branch. Defaults to all five services for callers that
+          haven't computed a narrower set.
+        type: string
+        default: 'auth-api assistant-api auth-ui assistant-ui app-ui'
 
 concurrency:
   group: system-tests-${{ github.ref }}
@@ -17,11 +27,17 @@ concurrency:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  REGISTRY: ghcr.io
 
 jobs:
   build-images:
     name: Build Image (${{ matrix.service.name }})
     runs-on: ubuntu-latest
+    permissions:
+      # Read access to the image packages so we can `docker pull` the
+      # :latest tag when a service's sources haven't changed.
+      packages: read
+      contents: read
     strategy:
       matrix:
         service:
@@ -43,7 +59,40 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v4
-      - name: Build image
+      - name: Set image prefix (lowercase)
+        run: echo "IMAGE_PREFIX=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+      - name: Decide build-or-pull
+        id: decide
+        env:
+          SERVICE_NAME: ${{ matrix.service.name }}
+          CHANGED_SERVICES: ${{ inputs.changed-services }}
+        run: |
+          set -euo pipefail
+          if [[ " $CHANGED_SERVICES " == *" $SERVICE_NAME "* ]]; then
+            echo "mode=build" >> "$GITHUB_OUTPUT"
+            echo "::notice::$SERVICE_NAME changed on this branch — building image from source."
+          else
+            echo "mode=pull" >> "$GITHUB_OUTPUT"
+            echo "::notice::$SERVICE_NAME unchanged — pulling ghcr :latest and re-tagging for CI."
+          fi
+      - name: Log in to ghcr (pull mode)
+        if: steps.decide.outputs.mode == 'pull'
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull latest from ghcr and re-tag
+        if: steps.decide.outputs.mode == 'pull'
+        shell: bash
+        run: |
+          set -euo pipefail
+          src="${REGISTRY}/${IMAGE_PREFIX}/${{ matrix.service.name }}:latest"
+          dst="personal-stack/${{ matrix.service.name }}:ci"
+          docker pull "$src"
+          docker tag "$src" "$dst"
+      - name: Build image (build mode)
+        if: steps.decide.outputs.mode == 'build'
         shell: bash
         run: |
           set -euo pipefail
