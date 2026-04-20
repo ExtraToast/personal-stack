@@ -17,12 +17,12 @@
     "generate:clients": "pnpm generate:auth-client && pnpm generate:assistant-client"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^4.13.0",
-    "@openapitools/openapi-generator-cli": "^2.14.0",
-    "eslint": "^9.21.0",
+    "@antfu/eslint-config": "^8.2.0",
+    "@openapitools/openapi-generator-cli": "^2.31.1",
+    "eslint": "^10.2.0",
     "husky": "^9.1.7",
-    "lint-staged": "^15.4.3",
-    "prettier": "^3.5.3",
-    "typescript": "^5.7.3"
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.8.3",
+    "typescript": "^6.0.2"
   }
 }
