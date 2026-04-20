@@ -20,6 +20,7 @@ class PlatformInventoryCli(
     private val stdout: Writer = System.out.writer(),
     private val stderr: Writer = System.err.writer(),
     private val yamlMapper: ObjectMapper =
+        @Suppress("DEPRECATION")
         ObjectMapper(YAMLFactory())
             .registerModule(
                 KotlinModule.Builder().build(),
