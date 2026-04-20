@@ -67,7 +67,7 @@ export const SERVICE_REGISTRY: ServiceEntry[] = [
     permission: 'DASHBOARD',
     label: 'Cluster Dashboard',
     url: buildServiceUrl('dashboard'),
-    iconUrl: '/icons/dashboard.svg',
+    iconUrl: '/icons/headlamp.png',
     description: 'Headlamp kubernetes dashboard',
   },
   {
