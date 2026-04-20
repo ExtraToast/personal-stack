@@ -1,19 +1,31 @@
-# AdGuard Home runs as a normal k8s Deployment (not host-native) so
-# the Service in front of it selects a real pod CIDR IP (10.42.x.x).
-# The previous selector-less Service pointed at t1000's tailnet IP
-# (100.103.175.110:3000) — kube-proxy DNAT + host-level MASQUERADE
-# broke the return path, which is why adguard.jorisjonkers.dev was
-# returning 502 from Traefik even while the LAN path worked fine.
+# AdGuard Home runs as a Deployment pinned to the capability-adguard
+# node with hostNetwork: true. Why host networking instead of the
+# usual pod-CIDR + hostPort setup:
 #
-# Pinned to enschede-t1000-1 via the existing capability-adguard
-# label so the hostPath for persistent state stays on one node. The
-# hostPath mount preserves the existing /var/lib/AdGuardHome tree
-# (filter lists, custom rewrites, user bcrypt hashes, query log),
-# so there is no data migration when we flip off the NixOS daemon.
+#   1. LAN DNS needs a static, predictable endpoint on t1000's LAN IP
+#      (the router hands out 192.168.0.100 as the network's DNS
+#      server). hostPort + CNI portmap DNAT set up the rules but the
+#      inbound packet flow interacts poorly with flannel-over-
+#      tailscale on this cluster — LAN queries to :53 time out even
+#      though the iptables chain looks correct. hostNetwork avoids
+#      the DNAT round-trip entirely: AdGuardHome binds 0.0.0.0:53
+#      directly in the host netns, so 192.168.0.100:53 and any other
+#      host IP just work natively.
 #
-# Port 53 is published via hostPort on t1000's LAN IP so local
-# clients can still point their resolver at the node — no LAN DNS
-# break when we retire the nixos module.
+#   2. AdGuard wants to bind :53 + :3000 on every interface the node
+#      carries (LAN, tailscale0, lo) so LAN clients, tailnet clients,
+#      and kubelet + Traefik can all reach it. hostNetwork gives
+#      that for free; the pod-CIDR + hostPort path only exposes a
+#      subset and adds a conntrack dependency.
+#
+#   3. There's only ever one AdGuard pod in the fleet (pinned to
+#      t1000), so the usual reasons to avoid hostNetwork
+#      (port-collisions across replicas, Service-cluster-IP-first
+#      discovery) don't apply.
+#
+# State lives on a hostPath at /var/lib/AdGuardHome so it survives
+# pod restarts. Same path the retired NixOS systemd service used,
+# so filter lists / blocklists / query log all carry over.
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -38,6 +50,18 @@ spec:
     spec:
       nodeSelector:
         personal-stack/capability-adguard: 'true'
+      # Share the node's network namespace — see file header for the
+      # full rationale. AdGuardHome binds :53 + :3000 directly on
+      # every host interface.
+      hostNetwork: true
+      # hostNetwork pods would otherwise inherit the cluster's
+      # default dnsPolicy (ClusterFirst) and try to query
+      # kube-dns via the host's resolv.conf, which on t1000 is
+      # 127.0.0.1 — a self-loop through the AdGuard we're starting.
+      # ClusterFirstWithHostNet keeps cluster DNS for non-cluster
+      # names via the host's upstreams (PR #150's Cloudflare fallback
+      # covers the bootstrap).
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
         - name: adguardhome
           image: adguard/adguardhome:latest
@@ -49,11 +73,9 @@ spec:
             - name: dns-tcp
               containerPort: 53
               protocol: TCP
-              hostPort: 53
             - name: dns-udp
               containerPort: 53
               protocol: UDP
-              hostPort: 53
           volumeMounts:
             - name: work
               mountPath: /opt/adguardhome/work
