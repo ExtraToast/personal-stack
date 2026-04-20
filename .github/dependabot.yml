@@ -1,3 +1,8 @@
+# Cooldown: every update block waits 7 days after a release before
+# Dependabot opens a PR. Rationale: by then any malicious/poisoned
+# package uploaded to a public registry has usually been caught and
+# taken down. The repo accepts staying a week behind bleeding edge
+# in exchange for that catch window.
 version: 2
 updates:
   - package-ecosystem: gradle
@@ -5,6 +10,8 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 1
+    cooldown:
+      default-days: 7
     groups:
       all-gradle:
         patterns: ['*']
@@ -14,6 +21,8 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 1
+    cooldown:
+      default-days: 7
     groups:
       all-npm:
         patterns: ['*']
@@ -23,6 +32,8 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 1
+    cooldown:
+      default-days: 7
     groups:
       all-docker-auth-api:
         patterns: ['*']
@@ -32,6 +43,8 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 1
+    cooldown:
+      default-days: 7
     groups:
       all-docker-assistant-api:
         patterns: ['*']
@@ -41,8 +54,32 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 1
+    cooldown:
+      default-days: 7
     groups:
       all-docker-auth-ui:
+        patterns: ['*']
+
+  - package-ecosystem: docker
+    directory: /services/assistant-ui
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 1
+    cooldown:
+      default-days: 7
+    groups:
+      all-docker-assistant-ui:
+        patterns: ['*']
+
+  - package-ecosystem: docker
+    directory: /services/app-ui
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 1
+    cooldown:
+      default-days: 7
+    groups:
+      all-docker-app-ui:
         patterns: ['*']
 
   - package-ecosystem: github-actions
@@ -50,6 +87,8 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 1
+    cooldown:
+      default-days: 7
     groups:
       all-actions:
         patterns: ['*']
