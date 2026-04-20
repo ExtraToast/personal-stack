@@ -21,7 +21,7 @@ spec:
         personal-stack/capability-samba: 'true'
       containers:
         - name: radarr
-          image: linuxserver/radarr:5.21.1
+          image: linuxserver/radarr:latest
           imagePullPolicy: IfNotPresent
           env:
             - name: TZ
