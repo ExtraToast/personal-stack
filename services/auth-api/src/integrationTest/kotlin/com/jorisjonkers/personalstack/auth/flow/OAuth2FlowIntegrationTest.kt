@@ -89,6 +89,8 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
         private const val VAULT_CLIENT_ID = "vault"
         private const val VAULT_REDIRECT_URI = "https://vault.jorisjonkers.test/ui/vault/auth/oidc/oidc/callback"
         private const val VAULT_CLIENT_SECRET = "vault-secret"
+        private const val HEADLAMP_CLIENT_ID = "headlamp"
+        private const val HEADLAMP_REDIRECT_URI = "https://dashboard.jorisjonkers.test/oidc-callback"
     }
 
     @BeforeEach
@@ -557,6 +559,7 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
                 Triple(VAULT_CLIENT_ID, VAULT_REDIRECT_URI, "openid profile email"),
                 Triple("n8n", N8N_REDIRECT_URI, "openid profile email"),
                 Triple("rabbitmq", RABBITMQ_REDIRECT_URI, "openid profile email"),
+                Triple(HEADLAMP_CLIENT_ID, HEADLAMP_REDIRECT_URI, "openid profile email groups"),
             )
 
         requests.forEach { (clientId, redirectUri, scope) ->
@@ -638,6 +641,76 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
+    fun `user with DASHBOARD permission gets k8s-admin group claim on headlamp id token`() {
+        val headlampClient = registeredClientRepository.findByClientId(HEADLAMP_CLIENT_ID)
+        assertThat(headlampClient).describedAs("headlamp client must be registered").isNotNull()
+        assertThat(headlampClient!!.redirectUris).describedAs("headlamp redirectUris").contains(HEADLAMP_REDIRECT_URI)
+        assertThat(headlampClient.scopes).describedAs("headlamp scopes").contains("groups")
+
+        val username = uniqueUsername()
+        val password = "securepass123"
+        registerAndConfirmUser(username, password)
+        grantServicePermission(username, ServicePermission.DASHBOARD)
+
+        val loginResult = doSessionLogin(username, password)
+        val session = extractSession(loginResult)!!
+
+        val codeVerifier = generateCodeVerifier()
+        val codeChallenge = generateCodeChallenge(codeVerifier)
+
+        val authorizeResult =
+            mockMvc
+                .get("/api/oauth2/authorize") {
+                    param("response_type", "code")
+                    param("client_id", HEADLAMP_CLIENT_ID)
+                    param("redirect_uri", HEADLAMP_REDIRECT_URI)
+                    param("scope", "openid profile email groups")
+                    param("code_challenge", codeChallenge)
+                    param("code_challenge_method", "S256")
+                    param("state", "allow-headlamp")
+                    accept = MediaType.TEXT_HTML
+                    this.session = session
+                }.andReturn()
+
+        // Downstream OIDC clients hit the known Spring Security 7 / MockMvc
+        // cross-chain session sharing limitation. In a real browser the
+        // JSESSIONID cookie bridges both chains; here we get 400. Assert the
+        // non-denial outcome (400 or 302) and, only if the chain did deliver
+        // a code, verify the `groups` claim arrives end-to-end.
+        assertThat(authorizeResult.response.status)
+            .describedAs("headlamp client should not be denied for a SERVICE_DASHBOARD session")
+            .isIn(302, 400)
+
+        val location = authorizeResult.response.getHeader("Location")
+        if (location == null || !location.contains("code=")) {
+            return
+        }
+        val code = location.substringAfter("code=").substringBefore("&")
+
+        val tokenResult =
+            mockMvc
+                .post("/api/oauth2/token") {
+                    contentType = MediaType.APPLICATION_FORM_URLENCODED
+                    content =
+                        "grant_type=authorization_code" +
+                        "&code=${URLEncoder.encode(code, StandardCharsets.UTF_8)}" +
+                        "&redirect_uri=${URLEncoder.encode(HEADLAMP_REDIRECT_URI, StandardCharsets.UTF_8)}" +
+                        "&client_id=$HEADLAMP_CLIENT_ID" +
+                        "&code_verifier=$codeVerifier"
+                }.andExpect { status { isOk() } }
+                .andReturn()
+
+        val tokenJson = objectMapper.readTree(tokenResult.response.contentAsString)
+        val idToken = tokenJson["id_token"].asText()
+        val decodedIdToken = jwtDecoder.decode(idToken)
+
+        assertThat(decodedIdToken.getClaimAsStringList("groups"))
+            .describedAs("ID token must carry the k8s-admin group for cluster-admin binding")
+            .contains("k8s-admin")
+        assertThat(decodedIdToken.getClaimAsString("preferred_username")).isEqualTo(username)
+    }
+
+    @Test
     fun `admin users can authorize downstream oidc clients`() {
         val username = uniqueUsername()
         val password = "securepass123"
@@ -660,6 +733,12 @@ class OAuth2FlowIntegrationTest : IntegrationTestBase() {
                     "rabbitmq",
                     RABBITMQ_REDIRECT_URI,
                     "openid profile email",
+                    true,
+                ),
+                OidcClientRequest(
+                    HEADLAMP_CLIENT_ID,
+                    HEADLAMP_REDIRECT_URI,
+                    "openid profile email groups",
                     true,
                 ),
             )

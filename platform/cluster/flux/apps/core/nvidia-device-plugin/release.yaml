@@ -31,16 +31,69 @@ spec:
         namespace: nvidia-device-plugin
   values:
     compatWithCPUManager: true
+    # Run the plugin pod under the `nvidia-cdi` RuntimeClass, not the
+    # `nvidia` one. k3s's runtimes addon auto-registers both containerd
+    # runtime handlers (once `nvidia-container-runtime` is on k3s's
+    # systemd PATH, see platform/nix/modules/roles/gpu-nvidia.nix), but:
+    #
+    #   - The `nvidia` handler uses the legacy hook wrapper, which
+    #     shells out to `nvidia-container-cli`. That binary lives in
+    #     the `libnvidia-container` derivation, which NixOS's
+    #     `hardware.nvidia-container-toolkit.enable` does not install,
+    #     so every pod start fails with
+    #         nvidia-container-runtime did not terminate successfully:
+    #         exit status 2
+    #   - The `nvidia-cdi` handler consumes the CDI spec NixOS already
+    #     emits at /var/run/cdi/nvidia-container-toolkit.json, has no
+    #     nvidia-container-cli dependency, and produces the same
+    #     NVML-visible environment the plugin needs for
+    #     `deviceListStrategy: cdi-annotations`.
+    #
+    # Smoke-tested with a one-off cuda:12.4-base pod on the t1000: the
+    # nvidia-cdi handler runs nvidia-smi and sees the Quadro T1000.
+    runtimeClassName: nvidia-cdi
     # Provide an explicit default config so the plugin does not fall back
     # to the compiled-in 'auto' discovery strategy (removed upstream).
     # NixOS hosts this with nvidia-container-toolkit.enable=true which
     # publishes a CDI spec, so use the CDI device list strategy.
     #
-    # The `plugin` block MUST sit under `flags` -- it is modelled as
-    # `Flags.Plugin` in api/config/v1/types.go. Placing it at the top
-    # level silently drops those knobs and (in v0.19) the config loader
-    # then errors with "no resources specified" because the downstream
-    # migration path ends up with an empty resources list.
+    # Config shape comes from api/config/v1/{config,flags,resources,
+    # sharing,replicas}.go at the pinned plugin version (v0.19.0):
+    #
+    #   - `plugin` lives under `flags` (it's modelled as `Flags.Plugin`,
+    #     not a sibling of `flags`).
+    #   - `resources:` is NOT user-settable in v0.19. The plugin calls
+    #     `DisableResourceNamingInConfig` which warns "Customizing the
+    #     'resources' field is not yet supported in the config" and
+    #     nils whatever we pass. Since that nil propagates into the
+    #     downstream replicas/timeSlicing unmarshal path it's cleanest
+    #     to just not set it at all -- the plugin auto-discovers
+    #     `nvidia.com/gpu` from the CDI spec.
+    #   - Don't set `sharing.timeSlicing: {}` either. The TimeSlicing
+    #     unmarshaler in replicas.go hard-fails with the literal
+    #     "no resources specified" error whenever timeSlicing is
+    #     present without a non-empty `resources` key, even when the
+    #     block is an empty map. We don't time-slice, so leave the
+    #     whole `sharing:` section out.
+    #
+    # DeviceListStrategy: use `envvar`, NOT `cdi-annotations` or
+    # `cdi-cri`. The CDI strategies make the plugin call
+    # `cdiHandler.CreateSpecFile()` at startup to emit its own
+    # /var/run/cdi/nvidia.com-gpu.yaml, which requires scanning an
+    # FHS-style `driverRoot` (`/usr/lib*` + `/etc/ld.so.cache`). NixOS
+    # doesn't provide that layout -- libcuda.so lives in a nix-store
+    # path, `/etc/ld.so.cache` does not exist -- so the plugin aborts
+    # with
+    #     error getting plugins: unable to create cdi spec file:
+    #     ... failed to locate libcuda.so: libcuda.so.595.58.03: not found
+    # In `envvar` mode the plugin uses a null CDI handler (checked in
+    # internal/cdi/cdi.go: `if !c.deviceListStrategies.AnyCDIEnabled()
+    # { return &null{}, nil }`), never tries to generate a spec, and
+    # just sets `NVIDIA_VISIBLE_DEVICES=<UUID>` in the consumer
+    # container's env. nvidia-container-runtime.cdi (what
+    # runtimeClassName: nvidia-cdi routes to) then reads that env and
+    # injects devices from the CDI spec NixOS ALREADY emitted at
+    # /var/run/cdi/nvidia-container-toolkit.json.
     config:
       map:
         default: |-
@@ -50,13 +103,18 @@ spec:
             failOnInitError: true
             plugin:
               passDeviceSpecs: true
-              deviceListStrategy: cdi-annotations
-              deviceIDStrategy: uuid
-          sharing:
-            timeSlicing: {}
-          resources:
-            - name: nvidia.com/gpu
-              pattern: '*'
+              deviceListStrategy: envvar
+              # Use `index`, not `uuid`. The NixOS-generated CDI spec at
+              # /var/run/cdi/nvidia-container-toolkit.json names devices
+              # by index (`"0"`, `"all"`). `deviceIDStrategy: uuid` asks
+              # the runtime for `nvidia.com/gpu=GPU-<uuid>`, which does
+              # not exist in that spec and the CDI runtime rejects the
+              # sandbox with
+              #   failed to inject CDI devices: unresolvable CDI devices
+              #     nvidia.com/gpu=GPU-a97ebe4d-...
+              # `index` makes the plugin request `nvidia.com/gpu=0` on
+              # allocate, matching the spec.
+              deviceIDStrategy: index
     nodeSelector:
       personal-stack/capability-nvidia: 'true'
     # The chart default nodeAffinity requires node-feature-discovery labels

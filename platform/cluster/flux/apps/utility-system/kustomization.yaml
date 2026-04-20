@@ -4,3 +4,5 @@ kind: Kustomization
 resources:
   - headlamp
   - keel
+  - adguard-gateway
+  - router-gateway

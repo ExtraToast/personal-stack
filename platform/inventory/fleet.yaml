@@ -42,13 +42,20 @@ nodes:
       - public-ingress
 
   enschede-gtx-960m-1:
-    status: active
+    status: install-ready
     site: enschede
     arch: amd64
+    # Pinned to the tailnet IP post-install (matches enschede-t1000-1
+    # pattern). MagicDNS is off fleet-wide (--accept-dns=false), so the
+    # bare hostname would not resolve.
     ssh:
-      host: enschede-gtx-960m-1
+      host: 100.89.41.92
       user: deploy
       port: 2222
+    bootstrap_ssh:
+      host: 192.168.0.101
+      user: extratoast
+      port: 22
     target_roles:
       - k3s-worker
       - utility-host
@@ -63,7 +70,6 @@ nodes:
       - tailscale
       - lan-ingress
       - samba
-      - adguard
       - nvidia
 
   enschede-t1000-1:
@@ -164,6 +170,18 @@ service_intent:
       - uptime-kuma
       - grafana
       - headlamp
+      # AdGuard itself is host-native (see host_native below and
+      # platform/nix/modules/services/adguard.nix), but we expose it
+      # through a k8s Service + Endpoints in utility-system so
+      # traefik sees it as any other in-cluster backend. Listing it
+      # here lets the fleet validator accept its ingress_intent
+      # entry without a special case.
+      - adguard
+      # ASUS router UI reverse-proxied through an nginx pod on an
+      # Enschede node (see platform/cluster/flux/apps/utility-system/
+      # router-gateway/). Same rationale as adguard: a real in-cluster
+      # Service backs the public hostname.
+      - router
     internal_platform:
       - postgres
       - rabbitmq
@@ -183,13 +201,13 @@ service_intent:
       - jellyfin
       - jellyseerr
       - bazarr
-      - wireguard-check
 
   host_native:
     enschede-gtx-960m-1:
-      - adguard
       - samba
       - tailscale
+    enschede-t1000-1:
+      - adguard
 
 placement_intent:
   frankfurt_only:
@@ -222,9 +240,9 @@ placement_intent:
     - jellyfin
     - jellyseerr
     - bazarr
-    - wireguard-check
     - adguard
     - samba
+    - router
 
   gpu_specific:
     jellyfin:
@@ -245,6 +263,8 @@ exposure_intent:
     - rabbitmq
     - vault
     - headlamp
+    - adguard
+    - router
 
   public_and_lan:
     - bazarr
@@ -263,10 +283,8 @@ exposure_intent:
     - tempo
     - alloy
     - flaresolverr
-    - wireguard-check
 
   lan_only:
-    - adguard
     - samba
 
 access_intent:
@@ -276,9 +294,13 @@ access_intent:
     - bazarr
     - prowlarr
     - qbittorrent
+    - radarr
+    - sonarr
     - rabbitmq
     - vault
     - headlamp
+    - adguard
+    - router
   host_labels:
     app-ui: root
     auth-ui: auth
@@ -302,9 +324,20 @@ access_intent:
     samba: samba
     # Kubernetes dashboard (Headlamp) at dashboard.jorisjonkers.dev.
     headlamp: dashboard
+    # ASUS router web UI via router-relay at router.jorisjonkers.dev.
+    router: router
 
 ingress_intent:
   kubernetes_backends:
+    # AdGuard is NOT a Kubernetes Deployment -- it runs host-native
+    # on enschede-t1000-1 (NixOS module). The Service + Endpoints at
+    # platform/cluster/flux/apps/utility-system/adguard-gateway/ stand
+    # in as the k8s-level backend so traefik can route to it like any
+    # other in-cluster app.
+    adguard:
+      namespace: utility-system
+      service: adguard
+      port: 3000
     app-ui:
       namespace: app-system
       service: app-ui
@@ -383,4 +416,12 @@ ingress_intent:
     headlamp:
       namespace: utility-system
       service: headlamp
+      port: 80
+    # ASUS router UI is NOT a k8s-native app. Router-relay (nginx pod
+    # at platform/cluster/flux/apps/utility-system/router-gateway/)
+    # reverse-proxies the on-LAN router and exposes it here as a
+    # normal k8s Service so traefik can route to it.
+    router:
+      namespace: utility-system
+      service: router
       port: 80

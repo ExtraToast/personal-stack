@@ -32,8 +32,37 @@ spec:
           OPENVPN_USER='{{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.username" }}{{ end }}'
           OPENVPN_PASSWORD='{{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.password" }}{{ end }}'
           SERVER_REGIONS='{{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.server_regions" }}{{ end }}'
-          FIREWALL_OUTBOUND_SUBNETS='100.64.0.0/10,192.168.0.0/16,172.16.0.0/12'
+          # FIREWALL_OUTBOUND_SUBNETS is Gluetun's kill-switch allow-list:
+          # anything outbound outside the VPN tunnel that doesn't match
+          # one of these CIDRs gets dropped. We need:
+          #   100.64.0.0/10     Tailscale CGNAT
+          #   192.168.0.0/16    Enschede home LAN (and printer, nas, etc)
+          #   172.16.0.0/12     RFC1918 spare
+          #   10.42.0.0/16      k3s pod CIDR  -- so prowlarr/qbittorrent
+          #                      (co-located in this pod with gluetun) can
+          #                      reach sonarr/radarr/bazarr/jellyseerr/
+          #                      jellyfin pods via in-cluster DNS
+          #   10.43.0.0/16      k3s service CIDR -- same reason, for
+          #                      ClusterIP addresses
+          FIREWALL_OUTBOUND_SUBNETS='100.64.0.0/10,192.168.0.0/16,172.16.0.0/12,10.42.0.0/16,10.43.0.0/16'
           FIREWALL_INPUT_PORTS='8080,9696'
+          # By default Gluetun owns /etc/resolv.conf and points it at its
+          # own DoT resolver (so public DNS leaks can't escape the tunnel).
+          # That also means cluster DNS (coredns at 10.43.0.10) gets
+          # overwritten and prowlarr/qbittorrent in this pod cannot
+          # resolve sonarr.media-system.svc.cluster.local etc. Disable
+          # DoT and keep whatever kubelet injected -- the search list
+          # includes *.svc.cluster.local and the nameserver is coredns.
+          #
+          # DNS queries for public domains (trackers, indexers) now
+          # traverse coredns -> host resolv.conf -> upstream, bypassing
+          # the VPN for DNS only. That is a deliberate trade-off: we
+          # keep service-to-service connectivity and accept the DNS
+          # leak for the small set of public lookups qBittorrent and
+          # Prowlarr make. Actual content traffic still egresses the
+          # VPN tunnel.
+          DOT=off
+          DNS_KEEP_NAMESERVER=on
     spec:
       serviceAccountName: downloads
       nodeSelector:

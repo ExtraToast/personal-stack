@@ -22,7 +22,6 @@ class PlatformMediaFluxTest {
             .contains("- jellyseerr")
             .contains("- radarr")
             .contains("- sonarr")
-            .contains("- wireguard-check")
         assertThat(namespace)
             .contains("kind: Namespace")
             .contains("name: media-system")
@@ -178,29 +177,6 @@ class PlatformMediaFluxTest {
             .contains("path: /api/v1/settings/public")
             .contains("kind: Service")
             .contains("port: 5055")
-    }
-
-    @Test
-    fun `wireguard check validates the media vpn path with vault delivered wireguard secrets`() {
-        val kustomization = repositoryRoot.resolve("platform/cluster/flux/apps/media/wireguard-check/kustomization.yaml").toFile().readText()
-        val manifest = repositoryRoot.resolve("platform/cluster/flux/apps/media/wireguard-check/deployment.yaml").toFile().readText()
-
-        assertThat(kustomization).contains("deployment.yaml")
-
-        assertThat(manifest)
-            .contains("name: wireguard-check")
-            .contains("namespace: media-system")
-            .contains("vault.hashicorp.com/role: downloads")
-            .contains("gluetun-wireguard.env")
-            .contains("pia.wireguard_endpoint_ip")
-            .contains("pia.wireguard_private_key")
-            .contains("pia.wireguard_addresses")
-            .contains("qmcgaw/gluetun:v3.40")
-            .contains("curlimages/curl:")
-            .contains("https://ifconfig.me/ip")
-            .contains("personal-stack/site: enschede")
-            .contains("personal-stack/role-utility-host:")
-            .contains("serviceAccountName: downloads")
     }
 
     @Test
