@@ -22,7 +22,13 @@ jobs:
     outputs:
       any-kotlin: ${{ steps.compute.outputs.any-kotlin }}
       any-frontend: ${{ steps.compute.outputs.any-frontend }}
+      any-platform: ${{ steps.compute.outputs.any-platform }}
       run-system-tests: ${{ steps.compute.outputs.run-system-tests }}
+      # Space-separated list of service names whose images need rebuilding
+      # from the PR source. Anything else is pulled from ghcr :latest by
+      # system-tests.yml. Shape is designed to be passed straight into
+      # the reusable workflow's `changed-services` input.
+      changed-services: ${{ steps.compute.outputs.changed-services }}
       lint-kotlin-matrix: ${{ steps.matrix.outputs.lint-kotlin }}
       test-kotlin-unit-matrix: ${{ steps.matrix.outputs.test-kotlin-unit }}
       test-kotlin-integration-matrix: ${{ steps.matrix.outputs.test-kotlin-integration }}
@@ -69,6 +75,9 @@ jobs:
             infra:
               - 'infra/**'
               - 'docker-compose.yml'
+            platform:
+              - 'platform/**'
+              - '.github/workflows/full.yml'
       - name: Compute change flags
         id: compute
         env:
@@ -85,6 +94,7 @@ jobs:
           FILTER_APP_UI: ${{ steps.filter.outputs.app-ui }}
           FILTER_SYSTEM_TESTS: ${{ steps.filter.outputs.system-tests }}
           FILTER_INFRA: ${{ steps.filter.outputs.infra }}
+          FILTER_PLATFORM: ${{ steps.filter.outputs.platform }}
         run: |
           any() { for v in "$@"; do [[ "$v" == "true" ]] && echo "true" && return; done; echo "false"; }
 
@@ -98,13 +108,34 @@ jobs:
           ANY_FRONTEND=$(any "$FRONTEND_SHARED" "$FILTER_AUTH_UI" "$FILTER_ASSISTANT_UI" "$FILTER_APP_UI")
           ANY_SERVICE=$(any "$ANY_KOTLIN" "$ANY_FRONTEND")
           RUN_SYSTEM_TESTS=$(any "$FILTER_WORKFLOW" "$FILTER_SYSTEM_TESTS" "$FILTER_INFRA" "$ANY_SERVICE")
+          ANY_PLATFORM=$(any "$FILTER_PLATFORM")
+
+          # Per-service rebuild flags for the reusable system-tests
+          # workflow. An image is rebuilt from the PR source when its
+          # own dir OR a shared dep (kotlin-common/build-logic/gradle-
+          # config for backends, vue-common/frontend-config for UIs)
+          # changed. Otherwise system-tests.yml pulls ghcr :latest and
+          # re-tags it as the CI image.
+          AUTH_UI_BUILD=$(any "$FRONTEND_SHARED" "$FILTER_AUTH_UI")
+          ASSISTANT_UI_BUILD=$(any "$FRONTEND_SHARED" "$FILTER_ASSISTANT_UI")
+          APP_UI_BUILD=$(any "$FRONTEND_SHARED" "$FILTER_APP_UI")
+
+          CHANGED_SERVICES=""
+          [[ "$AUTH_API_KOTLIN"      == "true" ]] && CHANGED_SERVICES+=" auth-api"
+          [[ "$ASSISTANT_API_KOTLIN" == "true" ]] && CHANGED_SERVICES+=" assistant-api"
+          [[ "$AUTH_UI_BUILD"        == "true" ]] && CHANGED_SERVICES+=" auth-ui"
+          [[ "$ASSISTANT_UI_BUILD"   == "true" ]] && CHANGED_SERVICES+=" assistant-ui"
+          [[ "$APP_UI_BUILD"         == "true" ]] && CHANGED_SERVICES+=" app-ui"
+          CHANGED_SERVICES="${CHANGED_SERVICES# }"
 
           echo "any-kotlin=$ANY_KOTLIN" >> "$GITHUB_OUTPUT"
           echo "any-frontend=$ANY_FRONTEND" >> "$GITHUB_OUTPUT"
+          echo "any-platform=$ANY_PLATFORM" >> "$GITHUB_OUTPUT"
           echo "run-system-tests=$RUN_SYSTEM_TESTS" >> "$GITHUB_OUTPUT"
           echo "auth-api-kotlin=$AUTH_API_KOTLIN" >> "$GITHUB_OUTPUT"
           echo "assistant-api-kotlin=$ASSISTANT_API_KOTLIN" >> "$GITHUB_OUTPUT"
           echo "kotlin-common-changed=$KOTLIN_COMMON_CHANGED" >> "$GITHUB_OUTPUT"
+          echo "changed-services=$CHANGED_SERVICES" >> "$GITHUB_OUTPUT"
       - name: Build dynamic matrices
         id: matrix
         env:
@@ -259,6 +290,51 @@ jobs:
     uses: ./.github/workflows/system-tests.yml
     with:
       java-version: '21'
+      # When a service's sources didn't change on this branch we let
+      # the reusable workflow pull its ghcr :latest image and re-tag
+      # it for CI instead of rebuilding from scratch. An empty string
+      # here means "rebuild nothing, pull everything", which still
+      # gives system tests a consistent set of images to exercise.
+      changed-services: ${{ needs.detect-changes.outputs.changed-services }}
+
+  platform-validate:
+    # Platform manifests (fleet.yaml, Flux kustomizations, nix host
+    # configs, helm values) are gated on every PR that touches
+    # platform/**. Folded into the Full Pipeline so its success is a
+    # required signal for merging — the separate platform-validate
+    # workflow is gone.
+    name: Platform Validate
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.any-platform == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+      - name: Install kustomize
+        uses: imranismail/setup-kustomize@v3
+      - name: Install Helm
+        uses: azure/setup-helm@v5
+      - name: Install kubeconform
+        run: |
+          set -euo pipefail
+          version="v0.6.7"
+          curl -sSL -o /tmp/kubeconform.tar.gz \
+            "https://github.com/yannh/kubeconform/releases/download/${version}/kubeconform-linux-amd64.tar.gz"
+          tar -xzf /tmp/kubeconform.tar.gz -C /tmp
+          sudo install /tmp/kubeconform /usr/local/bin/kubeconform
+      - name: Install Flux CLI
+        # flux-local shells out to `flux build ks` under the hood, so
+        # the upstream CLI has to be on PATH.
+        uses: fluxcd/flux2/action@main
+      - name: Install flux-local
+        # flux-local expands every HelmRelease CR against its real
+        # chart + values, which is what exposes remote-chart template
+        # errors (loki schema_config, nvidia plugin config shape,
+        # SingleBinary + scalable replicas clash) before merge.
+        run: pipx install flux-local
+      - name: Validate platform render
+        run: platform/scripts/validate/render-platform.sh
 
   security-scan:
     name: Security Scan
@@ -297,6 +373,7 @@ jobs:
       - verify-coverage
       - test-architecture
       - system-tests
+      - platform-validate
       - security-scan
     runs-on: ubuntu-latest
     steps:
