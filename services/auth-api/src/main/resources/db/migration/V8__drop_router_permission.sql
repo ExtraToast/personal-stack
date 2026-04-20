@@ -1,0 +1,12 @@
+-- The ASUS router UI moved from a public reverse-proxied host
+-- (router.jorisjonkers.dev behind forward-auth, issued via
+-- ServicePermission.ROUTER) to Tailscale subnet routing — see
+-- CLAUDE.md "Tailscale subnet routing is the escape hatch for
+-- LAN-only admin UIs." Grantees now reach the router by its
+-- tailnet IP, so no permission row is needed. The ServicePermission
+-- enum dropped ROUTER at the time, but existing rows in
+-- user_service_permissions were left behind, causing every
+-- /api/v1/auth/me + /api/v1/auth/session-login call to 500 with
+-- `IllegalArgumentException: No enum constant ServicePermission.ROUTER`
+-- for any user who had been granted router access.
+DELETE FROM user_service_permissions WHERE service = 'ROUTER';
