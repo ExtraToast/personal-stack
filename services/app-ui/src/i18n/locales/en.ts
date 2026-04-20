@@ -5,6 +5,7 @@ export default {
     projects: 'Projects',
     skills: 'Skills',
     contact: 'Contact',
+    myApps: 'My Apps',
     admin: 'Admin',
     login: 'Login',
     logout: 'Logout',
