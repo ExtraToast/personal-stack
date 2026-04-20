@@ -127,6 +127,16 @@ data:
     }
     EOF
 
+    # Cloudflare DNS-01 API token (cert-manager). The token lives at
+    # secret/data/platform/edge/cloudflare (field api_token). A hourly
+    # CronJob in edge-system reads it with this policy and upserts the
+    # K8s Secret cloudflare-dns-api-token that the ClusterIssuer references.
+    cat <<'EOF' >/tmp/cloudflare-token-sync.hcl
+    path "secret/data/platform/edge/cloudflare" {
+      capabilities = ["read"]
+    }
+    EOF
+
     vault policy write auth-api /tmp/auth-api.hcl
     vault policy write assistant-api /tmp/assistant-api.hcl
     vault policy write n8n /tmp/n8n.hcl
@@ -134,6 +144,7 @@ data:
     vault policy write rabbitmq /tmp/rabbitmq.hcl
     vault policy write downloads /tmp/downloads.hcl
     vault policy write stalwart /tmp/stalwart.hcl
+    vault policy write cloudflare-token-sync /tmp/cloudflare-token-sync.hcl
 
     vault write auth/kubernetes/role/auth-api \
       bound_service_account_names="auth-api" \
@@ -175,6 +186,12 @@ data:
       bound_service_account_names="stalwart" \
       bound_service_account_namespaces="mail-system" \
       policies="stalwart" \
+      ttl="1h"
+
+    vault write auth/kubernetes/role/cloudflare-token-sync \
+      bound_service_account_names="cloudflare-token-sync" \
+      bound_service_account_namespaces="edge-system" \
+      policies="cloudflare-token-sync" \
       ttl="1h"
 
     # RabbitMQ dynamic secrets engine. Reconfigure the connection on every
