@@ -7,6 +7,8 @@ import com.jorisjonkers.personalstack.auth.domain.model.User
 import com.jorisjonkers.personalstack.auth.domain.model.UserId
 import com.jorisjonkers.personalstack.auth.domain.port.UserRepository
 import org.assertj.core.api.Assertions.assertThat
+import org.jooq.DSLContext
+import org.jooq.impl.DSL
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import java.time.Instant
@@ -15,6 +17,9 @@ import java.util.UUID
 class JooqUserRepositoryIntegrationTest : IntegrationTestBase() {
     @Autowired
     private lateinit var userRepository: UserRepository
+
+    @Autowired
+    private lateinit var dsl: DSLContext
 
     @Test
     fun `create and findByUsername returns the saved user`() {
@@ -123,6 +128,33 @@ class JooqUserRepositoryIntegrationTest : IntegrationTestBase() {
 
         val found = userRepository.findById(user.id)!!
         assertThat(found.servicePermissions).isEmpty()
+    }
+
+    @Test
+    fun `loadServicePermissions skips rows whose enum entry was removed`() {
+        // Guards the class of bug where ServicePermission.ROUTER was
+        // dropped from the enum (router moved to Tailscale subnet
+        // routing) but an existing user_service_permissions row remained,
+        // taking /me + /session-login to 500 with an
+        // IllegalArgumentException for every grantee. The loader now
+        // skips unknown values + logs a warn; a follow-up migration
+        // cleans the row at leisure.
+        val user = buildUser(username = "orphan-grant", email = "orphan-grant@example.com")
+        userRepository.create(user, "\$2a\$10\$hash")
+        userRepository.saveServicePermissions(user.id, setOf(ServicePermission.VAULT))
+
+        // Inject an orphan row directly — the domain API rejects unknown
+        // values by construction.
+        dsl
+            .insertInto(DSL.table("user_service_permissions"))
+            .columns(DSL.field("user_id"), DSL.field("service"))
+            .values(user.id.value, "RETIRED_SERVICE_XYZ")
+            .execute()
+
+        val found = userRepository.findById(user.id)
+
+        assertThat(found).isNotNull
+        assertThat(found!!.servicePermissions).containsExactly(ServicePermission.VAULT)
     }
 
     @Test

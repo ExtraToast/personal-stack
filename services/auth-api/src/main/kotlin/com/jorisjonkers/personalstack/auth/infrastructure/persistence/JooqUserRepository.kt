@@ -10,6 +10,7 @@ import com.jorisjonkers.personalstack.auth.jooq.tables.AppUser.APP_USER
 import com.jorisjonkers.personalstack.auth.jooq.tables.UserServicePermissions.USER_SERVICE_PERMISSIONS
 import org.jooq.DSLContext
 import org.jooq.Record
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Repository
 import java.time.ZoneOffset
 import java.util.UUID
@@ -19,6 +20,8 @@ import java.util.UUID
 class JooqUserRepository(
     private val dsl: DSLContext,
 ) : UserRepository {
+    private val logger = LoggerFactory.getLogger(JooqUserRepository::class.java)
+
     override fun findById(id: UserId): User? =
         dsl
             .selectFrom(APP_USER)
@@ -157,8 +160,23 @@ class JooqUserRepository(
             .select(USER_SERVICE_PERMISSIONS.SERVICE)
             .from(USER_SERVICE_PERMISSIONS)
             .where(USER_SERVICE_PERMISSIONS.USER_ID.eq(userId.value))
-            .fetch { ServicePermission.valueOf(it[USER_SERVICE_PERMISSIONS.SERVICE] as String) }
-            .toSet()
+            .fetch { it[USER_SERVICE_PERMISSIONS.SERVICE] as String }
+            // Rows for enum entries that have since been removed (e.g. a
+            // service was retired, renamed without a migration) would
+            // otherwise blow up here with IllegalArgumentException and
+            // take /me + /session-login down for every user who holds the
+            // grant. Skip + log instead; a follow-up migration can clean
+            // the row at leisure.
+            .mapNotNull { service ->
+                runCatching { ServicePermission.valueOf(service) }
+                    .onFailure {
+                        logger.warn(
+                            "Ignoring unknown service permission '{}' for user {}",
+                            service,
+                            userId.value,
+                        )
+                    }.getOrNull()
+            }.toSet()
 
     private fun Record.toUser(): User {
         val userId = UserId(this[APP_USER.ID] as UUID)
