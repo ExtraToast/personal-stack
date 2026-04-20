@@ -65,7 +65,20 @@ spec:
               set -a
               . /vault/secrets/auth-api.env
               set +a
-              exec java -javaagent:/app/otel-javaagent.jar -jar /app/app.jar
+              # -XX:MaxRAMPercentage=75: size the JVM heap off the container
+              # memory limit so cgroup-aware autosizing uses the room we
+              # actually give it (1.5 GiB of the 2 GiB request → ~1.5 GiB heap).
+              # ZGC: sub-ms pauses under cache-warm loads + better throughput
+              # than G1 on workloads that touch many short-lived objects (jOOQ
+              # row mappers, Jackson, OAuth2 token responses).
+              # AlwaysPreTouch: take the page-fault hit up front during startup
+              # rather than amortised across the first few seconds of traffic.
+              exec java \
+                -XX:+UseZGC \
+                -XX:+AlwaysPreTouch \
+                -XX:MaxRAMPercentage=75 \
+                -javaagent:/app/otel-javaagent.jar \
+                -jar /app/app.jar
           env:
             - name: SERVER_PORT
               value: '8081'
@@ -125,6 +138,26 @@ spec:
               value: none
             - name: OTEL_TRACES_EXPORTER
               value: otlp
+            # Sample 10% of traces. Without this the exporter tries to ship
+            # every span to Alloy on the critical path; if Alloy flaps (as
+            # it did during the ROUTER-permission incident) the batch
+            # processor's retry queue fills and blocks request threads
+            # during flush. 10% is plenty for a personal stack — we
+            # still see every unique trace shape within minutes.
+            - name: OTEL_TRACES_SAMPLER
+              value: parentbased_traceidratio
+            - name: OTEL_TRACES_SAMPLER_ARG
+              value: '0.1'
+            # Fail the OTLP POST fast if Alloy is slow/down, and drain
+            # the batch every 5s instead of waiting for a full 8192-span
+            # buffer. Together these cap worst-case exporter-induced
+            # tail latency at ~5s rather than the default ~30s.
+            - name: OTEL_EXPORTER_OTLP_TIMEOUT
+              value: '5000'
+            - name: OTEL_BSP_SCHEDULE_DELAY
+              value: '5000'
+            - name: OTEL_BSP_MAX_QUEUE_SIZE
+              value: '2048'
           ports:
             - containerPort: 8081
               name: http
@@ -143,9 +176,14 @@ spec:
               path: /api/actuator/health/liveness
               port: http
           resources:
+            # request == cpu limit so Linux CFS doesn't throttle JVM class
+            # loading during cold start. On the previous 750m/1500m split
+            # the pod took ~170s to become ready because class init is
+            # CPU-bound and largely single-threaded; raising the request
+            # lets it run uncontended. The Frankfurt node has spare CPU.
             requests:
-              cpu: 750m
-              memory: 1536Mi
+              cpu: 1500m
+              memory: 2Gi
             limits:
               cpu: 1500m
               memory: 3Gi
