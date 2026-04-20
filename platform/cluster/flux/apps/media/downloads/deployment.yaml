@@ -132,10 +132,18 @@ spec:
             httpGet:
               path: /
               port: qbit-http
+            initialDelaySeconds: 60
+            timeoutSeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
           livenessProbe:
             httpGet:
               path: /
               port: qbit-http
+            initialDelaySeconds: 120
+            timeoutSeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
           volumeMounts:
             - name: media-library
               mountPath: /media
@@ -165,10 +173,14 @@ spec:
             httpGet:
               path: /ping
               port: prowlarr-http
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /ping
               port: prowlarr-http
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
           volumeMounts:
             - name: prowlarr-config
               mountPath: /config
