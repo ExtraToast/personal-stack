@@ -45,7 +45,11 @@ management:
         include: health,info,prometheus,metrics
   endpoint:
     health:
-      show-details: when-authorized
+      # Full per-contributor breakdown so a composite 503 is diagnosable
+      # with one curl, matching auth-api. Actuator is behind forward-auth
+      # in production and details expose descriptor data only — never
+      # credentials.
+      show-details: always
       group:
         liveness:
           include: ping

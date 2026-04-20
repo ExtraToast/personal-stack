@@ -122,6 +122,17 @@ class SessionManagementIntegrationTest : IntegrationTestBase() {
         result.request.getSession(false) as? MockHttpSession
 
     private fun generateTotpCode(secret: String): String {
+        // Align to the start of a fresh 30s TOTP window when the current
+        // one is about to roll. The server verifies against "now", so a
+        // code generated at t=29.9s into a window is invalid by the time
+        // it lands — the class of flake that randomly reddened this
+        // suite. Waiting into the next window gives the verification call
+        // ~30s of validity, which dwarfs any MockMvc overhead.
+        val windowMs = 30_000L
+        val safetyMs = 3_000L
+        val msLeft = windowMs - (System.currentTimeMillis() % windowMs)
+        if (msLeft < safetyMs) Thread.sleep(msLeft + 100)
+
         val padded = secret.padEnd((secret.length + 7) / 8 * 8, '=')
         val secretBytes = Base32().decode(padded)
         val config =
