@@ -1,0 +1,36 @@
+# Narrow grant: the sync job only needs to upsert one specific Secret
+# (cloudflare-dns-api-token) in edge-system. resourceNames pins the
+# Role to that name so even if the SA is compromised it can't reach
+# any other Secret in the namespace.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cloudflare-token-sync
+  namespace: edge-system
+rules:
+  - apiGroups: ['']
+    resources: ['secrets']
+    verbs: ['get', 'create', 'update', 'patch']
+    resourceNames: ['cloudflare-dns-api-token']
+  # `create` cannot be gated by resourceNames (the name isn't known
+  # until the request body is parsed), so an additional unscoped rule
+  # allows only the `create` verb on secrets. The get/update/patch
+  # above still pins subsequent operations to the single Secret.
+  - apiGroups: ['']
+    resources: ['secrets']
+    verbs: ['create']
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cloudflare-token-sync
+  namespace: edge-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cloudflare-token-sync
+subjects:
+  - kind: ServiceAccount
+    name: cloudflare-token-sync
+    namespace: edge-system

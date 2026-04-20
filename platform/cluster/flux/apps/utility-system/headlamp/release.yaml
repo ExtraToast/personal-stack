@@ -19,29 +19,37 @@ spec:
     replicaCount: 1
     nodeSelector:
       personal-stack/site: frankfurt
-    # The ClusterRole below (headlamp-cluster-admin) is mounted via the
-    # bundled chart. Traefik forward-auth sits in front, so we don't add
-    # per-user authn in Headlamp itself; the ServiceAccount it runs as
-    # talks to the API server with read permissions.
     config:
-      # 'base URL' for the generated links shown in the UI.
       baseURL: ''
+      # OIDC front-door authentication. Users hit dashboard.jorisjonkers.dev,
+      # traefik forward-auth verifies DASHBOARD ServicePermission via
+      # auth-api, then Headlamp kicks off an OIDC flow against auth-api.
+      # The resulting ID token is passed to the k3s API server, which is
+      # configured to trust it (see platform/nix/modules/roles/control-plane.nix).
+      # The user's RBAC is decided by the `groups` claim:
+      # DASHBOARD permission -> oidc:k8s-admin group -> cluster-admin.
+      #
+      # Public client with PKCE — there is no client secret anywhere, so
+      # nothing to rotate, bootstrap, or leak. The chart creates a small
+      # Secret from values with only clientID (no secret key).
+      oidc:
+        clientID: headlamp
+        issuerURL: https://auth.jorisjonkers.dev
+        scopes: openid profile email groups
+        callbackURL: https://dashboard.jorisjonkers.dev/oidc-callback
+        usePKCE: true
     service:
       type: ClusterIP
       port: 80
-    # Headlamp has an in-tree plugin catalogue (Flux / cert-manager
-    # views, etc). We used to pull those plugins via an init container
-    # from ghcr.io/headlamp-k8s/plugins/headlamp-plugins:latest, but
-    # that package 403s on anonymous pulls and wedged the Deployment
-    # on ImagePullBackOff. Ship without plugins for now; Headlamp
-    # falls back to the generic Kubernetes resource views, which is
-    # all we need for cluster introspection today.
+    # Plugins init container was removed in a prior cleanup (403s against
+    # ghcr). Keep the PVC disabled — Headlamp falls back to generic
+    # Kubernetes resource views.
     persistentVolumeClaim:
       enabled: false
-    # Read-only cluster-wide permissions; the service account is created
-    # by the chart but the binding defaults to view. Override to
-    # cluster-admin *only* if you explicitly want write capability —
-    # leave view as default for safety.
+    # With OIDC, each authenticated user's ID token is what the API server
+    # authorises against (via the oidc:k8s-admin ClusterRoleBinding). The
+    # pod's own ServiceAccount is effectively unused for API calls, so
+    # drop the chart-managed ClusterRoleBinding to keep the SA without
+    # any cluster-wide grants.
     clusterRoleBinding:
-      create: true
-      clusterRoleName: view
+      create: false

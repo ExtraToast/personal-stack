@@ -2,7 +2,6 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - namespace.yaml
-  - source.yaml
-  - release.yaml
-  - runtime-class.yaml
+  - serviceaccount.yaml
+  - rbac.yaml
+  - cronjob.yaml
