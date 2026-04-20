@@ -1,5 +1,9 @@
 package com.jorisjonkers.personalstack.auth.infrastructure.persistence
 
+import com.jorisjonkers.personalstack.auth.config.CacheConfig.Companion.CACHE_USERS_BY_EMAIL
+import com.jorisjonkers.personalstack.auth.config.CacheConfig.Companion.CACHE_USERS_BY_ID
+import com.jorisjonkers.personalstack.auth.config.CacheConfig.Companion.CACHE_USERS_BY_USERNAME
+import com.jorisjonkers.personalstack.auth.config.CacheConfig.Companion.CACHE_USERS_CREDENTIALS_BY_USERNAME
 import com.jorisjonkers.personalstack.auth.domain.model.Role
 import com.jorisjonkers.personalstack.auth.domain.model.ServicePermission
 import com.jorisjonkers.personalstack.auth.domain.model.User
@@ -13,6 +17,9 @@ import org.jooq.Field
 import org.jooq.Record
 import org.jooq.impl.DSL
 import org.slf4j.LoggerFactory
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.Cacheable
+import org.springframework.cache.annotation.Caching
 import org.springframework.stereotype.Repository
 import java.time.ZoneOffset
 import java.util.UUID
@@ -24,6 +31,7 @@ class JooqUserRepository(
 ) : UserRepository {
     private val logger = LoggerFactory.getLogger(JooqUserRepository::class.java)
 
+    @Cacheable(cacheNames = [CACHE_USERS_BY_ID], key = "#id", unless = "#result == null")
     override fun findById(id: UserId): User? =
         dsl
             .select(*APP_USER.fields(), permissionsField)
@@ -32,6 +40,7 @@ class JooqUserRepository(
             .fetchOne()
             ?.let { it.toUser(it.extractPermissions()) }
 
+    @Cacheable(cacheNames = [CACHE_USERS_BY_USERNAME], key = "#username", unless = "#result == null")
     override fun findByUsername(username: String): User? =
         dsl
             .select(*APP_USER.fields(), permissionsField)
@@ -40,6 +49,7 @@ class JooqUserRepository(
             .fetchOne()
             ?.let { it.toUser(it.extractPermissions()) }
 
+    @Cacheable(cacheNames = [CACHE_USERS_BY_EMAIL], key = "#email", unless = "#result == null")
     override fun findByEmail(email: String): User? =
         dsl
             .select(*APP_USER.fields(), permissionsField)
@@ -48,6 +58,11 @@ class JooqUserRepository(
             .fetchOne()
             ?.let { it.toUser(it.extractPermissions()) }
 
+    @Cacheable(
+        cacheNames = [CACHE_USERS_CREDENTIALS_BY_USERNAME],
+        key = "#username",
+        unless = "#result == null",
+    )
     override fun findCredentialsByUsername(username: String): UserCredentials? =
         dsl
             .select(*APP_USER.fields(), permissionsField)
@@ -86,6 +101,20 @@ class JooqUserRepository(
         return user
     }
 
+    // All mutators below bust every user cache. We deliberately prefer
+    // allEntries=true over precise per-key eviction: the only mutators
+    // that know both username and email are create/update, the rest
+    // have only UserId — and doing a pre-read to derive the other keys
+    // defeats the point. User mutations are low-frequency; flushing the
+    // three per-name caches costs microseconds in Valkey.
+    @Caching(
+        evict = [
+            CacheEvict(cacheNames = [CACHE_USERS_BY_ID], key = "#user.id"),
+            CacheEvict(cacheNames = [CACHE_USERS_BY_USERNAME], allEntries = true),
+            CacheEvict(cacheNames = [CACHE_USERS_BY_EMAIL], allEntries = true),
+            CacheEvict(cacheNames = [CACHE_USERS_CREDENTIALS_BY_USERNAME], allEntries = true),
+        ],
+    )
     override fun update(user: User): User {
         val now = user.updatedAt.atOffset(ZoneOffset.UTC).toLocalDateTime()
         dsl
@@ -101,6 +130,14 @@ class JooqUserRepository(
         return user
     }
 
+    @Caching(
+        evict = [
+            CacheEvict(cacheNames = [CACHE_USERS_BY_ID], key = "#userId"),
+            CacheEvict(cacheNames = [CACHE_USERS_BY_USERNAME], allEntries = true),
+            CacheEvict(cacheNames = [CACHE_USERS_BY_EMAIL], allEntries = true),
+            CacheEvict(cacheNames = [CACHE_USERS_CREDENTIALS_BY_USERNAME], allEntries = true),
+        ],
+    )
     override fun saveServicePermissions(
         userId: UserId,
         permissions: Set<ServicePermission>,
@@ -121,6 +158,14 @@ class JooqUserRepository(
             ).execute()
     }
 
+    @Caching(
+        evict = [
+            CacheEvict(cacheNames = [CACHE_USERS_BY_ID], key = "#id"),
+            CacheEvict(cacheNames = [CACHE_USERS_BY_USERNAME], allEntries = true),
+            CacheEvict(cacheNames = [CACHE_USERS_BY_EMAIL], allEntries = true),
+            CacheEvict(cacheNames = [CACHE_USERS_CREDENTIALS_BY_USERNAME], allEntries = true),
+        ],
+    )
     override fun deleteById(id: UserId) {
         dsl
             .deleteFrom(APP_USER)
@@ -128,6 +173,14 @@ class JooqUserRepository(
             .execute()
     }
 
+    @Caching(
+        evict = [
+            CacheEvict(cacheNames = [CACHE_USERS_BY_ID], key = "#userId"),
+            CacheEvict(cacheNames = [CACHE_USERS_BY_USERNAME], allEntries = true),
+            CacheEvict(cacheNames = [CACHE_USERS_BY_EMAIL], allEntries = true),
+            CacheEvict(cacheNames = [CACHE_USERS_CREDENTIALS_BY_USERNAME], allEntries = true),
+        ],
+    )
     override fun saveTotpSecret(
         userId: UserId,
         secret: String,
@@ -145,6 +198,14 @@ class JooqUserRepository(
     override fun existsByEmail(email: String): Boolean =
         dsl.fetchExists(dsl.selectFrom(APP_USER).where(APP_USER.EMAIL.eq(email)))
 
+    @Caching(
+        evict = [
+            CacheEvict(cacheNames = [CACHE_USERS_BY_ID], key = "#userId"),
+            CacheEvict(cacheNames = [CACHE_USERS_BY_USERNAME], allEntries = true),
+            CacheEvict(cacheNames = [CACHE_USERS_BY_EMAIL], allEntries = true),
+            CacheEvict(cacheNames = [CACHE_USERS_CREDENTIALS_BY_USERNAME], allEntries = true),
+        ],
+    )
     override fun updatePassword(
         userId: UserId,
         passwordHash: String,

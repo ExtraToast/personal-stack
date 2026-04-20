@@ -1,12 +1,15 @@
 package com.jorisjonkers.personalstack.auth.persistence
 
 import com.jorisjonkers.personalstack.auth.IntegrationTestBase
+import com.jorisjonkers.personalstack.auth.config.CacheConfig.Companion.CACHE_USERS_BY_ID
+import com.jorisjonkers.personalstack.auth.config.CacheConfig.Companion.CACHE_USERS_BY_USERNAME
 import com.jorisjonkers.personalstack.auth.domain.model.Role
 import com.jorisjonkers.personalstack.auth.domain.model.ServicePermission
 import com.jorisjonkers.personalstack.auth.domain.model.User
 import com.jorisjonkers.personalstack.auth.domain.model.UserId
 import com.jorisjonkers.personalstack.auth.domain.port.UserRepository
 import com.jorisjonkers.personalstack.auth.infrastructure.persistence.JooqUserRepository
+import com.jorisjonkers.personalstack.auth.jooq.tables.AppUser.APP_USER
 import org.assertj.core.api.Assertions.assertThat
 import org.jooq.DSLContext
 import org.jooq.ExecuteContext
@@ -15,6 +18,7 @@ import org.jooq.impl.DSL
 import org.jooq.impl.DefaultExecuteListenerProvider
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.cache.CacheManager
 import java.time.Instant
 import java.util.UUID
 
@@ -24,6 +28,9 @@ class JooqUserRepositoryIntegrationTest : IntegrationTestBase() {
 
     @Autowired
     private lateinit var dsl: DSLContext
+
+    @Autowired
+    private lateinit var cacheManager: CacheManager
 
     @Test
     fun `create and findByUsername returns the saved user`() {
@@ -168,6 +175,54 @@ class JooqUserRepositoryIntegrationTest : IntegrationTestBase() {
                 "findById should issue exactly 1 SELECT; if this flips to 2 the " +
                     "multiset refactor has been reverted. Statements: ${counter.statements}",
             ).isEqualTo(1)
+    }
+
+    @Test
+    fun `findById returns cached value without hitting the database on repeat`() {
+        val user = buildUser(username = "cache-hit", email = "cache-hit@example.com")
+        userRepository.create(user, "\$2a\$10\$hash")
+
+        // First call populates the cache.
+        val first = userRepository.findById(user.id)
+        assertThat(first).isNotNull
+
+        // Nuke the row directly; the cached value must still be served.
+        // If the cache were bypassed, this delete would make the second
+        // findById return null.
+        dsl.deleteFrom(APP_USER).where(APP_USER.ID.eq(user.id.value)).execute()
+
+        val second = userRepository.findById(user.id)
+
+        assertThat(second)
+            .describedAs("expected Valkey-cached value; got null, which means the cache was bypassed")
+            .isNotNull
+        assertThat(second!!.username).isEqualTo("cache-hit")
+
+        // Clean up so the repository's evict-on-delete path below doesn't
+        // interact with other tests.
+        cacheManager.getCache(CACHE_USERS_BY_ID)?.evict(user.id.value)
+        cacheManager.getCache(CACHE_USERS_BY_USERNAME)?.evict("cache-hit")
+    }
+
+    @Test
+    fun `update evicts the users byId cache`() {
+        val user = buildUser(username = "evict-me", email = "evict-me@example.com")
+        userRepository.create(user, "\$2a\$10\$hash")
+
+        // Populate the cache.
+        userRepository.findById(user.id)
+        assertThat(cacheManager.getCache(CACHE_USERS_BY_ID)?.get(user.id.value))
+            .describedAs("findById should have populated the byId cache")
+            .isNotNull
+
+        // The update mutator's @CacheEvict on byId must clear the entry.
+        userRepository.update(user.copy(role = Role.ADMIN))
+
+        assertThat(cacheManager.getCache(CACHE_USERS_BY_ID)?.get(user.id.value))
+            .describedAs(
+                "update should have evicted the byId cache entry so the next " +
+                    "read reflects the persisted role change instead of the stale USER role",
+            ).isNull()
     }
 
     private class SelectCountingListener : ExecuteListener {
