@@ -67,7 +67,7 @@ export const SERVICE_REGISTRY: ServiceEntry[] = [
     permission: 'DASHBOARD',
     label: 'Cluster Dashboard',
     url: buildServiceUrl('dashboard'),
-    iconUrl: '/icons/dashboard.svg',
+    iconUrl: '/icons/headlamp.png',
     description: 'Headlamp kubernetes dashboard',
   },
   {
@@ -139,6 +139,20 @@ export const SERVICE_REGISTRY: ServiceEntry[] = [
     url: buildServiceUrl('qbittorrent'),
     iconUrl: '/icons/qbittorrent.png',
     description: 'Torrent client',
+  },
+  {
+    permission: 'ADGUARD',
+    label: 'AdGuard Home',
+    url: buildServiceUrl('adguard'),
+    iconUrl: '/icons/adguard.svg',
+    description: 'DNS filter',
+  },
+  {
+    permission: 'ROUTER',
+    label: 'Router',
+    url: buildServiceUrl('router'),
+    iconUrl: '/icons/router.svg',
+    description: 'ASUS router UI',
   },
 ]
 
