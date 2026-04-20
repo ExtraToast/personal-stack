@@ -64,6 +64,12 @@ spec:
               name: management
             - containerPort: 15692
               name: metrics
+          startupProbe:
+            tcpSocket:
+              port: amqp
+            failureThreshold: 40
+            periodSeconds: 5
+            timeoutSeconds: 5
           readinessProbe:
             tcpSocket:
               port: amqp
