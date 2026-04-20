@@ -4,10 +4,6 @@
     ../../profiles/worker.nix
     ../../profiles/utility.nix
     ../../profiles/gpu-nvidia.nix
-    # AdGuard enabled only here -- the capability-adguard label on
-    # gtx-960m-1 is dropped in the same PR, so there is exactly one
-    # DNS resolver in the LAN/cluster.
-    ../../modules/services/adguard.nix
     ../../modules/k3s/node-labels.nix
     ./disko.nix
   ];

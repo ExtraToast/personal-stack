@@ -1,0 +1,95 @@
+# AdGuard Home runs as a normal k8s Deployment (not host-native) so
+# the Service in front of it selects a real pod CIDR IP (10.42.x.x).
+# The previous selector-less Service pointed at t1000's tailnet IP
+# (100.103.175.110:3000) — kube-proxy DNAT + host-level MASQUERADE
+# broke the return path, which is why adguard.jorisjonkers.dev was
+# returning 502 from Traefik even while the LAN path worked fine.
+#
+# Pinned to enschede-t1000-1 via the existing capability-adguard
+# label so the hostPath for persistent state stays on one node. The
+# hostPath mount preserves the existing /var/lib/AdGuardHome tree
+# (filter lists, custom rewrites, user bcrypt hashes, query log),
+# so there is no data migration when we flip off the NixOS daemon.
+#
+# Port 53 is published via hostPort on t1000's LAN IP so local
+# clients can still point their resolver at the node — no LAN DNS
+# break when we retire the nixos module.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: adguard
+  namespace: utility-system
+  labels:
+    app.kubernetes.io/name: adguard
+spec:
+  replicas: 1
+  # hostPort 53 can't double-bind during a rolling update; only one
+  # pod per node may hold the port at a time.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: adguard
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: adguard
+    spec:
+      nodeSelector:
+        personal-stack/capability-adguard: 'true'
+      containers:
+        - name: adguardhome
+          image: adguard/adguardhome:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+            - name: dns-tcp
+              containerPort: 53
+              protocol: TCP
+              hostPort: 53
+            - name: dns-udp
+              containerPort: 53
+              protocol: UDP
+              hostPort: 53
+          volumeMounts:
+            - name: work
+              mountPath: /opt/adguardhome/work
+            - name: conf
+              mountPath: /opt/adguardhome/conf
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        # Re-use the same on-disk layout the NixOS module created, so
+        # existing config + query log survive the migration. The
+        # upstream Docker image uses /opt/adguardhome/work and /conf;
+        # the NixOS service uses /var/lib/AdGuardHome as a single
+        # combined dir — mount it twice so whichever subdir the
+        # binary writes to is persisted.
+        - name: work
+          hostPath:
+            path: /var/lib/AdGuardHome
+            type: DirectoryOrCreate
+        - name: conf
+          hostPath:
+            path: /var/lib/AdGuardHome
+            type: DirectoryOrCreate
