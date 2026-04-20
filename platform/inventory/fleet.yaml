@@ -201,7 +201,6 @@ service_intent:
       - jellyfin
       - jellyseerr
       - bazarr
-      - wireguard-check
 
   host_native:
     enschede-gtx-960m-1:
@@ -241,7 +240,6 @@ placement_intent:
     - jellyfin
     - jellyseerr
     - bazarr
-    - wireguard-check
     - adguard
     - samba
     - router
@@ -285,7 +283,6 @@ exposure_intent:
     - tempo
     - alloy
     - flaresolverr
-    - wireguard-check
 
   lan_only:
     - samba
