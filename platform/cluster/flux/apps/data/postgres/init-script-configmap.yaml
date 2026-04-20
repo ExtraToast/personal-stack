@@ -60,11 +60,15 @@ data:
 
     # PostgreSQL 15+ revoked default CREATE on the public schema for non-superusers.
     # Transfer public schema ownership so each service can run migrations.
+    # Also enable pg_stat_statements in each app DB so we can inspect
+    # top-N slow queries by mean_exec_time; the shared library is
+    # preloaded via postgresql.conf (see config-configmap.yaml).
     for db_and_user in "auth_db:${AUTH_DB_USER}" "assistant_db:${ASSISTANT_DB_USER}" "n8n_db:${N8N_DB_USER}"; do
         db="${db_and_user%%:*}"
         user="${db_and_user##*:}"
         psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$db" <<-EOSQL
             ALTER SCHEMA public OWNER TO ${user};
+            CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
     EOSQL
     done
 
