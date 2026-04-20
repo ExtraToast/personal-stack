@@ -25,7 +25,7 @@ onMounted(() => {
 function onSubmit(): void {
   const result = codeSchema.safeParse(code.value)
   if (!result.success) {
-    error.value = result.error.errors[0]?.message ?? 'Invalid code'
+    error.value = result.error.issues[0]?.message ?? 'Invalid code'
     return
   }
   error.value = null

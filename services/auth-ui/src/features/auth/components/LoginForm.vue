@@ -48,7 +48,7 @@ function validate(): boolean {
     return true
   }
   const mapped: Partial<Record<string, string>> = {}
-  for (const e of result.error.errors) {
+  for (const e of result.error.issues) {
     const key = String(e.path[0])
     if (key) mapped[key] = e.message
   }
