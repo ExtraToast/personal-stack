@@ -9,7 +9,9 @@ import com.jorisjonkers.personalstack.auth.domain.port.UserRepository
 import com.jorisjonkers.personalstack.auth.jooq.tables.AppUser.APP_USER
 import com.jorisjonkers.personalstack.auth.jooq.tables.UserServicePermissions.USER_SERVICE_PERMISSIONS
 import org.jooq.DSLContext
+import org.jooq.Field
 import org.jooq.Record
+import org.jooq.impl.DSL
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Repository
 import java.time.ZoneOffset
@@ -24,37 +26,42 @@ class JooqUserRepository(
 
     override fun findById(id: UserId): User? =
         dsl
-            .selectFrom(APP_USER)
+            .select(*APP_USER.fields(), permissionsField)
+            .from(APP_USER)
             .where(APP_USER.ID.eq(id.value))
             .fetchOne()
-            ?.toUser()
+            ?.let { it.toUser(it.extractPermissions()) }
 
     override fun findByUsername(username: String): User? =
         dsl
-            .selectFrom(APP_USER)
+            .select(*APP_USER.fields(), permissionsField)
+            .from(APP_USER)
             .where(APP_USER.USERNAME.eq(username))
             .fetchOne()
-            ?.toUser()
+            ?.let { it.toUser(it.extractPermissions()) }
 
     override fun findByEmail(email: String): User? =
         dsl
-            .selectFrom(APP_USER)
+            .select(*APP_USER.fields(), permissionsField)
+            .from(APP_USER)
             .where(APP_USER.EMAIL.eq(email))
             .fetchOne()
-            ?.toUser()
+            ?.let { it.toUser(it.extractPermissions()) }
 
     override fun findCredentialsByUsername(username: String): UserCredentials? =
         dsl
-            .selectFrom(APP_USER)
+            .select(*APP_USER.fields(), permissionsField)
+            .from(APP_USER)
             .where(APP_USER.USERNAME.eq(username))
             .fetchOne()
-            ?.toUserCredentials()
+            ?.let { it.toUserCredentials(it.extractPermissions()) }
 
     override fun findAll(): List<User> =
         dsl
-            .selectFrom(APP_USER)
+            .select(*APP_USER.fields(), permissionsField)
+            .from(APP_USER)
             .fetch()
-            .map { it.toUser() }
+            .map { it.toUser(it.extractPermissions()) }
 
     override fun create(
         user: User,
@@ -155,30 +162,39 @@ class JooqUserRepository(
             .execute()
     }
 
-    private fun loadServicePermissions(userId: UserId): Set<ServicePermission> =
-        dsl
-            .select(USER_SERVICE_PERMISSIONS.SERVICE)
-            .from(USER_SERVICE_PERMISSIONS)
-            .where(USER_SERVICE_PERMISSIONS.USER_ID.eq(userId.value))
-            .fetch { it[USER_SERVICE_PERMISSIONS.SERVICE] as String }
-            // Rows for enum entries that have since been removed (e.g. a
-            // service was retired, renamed without a migration) would
-            // otherwise blow up here with IllegalArgumentException and
-            // take /me + /session-login down for every user who holds the
-            // grant. Skip + log instead; a follow-up migration can clean
-            // the row at leisure.
-            .mapNotNull { service ->
-                runCatching { ServicePermission.valueOf(service) }
-                    .onFailure {
-                        logger.warn(
-                            "Ignoring unknown service permission '{}' for user {}",
-                            service,
-                            userId.value,
-                        )
-                    }.getOrNull()
-            }.toSet()
+    // Correlated jOOQ multiset subquery — emits a single SQL statement
+    // per user fetch ("SELECT ..., ARRAY(SELECT service FROM
+    // user_service_permissions WHERE user_id = app_user.id) ..."), so
+    // findById / findByUsername / findCredentialsByUsername / findAll
+    // each round-trip to Postgres exactly once. Previously the loader
+    // issued an N+1 SELECT per user, which added ~1 query per login,
+    // token mint, and /me call. Retains the runCatching tolerance from
+    // PR #155 so rows for retired enum entries still degrade to a log
+    // warn instead of a 500.
+    private val permissionsField: Field<Set<ServicePermission>> =
+        DSL
+            .multiset(
+                DSL
+                    .select(USER_SERVICE_PERMISSIONS.SERVICE)
+                    .from(USER_SERVICE_PERMISSIONS)
+                    .where(USER_SERVICE_PERMISSIONS.USER_ID.eq(APP_USER.ID)),
+            ).convertFrom { result ->
+                result
+                    .mapNotNull { row ->
+                        val name = row[USER_SERVICE_PERMISSIONS.SERVICE] ?: return@mapNotNull null
+                        runCatching { ServicePermission.valueOf(name) }
+                            .onFailure {
+                                logger.warn("Ignoring unknown service permission '{}'", name)
+                            }.getOrNull()
+                    }.toSet()
+            }.`as`("service_permissions")
 
-    private fun Record.toUser(): User {
+    private fun Record.extractPermissions(): Set<ServicePermission> {
+        @Suppress("UNCHECKED_CAST")
+        return (this[permissionsField.name] as? Set<ServicePermission>) ?: emptySet()
+    }
+
+    private fun Record.toUser(servicePermissions: Set<ServicePermission>): User {
         val userId = UserId(this[APP_USER.ID] as UUID)
         return User(
             id = userId,
@@ -191,14 +207,13 @@ class JooqUserRepository(
             totpEnabled = this[APP_USER.TOTP_ENABLED] as Boolean,
             createdAt = (this[APP_USER.CREATED_AT] as java.time.LocalDateTime).toInstant(ZoneOffset.UTC),
             updatedAt = (this[APP_USER.UPDATED_AT] as java.time.LocalDateTime).toInstant(ZoneOffset.UTC),
-            servicePermissions = loadServicePermissions(userId),
+            servicePermissions = servicePermissions,
         )
     }
 
-    private fun Record.toUserCredentials(): UserCredentials {
-        val userId = UserId(this[APP_USER.ID] as UUID)
-        return UserCredentials(
-            userId = userId,
+    private fun Record.toUserCredentials(servicePermissions: Set<ServicePermission>): UserCredentials =
+        UserCredentials(
+            userId = UserId(this[APP_USER.ID] as UUID),
             username = this[APP_USER.USERNAME] as String,
             email = this[APP_USER.EMAIL] as String,
             firstName = this[APP_USER.FIRST_NAME] as String,
@@ -208,7 +223,6 @@ class JooqUserRepository(
             totpEnabled = this[APP_USER.TOTP_ENABLED] as Boolean,
             emailConfirmed = this[APP_USER.EMAIL_CONFIRMED] as Boolean,
             role = Role.valueOf(this[APP_USER.ROLE] as String),
-            servicePermissions = loadServicePermissions(userId),
+            servicePermissions = servicePermissions,
         )
-    }
 }
