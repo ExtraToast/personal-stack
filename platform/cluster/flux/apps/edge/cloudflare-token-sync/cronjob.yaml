@@ -1,10 +1,10 @@
-# Reads the Cloudflare API token from Vault (secret/data/platform/edge/cloudflare,
-# field api_token) every hour and upserts the Kubernetes Secret
-# cloudflare-dns-api-token that cert-manager's ClusterIssuer expects
-# (see cluster-issuer-cloudflare.yaml).
+# Reads the Cloudflare API token from Vault (secret/data/platform/edge,
+# field cloudflare.dns_api_token) every hour and upserts the Kubernetes
+# Secret cloudflare-dns-api-token that cert-manager's ClusterIssuer
+# expects (see cluster-issuer-cloudflare.yaml).
 #
 # Rotation flow:
-#   1) vault kv patch secret/platform/edge/cloudflare api_token=<new>
+#   1) vault kv patch secret/platform/edge cloudflare.dns_api_token=<new>
 #   2) Wait up to 1h for the next run, or force it:
 #        kubectl -n edge-system create job --from=cronjob/cloudflare-token-sync cloudflare-token-sync-rotate
 #   3) cert-manager picks up the Secret change on its next challenge.
@@ -31,9 +31,9 @@ spec:
             vault.hashicorp.com/agent-inject: 'true'
             vault.hashicorp.com/agent-pre-populate-only: 'true'
             vault.hashicorp.com/role: cloudflare-token-sync
-            vault.hashicorp.com/agent-inject-secret-api-token: secret/data/platform/edge/cloudflare
+            vault.hashicorp.com/agent-inject-secret-api-token: secret/data/platform/edge
             vault.hashicorp.com/agent-inject-template-api-token: |
-              {{ with secret "secret/data/platform/edge/cloudflare" }}{{ index .Data.data "api_token" }}{{ end }}
+              {{ with secret "secret/data/platform/edge" }}{{ index .Data.data "cloudflare.dns_api_token" }}{{ end }}
         spec:
           serviceAccountName: cloudflare-token-sync
           restartPolicy: OnFailure

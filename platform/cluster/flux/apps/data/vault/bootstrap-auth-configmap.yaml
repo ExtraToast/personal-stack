@@ -128,11 +128,12 @@ data:
     EOF
 
     # Cloudflare DNS-01 API token (cert-manager). The token lives at
-    # secret/data/platform/edge/cloudflare (field api_token). A hourly
-    # CronJob in edge-system reads it with this policy and upserts the
-    # K8s Secret cloudflare-dns-api-token that the ClusterIssuer references.
+    # secret/data/platform/edge (field cloudflare.dns_api_token), which
+    # is the same KV secret stalwart already reads. A hourly CronJob in
+    # edge-system reads it with this policy and upserts the K8s Secret
+    # cloudflare-dns-api-token that the ClusterIssuer references.
     cat <<'EOF' >/tmp/cloudflare-token-sync.hcl
-    path "secret/data/platform/edge/cloudflare" {
+    path "secret/data/platform/edge" {
       capabilities = ["read"]
     }
     EOF
