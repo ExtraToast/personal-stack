@@ -75,9 +75,11 @@ spec:
           readinessProbe:
             tcpSocket:
               port: db
+            timeoutSeconds: 5
           livenessProbe:
             tcpSocket:
               port: db
+            timeoutSeconds: 5
           volumeMounts:
             - name: postgres-data
               mountPath: /var/lib/postgresql/data

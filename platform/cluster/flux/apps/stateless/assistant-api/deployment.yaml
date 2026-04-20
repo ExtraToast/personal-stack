@@ -129,10 +129,12 @@ spec:
             httpGet:
               path: /api/actuator/health/readiness
               port: http
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /api/actuator/health/liveness
               port: http
+            timeoutSeconds: 5
           resources:
             # request == cpu limit; see auth-api deployment.yaml for the
             # rationale (eliminates CFS throttling during JVM class load).

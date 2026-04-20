@@ -31,10 +31,12 @@ spec:
             httpGet:
               path: /
               port: http
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /
               port: http
+            timeoutSeconds: 5
           resources:
             requests:
               cpu: 100m

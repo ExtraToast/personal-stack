@@ -51,7 +51,7 @@ spec:
       nodeSelector:
         personal-stack/capability-adguard: 'true'
       # Share the node's network namespace — see file header for the
-      # full rationale. AdGuardHome binds :53 + :3000 directly on
+      # full rationale. AdGuardHome binds :53 + :80 directly on
       # every host interface.
       hostNetwork: true
       # hostNetwork pods would otherwise inherit the cluster's
@@ -68,7 +68,7 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 3000
+              containerPort: 80
               protocol: TCP
             - name: dns-tcp
               containerPort: 53
@@ -86,12 +86,14 @@ spec:
               path: /
               port: http
             initialDelaySeconds: 5
+            timeoutSeconds: 5
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /
               port: http
             initialDelaySeconds: 30
+            timeoutSeconds: 5
             periodSeconds: 30
           resources:
             requests:

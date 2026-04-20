@@ -171,10 +171,12 @@ spec:
             httpGet:
               path: /api/actuator/health/readiness
               port: http
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /api/actuator/health/liveness
               port: http
+            timeoutSeconds: 5
           resources:
             # request == cpu limit so Linux CFS doesn't throttle JVM class
             # loading during cold start. On the previous 750m/1500m split
