@@ -90,6 +90,18 @@ function cycleTheme(): void {
             <span v-else-if="mode === 'dark'">&#9790;</span>
             <span v-else>&#128187;</span>
           </button>
+          <!-- My Apps: the /apps route has existed forever but was unreachable
+               from the nav, so only people who knew the URL could find it.
+               Visible whenever the user is signed in; the view itself already
+               renders a "no services granted" fallback if permissions is empty. -->
+          <RouterLink
+            v-if="authStore.isAuthenticated"
+            class="rounded-md px-3 py-1 font-mono text-xs text-gray-400 transition-colors hover:bg-surface-elevated hover:text-terminal-green"
+            :to="{ name: 'apps' }"
+            data-testid="nav-my-apps"
+          >
+            {{ t('nav.myApps') }}
+          </RouterLink>
           <RouterLink
             v-if="authStore.isAdmin"
             class="rounded-md px-3 py-1 font-mono text-xs text-gray-400 transition-colors hover:bg-surface-elevated hover:text-terminal-green"
