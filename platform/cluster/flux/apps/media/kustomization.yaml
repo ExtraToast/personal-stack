@@ -9,4 +9,3 @@ resources:
   - jellyseerr
   - radarr
   - sonarr
-  - wireguard-check
