@@ -3,10 +3,6 @@ kind: PersistentVolumeClaim
 metadata:
   name: observability-backups
   namespace: observability
-  annotations:
-    # All backup CronJobs are suspend:true so no pod ever claims this PVC.
-    # WaitForFirstConsumer binding keeps it Pending indefinitely — skip Flux health check.
-    kustomize.toolkit.fluxcd.io/health-check-skip: 'true'
 spec:
   accessModes:
     - ReadWriteOnce
