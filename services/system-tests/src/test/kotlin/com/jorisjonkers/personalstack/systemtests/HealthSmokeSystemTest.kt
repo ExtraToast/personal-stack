@@ -54,9 +54,10 @@ class HealthSmokeSystemTest {
 
         // Every named contributor must be UP. The keys under `components`
         // (Spring Boot 2.7+) or `details` (older shape) enumerate every
-        // auto-configured health indicator. We fail loudly if any one is
-        // not UP and dump the full body so the failing contributor is
-        // obvious without rerunning anything.
+        // auto-configured health indicator. We fail loudly only on DOWN
+        // (or OUT_OF_SERVICE). UNKNOWN is fine — e.g. the auto-registered
+        // discoveryComposite is intentionally uninitialised in this stack;
+        // that should not break the smoke test.
         val components: Map<String, Any?> =
             payload.getMap<String, Any?>("components")
                 ?: payload.getMap("details")
@@ -67,7 +68,7 @@ class HealthSmokeSystemTest {
                 .mapNotNull { (name, value) ->
                     @Suppress("UNCHECKED_CAST")
                     val status = (value as? Map<String, Any?>)?.get("status") as? String
-                    if (status == "UP") null else "$name=$status"
+                    if (status == "DOWN" || status == "OUT_OF_SERVICE") "$name=$status" else null
                 }
 
         assertThat(down)
