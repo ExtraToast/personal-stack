@@ -1,5 +1,8 @@
 FROM node:25-alpine AS build
-RUN corepack enable pnpm
+# Node 25's alpine image no longer ships corepack in the base layer
+# (the experimental tool was pulled from upstream distribution), so
+# install it explicitly before activating pnpm.
+RUN npm install -g corepack@latest && corepack enable pnpm
 WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY libs/vue-common/package.json libs/vue-common/
