@@ -34,6 +34,15 @@ enum class ServicePermission(
     BAZARR("bazarr"),
     PROWLARR("prowlarr"),
     QBITTORRENT("qbittorrent"),
+
+    // AdGuard Home DNS filter UI at adguard.jorisjonkers.dev. Previously LAN-only on
+    // the old utility host; now publicly exposed behind forward-auth so grantees can
+    // manage query logs and blocklists off-LAN.
+    ADGUARD("adguard"),
+
+    // ASUS router web UI reverse-proxied through an in-cluster nginx pod
+    // (utility-system/router-gateway). Public host is router.jorisjonkers.dev.
+    ROUTER("router"),
     ;
 
     val subdomains: Set<String> = subdomains.toSet()

@@ -122,6 +122,7 @@ class AuthorizationServerConfig(
             buildN8nClient(n8nClientSecret),
             buildRabbitMqClient(),
             buildVaultClient(vaultClientSecret),
+            buildHeadlampClient(),
         )
 
     @Bean
@@ -199,6 +200,11 @@ class AuthorizationServerConfig(
                         context.claims.claim("email", credentials.email)
                         context.claims.claim("email_verified", credentials.emailConfirmed)
                     }
+
+                    val k8sGroups = kubernetesGroups(credentials)
+                    if (k8sGroups.isNotEmpty() && "groups" in context.authorizedScopes) {
+                        context.claims.claim("groups", k8sGroups)
+                    }
                 }
             }
         }
@@ -224,6 +230,21 @@ class AuthorizationServerConfig(
             } else {
                 addAll(credentials.servicePermissions.map { "SERVICE_${it.name}" })
             }
+        }
+
+    // Kubernetes group membership for ID tokens issued to OIDC clients that
+    // talk to the k3s API server (Headlamp). The k3s control plane runs
+    // --oidc-groups-claim=groups --oidc-groups-prefix=oidc: and we bind
+    // oidc:k8s-admin to the cluster-admin ClusterRole. DASHBOARD permission
+    // therefore grants full cluster management, matching how the host-level
+    // forward-auth already gates access to dashboard.jorisjonkers.dev.
+    private fun kubernetesGroups(credentials: UserCredentials): List<String> =
+        if (credentials.role == Role.ADMIN ||
+            ServicePermission.DASHBOARD in credentials.servicePermissions
+        ) {
+            listOf("k8s-admin")
+        } else {
+            emptyList()
         }
 
     private fun downstreamClientAuthorizationFilter(): OncePerRequestFilter =
@@ -266,7 +287,7 @@ class AuthorizationServerConfig(
                 "grafana" to ServicePermission.GRAFANA,
                 "vault" to ServicePermission.VAULT,
                 "n8n" to ServicePermission.N8N,
-                "dashboard" to ServicePermission.DASHBOARD,
+                "headlamp" to ServicePermission.DASHBOARD,
                 "rabbitmq" to ServicePermission.RABBITMQ,
             )
     }

@@ -2,7 +2,10 @@
 {
   imports = [
     ../modules/roles/utility-host.nix
-    ../modules/services/adguard.nix
+    # AdGuard intentionally NOT imported here. It binds 0.0.0.0:3000
+    # and we only want a single LAN-wide DNS resolver, so the service
+    # is enabled explicitly on exactly one host (enschede-t1000-1) via
+    # its host-level default.nix.
     ../modules/services/media-storage.nix
     ../modules/services/samba.nix
   ];

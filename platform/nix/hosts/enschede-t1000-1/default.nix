@@ -4,6 +4,10 @@
     ../../profiles/worker.nix
     ../../profiles/utility.nix
     ../../profiles/gpu-nvidia.nix
+    # AdGuard enabled only here -- the capability-adguard label on
+    # gtx-960m-1 is dropped in the same PR, so there is exactly one
+    # DNS resolver in the LAN/cluster.
+    ../../modules/services/adguard.nix
     ../../modules/k3s/node-labels.nix
     ./disko.nix
   ];
@@ -28,6 +32,9 @@
     8096
     7878
     8989
+    # AdGuard Home web UI / API, reachable from the Frankfurt traefik
+    # over tailscale0 and from the LAN directly.
+    3000
   ];
   system.stateVersion = "25.05";
 }
