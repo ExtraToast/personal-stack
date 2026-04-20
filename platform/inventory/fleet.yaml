@@ -170,12 +170,11 @@ service_intent:
       - uptime-kuma
       - grafana
       - headlamp
-      # AdGuard itself is host-native (see host_native below and
-      # platform/nix/modules/services/adguard.nix), but we expose it
-      # through a k8s Service + Endpoints in utility-system so
-      # traefik sees it as any other in-cluster backend. Listing it
-      # here lets the fleet validator accept its ingress_intent
-      # entry without a special case.
+      # AdGuard Home runs as a k8s Deployment pinned to the
+      # capability-adguard node (enschede-t1000-1). State lives on a
+      # hostPath under /var/lib/AdGuardHome so it survives pod
+      # restarts and mirrors the on-disk layout the retired NixOS
+      # service used.
       - adguard
       # ASUS router UI reverse-proxied through an nginx pod on an
       # Enschede node (see platform/cluster/flux/apps/utility-system/
@@ -206,8 +205,6 @@ service_intent:
     enschede-gtx-960m-1:
       - samba
       - tailscale
-    enschede-t1000-1:
-      - adguard
 
 placement_intent:
   frankfurt_only:
@@ -329,11 +326,9 @@ access_intent:
 
 ingress_intent:
   kubernetes_backends:
-    # AdGuard is NOT a Kubernetes Deployment -- it runs host-native
-    # on enschede-t1000-1 (NixOS module). The Service + Endpoints at
-    # platform/cluster/flux/apps/utility-system/adguard-gateway/ stand
-    # in as the k8s-level backend so traefik can route to it like any
-    # other in-cluster app.
+    # AdGuard Home runs as a k8s Deployment in utility-system/adguard,
+    # pinned to the capability-adguard node (enschede-t1000-1) with
+    # state on a hostPath at /var/lib/AdGuardHome.
     adguard:
       namespace: utility-system
       service: adguard
