@@ -63,7 +63,12 @@ spec:
               set -a
               . /vault/secrets/postgres.env
               set +a
-              exec docker-entrypoint.sh postgres -c listen_addresses=*
+              # Point Postgres at our tuned postgresql.conf. Mounted
+              # read-only from the postgres-config ConfigMap, which is
+              # why we don't use the default config path under the data
+              # dir (the entrypoint would try to regenerate it).
+              exec docker-entrypoint.sh postgres \
+                -c config_file=/etc/postgresql/postgresql.conf
           ports:
             - containerPort: 5432
               name: db
@@ -79,6 +84,9 @@ spec:
             - name: postgres-init-script
               mountPath: /docker-entrypoint-initdb.d/init-databases.sh
               subPath: init-databases.sh
+            - name: postgres-config
+              mountPath: /etc/postgresql
+              readOnly: true
           resources:
             requests:
               cpu: 750m
@@ -94,6 +102,9 @@ spec:
           configMap:
             name: postgres-init-script
             defaultMode: 493
+        - name: postgres-config
+          configMap:
+            name: postgres-config
 ---
 apiVersion: v1
 kind: Service

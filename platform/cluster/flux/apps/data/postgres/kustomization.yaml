@@ -3,4 +3,5 @@ kind: Kustomization
 
 resources:
   - init-script-configmap.yaml
+  - config-configmap.yaml
   - deployment.yaml
