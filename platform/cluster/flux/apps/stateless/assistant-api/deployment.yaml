@@ -50,7 +50,16 @@ spec:
               set -a
               . /vault/secrets/assistant-api.env
               set +a
-              exec java -javaagent:/app/otel-javaagent.jar -jar /app/app.jar
+              # See auth-api deployment.yaml for the rationale behind these
+              # JVM flags (MaxRAMPercentage for cgroup-aware heap sizing,
+              # ZGC for sub-ms pauses, AlwaysPreTouch for front-loaded
+              # page faults).
+              exec java \
+                -XX:+UseZGC \
+                -XX:+AlwaysPreTouch \
+                -XX:MaxRAMPercentage=75 \
+                -javaagent:/app/otel-javaagent.jar \
+                -jar /app/app.jar
           env:
             - name: SERVER_PORT
               value: '8082'
@@ -94,6 +103,19 @@ spec:
               value: none
             - name: OTEL_TRACES_EXPORTER
               value: otlp
+            # See auth-api deployment.yaml for the rationale behind these
+            # OTel tunings (10% sampling, 5s exporter timeout + batch
+            # schedule, bounded queue).
+            - name: OTEL_TRACES_SAMPLER
+              value: parentbased_traceidratio
+            - name: OTEL_TRACES_SAMPLER_ARG
+              value: '0.1'
+            - name: OTEL_EXPORTER_OTLP_TIMEOUT
+              value: '5000'
+            - name: OTEL_BSP_SCHEDULE_DELAY
+              value: '5000'
+            - name: OTEL_BSP_MAX_QUEUE_SIZE
+              value: '2048'
           ports:
             - containerPort: 8082
               name: http
@@ -112,9 +134,11 @@ spec:
               path: /api/actuator/health/liveness
               port: http
           resources:
+            # request == cpu limit; see auth-api deployment.yaml for the
+            # rationale (eliminates CFS throttling during JVM class load).
             requests:
-              cpu: 600m
-              memory: 1536Mi
+              cpu: 1200m
+              memory: 1792Mi
             limits:
               cpu: 1200m
               memory: 2304Mi
