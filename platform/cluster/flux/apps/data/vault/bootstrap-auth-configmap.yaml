@@ -130,7 +130,7 @@ data:
     # Cloudflare DNS-01 API token — read by Vault Secrets Operator (VSO) to
     # sync cloudflare-api-token into cert-manager and external-dns namespaces.
     cat <<'EOF' >/tmp/vso.hcl
-    path "secret/data/platform/edge/cloudflare" {
+    path "secret/data/platform/edge" {
       capabilities = ["read"]
     }
     EOF
@@ -188,7 +188,7 @@ data:
 
     vault write auth/kubernetes/role/vso \
       bound_service_account_names="vault-secrets-operator" \
-      bound_service_account_namespaces="vso-system" \
+      bound_service_account_namespaces="vso-system,cert-manager,external-dns" \
       policies="vso" \
       ttl="1h"
 
