@@ -59,7 +59,7 @@ class PlatformEdgeTlsFluxTest {
             .contains("server: https://acme-v02.api.letsencrypt.org/directory")
             .contains("email: postmaster@jorisjonkers.dev")
             .contains("apiTokenSecretRef:")
-            .contains("name: cloudflare-dns-api-token")
+            .contains("name: cloudflare-api-token")
             .contains("key: api-token")
 
         assertThat(tls)
