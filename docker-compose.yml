@@ -440,7 +440,13 @@ services:
         EOF
 
   stalwart:
-    image: stalwartlabs/stalwart:latest
+    # Pinned to v0.15.5: v0.16.0 was retagged to `:latest` on Docker
+    # Hub on 2026-04-20 with a breaking change to config loading.
+    # Stalwart ignores the mounted /opt/stalwart/etc/config.toml,
+    # boots into bootstrap mode, and MainSiteServiceLaunchTest fails
+    # because the root URL serves a JSON 404 shell instead of the
+    # webui. Re-pin when we've audited the new config format.
+    image: stalwartlabs/stalwart:v0.15.5
     container_name: personal-stack-stalwart
     volumes:
       - stalwart-data:/opt/stalwart

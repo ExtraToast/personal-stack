@@ -65,16 +65,44 @@ async function confirmDelete(): Promise<void> {
   <div>
     <p v-if="error" class="mb-3 font-mono text-xs text-red-400">{{ error }}</p>
 
-    <div class="space-y-2">
+    <p
+      v-if="props.users.length === 0"
+      class="rounded-md border border-surface-border/50 bg-surface-elevated p-6 text-center font-mono text-xs text-gray-500"
+    >
+      No users match this filter.
+    </p>
+
+    <div class="space-y-3">
       <div
         v-for="user in props.users"
         :key="user.id"
-        class="rounded-lg border border-surface-border bg-surface-elevated p-4"
+        class="overflow-hidden rounded-lg border border-surface-border bg-surface-elevated transition-colors hover:border-surface-border/80"
       >
-        <div class="mb-2 flex items-center justify-between">
-          <div>
-            <span class="font-mono text-sm font-bold text-gray-200">{{ user.username }}</span>
-            <span class="ml-2 font-mono text-xs text-gray-500">{{ user.email }}</span>
+        <!-- Card header: identity + role + delete. Divided from the body so
+             the per-user editing affordances don't blur into the ambient
+             page chrome. -->
+        <div class="flex items-center justify-between border-b border-surface-border/50 bg-surface-dark/40 px-4 py-3">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="truncate font-mono text-sm font-bold text-gray-200">{{ user.username }}</span>
+              <span
+                class="rounded-sm border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider"
+                :class="
+                  user.role === 'ADMIN'
+                    ? 'border-terminal-green/40 bg-terminal-green/10 text-terminal-green'
+                    : 'border-surface-border text-gray-500'
+                "
+              >
+                {{ user.role }}
+              </span>
+              <span
+                v-if="!user.emailConfirmed"
+                class="rounded-sm border border-terminal-amber/40 bg-terminal-amber/10 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-terminal-amber"
+              >
+                unconfirmed
+              </span>
+            </div>
+            <div class="truncate font-mono text-xs text-gray-500">{{ user.email }}</div>
           </div>
           <div class="flex items-center gap-3">
             <RoleSelector
@@ -92,11 +120,18 @@ async function confirmDelete(): Promise<void> {
             </button>
           </div>
         </div>
-        <ServicePermissionsEditor
-          :model-value="user.servicePermissions"
-          :disabled="saving === user.id"
-          @update:model-value="onServicesChange(user, $event)"
-        />
+
+        <!-- Card body: the service-permissions editor. Given its own
+             padding + label so it's obviously a sub-section rather than
+             a continuation of the header controls. -->
+        <div class="px-4 py-3">
+          <div class="mb-2 font-mono text-[10px] uppercase tracking-wider text-gray-600">Service permissions</div>
+          <ServicePermissionsEditor
+            :model-value="user.servicePermissions"
+            :disabled="saving === user.id"
+            @update:model-value="onServicesChange(user, $event)"
+          />
+        </div>
       </div>
     </div>
 

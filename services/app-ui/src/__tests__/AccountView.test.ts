@@ -72,6 +72,12 @@ describe('accountView', () => {
     const wrapper = mount(AccountView)
     await flushPromises()
 
+    // The Save button is gated by a dirty-check against the loaded
+    // pristine values — type a new first name so the form diverges
+    // before the click, which is the behaviour a real user would
+    // perform anyway.
+    await wrapper.find('#firstName').setValue('Bob')
+
     const saveButton = wrapper.findAll('button').find((b) => b.text() === 'Save')
     expect(saveButton).toBeDefined()
 
