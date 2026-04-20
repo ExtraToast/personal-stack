@@ -42,15 +42,15 @@ class CacheConfig {
         val mapper = buildObjectMapper()
         val perCache =
             mapOf(
-                CACHE_USERS_BY_ID to configFor(mapper, User::class.java, Duration.ofMinutes(5)),
-                CACHE_USERS_BY_USERNAME to configFor(mapper, User::class.java, Duration.ofMinutes(5)),
-                CACHE_USERS_BY_EMAIL to configFor(mapper, User::class.java, Duration.ofMinutes(5)),
+                CACHE_USERS_BY_ID to configFor(mapper, User::class.java, USER_CACHE_TTL),
+                CACHE_USERS_BY_USERNAME to configFor(mapper, User::class.java, USER_CACHE_TTL),
+                CACHE_USERS_BY_EMAIL to configFor(mapper, User::class.java, USER_CACHE_TTL),
                 CACHE_USERS_CREDENTIALS_BY_USERNAME to
-                    configFor(mapper, UserCredentials::class.java, Duration.ofSeconds(60)),
+                    configFor(mapper, UserCredentials::class.java, CREDENTIALS_CACHE_TTL),
             )
         return RedisCacheManager
             .builder(connectionFactory)
-            .cacheDefaults(configFor(mapper, User::class.java, Duration.ofMinutes(5)))
+            .cacheDefaults(configFor(mapper, User::class.java, USER_CACHE_TTL))
             .withInitialCacheConfigurations(perCache)
             .build()
     }
@@ -92,5 +92,21 @@ class CacheConfig {
         const val CACHE_USERS_BY_USERNAME = "users.byUsername"
         const val CACHE_USERS_BY_EMAIL = "users.byEmail"
         const val CACHE_USERS_CREDENTIALS_BY_USERNAME = "users.credentialsByUsername"
+
+        // User reads are mostly idempotent for the cache's lifetime:
+        // profile data changes rarely (settings edits, role updates),
+        // and every such mutation goes through an evicting repository
+        // method. A 5-minute TTL is a safety net for mutations that
+        // somehow skip the repository (e.g. an operator patches a row
+        // via psql), not the primary consistency mechanism.
+        private val USER_CACHE_TTL: Duration = Duration.ofMinutes(5)
+
+        // Credentials (password hash, TOTP secret) change rarely in
+        // absolute terms but the cost of a stale read is higher: a
+        // rotated password that keeps authenticating for 5 minutes is
+        // a security finding. 60 s keeps the cache useful for burst
+        // traffic on the /session-login path without letting the
+        // stale window linger.
+        private val CREDENTIALS_CACHE_TTL: Duration = Duration.ofSeconds(60)
     }
 }
