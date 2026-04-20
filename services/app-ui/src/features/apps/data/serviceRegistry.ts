@@ -147,13 +147,6 @@ export const SERVICE_REGISTRY: ServiceEntry[] = [
     iconUrl: '/icons/adguard.svg',
     description: 'DNS filter',
   },
-  {
-    permission: 'ROUTER',
-    label: 'Router',
-    url: buildServiceUrl('router'),
-    iconUrl: '/icons/router.svg',
-    description: 'ASUS router UI',
-  },
 ]
 
 export function getAccessibleServices(permissions: string[]): ServiceEntry[] {

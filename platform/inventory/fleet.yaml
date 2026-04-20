@@ -176,11 +176,6 @@ service_intent:
       # restarts and mirrors the on-disk layout the retired NixOS
       # service used.
       - adguard
-      # ASUS router UI reverse-proxied through an nginx pod on an
-      # Enschede node (see platform/cluster/flux/apps/utility-system/
-      # router-gateway/). Same rationale as adguard: a real in-cluster
-      # Service backs the public hostname.
-      - router
     internal_platform:
       - postgres
       - rabbitmq
@@ -239,7 +234,6 @@ placement_intent:
     - bazarr
     - adguard
     - samba
-    - router
 
   gpu_specific:
     jellyfin:
@@ -261,7 +255,6 @@ exposure_intent:
     - vault
     - headlamp
     - adguard
-    - router
 
   public_and_lan:
     - bazarr
@@ -297,7 +290,6 @@ access_intent:
     - vault
     - headlamp
     - adguard
-    - router
   host_labels:
     app-ui: root
     auth-ui: auth
@@ -321,8 +313,6 @@ access_intent:
     samba: samba
     # Kubernetes dashboard (Headlamp) at dashboard.jorisjonkers.dev.
     headlamp: dashboard
-    # ASUS router web UI via router-relay at router.jorisjonkers.dev.
-    router: router
 
 ingress_intent:
   kubernetes_backends:
@@ -411,12 +401,4 @@ ingress_intent:
     headlamp:
       namespace: utility-system
       service: headlamp
-      port: 80
-    # ASUS router UI is NOT a k8s-native app. Router-relay (nginx pod
-    # at platform/cluster/flux/apps/utility-system/router-gateway/)
-    # reverse-proxies the on-LAN router and exposes it here as a
-    # normal k8s Service so traefik can route to it.
-    router:
-      namespace: utility-system
-      service: router
       port: 80
