@@ -4,14 +4,6 @@
     ../../profiles/worker.nix
     ../../profiles/utility.nix
     ../../profiles/gpu-nvidia.nix
-    # Re-enabled after the k8s AdGuard Deployment (PR #149) hit a
-    # bootstrap deadlock: kubelet couldn't pull the container image
-    # because AdGuard was the only LAN resolver and had already been
-    # stopped by activating the k8s-only generation. Keep the systemd
-    # service as the canonical AdGuard until the k8s migration has a
-    # pre-warmed image on the node, at which point the import can be
-    # dropped again.
-    ../../modules/services/adguard.nix
     ../../modules/k3s/node-labels.nix
     ./disko.nix
   ];
@@ -36,9 +28,20 @@
     8096
     7878
     8989
-    # AdGuard Home web UI / API, reachable from the Frankfurt traefik
-    # over tailscale0 and from the LAN directly.
+    # AdGuard Home web UI / API. The k8s pod runs with hostNetwork,
+    # so it binds :3000 directly on every host interface; this opens
+    # it to LAN + tailnet clients.
     3000
+    # AdGuard Home DNS (TCP). Previously opened implicitly by the
+    # NixOS services.adguardhome module; now that the module import
+    # is gone (migrated to the k8s pod), we open it explicitly.
+    53
+  ];
+  networking.firewall.allowedUDPPorts = [
+    # AdGuard Home DNS (UDP). Same rationale as :53 TCP above — the
+    # k8s hostNetwork pod binds :53 UDP on every host interface and
+    # needs the firewall out of the way.
+    53
   ];
   # Advertise the Enschede home LAN to the tailnet so any tailnet peer
   # can reach 192.168.0.1 (ASUS router UI) and other LAN-only hosts
