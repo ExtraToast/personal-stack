@@ -33,7 +33,6 @@ spec:
       annotations:
         vault.hashicorp.com/agent-inject: 'true'
         vault.hashicorp.com/agent-inject-token: 'true'
-        vault.hashicorp.com/agent-pre-populate-only: 'true'
         vault.hashicorp.com/role: n8n
         vault.hashicorp.com/agent-inject-secret-n8n.env: secret/data/platform/automation
         vault.hashicorp.com/agent-inject-template-n8n.env: |
