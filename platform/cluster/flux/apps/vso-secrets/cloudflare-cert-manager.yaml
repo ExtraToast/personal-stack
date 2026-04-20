@@ -1,0 +1,17 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: cloudflare-api-token
+  namespace: cert-manager
+spec:
+  type: kv-v2
+  mount: secret
+  path: platform/edge/cloudflare
+  destination:
+    name: cloudflare-api-token
+    create: true
+    transformation:
+      templates:
+        api-token:
+          text: '{{- get .Secrets "api_token" -}}'
+  refreshAfter: 1h

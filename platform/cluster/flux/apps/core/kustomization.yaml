@@ -11,3 +11,4 @@ resources:
   - nvidia-device-plugin
   - metallb
   - lan-ingress-controller
+  - vso

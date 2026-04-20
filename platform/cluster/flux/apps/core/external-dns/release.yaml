@@ -22,8 +22,8 @@ spec:
       - name: CF_API_TOKEN
         valueFrom:
           secretKeyRef:
-            name: cloudflare-api-key
-            key: apiKey
+            name: cloudflare-api-token
+            key: api-token
     extraArgs:
       - --annotation-filter=kubernetes.io/ingress.class=traefik-public
       - --domain-filter=jorisjonkers.dev
