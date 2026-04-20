@@ -11,3 +11,4 @@ resources:
   - traefik-ingressroutes.yaml
   - traefik-lan-ingressroutes.yaml
   - traefik-dashboard-ingressroute.yaml
+  - cloudflare-token-sync
