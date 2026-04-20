@@ -24,7 +24,8 @@
     "personal-stack/role-utility-host" = "true";
     "personal-stack/capability-tailscale" = "true";
     "personal-stack/capability-lan-ingress" = "true";
-    "personal-stack/capability-samba" = "true";
+    # capability-samba deliberately absent: the media drive (/srv/media)
+    # is mounted on enschede-t1000-1, not here.
     # capability-adguard deliberately absent: AdGuard runs only on
     # enschede-t1000-1.
     "personal-stack/capability-nvidia" = "true";
@@ -32,10 +33,5 @@
     "personal-stack/gpu-model-gtx960m" = "true";
     "personal-stack/gpu-class-transcode" = "true";
   };
-  networking.firewall.allowedTCPPorts = [
-    8096
-    7878
-    8989
-  ];
   system.stateVersion = "25.05";
 }
