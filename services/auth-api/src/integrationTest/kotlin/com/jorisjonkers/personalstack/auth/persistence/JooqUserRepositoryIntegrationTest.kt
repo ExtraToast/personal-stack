@@ -6,9 +6,13 @@ import com.jorisjonkers.personalstack.auth.domain.model.ServicePermission
 import com.jorisjonkers.personalstack.auth.domain.model.User
 import com.jorisjonkers.personalstack.auth.domain.model.UserId
 import com.jorisjonkers.personalstack.auth.domain.port.UserRepository
+import com.jorisjonkers.personalstack.auth.infrastructure.persistence.JooqUserRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.jooq.DSLContext
+import org.jooq.ExecuteContext
+import org.jooq.ExecuteListener
 import org.jooq.impl.DSL
+import org.jooq.impl.DefaultExecuteListenerProvider
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import java.time.Instant
@@ -128,6 +132,53 @@ class JooqUserRepositoryIntegrationTest : IntegrationTestBase() {
 
         val found = userRepository.findById(user.id)!!
         assertThat(found.servicePermissions).isEmpty()
+    }
+
+    @Test
+    fun `findById issues a single SELECT (no N+1 permission load)`() {
+        // Regression guard for the multiset refactor that folds the
+        // permission load into the outer query. If anyone later
+        // "simplifies" it back to `loadServicePermissions(userId)`
+        // inside the row mapper, this test will flip from 1 to 2
+        // SELECT statements and fail the build.
+        val user = buildUser(username = "n-plus-one-guard", email = "n-plus-one-guard@example.com")
+        userRepository.create(user, "\$2a\$10\$hash")
+        userRepository.saveServicePermissions(
+            user.id,
+            setOf(ServicePermission.VAULT, ServicePermission.GRAFANA),
+        )
+
+        val counter = SelectCountingListener()
+        val scopedRepo =
+            JooqUserRepository(
+                DSL.using(
+                    dsl.configuration().derive(*DefaultExecuteListenerProvider.providers(counter)),
+                ),
+            )
+
+        val found = scopedRepo.findById(user.id)
+
+        assertThat(found).isNotNull
+        assertThat(found!!.servicePermissions).containsExactlyInAnyOrder(
+            ServicePermission.VAULT,
+            ServicePermission.GRAFANA,
+        )
+        assertThat(counter.selectCount)
+            .describedAs(
+                "findById should issue exactly 1 SELECT; if this flips to 2 the " +
+                    "multiset refactor has been reverted. Statements: ${counter.statements}",
+            ).isEqualTo(1)
+    }
+
+    private class SelectCountingListener : ExecuteListener {
+        val statements: MutableList<String> = mutableListOf()
+
+        val selectCount: Int
+            get() = statements.count { it.trimStart().startsWith("select", ignoreCase = true) }
+
+        override fun executeStart(ctx: ExecuteContext) {
+            ctx.sql()?.let(statements::add)
+        }
     }
 
     @Test
