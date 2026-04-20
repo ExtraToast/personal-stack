@@ -36,6 +36,14 @@ spring:
     redis:
       host: ${VALKEY_HOST:localhost}
       port: ${VALKEY_PORT:6379}
+  cache:
+    type: redis
+    redis:
+      # The cache TTLs + per-cache serialization are set explicitly in
+      # CacheConfig.kt; leaving this default on avoids Spring Boot
+      # auto-configuring an in-memory ConcurrentMap fallback if the
+      # Redis connection fails open.
+      cache-null-values: false
   mail:
     host: ${MAIL_HOST:localhost}
     port: ${MAIL_PORT:587}

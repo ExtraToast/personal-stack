@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: data-system
+data:
+  # Hand-tuned postgresql.conf for the shared Postgres 17 pod that
+  # backs auth-api, assistant-api, and n8n. Upstream defaults
+  # (shared_buffers=128MB, work_mem=4MB, no slow-query logging) leave
+  # a lot on the table on a node that has plenty of RAM.
+  #
+  # Memory (sized for the pod's 1.5Gi request / 3Gi limit):
+  #   shared_buffers       ~25% of RAM we want Postgres to count on
+  #   effective_cache_size ~75% (hint; doesn't allocate, just plans)
+  #   work_mem             per-sort/hash; multiplied by active operations
+  #   maintenance_work_mem for VACUUM / CREATE INDEX
+  #
+  # I/O:
+  #   random_page_cost=1.1 tells the planner "nvme-ish" — the Contabo
+  #   Frankfurt PVC is nvme-backed, not spinning rust.
+  #   wal_compression=on trades a tiny CPU cost for smaller WAL,
+  #   less disk churn, better crash-recovery replay time.
+  #
+  # Observability:
+  #   shared_preload_libraries=pg_stat_statements — load the extension
+  #   at server start so /each/ app DB can CREATE EXTENSION it. The
+  #   CREATE EXTENSION itself is done in init-databases.sh for fresh
+  #   volumes; for the already-running cluster the operator runs it
+  #   once per DB (see PR body).
+  #   log_min_duration_statement=500 logs any query > 500ms so we
+  #   stop flying blind on slow endpoints.
+  postgresql.conf: |
+    listen_addresses = '*'
+
+    # Memory
+    shared_buffers = 512MB
+    effective_cache_size = 1536MB
+    work_mem = 32MB
+    maintenance_work_mem = 128MB
+
+    # Connections
+    max_connections = 100
+
+    # I/O / WAL
+    random_page_cost = 1.1
+    wal_compression = on
+
+    # Observability
+    shared_preload_libraries = 'pg_stat_statements'
+    pg_stat_statements.track = all
+    log_min_duration_statement = 500
+    log_lock_waits = on
+    log_checkpoints = on
+    log_line_prefix = '%m [%p] %q%u@%d '
