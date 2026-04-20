@@ -1,17 +1,24 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-secrets-operator
+  namespace: external-dns
+---
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata:
   name: cloudflare-api-token
   namespace: external-dns
 spec:
+  vaultAuthRef: vso-system/default
   type: kv-v2
   mount: secret
-  path: platform/edge/cloudflare
+  path: platform/edge
   destination:
     name: cloudflare-api-token
     create: true
     transformation:
       templates:
         api-token:
-          text: '{{- get .Secrets "api_token" -}}'
+          text: '{{- get .Secrets "cloudflare.dns_api_token" -}}'
   refreshAfter: 1h
