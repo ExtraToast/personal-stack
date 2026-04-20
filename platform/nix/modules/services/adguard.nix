@@ -22,14 +22,28 @@
   # so the UI always listens on all interfaces at :3000, matching the
   # Service port, while leaving the rest of AdGuardHome.yaml untouched.
   #
+  # IMPORTANT: we do NOT use `sed -i` here. `sed -i` creates a temp
+  # file via mkstemp() (mode 0600, root-owned since preStart runs as
+  # root) and renames it over the original — that replaces the inode
+  # and destroys the DynamicUser ownership + mode of the original
+  # file. AdGuardHome then runs as the dynamic UID and fails with
+  # "open ...AdGuardHome.yaml: permission denied", crashlooping
+  # forever. Using `sed > tmp && cat tmp > original` keeps the
+  # original inode (cat truncates and writes in place) so the file's
+  # uid/gid/mode stay intact.
+  #
   # The sed range is anchored on the `http:` block header and stops at
   # the next top-level YAML key, so no unrelated `address:` keys (DNS,
   # clients, etc.) are rewritten.
   systemd.services.adguardhome.preStart = lib.mkAfter ''
-    if [ -e /var/lib/AdGuardHome/AdGuardHome.yaml ]; then
-      ${pkgs.gnused}/bin/sed -i -E \
+    config=/var/lib/AdGuardHome/AdGuardHome.yaml
+    if [ -e "$config" ]; then
+      tmp=$(${pkgs.coreutils}/bin/mktemp)
+      ${pkgs.gnused}/bin/sed -E \
         '/^http:/,/^[[:alnum:]_-]+:/{s|^(\s+address:).*|\1 0.0.0.0:3000|}' \
-        /var/lib/AdGuardHome/AdGuardHome.yaml
+        "$config" > "$tmp"
+      ${pkgs.coreutils}/bin/cat "$tmp" > "$config"
+      ${pkgs.coreutils}/bin/rm -f "$tmp"
     fi
   '';
 }
