@@ -36,5 +36,12 @@
     # over tailscale0 and from the LAN directly.
     3000
   ];
+  # Advertise the Enschede home LAN to the tailnet so any tailnet peer
+  # can reach 192.168.0.1 (ASUS router UI) and other LAN-only hosts
+  # natively, without us reverse-proxying their UIs. Only t1000 runs
+  # this; the other Enschede nodes are on the same LAN so one
+  # advertiser is enough. Requires a one-time route approval in the
+  # Tailscale admin console after the NixOS redeploy.
+  services.tailscale.extraUpFlags = [ "--advertise-routes=192.168.0.0/24" ];
   system.stateVersion = "25.05";
 }
