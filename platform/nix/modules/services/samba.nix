@@ -31,12 +31,6 @@
       "read only" = "yes";
       "guest ok" = "yes";
     };
-    shares.anime = {
-      path = "/srv/media/Anime";
-      browseable = "yes";
-      "read only" = "yes";
-      "guest ok" = "yes";
-    };
     shares.media = {
       path = "/srv/media";
       browseable = "yes";
@@ -44,7 +38,7 @@
       "guest ok" = "no";
       "valid users" = "deploy";
       "force user" = "deploy";
-      "force group" = "deploy";
+      "force group" = "users";
       "create mask" = "0664";
       "directory mask" = "0775";
     };
@@ -55,7 +49,7 @@
       "guest ok" = "no";
       "valid users" = "deploy";
       "force user" = "deploy";
-      "force group" = "deploy";
+      "force group" = "users";
       "vfs objects" = "fruit streams_xattr";
       "fruit:time machine" = "yes";
       "fruit:time machine max size" = "300G";

@@ -73,7 +73,13 @@ management:
         include: health,info,prometheus,metrics
   endpoint:
     health:
-      show-details: when-authorized
+      # Full per-contributor breakdown so a composite 503 is diagnosable
+      # with one curl: /api/actuator/health shows {"status":"DOWN",
+      # "details":{"db":{"status":"DOWN","error":"..."},"mail":{"status":"UP"},...}}.
+      # The actuator path is already behind forward-auth in production
+      # and the details fields expose descriptor data (db product name,
+      # mail host) only — never credentials.
+      show-details: always
       group:
         liveness:
           include: ping

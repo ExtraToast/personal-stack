@@ -47,6 +47,12 @@ abstract class IntegrationTestBase {
             registry.add("spring.data.redis.port") { valkey.getMappedPort(6379).toString() }
             registry.add("spring.rabbitmq.host") { rabbitmq.host }
             registry.add("spring.rabbitmq.port") { rabbitmq.amqpPort.toString() }
+            // No SMTP container in integration tests — the MailHealthIndicator
+            // would otherwise flip the composite /actuator/health to DOWN and
+            // break HealthIntegrationTest. The mail send paths are covered by
+            // dedicated mail tests with mocks; this just silences the health
+            // contributor.
+            registry.add("management.health.mail.enabled") { "false" }
             // MockMvc uses http://localhost by default; issuer must match for OAuth2 endpoints
             registry.add("auth.issuer") { "http://localhost" }
             registry.add("auth.cors.allowed-origins") {
