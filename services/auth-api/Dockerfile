@@ -18,12 +18,12 @@ COPY libs/kotlin-common/src/main/ libs/kotlin-common/src/main/
 COPY services/auth-api/src/main/ services/auth-api/src/main/
 RUN gradle :services:auth-api:bootJar --no-daemon
 
-FROM eclipse-temurin:21-jre-alpine AS otel
+FROM eclipse-temurin:25-jre-alpine AS otel
 RUN apk add --no-cache curl && \
     curl -fsSL -o /otel-javaagent.jar \
-    "https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.11.0/opentelemetry-javaagent.jar"
+    "https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.26.1/opentelemetry-javaagent.jar"
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
 COPY --from=build /app/services/auth-api/build/libs/*.jar app.jar
 COPY --from=otel /otel-javaagent.jar otel-javaagent.jar
