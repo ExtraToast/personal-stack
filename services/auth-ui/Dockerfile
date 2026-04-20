@@ -1,8 +1,9 @@
 FROM node:25-alpine AS build
-# Node 25's alpine image no longer ships corepack in the base layer
-# (the experimental tool was pulled from upstream distribution), so
-# install it explicitly before activating pnpm.
-RUN npm install -g corepack@latest && corepack enable pnpm
+# Node 25's alpine image dropped corepack from the base layer but still
+# ships /usr/local/bin/yarn, which makes `npm install -g corepack` fail
+# with EEXIST. Install pnpm directly at the packageManager version in
+# package.json instead of going through corepack's shim dance.
+RUN npm install -g pnpm@9.15.4
 WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY libs/vue-common/package.json libs/vue-common/
