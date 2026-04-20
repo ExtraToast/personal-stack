@@ -5,6 +5,8 @@
     ../../profiles/utility.nix
     ../../profiles/gpu-nvidia.nix
     ../../modules/k3s/node-labels.nix
+    ../../modules/services/media-storage.nix
+    ../../modules/services/samba.nix
     ./disko.nix
   ];
 
