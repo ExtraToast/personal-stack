@@ -21,7 +21,7 @@ spec:
         personal-stack/capability-samba: 'true'
       containers:
         - name: sonarr
-          image: linuxserver/sonarr:4.0.14
+          image: linuxserver/sonarr:latest
           imagePullPolicy: IfNotPresent
           env:
             - name: TZ
