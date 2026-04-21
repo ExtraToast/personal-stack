@@ -24,6 +24,19 @@ spec:
         port: 3000
       timeoutSeconds: 5
       failureThreshold: 10
+    # The chart's init-chown-data container drops every capability
+    # except CHOWN, then does `chown -R 472:472 /var/lib/grafana`.
+    # Grafana 12's runtime creates pdf/png/csv subdirs at mode
+    # 0700 (drwx--S---); recursive chown has to readdir into them
+    # and that requires DAC_READ_SEARCH (or DAC_OVERRIDE), neither
+    # of which the container holds. The container crashlooped with
+    # `chown: /var/lib/grafana/pdf: Permission denied` on every
+    # rollout, blocking the Helm upgrade indefinitely.
+    # fsGroup=472 in the pod security context already handles the
+    # ownership side of the equation, so the init container is pure
+    # redundancy we happen to misconfigure.
+    initChownData:
+      enabled: false
     fullnameOverride: grafana
     persistence:
       enabled: true
