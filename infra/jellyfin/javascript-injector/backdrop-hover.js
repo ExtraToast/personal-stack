@@ -64,23 +64,31 @@
     bg.style.opacity = '0'
   }
 
-  document.addEventListener('mouseover', function (e) {
-    const card = e.target.closest('.card')
-    if (!card) return
-    clearTimeout(hoverTimer)
-    hoverTimer = setTimeout(function () {
-      showFor(card)
-    }, HOVER_DELAY)
-  }, true)
+  document.addEventListener(
+    'mouseover',
+    function (e) {
+      const card = e.target.closest('.card')
+      if (!card) return
+      clearTimeout(hoverTimer)
+      hoverTimer = setTimeout(function () {
+        showFor(card)
+      }, HOVER_DELAY)
+    },
+    true,
+  )
 
-  document.addEventListener('mouseout', function (e) {
-    const card = e.target.closest('.card')
-    if (!card) return
-    // Ignore moves to descendants of the same card.
-    if (card.contains(e.relatedTarget)) return
-    clearTimeout(hoverTimer)
-    hide()
-  }, true)
+  document.addEventListener(
+    'mouseout',
+    function (e) {
+      const card = e.target.closest('.card')
+      if (!card) return
+      // Ignore moves to descendants of the same card.
+      if (card.contains(e.relatedTarget)) return
+      clearTimeout(hoverTimer)
+      hide()
+    },
+    true,
+  )
 
   document.addEventListener('focusin', function (e) {
     const card = e.target.closest('.card')
