@@ -14,9 +14,12 @@ spec:
         namespace: observability
   values:
     alloy:
+      # Only bump readiness timeout. The Alloy chart ships no default
+      # livenessProbe, so overriding just `timeoutSeconds` renders a
+      # probe with no handler and k8s rejects the DaemonSet:
+      # `livenessProbe: Required value: must specify a handler type`.
+      # If we ever add a liveness probe, it needs the full httpGet block.
       readinessProbe:
-        timeoutSeconds: 5
-      livenessProbe:
         timeoutSeconds: 5
     fullnameOverride: alloy
     controller:

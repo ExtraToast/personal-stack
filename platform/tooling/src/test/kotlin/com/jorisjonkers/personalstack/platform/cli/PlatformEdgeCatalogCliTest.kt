@@ -31,7 +31,7 @@ class PlatformEdgeCatalogCliTest {
             .contains("name: \"app-ui\"")
             .contains("host: \"jorisjonkers.dev\"")
         assertThat(stdout.toString(StandardCharsets.UTF_8))
-            .contains("name: \"uptime-kuma\"")
+            .contains("name: \"gatus\"")
             .contains("host: \"status.jorisjonkers.dev\"")
         assertThat(stdout.toString(StandardCharsets.UTF_8))
             .contains("name: \"rabbitmq\"")

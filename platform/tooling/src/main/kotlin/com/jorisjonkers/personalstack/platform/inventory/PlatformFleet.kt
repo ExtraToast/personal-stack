@@ -139,4 +139,15 @@ data class KubernetesIngressBackend(
     @param:JsonProperty("service")
     val serviceName: String,
     val port: Int,
+    val health: HealthEndpoint? = null,
+)
+
+data class HealthEndpoint(
+    val type: String = "http",
+    val path: String = "/",
+    val port: Int? = null,
+    @param:JsonProperty("expected_status")
+    val expectedStatus: Int? = null,
+    @param:JsonProperty("probe_strategy")
+    val probeStrategy: String? = null,
 )

@@ -19,7 +19,6 @@ class PlatformStatelessAppsFluxTest {
             .contains("- auth-ui")
             .contains("- assistant-ui")
             .contains("- flaresolverr")
-            .contains("- uptime-kuma")
             .contains("- n8n")
     }
 
@@ -86,22 +85,4 @@ class PlatformStatelessAppsFluxTest {
             .contains("port: 8191")
     }
 
-    @Test
-    fun `uptime kuma is persisted in observability namespace for status ingress`() {
-        val manifest = repositoryRoot.resolve("platform/cluster/flux/apps/stateless/uptime-kuma/deployment.yaml").toFile().readText()
-
-        assertThat(manifest)
-            .contains("kind: PersistentVolumeClaim")
-            .contains("name: uptime-kuma-data")
-            .contains("kind: Deployment")
-            .contains("name: uptime-kuma")
-            .contains("namespace: observability")
-            .contains("louislam/uptime-kuma:2")
-            .contains("claimName: uptime-kuma-data")
-            .contains("containerPort: 3001")
-            .contains("kind: Service")
-            .contains("name: uptime-kuma")
-            .contains("port: 3001")
-            .contains("personal-stack/site: frankfurt")
-    }
 }

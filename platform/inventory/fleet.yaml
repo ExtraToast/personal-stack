@@ -5,9 +5,6 @@ cluster:
   public_domain: jorisjonkers.dev
   kubernetes:
     bootstrap_control_plane: frankfurt-contabo-1
-    # Bootstrap with the public endpoint first, then switch this to the
-    # Frankfurt control-plane Tailscale or MagicDNS address once the tailnet is
-    # the primary inter-node network.
     api_server_endpoint: https://167.86.79.203:6443
     control_plane_token_file: /var/lib/rancher/k3s/server/node-token
     worker_join_token_file: /var/lib/personal-stack/secrets/k3s/agent-token
@@ -52,10 +49,6 @@ nodes:
       host: 100.89.41.92
       user: deploy
       port: 2222
-    bootstrap_ssh:
-      host: 192.168.0.101
-      user: extratoast
-      port: 22
     target_roles:
       - k3s-worker
       - utility-host
@@ -75,18 +68,10 @@ nodes:
     status: active
     site: enschede
     arch: amd64
-    # `ssh` is the intended post-install NixOS endpoint.
-    # Add `bootstrap_ssh` with the current OS access path before first install.
-    # Pinned to the tailnet IP so deploy works regardless of whether the
-    # caller is on the Enschede LAN.
     ssh:
       host: 100.103.175.110
       user: deploy
       port: 2222
-    bootstrap_ssh:
-      host: 192.168.0.100
-      user: extratoat
-      port: 22
     target_roles:
       - k3s-worker
       - utility-host
@@ -108,10 +93,6 @@ nodes:
     status: active
     site: enschede
     arch: arm64
-    # Pi nodes come up via the SD-image flow (platform/scripts/build/build-pi-image.sh).
-    # No bootstrap_ssh is needed; once flashed and booted the node already answers on ssh below.
-    # Pinned to the tailnet IP so bring-up and deploy work both on the
-    # Enschede LAN and from anywhere the fleet tailnet is reachable.
     ssh:
       host: 100.65.192.22
       user: deploy
@@ -166,7 +147,7 @@ service_intent:
       - assistant-api
       - stalwart
       - n8n
-      - uptime-kuma
+      - gatus
       - grafana
       - headlamp
       # AdGuard Home runs as a k8s Deployment pinned to the
@@ -220,7 +201,7 @@ placement_intent:
     - alloy
     - flaresolverr
     - n8n
-    - uptime-kuma
+    - gatus
     - vault
     - headlamp
 
@@ -251,7 +232,7 @@ exposure_intent:
     - stalwart
     - grafana
     - n8n
-    - uptime-kuma
+    - gatus
     - rabbitmq
     - vault
     - headlamp
@@ -300,7 +281,7 @@ access_intent:
     stalwart: stalwart
     grafana: grafana
     n8n: n8n
-    uptime-kuma: status
+    gatus: status
     rabbitmq: rabbitmq
     vault: vault
     bazarr: bazarr
@@ -332,6 +313,8 @@ ingress_intent:
       namespace: auth-system
       service: auth-api
       port: 8081
+      health:
+        path: /api/actuator/health
     auth-ui:
       namespace: auth-system
       service: auth-ui
@@ -340,6 +323,8 @@ ingress_intent:
       namespace: assistant-system
       service: assistant-api
       port: 8082
+      health:
+        path: /api/actuator/health
     assistant-ui:
       namespace: assistant-system
       service: assistant-ui
@@ -348,6 +333,12 @@ ingress_intent:
       namespace: mail-system
       service: stalwart
       port: 8080
+    gatus:
+      namespace: observability
+      service: gatus
+      port: 80
+      health:
+        path: /health
     grafana:
       namespace: observability
       service: grafana
@@ -355,6 +346,8 @@ ingress_intent:
       # (container 3000). IngressRoute must reference the Service port,
       # not the container port, or traefik 404s.
       port: 80
+      health:
+        path: /api/health
     bazarr:
       namespace: media-system
       service: bazarr
@@ -383,6 +376,11 @@ ingress_intent:
       namespace: data-system
       service: rabbitmq
       port: 15672
+      # Probe AMQP instead of the management UI (which returns a login
+      # redirect, not 200, from the root path).
+      health:
+        type: tcp
+        port: 5672
     radarr:
       namespace: media-system
       service: radarr
@@ -391,14 +389,14 @@ ingress_intent:
       namespace: media-system
       service: sonarr
       port: 8989
-    uptime-kuma:
-      namespace: observability
-      service: uptime-kuma
-      port: 3001
     vault:
       namespace: data-system
       service: vault
       port: 8200
+      # /v1/sys/health returns 200 when active; standbyok=true also
+      # accepts standby nodes as healthy.
+      health:
+        path: /v1/sys/health?standbyok=true
     headlamp:
       namespace: utility-system
       service: headlamp

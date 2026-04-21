@@ -1,0 +1,148 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gatus-endpoints
+  namespace: observability
+data:
+  endpoints.yaml: |
+    ---
+    endpoints:
+    - name: "adguard"
+      group: "public-apps"
+      url: "http://adguard.utility-system.svc.cluster.local:3000/"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
+    - name: "app-ui"
+      group: "public-apps"
+      url: "https://jorisjonkers.dev/"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
+    - name: "assistant-api"
+      group: "public-apps"
+      url: "http://assistant-api.assistant-system.svc.cluster.local:8082/api/actuator/health"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
+    - name: "assistant-ui"
+      group: "public-apps"
+      url: "https://assistant.jorisjonkers.dev/"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
+    - name: "auth-api"
+      group: "public-apps"
+      url: "https://auth.jorisjonkers.dev/api/actuator/health"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
+    - name: "auth-ui"
+      group: "public-apps"
+      url: "https://auth.jorisjonkers.dev/"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
+    - name: "bazarr"
+      group: "home-media"
+      url: "http://bazarr.media-system.svc.cluster.local:6767/"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
+    - name: "gatus"
+      group: "public-apps"
+      url: "https://status.jorisjonkers.dev/health"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
+    - name: "grafana"
+      group: "public-apps"
+      url: "https://grafana.jorisjonkers.dev/api/health"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
+    - name: "headlamp"
+      group: "public-apps"
+      url: "http://headlamp.utility-system.svc.cluster.local:80/"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
+    - name: "jellyfin"
+      group: "home-media"
+      url: "https://jellyfin.jorisjonkers.dev/"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
+    - name: "jellyseerr"
+      group: "home-media"
+      url: "https://jellyseerr.jorisjonkers.dev/"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
+    - name: "n8n"
+      group: "public-apps"
+      url: "https://n8n.jorisjonkers.dev/"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
+    - name: "prowlarr"
+      group: "home-media"
+      url: "http://prowlarr.media-system.svc.cluster.local:9696/"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
+    - name: "qbittorrent"
+      group: "home-media"
+      url: "http://qbittorrent.media-system.svc.cluster.local:8080/"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
+    - name: "rabbitmq"
+      group: "internal-platform"
+      url: "tcp://rabbitmq.data-system.svc.cluster.local:5672"
+      interval: "60s"
+      conditions:
+      - "[CONNECTED] == true"
+    - name: "radarr"
+      group: "home-media"
+      url: "http://radarr.media-system.svc.cluster.local:7878/"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
+    - name: "sonarr"
+      group: "home-media"
+      url: "http://sonarr.media-system.svc.cluster.local:8989/"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
+    - name: "stalwart"
+      group: "public-apps"
+      url: "http://stalwart.mail-system.svc.cluster.local:8080/"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
+    - name: "vault"
+      group: "internal-platform"
+      url: "http://vault.data-system.svc.cluster.local:8200/v1/sys/health?standbyok=true"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"

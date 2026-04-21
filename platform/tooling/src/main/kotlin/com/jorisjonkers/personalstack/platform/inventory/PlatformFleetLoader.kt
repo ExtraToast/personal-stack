@@ -110,6 +110,37 @@ class PlatformFleetLoader(
             require(backend.port > 0) {
                 "ingress backend port for service $serviceName must be positive"
             }
+            backend.health?.let { health ->
+                require(health.type in setOf("http", "tcp")) {
+                    "health type for service $serviceName must be http or tcp"
+                }
+                if (health.type == "tcp") {
+                    require(health.path == "/") {
+                        "tcp health for service $serviceName must not set a path"
+                    }
+                    require(health.expectedStatus == null) {
+                        "tcp health for service $serviceName must not set expected_status"
+                    }
+                }
+                require(health.path.startsWith("/")) {
+                    "health path for service $serviceName must start with /"
+                }
+                health.port?.let { port ->
+                    require(port > 0) {
+                        "health port for service $serviceName must be positive"
+                    }
+                }
+                health.probeStrategy?.let { strategy ->
+                    require(strategy in setOf("internal", "external", "both")) {
+                        "health probe_strategy for service $serviceName must be internal, external, or both"
+                    }
+                    if (strategy in setOf("external", "both")) {
+                        require(serviceName in fleet.accessIntent.hostLabels) {
+                            "health probe_strategy $strategy for service $serviceName requires a host label"
+                        }
+                    }
+                }
+            }
         }
 
         externallyExposedKubernetesServices.forEach { serviceName ->
