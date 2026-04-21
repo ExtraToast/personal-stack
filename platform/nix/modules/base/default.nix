@@ -18,35 +18,39 @@ in
   networking.firewall.enable = true;
   networking.firewall.allowedTCPPorts = [ 2222 ];
 
-  # Fleet-wide resolver. Pins all nodes to Cloudflare + Quad9 so CoreDNS
-  # (which forwards to /etc/resolv.conf on whichever host it runs on) gets
-  # a fast, consistent upstream regardless of the node's DHCP lease.
-  # `nohook resolv.conf` stops dhcpcd from re-appending the ISP-supplied
-  # resolver on lease renewal; without it the list grows silently and
-  # glibc falls back to slow upstreams under load. `rotate` spreads query
-  # load across the list; `timeout:1 attempts:2` caps worst-case DNS wait
-  # at ~2s to keep bursty HTTP clients (Jellyfin HomeScreenSections) from
-  # exhausting their HttpClient pool on a single slow resolver.
+  # Write /etc/resolv.conf statically from NixOS and disable openresolv
+  # entirely. The earlier `networking.nameservers` + `nohook resolv.conf`
+  # approach leaked: the dhcpcd hook that feeds resolv.conf through
+  # openresolv is `50-resolvconf`, not `resolv.conf`, so nohook disabled
+  # the wrong entry and ISP-supplied resolvers kept getting merged in
+  # on top of the three we set. kubelet then parses the >3-entry file
+  # and fires DNSConfigForming ("applied nameserver line is: 1.1.1.1
+  # 1.0.0.1 9.9.9.9") across every pod that inherits host resolv.conf
+  # via `dnsPolicy: Default` or `hostNetwork: true`.
   #
-  # Capped at three entries because glibc's MAXNS is 3 — Kubernetes emits
-  # a DNSConfigForming warning and silently drops the extras on every pod
-  # that inherits resolv.conf via dnsPolicy Default / hostNetwork. Two
-  # Cloudflare IPs plus Quad9 covers the primary+secondary Cloudflare
-  # pair *and* keeps one non-Cloudflare operator for the rare case of a
-  # Cloudflare-wide outage. Dual-stack v6 resolvers are skipped: pods
-  # can still resolve AAAA records over v4 transport, so there's no loss.
+  # With resolvconf disabled and the file written straight from the
+  # Nix store, dhcpcd / systemd-networkd / anything else can't mutate
+  # /etc/resolv.conf out from under us. Three upstreams: Cloudflare
+  # primary + secondary for speed, Quad9 for operator diversity against
+  # a Cloudflare-wide outage. IPv6 resolvers are deliberately omitted —
+  # AAAA records still resolve over v4 transport and trimming to three
+  # leaves no room for glibc's MAXNS=3 truncation to fire.
   #
-  # Deliberately NOT pointing at AdGuard (127.0.0.1 or 192.168.0.100) —
-  # AdGuard is itself a k8s pod on t1000, and hosts resolving through it
-  # creates an undeployable bootstrap loop during NixOS activations.
-  # AdGuard continues to serve LAN clients via the router's DHCP hand-out.
-  networking.nameservers = [
-    "1.1.1.1"
-    "1.0.0.1"
-    "9.9.9.9"
-  ];
-  networking.dhcpcd.extraConfig = "nohook resolv.conf";
-  networking.resolvconf.extraOptions = [ "timeout:1" "attempts:2" "rotate" ];
+  # Still deliberately NOT pointing at AdGuard (127.0.0.1 or
+  # 192.168.0.100) — AdGuard is itself a k8s pod on t1000, and hosts
+  # resolving through it creates an undeployable bootstrap loop during
+  # NixOS activations. AdGuard continues to serve LAN clients via the
+  # router's DHCP hand-out.
+  networking.resolvconf.enable = false;
+  environment.etc."resolv.conf" = {
+    mode = "0644";
+    text = ''
+      nameserver 1.1.1.1
+      nameserver 1.0.0.1
+      nameserver 9.9.9.9
+      options timeout:1 attempts:2 rotate
+    '';
+  };
 
   services.openssh = {
     enable = true;
