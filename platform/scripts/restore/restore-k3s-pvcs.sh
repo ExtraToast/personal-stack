@@ -13,7 +13,6 @@ Restores the fixed-name PVC-backed workloads from a legacy backup run:
   - rabbitmq-data
   - valkey-data
   - n8n-data
-  - uptime-kuma-data
   - stalwart-data
 
 The target PVCs must already exist in the cluster, and the workloads should stay
@@ -50,7 +49,6 @@ done
 "${RESTORE_PVC_SCRIPT}" --namespace data-system --pvc rabbitmq-data --archive "${BACKUP_DIR}/cloud/rabbitmq.tar.gz" --strip-components 3 --wipe-target
 "${RESTORE_PVC_SCRIPT}" --namespace data-system --pvc valkey-data --archive "${BACKUP_DIR}/cloud/valkey.tar.gz" --strip-components 3 --wipe-target
 "${RESTORE_PVC_SCRIPT}" --namespace automation-system --pvc n8n-data --archive "${BACKUP_DIR}/cloud/n8n.tar.gz" --strip-components 3 --wipe-target
-"${RESTORE_PVC_SCRIPT}" --namespace observability --pvc uptime-kuma-data --archive "${BACKUP_DIR}/cloud/uptime-kuma.tar.gz" --strip-components 3 --wipe-target
 "${RESTORE_PVC_SCRIPT}" --namespace mail-system --pvc stalwart-data --archive "${BACKUP_DIR}/cloud/stalwart.tar.gz" --strip-components 3 --wipe-target
 
 echo "Fixed-name PVC restores completed from ${BACKUP_DIR}"

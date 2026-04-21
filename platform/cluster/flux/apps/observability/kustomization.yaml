@@ -9,4 +9,5 @@ resources:
   - loki
   - tempo
   - alloy
+  - gatus
   - backup-jobs.yaml

@@ -127,10 +127,19 @@ data:
     }
     EOF
 
-    # Cloudflare DNS-01 API token — read by Vault Secrets Operator (VSO) to
-    # sync cloudflare-api-token into cert-manager and external-dns namespaces.
+    # Vault Secrets Operator (VSO) reads here to mint k8s Secrets in
+    # the namespaces of the apps that need them:
+    # - platform/edge: cloudflare DNS-01 API token (cert-manager,
+    #   external-dns).
+    # - platform/observability: grafana OAuth client secret, synced
+    #   into the observability namespace so the grafana chart can
+    #   envFromSecret it into GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET.
     cat <<'EOF' >/tmp/vso.hcl
     path "secret/data/platform/edge" {
+      capabilities = ["read"]
+    }
+
+    path "secret/data/platform/observability" {
       capabilities = ["read"]
     }
     EOF
@@ -188,7 +197,7 @@ data:
 
     vault write auth/kubernetes/role/vso \
       bound_service_account_names="vault-secrets-operator" \
-      bound_service_account_namespaces="vso-system,cert-manager,external-dns" \
+      bound_service_account_namespaces="vso-system,cert-manager,external-dns,observability" \
       policies="vso" \
       ttl="1h"
 

@@ -147,7 +147,7 @@ service_intent:
       - assistant-api
       - stalwart
       - n8n
-      - uptime-kuma
+      - gatus
       - grafana
       - headlamp
       # AdGuard Home runs as a k8s Deployment pinned to the
@@ -201,7 +201,7 @@ placement_intent:
     - alloy
     - flaresolverr
     - n8n
-    - uptime-kuma
+    - gatus
     - vault
     - headlamp
 
@@ -232,7 +232,7 @@ exposure_intent:
     - stalwart
     - grafana
     - n8n
-    - uptime-kuma
+    - gatus
     - rabbitmq
     - vault
     - headlamp
@@ -281,7 +281,7 @@ access_intent:
     stalwart: stalwart
     grafana: grafana
     n8n: n8n
-    uptime-kuma: status
+    gatus: status
     rabbitmq: rabbitmq
     vault: vault
     bazarr: bazarr
@@ -313,6 +313,8 @@ ingress_intent:
       namespace: auth-system
       service: auth-api
       port: 8081
+      health:
+        path: /api/actuator/health
     auth-ui:
       namespace: auth-system
       service: auth-ui
@@ -321,6 +323,8 @@ ingress_intent:
       namespace: assistant-system
       service: assistant-api
       port: 8082
+      health:
+        path: /api/actuator/health
     assistant-ui:
       namespace: assistant-system
       service: assistant-ui
@@ -329,6 +333,12 @@ ingress_intent:
       namespace: mail-system
       service: stalwart
       port: 8080
+    gatus:
+      namespace: observability
+      service: gatus
+      port: 80
+      health:
+        path: /health
     grafana:
       namespace: observability
       service: grafana
@@ -336,6 +346,8 @@ ingress_intent:
       # (container 3000). IngressRoute must reference the Service port,
       # not the container port, or traefik 404s.
       port: 80
+      health:
+        path: /api/health
     bazarr:
       namespace: media-system
       service: bazarr
@@ -364,6 +376,11 @@ ingress_intent:
       namespace: data-system
       service: rabbitmq
       port: 15672
+      # Probe AMQP instead of the management UI (which returns a login
+      # redirect, not 200, from the root path).
+      health:
+        type: tcp
+        port: 5672
     radarr:
       namespace: media-system
       service: radarr
@@ -372,14 +389,14 @@ ingress_intent:
       namespace: media-system
       service: sonarr
       port: 8989
-    uptime-kuma:
-      namespace: observability
-      service: uptime-kuma
-      port: 3001
     vault:
       namespace: data-system
       service: vault
       port: 8200
+      # /v1/sys/health returns 200 when active; standbyok=true also
+      # accepts standby nodes as healthy.
+      health:
+        path: /v1/sys/health?standbyok=true
     headlamp:
       namespace: utility-system
       service: headlamp

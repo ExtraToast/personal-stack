@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.jorisjonkers.personalstack.platform.RepositoryRootLocator
+import com.jorisjonkers.personalstack.platform.inventory.HealthEndpoint
 import com.jorisjonkers.personalstack.platform.inventory.KubernetesIngressBackend
 import com.jorisjonkers.personalstack.platform.inventory.NodeInfo
 import com.jorisjonkers.personalstack.platform.inventory.PlatformFleet
@@ -29,7 +30,7 @@ class PlatformInventoryCli(
     fun run(vararg args: String): Int {
         if (args.isEmpty()) {
             return fail(
-                "Usage: show-host-env <node-name> | show-install-host-env <node-name> | render-edge-catalog | render-edge-route-catalog | render-edge-configmap | render-edge-route-configmap | render-traefik-ingressroutes | render-traefik-lan-ingressroutes",
+                "Usage: show-host-env <node-name> | show-install-host-env <node-name> | render-edge-catalog | render-edge-route-catalog | render-edge-configmap | render-edge-route-configmap | render-traefik-ingressroutes | render-traefik-lan-ingressroutes | render-gatus-configmap",
             )
         }
 
@@ -42,6 +43,7 @@ class PlatformInventoryCli(
             "render-edge-route-configmap" -> renderEdgeRouteConfigMap(args.drop(1))
             "render-traefik-ingressroutes" -> renderTraefikIngressRoutes(args.drop(1))
             "render-traefik-lan-ingressroutes" -> renderTraefikLanIngressRoutes(args.drop(1))
+            "render-gatus-configmap" -> renderGatusConfigMap(args.drop(1))
             else -> fail("Unknown command: ${args.first()}")
         }
     }
@@ -173,6 +175,17 @@ class PlatformInventoryCli(
         val fleet = fleetLoader.load(repositoryRoot.resolve("platform/inventory/fleet.yaml"))
         stdout.append(fleet.toTraefikLanIngressRoutesYaml())
         stdout.appendLine()
+        stdout.flush()
+        return 0
+    }
+
+    private fun renderGatusConfigMap(args: List<String>): Int {
+        if (args.isNotEmpty()) {
+            return fail("Usage: render-gatus-configmap")
+        }
+
+        val fleet = fleetLoader.load(repositoryRoot.resolve("platform/inventory/fleet.yaml"))
+        stdout.append(fleet.toGatusConfigMapYaml(yamlMapper))
         stdout.flush()
         return 0
     }
@@ -415,6 +428,7 @@ private fun String.toFqdn(domain: String): String =
 private fun String.toConfigMapYaml(
     configMapName: String,
     dataKey: String,
+    namespace: String = "edge-system",
 ): String =
     let { sourceYaml ->
         buildString {
@@ -422,7 +436,7 @@ private fun String.toConfigMapYaml(
             appendLine("kind: ConfigMap")
             appendLine("metadata:")
             appendLine("  name: ${configMapName}")
-            appendLine("  namespace: edge-system")
+            appendLine("  namespace: $namespace")
             appendLine("data:")
             appendLine("  ${dataKey}: |")
             sourceYaml.lineSequence().forEach { line ->
@@ -518,6 +532,142 @@ private data class EdgeRouteCatalogEntry(
     val excludedPathPrefixes: List<String>? = null,
     @param:com.fasterxml.jackson.annotation.JsonProperty("excluded_paths")
     val excludedPaths: List<String>? = null,
+)
+
+private fun PlatformFleet.toGatusConfigMapYaml(yamlMapper: ObjectMapper): String {
+    val endpointsYaml = yamlMapper.writeValueAsString(toGatusEndpointsDocument()).trimEnd()
+    return endpointsYaml.toConfigMapYaml(
+        configMapName = "gatus-endpoints",
+        dataKey = "endpoints.yaml",
+        namespace = "observability",
+    )
+}
+
+private fun PlatformFleet.toGatusEndpointsDocument(): GatusEndpointsDocument {
+    val groupByService =
+        buildMap {
+            serviceIntent.kubernetes.publicApps.forEach { put(it, "public-apps") }
+            serviceIntent.kubernetes.internalPlatform.forEach { put(it, "internal-platform") }
+            serviceIntent.kubernetes.homeMedia.forEach { put(it, "home-media") }
+        }
+    val exposures = buildExposureMap()
+
+    val endpoints =
+        ingressIntent.kubernetesBackends.entries
+            .sortedBy { it.key }
+            .flatMap { (serviceName, backend) ->
+                val group = groupByService[serviceName] ?: "unspecified"
+                val exposure = exposures[serviceName]
+                val isSsoProtected = serviceName in accessIntent.ssoProtected
+                val strategy = resolveProbeStrategy(backend, exposure, isSsoProtected)
+                val host = accessIntent.hostLabels[serviceName]?.toFqdn(cluster.publicDomain)
+                val health = backend.health ?: HealthEndpoint()
+
+                buildList {
+                    if (strategy in setOf("internal", "both")) {
+                        add(
+                            buildGatusEndpoint(
+                                baseName = serviceName,
+                                group = group,
+                                url = internalUrl(backend, health),
+                                health = health,
+                                suffix = if (strategy == "both") " (internal)" else "",
+                            ),
+                        )
+                    }
+                    if (strategy in setOf("external", "both") && host != null) {
+                        add(
+                            buildGatusEndpoint(
+                                baseName = serviceName,
+                                group = group,
+                                url = externalUrl(host, health),
+                                health = health,
+                                suffix = if (strategy == "both") " (external)" else "",
+                            ),
+                        )
+                    }
+                }
+            }
+
+    return GatusEndpointsDocument(endpoints = endpoints)
+}
+
+private fun PlatformFleet.buildExposureMap(): Map<String, String> =
+    buildMap {
+        exposureIntent.public.forEach { put(it, "public") }
+        exposureIntent.publicAndLan.forEach { put(it, "public_and_lan") }
+        exposureIntent.internalOnly.forEach { put(it, "internal_only") }
+        exposureIntent.lanOnly.forEach { put(it, "lan_only") }
+    }
+
+private fun resolveProbeStrategy(
+    backend: KubernetesIngressBackend,
+    exposure: String?,
+    isSsoProtected: Boolean,
+): String {
+    backend.health?.probeStrategy?.let { return it }
+    if (backend.health?.type == "tcp") return "internal"
+    if (isSsoProtected) return "internal"
+    return when (exposure) {
+        "public", "public_and_lan" -> "external"
+        else -> "internal"
+    }
+}
+
+private fun internalUrl(
+    backend: KubernetesIngressBackend,
+    health: HealthEndpoint,
+): String {
+    val port = health.port ?: backend.port
+    val host = "${backend.serviceName}.${backend.namespace}.svc.cluster.local"
+    return when (health.type) {
+        "tcp" -> "tcp://$host:$port"
+        else -> "http://$host:$port${health.path}"
+    }
+}
+
+private fun externalUrl(
+    host: String,
+    health: HealthEndpoint,
+): String = "https://$host${health.path}"
+
+private fun buildGatusEndpoint(
+    baseName: String,
+    group: String,
+    url: String,
+    health: HealthEndpoint,
+    suffix: String,
+): GatusEndpoint {
+    val conditions =
+        when (health.type) {
+            "tcp" -> listOf("[CONNECTED] == true")
+            else -> {
+                val expected = health.expectedStatus ?: 200
+                listOf(
+                    "[STATUS] == $expected",
+                    "[RESPONSE_TIME] < 1500",
+                )
+            }
+        }
+    return GatusEndpoint(
+        name = "$baseName$suffix",
+        group = group,
+        url = url,
+        interval = "60s",
+        conditions = conditions,
+    )
+}
+
+private data class GatusEndpointsDocument(
+    val endpoints: List<GatusEndpoint>,
+)
+
+private data class GatusEndpoint(
+    val name: String,
+    val group: String,
+    val url: String,
+    val interval: String,
+    val conditions: List<String>,
 )
 
 fun main(args: Array<String>) {
