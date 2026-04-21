@@ -5,9 +5,6 @@ cluster:
   public_domain: jorisjonkers.dev
   kubernetes:
     bootstrap_control_plane: frankfurt-contabo-1
-    # Bootstrap with the public endpoint first, then switch this to the
-    # Frankfurt control-plane Tailscale or MagicDNS address once the tailnet is
-    # the primary inter-node network.
     api_server_endpoint: https://167.86.79.203:6443
     control_plane_token_file: /var/lib/rancher/k3s/server/node-token
     worker_join_token_file: /var/lib/personal-stack/secrets/k3s/agent-token
@@ -52,10 +49,6 @@ nodes:
       host: 100.89.41.92
       user: deploy
       port: 2222
-    bootstrap_ssh:
-      host: 192.168.0.101
-      user: extratoast
-      port: 22
     target_roles:
       - k3s-worker
       - utility-host
@@ -75,18 +68,10 @@ nodes:
     status: active
     site: enschede
     arch: amd64
-    # `ssh` is the intended post-install NixOS endpoint.
-    # Add `bootstrap_ssh` with the current OS access path before first install.
-    # Pinned to the tailnet IP so deploy works regardless of whether the
-    # caller is on the Enschede LAN.
     ssh:
       host: 100.103.175.110
       user: deploy
       port: 2222
-    bootstrap_ssh:
-      host: 192.168.0.100
-      user: extratoat
-      port: 22
     target_roles:
       - k3s-worker
       - utility-host
@@ -108,10 +93,6 @@ nodes:
     status: active
     site: enschede
     arch: arm64
-    # Pi nodes come up via the SD-image flow (platform/scripts/build/build-pi-image.sh).
-    # No bootstrap_ssh is needed; once flashed and booted the node already answers on ssh below.
-    # Pinned to the tailnet IP so bring-up and deploy work both on the
-    # Enschede LAN and from anywhere the fleet tailnet is reachable.
     ssh:
       host: 100.65.192.22
       user: deploy
