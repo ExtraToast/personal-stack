@@ -16,6 +16,15 @@ metadata:
     keel.sh/pollSchedule: '@every 2m'
 spec:
   replicas: 1
+  # Same kill-then-create rollout as auth-api — see that deployment
+  # for the rationale. Single-replica Spring Boot service on the
+  # frankfurt node whose CPU requests are too tight for a surge
+  # overlap; accept the ~30 s deploy gap instead of silent Pending.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: assistant-api

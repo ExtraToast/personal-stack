@@ -118,7 +118,18 @@ spec:
             httpGet:
               path: /healthz
               port: http
+            # Tolerate transient Postgres outages without SIGKILLing
+            # n8n. /healthz returns 503 "Database is not ready!" for
+            # the ~15 s window while Postgres rolls; the default
+            # liveness (failureThreshold=3, period=10 → 30 s) used
+            # to kill n8n during every blip and take every in-flight
+            # webhook + cron down with it. 15 s period × 10 failures
+            # = 150 s of DB-down tolerance. Readiness is untouched
+            # so Traefik still yanks the pod out of rotation
+            # immediately — we just stop the pod from being killed.
+            periodSeconds: 15
             timeoutSeconds: 5
+            failureThreshold: 10
           volumeMounts:
             - name: n8n-data
               mountPath: /home/node/.n8n

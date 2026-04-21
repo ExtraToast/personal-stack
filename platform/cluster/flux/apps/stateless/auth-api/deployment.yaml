@@ -24,6 +24,22 @@ metadata:
     keel.sh/pollSchedule: '@every 2m'
 spec:
   replicas: 1
+  # Kill the old pod before creating the new one. Default maxSurge=1
+  # requires 1500m free CPU on frankfurt-contabo-1 for the overlap,
+  # but the node is chronically near 91% requested — so a surge
+  # rollout blocks in `Pending` indefinitely (the auth-api 500 on /me
+  # after PR #170 merged was exactly this: new image couldn't
+  # schedule, old image kept serving 404s). Accept the ~30 s deploy
+  # gap; the Spring Boot pod warms up in a single-digit-second window
+  # behind Traefik's retry, which is far cheaper than rollback-
+  # hell when the surge never lands. Do NOT lower the CPU request —
+  # the perf PR #160 raised it to 1500m specifically to avoid CFS
+  # throttling during JVM class loading.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: auth-api
