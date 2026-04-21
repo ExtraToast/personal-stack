@@ -69,17 +69,17 @@ class PlatformVaultFluxTest {
     fun `vault app bootstraps kubernetes auth and a sample readable secret`() {
         val kustomization = repositoryRoot.resolve("platform/cluster/flux/apps/data/vault/kustomization.yaml").toFile().readText()
         val bootstrapScript =
-            repositoryRoot.resolve("platform/cluster/flux/apps/data/vault/bootstrap-auth-configmap.yaml").toFile().readText()
+            repositoryRoot.resolve("platform/cluster/flux/apps/data/vault/bootstrap-auth.sh").toFile().readText()
         val bootstrapJob =
             repositoryRoot.resolve("platform/cluster/flux/apps/data/vault/bootstrap-auth-job.yaml").toFile().readText()
 
         assertThat(kustomization)
-            .contains("bootstrap-auth-configmap.yaml")
+            .contains("configMapGenerator:")
+            .contains("name: vault-bootstrap-auth")
+            .contains("bootstrap.sh=bootstrap-auth.sh")
             .contains("bootstrap-auth-job.yaml")
 
         assertThat(bootstrapScript)
-            .contains("kind: ConfigMap")
-            .contains("name: vault-bootstrap-auth")
             .contains("vault auth enable kubernetes")
             .contains("vault write auth/kubernetes/config")
             .contains("vault secrets enable -path=kvv2 kv-v2")
@@ -95,6 +95,7 @@ class PlatformVaultFluxTest {
             .contains("name: system:auth-delegator")
             .contains("kind: Job")
             .contains("name: vault-bootstrap-auth")
+            .contains("kustomize.toolkit.fluxcd.io/force: enabled")
             .contains("valueFrom:")
             .contains("secretKeyRef:")
             .contains("name: vault-bootstrap-token")

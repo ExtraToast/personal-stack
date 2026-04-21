@@ -69,7 +69,7 @@ class PlatformApiAppsFluxTest {
     @Test
     fun `vault bootstrap configures api policies kubernetes roles and transit signing key`() {
         val bootstrapScript =
-            repositoryRoot.resolve("platform/cluster/flux/apps/data/vault/bootstrap-auth-configmap.yaml").toFile().readText()
+            repositoryRoot.resolve("platform/cluster/flux/apps/data/vault/bootstrap-auth.sh").toFile().readText()
 
         assertThat(bootstrapScript)
             .contains("transit/keys/auth-api-jwt")

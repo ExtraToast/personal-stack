@@ -78,7 +78,7 @@ class PlatformMailFluxTest {
     @Test
     fun `vault bootstrap configures stalwart kubernetes auth and mail secret access`() {
         val bootstrapScript =
-            repositoryRoot.resolve("platform/cluster/flux/apps/data/vault/bootstrap-auth-configmap.yaml").toFile().readText()
+            repositoryRoot.resolve("platform/cluster/flux/apps/data/vault/bootstrap-auth.sh").toFile().readText()
 
         assertThat(bootstrapScript)
             .contains("vault policy write stalwart")
