@@ -15,31 +15,6 @@ spec:
       labels:
         app.kubernetes.io/name: jellyfin
     spec:
-      # Bypass the cluster DNS path (kube-dns → AdGuard on t1000) for
-      # non-cluster names. Jellyfin does a lot of outbound lookups
-      # to image.tmdb.org / api.themoviedb.org / fanart.tv and the
-      # HomeScreenSections plugin fires hundreds of image fetches in
-      # parallel; a 2+ s resolver round-trip through AdGuard was
-      # eating the plugin's HttpClient budget and leaving half the
-      # home-page posters blank.
-      #
-      # dnsPolicy: None + dnsConfig.nameservers gives this pod its
-      # own resolver chain while leaving every other pod on the
-      # cluster default. `ndots:1` avoids tacking `.svc.cluster.local`
-      # onto external names (the default ndots:5 does that, which
-      # also slows lookups). Cluster-internal Service DNS still
-      # works via the search domains below.
-      dnsPolicy: None
-      dnsConfig:
-        nameservers:
-          - 1.1.1.1
-          - 1.0.0.1
-        searches:
-          - media-system.svc.cluster.local
-          - svc.cluster.local
-          - cluster.local
-        options:
-          - { name: ndots, value: '1' }
       # Schedule under the nvidia-cdi runtime handler so containerd
       # picks up the CDI spec NixOS emits at
       # /var/run/cdi/nvidia-container-toolkit.json and injects the GPU
