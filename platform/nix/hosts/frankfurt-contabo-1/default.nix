@@ -65,10 +65,6 @@
       address = "fe80::1";
       interface = "ens18";
     };
-    nameservers = [
-      "213.136.95.10"
-      "213.136.95.11"
-    ];
   };
   personalStack.k3sNodeLabels = {
     "personal-stack/site" = "frankfurt";
