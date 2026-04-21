@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-secrets-operator
+  namespace: observability
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: grafana-oidc-client
+  namespace: observability
+spec:
+  vaultAuthRef: vso-system/default
+  type: kv-v2
+  mount: secret
+  path: platform/observability
+  destination:
+    name: grafana-oidc-client
+    create: true
+    transformation:
+      templates:
+        # Key is the env-var name the grafana chart injects verbatim
+        # via envFromSecret, so grafana sees GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET.
+        GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET:
+          text: '{{- get .Secrets "grafana.oauth_client_secret" -}}'
+  refreshAfter: 1h

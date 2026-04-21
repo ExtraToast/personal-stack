@@ -52,3 +52,34 @@ spec:
         enabled: true
         label: grafana_datasource
         searchNamespace: observability
+    # auth-api registers grafana as an OIDC client with redirect URI
+    # https://grafana.jorisjonkers.dev/login/generic_oauth. The client
+    # secret lives in Vault at secret/platform/observability under key
+    # grafana.oauth_client_secret and is synced into the kube Secret
+    # grafana-oidc-client by the VaultStaticSecret in
+    # platform/cluster/flux/apps/vso-secrets/grafana-oidc.yaml. The
+    # synced Secret exposes it under the env-var key
+    # GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET, which envFromSecret injects
+    # verbatim — no chart-level plumbing needed.
+    envFromSecret: grafana-oidc-client
+    grafana.ini:
+      server:
+        root_url: https://grafana.jorisjonkers.dev
+      auth.generic_oauth:
+        enabled: true
+        name: personal-stack
+        client_id: grafana
+        scopes: openid profile email
+        auth_url: https://auth.jorisjonkers.dev/api/oauth2/authorize
+        token_url: https://auth.jorisjonkers.dev/api/oauth2/token
+        api_url: https://auth.jorisjonkers.dev/api/userinfo
+        login_attribute_path: preferred_username
+        name_attribute_path: name
+        email_attribute_path: email
+        # auth-api mints ROLE_ADMIN for admin users (see auth-api's
+        # AuthenticatedUser.authorities). Map that to GrafanaAdmin so
+        # admins get full control; everyone else lands at Viewer.
+        role_attribute_path: "contains(roles[*], 'ROLE_ADMIN') && 'GrafanaAdmin' || 'Viewer'"
+        allow_assign_grafana_admin: true
+        auto_login: true
+        use_pkce: true
