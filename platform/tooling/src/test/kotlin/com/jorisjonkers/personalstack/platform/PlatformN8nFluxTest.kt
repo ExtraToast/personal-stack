@@ -67,7 +67,7 @@ class PlatformN8nFluxTest {
     @Test
     fun `vault bootstrap configures n8n kubernetes role and policy`() {
         val bootstrapScript =
-            repositoryRoot.resolve("platform/cluster/flux/apps/data/vault/bootstrap-auth-configmap.yaml").toFile().readText()
+            repositoryRoot.resolve("platform/cluster/flux/apps/data/vault/bootstrap-auth.sh").toFile().readText()
 
         assertThat(bootstrapScript)
             .contains("vault policy write n8n")

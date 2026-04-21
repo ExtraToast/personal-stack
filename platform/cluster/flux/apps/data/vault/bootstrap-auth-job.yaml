@@ -22,6 +22,15 @@ kind: Job
 metadata:
   name: vault-bootstrap-auth
   namespace: data-system
+  # Job.spec.template is immutable, so when the hashed vault-bootstrap-auth
+  # ConfigMap name changes (content hash drift on bootstrap-auth.sh), a
+  # plain `kubectl apply` would fail with "field is immutable". This
+  # annotation tells the Flux Kustomization controller to delete and
+  # recreate the Job when its spec diverges — the whole point of the
+  # configMapGenerator hash is that every bootstrap-auth.sh edit forces
+  # a fresh Job run.
+  annotations:
+    kustomize.toolkit.fluxcd.io/force: enabled
 spec:
   backoffLimit: 3
   template:

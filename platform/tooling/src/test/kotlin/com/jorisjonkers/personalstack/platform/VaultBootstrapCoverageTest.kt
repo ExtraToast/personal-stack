@@ -32,7 +32,7 @@ class VaultBootstrapCoverageTest {
 
     private val bootstrap: String by lazy {
         repositoryRoot
-            .resolve("platform/cluster/flux/apps/data/vault/bootstrap-auth-configmap.yaml")
+            .resolve("platform/cluster/flux/apps/data/vault/bootstrap-auth.sh")
             .toFile()
             .readText()
     }
@@ -53,7 +53,7 @@ class VaultBootstrapCoverageTest {
                 "Vault bootstrap is missing `vault write database/roles/<name>` for one or more services. " +
                     "Without the role, every Spring Cloud Vault runtime call returns 400 and the DB " +
                     "health contributor flips DOWN. Add the role to " +
-                    "platform/cluster/flux/apps/data/vault/bootstrap-auth-configmap.yaml.\n" +
+                    "platform/cluster/flux/apps/data/vault/bootstrap-auth.sh.\n" +
                     "Missing: $missing",
             ).isEmpty()
     }
@@ -66,7 +66,7 @@ class VaultBootstrapCoverageTest {
                 .lineSequence()
                 .firstOrNull { it.contains("allowed_roles=") }
                 ?: error(
-                    "no allowed_roles= line found in bootstrap-auth-configmap.yaml; " +
+                    "no allowed_roles= line found in bootstrap-auth.sh; " +
                         "the `vault write database/config/postgres` call appears missing or reshaped.",
                 )
 
@@ -84,7 +84,7 @@ class VaultBootstrapCoverageTest {
             .describedAs(
                 "Vault database/config/postgres allowed_roles=\"$allowed\" is missing one or more " +
                     "roles that services declare they consume via spring.cloud.vault.database.role. " +
-                    "Update the allowed_roles list in bootstrap-auth-configmap.yaml.\n" +
+                    "Update the allowed_roles list in bootstrap-auth.sh.\n" +
                     "Not allowed: $notAllowed",
             ).isEmpty()
     }
