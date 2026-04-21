@@ -1,0 +1,230 @@
+/* ───── Netflix-ish Jellyfin skin ─────────────────────────────────── */
+/*
+ * Paste-target: Jellyfin → Dashboard → General → Custom CSS Code.
+ * Every rule is scoped so the video player (<video>, OSD, sliders,
+ * upNextDialog, osdPoster) renders completely stock. Nothing in here
+ * touches `.mainAnimatedPage`, `.backgroundContainer`, or
+ * `.backgroundContainer.withBackdrop` — those wrap the player's
+ * backdrop/canvas and an ambient override paints over the video.
+ *
+ * Paired with infra/jellyfin/javascript-injector/backdrop-hover.js,
+ * which supplies the "page background shifts to the hovered card's
+ * image" effect (CSS can't read per-card image URLs).
+ */
+
+/* Flat black background — SCOPED to non-player pages only. */
+html,
+body {
+  background-color: #000000 !important;
+}
+#indexPage,
+#homePage,
+#librariesPage,
+#favoritesPage,
+#itemDetailPage,
+.dashboardDocument,
+.libraryDocument,
+.pageTitleContainer {
+  background-color: #000000 !important;
+}
+
+/* Square corners on cards + chrome. Nothing under the OSD / player. */
+.card,
+.cardBox,
+.cardImageContainer,
+.cardScalable,
+.cardImage,
+.button,
+.button-submit,
+.raised,
+.paperList,
+.listItem,
+.emby-input,
+.emby-select,
+.emby-textarea,
+.dialog,
+.dialogContent,
+.dialogHeader,
+.navMenuOption,
+.ratingbutton {
+  border-radius: 0 !important;
+}
+
+/* Card hover: faint red outline only. Does NOT scale / grow — cards
+   stay put, page background reveals the item art via backdrop-hover.js. */
+.card:hover .cardImageContainer,
+.card:focus .cardImageContainer {
+  outline: 2px solid #e50914;
+  outline-offset: 0;
+  box-shadow: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+}
+.card,
+.cardBox,
+.cardScalable,
+.paperList {
+  box-shadow: none !important;
+}
+
+/* Denser layout: near-zero gaps + padding, Netflix-tight rows. */
+.itemsContainer.vertical-wrap,
+.itemsContainer.scrollSlider,
+.itemsContainer.vertical-list {
+  gap: 0.15em !important;
+}
+.card,
+.cardBox,
+.cardScalable {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+.cardBox {
+  padding-right: 0.15em !important;
+}
+.verticalSection,
+.homeSection,
+.section {
+  margin-bottom: 0.6em !important;
+  padding-top: 0 !important;
+  padding-bottom: 0.15em !important;
+}
+.sectionTitleContainer {
+  margin-bottom: 0.1em !important;
+  padding-top: 0.25em !important;
+}
+.padded-top,
+.padded-bottom,
+.padded-top-page,
+.padded-bottom-page {
+  padding-top: 0.25em !important;
+  padding-bottom: 0.25em !important;
+}
+.pageTitleContainer,
+.headerPage {
+  padding: 0.25em 0 !important;
+}
+
+/* Section headers: bolder, no caps, no tracking. */
+.sectionTitle,
+.sectionTitleContainer h2,
+.sectionHeading {
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+/* Primary buttons: flat Netflix red. */
+.button-submit,
+.raised.button-submit {
+  background: #e50914 !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  text-transform: none !important;
+  font-weight: 700 !important;
+}
+.button-submit:hover {
+  background: #f6121d !important;
+}
+
+/* Nav tabs (Home / Favourites / Watchlist / …): flat, no pill, no
+   blue focus ring. Active = bold white, inactive = dim gray. */
+.emby-tab-button,
+.emby-tab-button.emby-button,
+.emby-tab-button .emby-button-foreground {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  color: #b3b3b3 !important;
+  font-weight: 500 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  transition: color 150ms ease-out !important;
+}
+.emby-tab-button:hover,
+.emby-tab-button:hover .emby-button-foreground {
+  color: #ffffff !important;
+}
+.emby-tab-button.emby-tab-button-active,
+.emby-tab-button.emby-tab-button-active .emby-button-foreground {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+.emby-tab-button:focus-visible {
+  outline: none !important;
+  box-shadow: inset 0 -2px 0 0 #ffffff !important;
+}
+
+/* Card-text (titles, air dates, S0xE0x) — keep visible + clickable,
+   just soften the type so it reads on flat black. */
+.homeSectionsContainer .cardText,
+.homeSectionsContainer .cardIndicators {
+  color: #b3b3b3 !important;
+  font-size: 0.76em !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.2 !important;
+  margin-top: 0.2em !important;
+}
+.homeSectionsContainer .cardText-first {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+/* Kill blur on any ambient hero / backdrop layer so the banner
+   image reads sharp. Only removes filter — does NOT touch
+   background-color / image on these. */
+.backdropContainer,
+.backdropImage,
+.mediaBar,
+.mediaBarContainer {
+  backdrop-filter: none !important;
+  filter: none !important;
+}
+
+/* Jellyfin Enhanced plugin exposes a --blur CSS var (default 20px)
+   and applies backdrop-filter: blur(var(--blur)) on its pause-screen,
+   hidden-content, and themer overlays. Those overlays can end up high
+   enough in the DOM ancestry that the filter rasterizes our injected
+   #cardHoverBackdrop layer — and a child cannot defeat an ancestor
+   filter from CSS. Clamp the plugin's var to 0 so nothing blurs.
+   (Also disable the plugin's blur toggle under Dashboard → Plugins
+   → Jellyfin Enhanced → Settings for a proper fix.) */
+:root,
+html,
+body,
+.skinBody,
+.mainDrawer,
+[class*='je-'] {
+  --blur: 0px !important;
+}
+[class*='je-'],
+.pauseScreen,
+.je-pause-screen,
+.je-hidden-content,
+.je-themer {
+  backdrop-filter: none !important;
+  filter: none !important;
+}
+
+/* Scrollbars. */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+::-webkit-scrollbar-thumb {
+  background: #333;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+.itemsContainer.scrollSlider::-webkit-scrollbar {
+  display: none !important;
+}
+.itemsContainer.scrollSlider {
+  scrollbar-width: none !important;
+}
