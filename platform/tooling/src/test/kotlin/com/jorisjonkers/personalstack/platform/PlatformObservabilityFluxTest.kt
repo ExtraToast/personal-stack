@@ -23,6 +23,7 @@ class PlatformObservabilityFluxTest {
             .contains("- loki")
             .contains("- tempo")
             .contains("- alloy")
+            .contains("- gatus")
             .contains("backup-jobs.yaml")
         assertThat(namespace)
             .contains("kind: Namespace")
@@ -167,6 +168,49 @@ class PlatformObservabilityFluxTest {
             .contains("url = \"http://loki.observability.svc.cluster.local:3100/loki/api/v1/push\"")
             .contains("discovery.kubernetes")
             .contains("loki.source.kubernetes")
+    }
+
+    @Test
+    fun `gatus deploys as the fleet-driven status page under the status subdomain`() {
+        val kustomization =
+            repositoryRoot.resolve("platform/cluster/flux/apps/observability/gatus/kustomization.yaml").toFile().readText()
+        val deployment =
+            repositoryRoot.resolve("platform/cluster/flux/apps/observability/gatus/deployment.yaml").toFile().readText()
+        val config =
+            repositoryRoot.resolve("platform/cluster/flux/apps/observability/gatus/gatus-config-configmap.yaml").toFile().readText()
+        val endpoints =
+            repositoryRoot.resolve("platform/cluster/flux/apps/observability/gatus/gatus-endpoints-configmap.yaml").toFile().readText()
+
+        assertThat(kustomization)
+            .contains("deployment.yaml")
+            .contains("gatus-config-configmap.yaml")
+            .contains("gatus-endpoints-configmap.yaml")
+
+        assertThat(deployment)
+            .contains("kind: PersistentVolumeClaim")
+            .contains("name: gatus-data")
+            .contains("kind: Deployment")
+            .contains("name: gatus")
+            .contains("namespace: observability")
+            .contains("image: twinproduction/gatus:")
+            .contains("GATUS_CONFIG_PATH")
+            .contains("personal-stack/site: frankfurt")
+            .contains("mountPath: /data")
+            .contains("mountPath: /config")
+
+        assertThat(config)
+            .contains("kind: ConfigMap")
+            .contains("name: gatus-config")
+            .contains("storage:")
+            .contains("type: sqlite")
+            .contains("path: /data/data.db")
+
+        assertThat(endpoints)
+            .contains("kind: ConfigMap")
+            .contains("name: gatus-endpoints")
+            .contains("namespace: observability")
+            .contains("endpoints.yaml: |")
+            .contains("endpoints:")
     }
 
     @Test
