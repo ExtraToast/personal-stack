@@ -552,9 +552,8 @@ private fun PlatformFleet.toGatusEndpointsDocument(): GatusEndpointsDocument {
         }
     val exposures = buildExposureMap()
 
-    val endpoints =
+    val ingressEndpoints =
         ingressIntent.kubernetesBackends.entries
-            .sortedBy { it.key }
             .flatMap { (serviceName, backend) ->
                 val group = groupByService[serviceName] ?: "unspecified"
                 val exposure = exposures[serviceName]
@@ -588,6 +587,22 @@ private fun PlatformFleet.toGatusEndpointsDocument(): GatusEndpointsDocument {
                     }
                 }
             }
+
+    val monitoringEndpoints =
+        monitoringIntent.kubernetesBackends.entries
+            .map { (serviceName, backend) ->
+                val group = groupByService[serviceName] ?: "unspecified"
+                val health = backend.health ?: HealthEndpoint()
+                buildGatusEndpoint(
+                    baseName = serviceName,
+                    group = group,
+                    url = internalUrl(backend, health),
+                    health = health,
+                    suffix = "",
+                )
+            }
+
+    val endpoints = (ingressEndpoints + monitoringEndpoints).sortedWith(compareBy({ it.group }, { it.name }))
 
     return GatusEndpointsDocument(endpoints = endpoints)
 }

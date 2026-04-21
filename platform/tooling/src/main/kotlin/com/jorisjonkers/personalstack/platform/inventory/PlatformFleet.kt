@@ -17,6 +17,8 @@ data class PlatformFleet(
     val accessIntent: AccessIntent = AccessIntent(),
     @param:JsonProperty("ingress_intent")
     val ingressIntent: IngressIntent = IngressIntent(),
+    @param:JsonProperty("monitoring_intent")
+    val monitoringIntent: MonitoringIntent = MonitoringIntent(),
 )
 
 data class ClusterInfo(
@@ -130,6 +132,11 @@ data class AccessIntent(
 )
 
 data class IngressIntent(
+    @param:JsonProperty("kubernetes_backends")
+    val kubernetesBackends: Map<String, KubernetesIngressBackend> = emptyMap(),
+)
+
+data class MonitoringIntent(
     @param:JsonProperty("kubernetes_backends")
     val kubernetesBackends: Map<String, KubernetesIngressBackend> = emptyMap(),
 )
