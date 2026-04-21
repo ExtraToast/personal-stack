@@ -88,7 +88,7 @@ export const SERVICE_REGISTRY: ServiceEntry[] = [
     permission: 'STATUS',
     label: 'Status',
     url: buildServiceUrl('status'),
-    iconUrl: '/icons/status.svg',
+    iconUrl: '/icons/gatus.svg',
     description: 'Service status monitor',
   },
   {
