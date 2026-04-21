@@ -22,6 +22,23 @@ spec:
       # plugin sets NVIDIA_VISIBLE_DEVICES on us (envvar strategy),
       # which the CDI runtime translates to the CDI device request.
       runtimeClassName: nvidia-cdi
+      # Default dnsPolicy (ClusterFirst) is kept so kube-dns stays first
+      # in the pod's resolv.conf — cluster-internal hosts like
+      # radarr.media-system.svc.cluster.local must resolve (the Home
+      # Screen Sections plugin calls Sonarr/Radarr by that name). What
+      # changes: ndots drops from the kubelet default of 5 to 2 so that
+      # external lookups like image.tmdb.org skip the four cluster-suffix
+      # search-domain tries that otherwise precede every TMDb / Fanart
+      # query and starve the plugin's HttpClient pool. timeout:1 +
+      # attempts:2 caps total DNS wait at ~2s on a slow resolver; the
+      # glibc race where A/AAAA share a 5-tuple is worked around with
+      # single-request-reopen.
+      dnsConfig:
+        options:
+          - { name: ndots, value: '2' }
+          - { name: timeout, value: '1' }
+          - { name: attempts, value: '2' }
+          - { name: single-request-reopen }
       nodeSelector:
         personal-stack/site: enschede
         personal-stack/role-utility-host: 'true'

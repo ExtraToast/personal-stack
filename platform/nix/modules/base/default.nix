@@ -18,6 +18,30 @@ in
   networking.firewall.enable = true;
   networking.firewall.allowedTCPPorts = [ 2222 ];
 
+  # Fleet-wide resolver. Pins all nodes to Cloudflare + Quad9 so CoreDNS
+  # (which forwards to /etc/resolv.conf on whichever host it runs on) gets
+  # a fast, consistent upstream regardless of the node's DHCP lease.
+  # `nohook resolv.conf` stops dhcpcd from re-appending the ISP-supplied
+  # resolver on lease renewal; without it the list grows silently and
+  # glibc falls back to slow upstreams under load. `rotate` spreads query
+  # load across the list; `timeout:1 attempts:2` caps worst-case DNS wait
+  # at ~2s to keep bursty HTTP clients (Jellyfin HomeScreenSections) from
+  # exhausting their HttpClient pool on a single slow resolver.
+  #
+  # Deliberately NOT pointing at AdGuard (127.0.0.1 or 192.168.0.100) —
+  # AdGuard is itself a k8s pod on t1000, and hosts resolving through it
+  # creates an undeployable bootstrap loop during NixOS activations.
+  # AdGuard continues to serve LAN clients via the router's DHCP hand-out.
+  networking.nameservers = [
+    "1.1.1.1"
+    "1.0.0.1"
+    "2606:4700:4700::1111"
+    "2606:4700:4700::1001"
+    "9.9.9.9"
+  ];
+  networking.dhcpcd.extraConfig = "nohook resolv.conf";
+  networking.resolvconf.extraOptions = [ "timeout:1" "attempts:2" "rotate" ];
+
   services.openssh = {
     enable = true;
     ports = [ 2222 ];
