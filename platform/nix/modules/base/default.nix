@@ -28,6 +28,14 @@ in
   # at ~2s to keep bursty HTTP clients (Jellyfin HomeScreenSections) from
   # exhausting their HttpClient pool on a single slow resolver.
   #
+  # Capped at three entries because glibc's MAXNS is 3 — Kubernetes emits
+  # a DNSConfigForming warning and silently drops the extras on every pod
+  # that inherits resolv.conf via dnsPolicy Default / hostNetwork. Two
+  # Cloudflare IPs plus Quad9 covers the primary+secondary Cloudflare
+  # pair *and* keeps one non-Cloudflare operator for the rare case of a
+  # Cloudflare-wide outage. Dual-stack v6 resolvers are skipped: pods
+  # can still resolve AAAA records over v4 transport, so there's no loss.
+  #
   # Deliberately NOT pointing at AdGuard (127.0.0.1 or 192.168.0.100) —
   # AdGuard is itself a k8s pod on t1000, and hosts resolving through it
   # creates an undeployable bootstrap loop during NixOS activations.
@@ -35,8 +43,6 @@ in
   networking.nameservers = [
     "1.1.1.1"
     "1.0.0.1"
-    "2606:4700:4700::1111"
-    "2606:4700:4700::1001"
     "9.9.9.9"
   ];
   networking.dhcpcd.extraConfig = "nohook resolv.conf";
