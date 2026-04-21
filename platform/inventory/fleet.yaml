@@ -332,8 +332,12 @@ ingress_intent:
       namespace: auth-system
       service: auth-api
       port: 8081
+      # /api/actuator/health aggregates every indicator (including the
+      # optional mail one), so transient SMTP TLS hiccups flip the
+      # aggregate to DOWN/503 while readiness/liveness stay UP. Probe
+      # the readiness group — same endpoint the k8s readinessProbe hits.
       health:
-        path: /api/actuator/health
+        path: /api/actuator/health/readiness
     auth-ui:
       namespace: auth-system
       service: auth-ui
@@ -343,7 +347,7 @@ ingress_intent:
       service: assistant-api
       port: 8082
       health:
-        path: /api/actuator/health
+        path: /api/actuator/health/readiness
     assistant-ui:
       namespace: assistant-system
       service: assistant-ui
@@ -420,3 +424,52 @@ ingress_intent:
       namespace: utility-system
       service: headlamp
       port: 80
+
+monitoring_intent:
+  # Cluster-only services with no external ingress. Gatus probes these
+  # from inside the cluster so they still show up on the status page.
+  kubernetes_backends:
+    alloy:
+      namespace: observability
+      service: alloy
+      port: 12345
+      health:
+        path: /-/ready
+    flaresolverr:
+      namespace: utility-system
+      service: flaresolverr
+      port: 8191
+      health:
+        path: /health
+    loki:
+      namespace: observability
+      service: loki
+      port: 3100
+      health:
+        path: /ready
+    postgres:
+      namespace: data-system
+      service: postgres
+      port: 5432
+      health:
+        type: tcp
+    prometheus:
+      # kube-prometheus-stack sets fullnameOverride: metrics-stack, so
+      # the service name is metrics-stack-prometheus.
+      namespace: observability
+      service: metrics-stack-prometheus
+      port: 9090
+      health:
+        path: /-/healthy
+    tempo:
+      namespace: observability
+      service: tempo
+      port: 3200
+      health:
+        path: /ready
+    valkey:
+      namespace: data-system
+      service: valkey
+      port: 6379
+      health:
+        type: tcp
