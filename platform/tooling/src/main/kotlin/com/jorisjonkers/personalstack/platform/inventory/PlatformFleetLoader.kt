@@ -149,6 +149,48 @@ class PlatformFleetLoader(
             }
         }
 
+        fleet.monitoringIntent.kubernetesBackends.forEach { (serviceName, backend) ->
+            require(serviceName in knownKubernetesServices) {
+                "monitoring backend for service $serviceName references unknown kubernetes service intent"
+            }
+            require(serviceName !in externallyExposedKubernetesServices) {
+                "monitoring backend for service $serviceName duplicates an ingress backend; probe it via ingress_intent instead"
+            }
+            require(backend.namespace.isNotBlank()) {
+                "monitoring backend namespace for service $serviceName must not be blank"
+            }
+            require(backend.serviceName.isNotBlank()) {
+                "monitoring backend service name for service $serviceName must not be blank"
+            }
+            require(backend.port > 0) {
+                "monitoring backend port for service $serviceName must be positive"
+            }
+            backend.health?.let { health ->
+                require(health.type in setOf("http", "tcp")) {
+                    "monitoring health type for service $serviceName must be http or tcp"
+                }
+                if (health.type == "tcp") {
+                    require(health.path == "/") {
+                        "tcp monitoring health for service $serviceName must not set a path"
+                    }
+                    require(health.expectedStatus == null) {
+                        "tcp monitoring health for service $serviceName must not set expected_status"
+                    }
+                }
+                require(health.path.startsWith("/")) {
+                    "monitoring health path for service $serviceName must start with /"
+                }
+                health.port?.let { port ->
+                    require(port > 0) {
+                        "monitoring health port for service $serviceName must be positive"
+                    }
+                }
+                require(health.probeStrategy == null || health.probeStrategy == "internal") {
+                    "monitoring health probe_strategy for service $serviceName must be internal (monitoring targets have no external host)"
+                }
+            }
+        }
+
         val lanExposedServices =
             buildSet {
                 addAll(fleet.exposureIntent.publicAndLan)
