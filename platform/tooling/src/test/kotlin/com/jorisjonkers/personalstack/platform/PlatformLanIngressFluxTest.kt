@@ -47,7 +47,7 @@ class PlatformLanIngressFluxTest {
         assertThat(config)
             .contains("kind: IPAddressPool")
             .contains("name: enschede-lan")
-            .contains("- 192.168.1.240-192.168.1.240")
+            .contains("- 192.168.0.99-192.168.0.99")
             .contains("kind: L2Advertisement")
             .contains("ipAddressPools:")
             .contains("- enschede-lan")
@@ -87,7 +87,7 @@ class PlatformLanIngressFluxTest {
             .contains("personal-stack/capability-lan-ingress:")
             .contains("externalTrafficPolicy: Local")
             .contains("metallb.io/address-pool: enschede-lan")
-            .contains("metallb.io/loadBalancerIPs: 192.168.1.240")
+            .contains("metallb.io/loadBalancerIPs: 192.168.0.99")
     }
 
     @Test
