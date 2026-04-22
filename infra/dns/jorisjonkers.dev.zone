@@ -5,12 +5,13 @@
 ;; Covers the root domain and all subdomains via wildcard CNAME.
 ;;
 ;; Records:
-;;   A/AAAA  jorisjonkers.dev      → Contabo VPS (167.86.79.203 / 2a02:c207:2318:569::1), proxied
-;;   CNAME   *.jorisjonkers.dev    → jorisjonkers.dev, proxied
-;;   A/AAAA  mail.jorisjonkers.dev → Contabo VPS, NOT proxied (mail needs direct IP)
-;;   MX      jorisjonkers.dev      → mail.jorisjonkers.dev
+;;   A/AAAA  jorisjonkers.dev         → Contabo VPS (167.86.79.203 / 2a02:c207:2318:569::1), proxied
+;;   CNAME   *.jorisjonkers.dev       → jorisjonkers.dev, proxied
+;;   A/AAAA  mail.jorisjonkers.dev    → Contabo VPS, NOT proxied (mail needs direct IP)
+;;   A       jellyfin.jorisjonkers.dev → home WAN IP (130.89.169.227), NOT proxied
+;;   MX      jorisjonkers.dev         → mail.jorisjonkers.dev
 ;;
-;; Subdomains in use (all resolved via wildcard CNAME):
+;; Subdomains in use (all resolved via wildcard CNAME unless listed as an exception):
 ;;   auth.jorisjonkers.dev
 ;;   assistant.jorisjonkers.dev
 ;;   vault.jorisjonkers.dev
@@ -19,7 +20,11 @@
 ;;   status.jorisjonkers.dev
 ;;   traefik.jorisjonkers.dev
 ;;   stalwart.jorisjonkers.dev
-;;   mail.jorisjonkers.dev (explicit A, not proxied)
+;;   mail.jorisjonkers.dev     (explicit A, not proxied — SMTP/IMAP need direct IP)
+;;   jellyfin.jorisjonkers.dev (explicit A, not proxied — grey-cloud so WAN clients
+;;                              hit the home router directly, bypassing the VPS and
+;;                              Cloudflare's video-streaming ToS §2.8. LAN clients
+;;                              get 192.168.0.99 via AdGuard split-horizon DNS.)
 
 ;; A Records
 jorisjonkers.dev.    1    IN    A    167.86.79.203 ; cf_tags=cf-proxied:true
@@ -34,6 +39,15 @@ jorisjonkers.dev.    1    IN    AAAA    2a02:c207:2318:569::1 ; cf_tags=cf-proxi
 ;; mail.jorisjonkers.dev must NOT be Cloudflare-proxied (SMTP/IMAP need direct IP)
 ;; Only publish AAAA once IPv6 has been validated end-to-end for HTTPS and mail protocols.
 mail.jorisjonkers.dev.    1    IN    A       167.86.79.203 ; cf_tags=cf-proxied:false
+
+;; ── Home-Direct Services ────────────────────────────────────────────────────
+;; Specific records here override the wildcard CNAME. Used for workloads where
+;; the VPS hop or CF proxying is counterproductive (bulk video streaming).
+;; The home WAN IP is static per the ISP. Router forwards :443 to
+;; traefik-lan on 192.168.0.99. Must NOT be proxied: CF edge can't reach
+;; 130.89.169.227 as an origin, and CF's self-serve §2.8 forbids streaming
+;; video through their proxy anyway.
+jellyfin.jorisjonkers.dev.    1    IN    A       130.89.169.227 ; cf_tags=cf-proxied:false
 
 ;; MX Record
 jorisjonkers.dev.    1    IN    MX    10 mail.jorisjonkers.dev.
