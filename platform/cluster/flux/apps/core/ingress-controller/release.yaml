@@ -34,6 +34,12 @@ spec:
       annotations:
         external-dns.alpha.kubernetes.io/cloudflare-proxied: 'true'
         external-dns.alpha.kubernetes.io/hostname: ingress.jorisjonkers.dev
+        # Opt out of MetalLB allocation: the Service's LB IP is vestigial
+        # (CF reaches this Traefik via hostPort 80/443 on the Frankfurt
+        # node, not via a LoadBalancer IP — see note below). Pointing at
+        # a pool that does not exist keeps MetalLB from grabbing the sole
+        # enschede-lan IP that traefik-lan needs.
+        metallb.io/address-pool: frankfurt-unused
       spec:
         externalTrafficPolicy: Local
       type: LoadBalancer
