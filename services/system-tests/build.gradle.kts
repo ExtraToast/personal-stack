@@ -17,8 +17,8 @@ dependencies {
     // submodule and restructured the base library. The jump isn't a
     // drop-in replacement; lift once we migrate system-tests to the
     // 2.x API.
-    testImplementation("org.testcontainers:testcontainers:1.21.4")
-    testImplementation("org.testcontainers:junit-jupiter:1.21.4")
+    testImplementation("org.testcontainers:testcontainers:2.0.4")
+    testImplementation("org.testcontainers:junit-jupiter:2.0.4")
     testImplementation("dev.turingcomplete:kotlin-onetimepassword:2.4.1")
     testImplementation("commons-codec:commons-codec:1.21.0")
     testRuntimeOnly("org.postgresql:postgresql:42.7.10")
