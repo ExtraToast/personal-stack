@@ -18,6 +18,11 @@ sites:
     purpose: home_lan_and_media_site
     networking:
       lan_ingress_ip: 192.168.0.99
+      # Static IPv4 the ISP hands out on the home WAN. Feeds
+      # `ingress_intent.wan_origin_overrides: home_direct` services so
+      # Cloudflare DNS points them straight at the home router (grey
+      # cloud), not at the Frankfurt VPS.
+      wan_public_ip: 130.89.169.227
 
 nodes:
   frankfurt-contabo-1:
@@ -405,6 +410,13 @@ ingress_intent:
       namespace: utility-system
       service: headlamp
       port: 80
+  # Per-service WAN origin. Default is CF-proxied via the Frankfurt
+  # VPS (`ingress.jorisjonkers.dev`). Services listed here override
+  # that: `home_direct` switches the Cloudflare A record to the home
+  # WAN IP (grey cloud / DNS-only), intended for bandwidth-heavy flows
+  # that shouldn't transit the VPS or CF's proxy.
+  wan_origin_overrides:
+    jellyfin: home_direct
 
 monitoring_intent:
   # Cluster-only services with no external ingress. Gatus probes these

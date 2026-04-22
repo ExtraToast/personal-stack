@@ -48,6 +48,8 @@ data class SiteInfo(
 data class SiteNetworking(
     @param:JsonProperty("lan_ingress_ip")
     val lanIngressIp: String? = null,
+    @param:JsonProperty("wan_public_ip")
+    val wanPublicIp: String? = null,
 )
 
 data class NodeInfo(
@@ -134,6 +136,8 @@ data class AccessIntent(
 data class IngressIntent(
     @param:JsonProperty("kubernetes_backends")
     val kubernetesBackends: Map<String, KubernetesIngressBackend> = emptyMap(),
+    @param:JsonProperty("wan_origin_overrides")
+    val wanOriginOverrides: Map<String, String> = emptyMap(),
 )
 
 data class MonitoringIntent(
