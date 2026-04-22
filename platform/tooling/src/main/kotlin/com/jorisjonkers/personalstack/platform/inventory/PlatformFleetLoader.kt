@@ -149,6 +149,20 @@ class PlatformFleetLoader(
             }
         }
 
+        fleet.ingressIntent.wanOriginOverrides.forEach { (serviceName, origin) ->
+            require(serviceName in externallyExposedKubernetesServices) {
+                "wan origin override for service $serviceName must target an externally exposed kubernetes service"
+            }
+            require(origin == "home_direct") {
+                "wan origin override for service $serviceName must be 'home_direct' (got '$origin')"
+            }
+        }
+        if (fleet.ingressIntent.wanOriginOverrides.values.any { it == "home_direct" }) {
+            require(fleet.sites.values.any { it.networking?.wanPublicIp != null }) {
+                "wan_origin_overrides set to 'home_direct' require at least one site with networking.wan_public_ip"
+            }
+        }
+
         fleet.monitoringIntent.kubernetesBackends.forEach { (serviceName, backend) ->
             require(serviceName in knownKubernetesServices) {
                 "monitoring backend for service $serviceName references unknown kubernetes service intent"

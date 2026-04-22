@@ -23,6 +23,8 @@ class PlatformFleetLoaderTest {
         assertThat(fleet.cluster.kubernetes.workerJoinTokenFile).isEqualTo("/var/lib/personal-stack/secrets/k3s/agent-token")
         assertThat(fleet.sites.keys).containsExactlyInAnyOrder("frankfurt", "enschede")
         assertThat(fleet.sites.getValue("enschede").networking?.lanIngressIp).isEqualTo("192.168.0.99")
+        assertThat(fleet.sites.getValue("enschede").networking?.wanPublicIp).isEqualTo("130.89.169.227")
+        assertThat(fleet.ingressIntent.wanOriginOverrides).containsEntry("jellyfin", "home_direct")
         assertThat(fleet.nodes.keys).contains(
             "frankfurt-contabo-1",
             "enschede-gtx-960m-1",

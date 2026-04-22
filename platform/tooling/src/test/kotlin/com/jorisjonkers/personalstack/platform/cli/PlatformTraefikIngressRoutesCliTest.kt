@@ -86,4 +86,44 @@ class PlatformTraefikIngressRoutesCliTest {
 
         assertThat(stderr.toString(StandardCharsets.UTF_8)).isBlank()
     }
+
+    @Test
+    fun `render-traefik-ingressroutes honours wan_origin_overrides home_direct`() {
+        val stdout = ByteArrayOutputStream()
+        val stderr = ByteArrayOutputStream()
+
+        val exitCode =
+            PlatformInventoryCli(
+                repositoryRoot = repositoryRoot,
+                stdout = stdout.writer(StandardCharsets.UTF_8),
+                stderr = stderr.writer(StandardCharsets.UTF_8),
+            ).run("render-traefik-ingressroutes")
+
+        assertThat(exitCode).isEqualTo(0)
+        val output = stdout.toString(StandardCharsets.UTF_8)
+
+        val jellyfinBlock =
+            output
+                .substringAfter("  name: jellyfin\n")
+                .substringBefore("---\n")
+
+        assertThat(jellyfinBlock)
+            .contains("external-dns.alpha.kubernetes.io/target: 130.89.169.227")
+            .contains("external-dns.alpha.kubernetes.io/cloudflare-proxied: 'false'")
+            .contains("kubernetes.io/ingress.class: traefik-public")
+
+        val defaultProxiedServices = listOf("assistant-api", "auth-api", "vault", "bazarr", "jellyseerr")
+        defaultProxiedServices.forEach { svc ->
+            val block =
+                output
+                    .substringAfter("  name: $svc\n")
+                    .substringBefore("---\n")
+            assertThat(block)
+                .`as`("$svc should keep the default CF-proxied VPS target")
+                .contains("external-dns.alpha.kubernetes.io/target: ingress.jorisjonkers.dev")
+                .contains("external-dns.alpha.kubernetes.io/cloudflare-proxied: 'true'")
+        }
+
+        assertThat(stderr.toString(StandardCharsets.UTF_8)).isBlank()
+    }
 }
