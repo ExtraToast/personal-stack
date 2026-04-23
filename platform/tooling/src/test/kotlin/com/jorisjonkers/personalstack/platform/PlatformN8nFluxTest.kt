@@ -18,10 +18,16 @@ class PlatformN8nFluxTest {
         val namespace = repositoryRoot.resolve("platform/cluster/flux/apps/stateless/n8n/namespace.yaml").toFile().readText()
         val manifest = repositoryRoot.resolve("platform/cluster/flux/apps/stateless/n8n/deployment.yaml").toFile().readText()
         val hookConfig = repositoryRoot.resolve("platform/cluster/flux/apps/stateless/n8n/hooks-configmap.yaml").toFile().readText()
+        val vaultSecrets =
+            repositoryRoot.resolve("platform/cluster/flux/apps/stateless/n8n/vault-secrets.yaml").toFile().readText()
+        val kustomization =
+            repositoryRoot.resolve("platform/cluster/flux/apps/stateless/n8n/kustomization.yaml").toFile().readText()
 
         assertThat(namespace)
             .contains("kind: Namespace")
             .contains("name: automation-system")
+
+        assertThat(kustomization).contains("- vault-secrets.yaml")
 
         assertThat(hookConfig)
             .contains("kind: ConfigMap")
@@ -30,6 +36,22 @@ class PlatformN8nFluxTest {
             .contains("External hooks that add OIDC login")
             .contains("app.get('/auth/oidc/login'")
             .contains("app.get('/assets/oidc-frontend-hook.js'")
+
+        assertThat(vaultSecrets)
+            .contains("kind: VaultDynamicSecret")
+            .contains("name: n8n-db")
+            .contains("mount: database")
+            .contains("path: creds/n8n")
+            .contains("kind: VaultStaticSecret")
+            .contains("name: n8n-app")
+            .contains("path: platform/automation")
+            .contains("OIDC_CLIENT_SECRET")
+            .contains("N8N_ENCRYPTION_KEY")
+            .contains("DB_POSTGRESDB_USER")
+            .contains("DB_POSTGRESDB_PASSWORD")
+            .contains("rolloutRestartTargets")
+            .contains("kind: Deployment")
+            .contains("name: n8n")
 
         assertThat(manifest)
             .contains("kind: ServiceAccount")
@@ -40,10 +62,11 @@ class PlatformN8nFluxTest {
             .contains("kind: Deployment")
             .contains("name: n8n")
             .contains("n8nio/n8n:2.13.4")
-            .contains("vault.hashicorp.com/agent-inject:")
-            .contains("vault.hashicorp.com/agent-inject-token:")
-            .contains("vault.hashicorp.com/role: n8n")
-            .contains("/vault/secrets/n8n.env")
+            .contains("envFrom:")
+            .contains("name: n8n-db")
+            .contains("name: n8n-app")
+            .doesNotContain("vault.hashicorp.com/agent-inject")
+            .doesNotContain("/vault/secrets/n8n.env")
             .contains("postgres.data-system.svc.cluster.local")
             .contains("DB_POSTGRESDB_DATABASE")
             .contains("n8n_db")
@@ -76,5 +99,8 @@ class PlatformN8nFluxTest {
             .contains("secret/data/platform/automation")
             .contains("bound_service_account_names=\"n8n\"")
             .contains("bound_service_account_namespaces=\"automation-system\"")
+            // VSO reads dynamic postgres creds and the automation KV path
+            // on behalf of n8n; the role binding now includes automation-system.
+            .contains("bound_service_account_namespaces=\"vso-system,cert-manager,external-dns,observability,automation-system\"")
     }
 }

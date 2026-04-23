@@ -135,6 +135,14 @@ path "secret/data/platform/edge" {
 path "secret/data/platform/observability" {
   capabilities = ["read"]
 }
+
+path "secret/data/platform/automation" {
+  capabilities = ["read"]
+}
+
+path "database/creds/n8n" {
+  capabilities = ["read"]
+}
 EOF
 
 vault policy write auth-api /tmp/auth-api.hcl
@@ -190,7 +198,7 @@ vault write auth/kubernetes/role/stalwart \
 
 vault write auth/kubernetes/role/vso \
   bound_service_account_names="vault-secrets-operator" \
-  bound_service_account_namespaces="vso-system,cert-manager,external-dns,observability" \
+  bound_service_account_namespaces="vso-system,cert-manager,external-dns,observability,automation-system" \
   policies="vso" \
   ttl="1h"
 
@@ -234,7 +242,12 @@ PG_ADMIN_PASS=$(vault kv get -field=postgres.password secret/platform/postgres)
 # including SELECT/INSERT/UPDATE on `user`, `workflow_entity`, etc.
 # Without the IN ROLE clause the ephemeral role starts with no grants
 # and the app 500s on every settings load.
-N8N_PARENT_ROLE=$(vault kv get -field=n8n.user secret/platform/postgres)
+# n8n_user is the hardcoded NOLOGIN grant-parent created by
+# postgres/init-script-configmap.yaml. n8n itself never authenticates
+# as this role -- dynamic creds from database/creds/n8n inherit its
+# grants via IN ROLE ... INHERIT. Hardcoding the name here lets us
+# delete the stale n8n.user/n8n.password fields from KV.
+N8N_PARENT_ROLE="n8n_user"
 AUTH_PARENT_ROLE=$(vault kv get -field=auth.user secret/platform/postgres)
 ASSISTANT_PARENT_ROLE=$(vault kv get -field=assistant.user secret/platform/postgres)
 vault write database/config/postgres \

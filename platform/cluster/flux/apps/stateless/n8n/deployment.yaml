@@ -30,18 +30,6 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: n8n
-      annotations:
-        vault.hashicorp.com/agent-inject: 'true'
-        vault.hashicorp.com/agent-inject-token: 'true'
-        vault.hashicorp.com/role: n8n
-        vault.hashicorp.com/agent-inject-secret-n8n.env: secret/data/platform/automation
-        vault.hashicorp.com/agent-inject-template-n8n.env: |
-          {{ with secret "database/creds/n8n" }}
-          DB_POSTGRESDB_USER={{ .Data.username }}
-          DB_POSTGRESDB_PASSWORD={{ .Data.password }}
-          {{ end }}
-          OIDC_CLIENT_SECRET={{ with secret "secret/data/platform/automation" }}{{ index .Data.data "n8n.oauth_client_secret" }}{{ end }}
-          N8N_ENCRYPTION_KEY={{ with secret "secret/data/platform/automation" }}{{ index .Data.data "n8n.encryption_key" }}{{ end }}
     spec:
       serviceAccountName: n8n
       # Kubernetes auto-injects env vars for every Service in the pod's
@@ -57,15 +45,11 @@ spec:
         - name: n8n
           image: n8nio/n8n:2.13.4
           imagePullPolicy: IfNotPresent
-          command:
-            - /bin/sh
-            - -ec
-            - |
-              export SPRING_CLOUD_VAULT_TOKEN="$(cat /vault/secrets/token)"
-              set -a
-              . /vault/secrets/n8n.env
-              set +a
-              exec n8n start
+          envFrom:
+            - secretRef:
+                name: n8n-db
+            - secretRef:
+                name: n8n-app
           env:
             - name: DB_TYPE
               value: postgresdb
