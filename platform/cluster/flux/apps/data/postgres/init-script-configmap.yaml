@@ -38,8 +38,7 @@ data:
     AUTH_DB_PASSWORD=$(resolve_value AUTH_DB_PASSWORD auth_db_password auth_password)
     ASSISTANT_DB_USER=$(resolve_value ASSISTANT_DB_USER assistant_db_user assistant_user)
     ASSISTANT_DB_PASSWORD=$(resolve_value ASSISTANT_DB_PASSWORD assistant_db_password assistant_password)
-    N8N_DB_USER=$(resolve_value N8N_DB_USER n8n_db_user n8n_user)
-    N8N_DB_PASSWORD=$(resolve_value N8N_DB_PASSWORD n8n_db_password n8n_password)
+    N8N_DB_USER=n8n_user
 
     psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
         -- Auth service database
@@ -52,8 +51,12 @@ data:
         CREATE DATABASE assistant_db OWNER ${ASSISTANT_DB_USER};
         GRANT ALL PRIVILEGES ON DATABASE assistant_db TO ${ASSISTANT_DB_USER};
 
-        -- n8n database
-        CREATE USER ${N8N_DB_USER} WITH PASSWORD '${N8N_DB_PASSWORD}';
+        -- n8n database. n8n authenticates via Vault postgres dynamic
+        -- creds (database/creds/n8n); n8n_user exists only as a
+        -- grant-parent that owns the objects, so it is NOLOGIN with
+        -- no password. Ephemeral dynamic roles are IN ROLE n8n_user
+        -- INHERIT and pick up every privilege it has.
+        CREATE ROLE ${N8N_DB_USER} NOLOGIN;
         CREATE DATABASE n8n_db OWNER ${N8N_DB_USER};
         GRANT ALL PRIVILEGES ON DATABASE n8n_db TO ${N8N_DB_USER};
     EOSQL
