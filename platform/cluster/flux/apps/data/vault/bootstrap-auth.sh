@@ -135,6 +135,14 @@ path "secret/data/platform/edge" {
 path "secret/data/platform/observability" {
   capabilities = ["read"]
 }
+
+path "secret/data/platform/automation" {
+  capabilities = ["read"]
+}
+
+path "database/creds/n8n" {
+  capabilities = ["read"]
+}
 EOF
 
 vault policy write auth-api /tmp/auth-api.hcl
@@ -190,7 +198,7 @@ vault write auth/kubernetes/role/stalwart \
 
 vault write auth/kubernetes/role/vso \
   bound_service_account_names="vault-secrets-operator" \
-  bound_service_account_namespaces="vso-system,cert-manager,external-dns,observability" \
+  bound_service_account_namespaces="vso-system,cert-manager,external-dns,observability,automation-system" \
   policies="vso" \
   ttl="1h"
 
