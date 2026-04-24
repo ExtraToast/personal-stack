@@ -6,6 +6,7 @@
     ../../profiles/gpu-nvidia.nix
     ../../modules/k3s/node-labels.nix
     ../../modules/services/media-storage.nix
+    ../../modules/services/backup-storage.nix
     ../../modules/services/samba.nix
     ./disko.nix
   ];
@@ -21,6 +22,7 @@
     "personal-stack/capability-lan-ingress" = "true";
     "personal-stack/capability-samba" = "true";
     "personal-stack/capability-adguard" = "true";
+    "personal-stack/capability-backup-store" = "true";
     "personal-stack/capability-nvidia" = "true";
     "personal-stack/gpu-vendor-nvidia" = "true";
     "personal-stack/gpu-model-t1000" = "true";

@@ -91,6 +91,14 @@
         };
       };
 
+      # Scoped disko configs: used to run `disko --mode format` against a
+      # single disk on a live host without re-formatting the root drive.
+      # disko's CLI has no --disk scoping flag, so expose the subset here and
+      # target via `disko --flake .#<name>`.
+      diskoConfigurations = {
+        enschede-t1000-1-backup = import ./nix/hosts/enschede-t1000-1/disko-backup.nix;
+      };
+
       piSdImages = lib.mapAttrs (_: configuration: configuration.config.system.build.sdImage) piSdImageConfigurations;
 
       deploy.nodes.frankfurt-contabo-1 = {

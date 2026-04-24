@@ -1,5 +1,12 @@
 { ... }:
 {
+  imports = [
+    # Second M.2 — dedicated btrfs volume for backups. Lives in its own file
+    # so the flake can expose it as diskoConfigurations.enschede-t1000-1-backup
+    # and format only that disk without touching disk.main.
+    ./disko-backup.nix
+  ];
+
   disko.devices = {
     disk.main = {
       type = "disk";
