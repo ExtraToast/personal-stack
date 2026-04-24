@@ -5,9 +5,22 @@ if ! vault auth list -format=json | grep -q '"kubernetes/"'; then
   vault auth enable kubernetes
 fi
 
+# Deliberately omit token_reviewer_jwt. If baked in from this Job's pod
+# token, Kubernetes projects it with a ~1h TTL; once the Job finishes the
+# pod is gone, the stored JWT expires, and every subsequent kube-auth
+# login (new pod creation, vault-agent refresh) gets 403 "permission
+# denied" because vault's TokenReview call to the API server is
+# authenticated with a dead token. The failure is silent for long-lived
+# pods that already cached their vault token and only surfaces when
+# something forces a re-auth -- e.g. a node reconnect that reschedules
+# vault-agent-init sidecars.
+#
+# With the JWT omitted, vault uses its own in-pod projected SA token
+# (kubelet keeps it refreshed) for TokenReview calls. The vault pod SA
+# is bound to system:auth-delegator via vault-server-binding, which the
+# Helm chart installs, so it has the permissions to call TokenReview.
 vault write auth/kubernetes/config \
   kubernetes_host="https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT_HTTPS}" \
-  token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
   kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
 
 if ! vault secrets list -format=json | grep -q '"kvv2/"'; then

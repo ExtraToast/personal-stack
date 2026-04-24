@@ -17,6 +17,20 @@ spec:
       enabled: true
     injector:
       enabled: true
+      # Fail closed on admission. The chart default is "Ignore", which
+      # lets the kube-apiserver admit pods *without* running the vault
+      # mutating webhook when the injector is unreachable -- e.g. while
+      # it restarts after a node reconnect. Pods admitted unmutated have
+      # no vault-agent-init sidecar, never get /vault/secrets populated,
+      # and crashloop forever with no way for reconcile to fix them
+      # short of a manual pod delete. "Fail" makes admission retry until
+      # the webhook is actually up, which is the right trade-off for
+      # workloads that require vault-injected secrets to start at all.
+      failurePolicy: Fail
+      # Run two replicas so a single injector pod restart (e.g. node
+      # reboot, image pull, eviction) does not create an admission
+      # window during which new pods skip the webhook.
+      replicas: 2
     csi:
       enabled: true
     server:
