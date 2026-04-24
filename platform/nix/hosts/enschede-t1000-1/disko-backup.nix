@@ -15,13 +15,27 @@
           type = "btrfs";
           extraArgs = [ "-L" "backup" "-f" ];
           subvolumes = {
+            # nofail + short device-timeout so a missing subvolume (or a
+            # detached drive) can never hang local-fs.target and drop the
+            # node into emergency.target — which it did the first time this
+            # was deployed without these options.
             "@backup" = {
               mountpoint = "/srv/backup";
-              mountOptions = [ "compress=zstd:3" "noatime" ];
+              mountOptions = [
+                "compress=zstd:3"
+                "noatime"
+                "nofail"
+                "x-systemd.device-timeout=10s"
+              ];
             };
             "@snapshots" = {
               mountpoint = "/srv/backup/.snapshots";
-              mountOptions = [ "compress=zstd:3" "noatime" ];
+              mountOptions = [
+                "compress=zstd:3"
+                "noatime"
+                "nofail"
+                "x-systemd.device-timeout=10s"
+              ];
             };
           };
         };
