@@ -39,6 +39,12 @@ spec:
               path: /api/v1/settings/public
               port: http
           volumeMounts:
+            - name: media-series
+              mountPath: /media/Series
+              readOnly: true
+            - name: media-films
+              mountPath: /media/Films
+              readOnly: true
             - name: jellyseerr-config
               mountPath: /app/config
           resources:
@@ -49,6 +55,14 @@ spec:
               cpu: 1000m
               memory: 1536Mi
       volumes:
+        - name: media-series
+          hostPath:
+            path: /srv/media/Series
+            type: Directory
+        - name: media-films
+          hostPath:
+            path: /srv/media/Films
+            type: Directory
         - name: jellyseerr-config
           hostPath:
             path: /var/lib/personal-stack/media/jellyseerr

@@ -145,8 +145,10 @@ spec:
             periodSeconds: 10
             failureThreshold: 3
           volumeMounts:
-            - name: media-library
-              mountPath: /media
+            - name: media-downloading
+              mountPath: /media/Downloading
+            - name: media-completed
+              mountPath: /media/Completed
             - name: qbittorrent-config
               mountPath: /config
           resources:
@@ -192,9 +194,13 @@ spec:
               cpu: 500m
               memory: 768Mi
       volumes:
-        - name: media-library
+        - name: media-downloading
           hostPath:
-            path: /srv/media
+            path: /srv/media/Downloading
+            type: Directory
+        - name: media-completed
+          hostPath:
+            path: /srv/media/Completed
             type: Directory
         - name: qbittorrent-config
           hostPath:

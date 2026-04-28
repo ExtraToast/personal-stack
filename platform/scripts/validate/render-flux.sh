@@ -34,6 +34,25 @@ require_command() {
   fi
 }
 
+retry() {
+  attempts="$1"
+  delay_seconds="$2"
+  shift 2
+
+  attempt=1
+  while true; do
+    if "$@"; then
+      return 0
+    fi
+    if [ "${attempt}" -ge "${attempts}" ]; then
+      return 1
+    fi
+    echo "Command failed; retrying in ${delay_seconds}s (${attempt}/${attempts}): $*" >&2
+    sleep "${delay_seconds}"
+    attempt=$((attempt + 1))
+  done
+}
+
 require_command kustomize
 require_command helm
 require_command kubeconform
@@ -45,8 +64,10 @@ kustomize build "${cluster_path}" > "${render_output}"
 echo "==> flux-local expand HelmReleases against remote charts"
 # --enable-helm pulls every HelmRelease's chart and renders it with the
 # release's spec.values, which is exactly what the cluster's helm-
-# controller does post-merge.
-flux-local build all \
+# controller does post-merge. Remote chart downloads occasionally return
+# transient GitHub/registry 5xx responses; retry only this network-heavy
+# step so real template/schema errors still fail deterministically.
+retry 3 10 flux-local build all \
   --enable-helm \
   "${flux_root}" \
   >> "${render_output}"

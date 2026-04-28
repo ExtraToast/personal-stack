@@ -51,8 +51,10 @@ spec:
               path: /
               port: http
           volumeMounts:
-            - name: media-library
-              mountPath: /media
+            - name: media-series
+              mountPath: /media/Series
+            - name: media-films
+              mountPath: /media/Films
             - name: bazarr-config
               mountPath: /config
           resources:
@@ -63,9 +65,13 @@ spec:
               cpu: 1000m
               memory: 2Gi
       volumes:
-        - name: media-library
+        - name: media-series
           hostPath:
-            path: /srv/media
+            path: /srv/media/Series
+            type: Directory
+        - name: media-films
+          hostPath:
+            path: /srv/media/Films
             type: Directory
         - name: bazarr-config
           hostPath:

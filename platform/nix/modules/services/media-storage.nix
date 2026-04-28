@@ -17,6 +17,19 @@
     "d /srv/media/Series 0775 deploy deploy - -"
     "d /srv/media/Anime 0775 deploy deploy - -"
     "d /srv/media/TimeMachine 0775 deploy deploy - -"
+    "d /srv/media-views 0755 root root - -"
+    "d /srv/media-views/media-downloads 0755 root root - -"
+    "d /srv/media-views/media-downloads/Downloading 0755 root root - -"
+    "d /srv/media-views/media-downloads/Completed 0755 root root - -"
+    "d /srv/media-views/media-tv 0755 root root - -"
+    "d /srv/media-views/media-tv/Completed 0755 root root - -"
+    "d /srv/media-views/media-tv/Series 0755 root root - -"
+    "d /srv/media-views/media-movies 0755 root root - -"
+    "d /srv/media-views/media-movies/Completed 0755 root root - -"
+    "d /srv/media-views/media-movies/Films 0755 root root - -"
+    "d /srv/media-views/media-library 0755 root root - -"
+    "d /srv/media-views/media-library/Series 0755 root root - -"
+    "d /srv/media-views/media-library/Films 0755 root root - -"
     "d /var/lib/personal-stack 0755 deploy deploy - -"
     "d /var/lib/personal-stack/media 0755 deploy deploy - -"
     "d /var/lib/personal-stack/media/qbittorrent 0755 deploy deploy - -"
@@ -27,4 +40,79 @@
     "d /var/lib/personal-stack/media/jellyfin 0755 deploy deploy - -"
     "d /var/lib/personal-stack/media/jellyseerr 0755 deploy deploy - -"
   ];
+
+  fileSystems = {
+    "/srv/media-views/media-downloads/Downloading" = {
+      device = "/srv/media/Downloading";
+      fsType = "none";
+      options = [
+        "bind"
+        "nofail"
+      ];
+      depends = [ "/srv/media" ];
+    };
+    "/srv/media-views/media-downloads/Completed" = {
+      device = "/srv/media/Completed";
+      fsType = "none";
+      options = [
+        "bind"
+        "nofail"
+      ];
+      depends = [ "/srv/media" ];
+    };
+    "/srv/media-views/media-tv/Completed" = {
+      device = "/srv/media/Completed";
+      fsType = "none";
+      options = [
+        "bind"
+        "nofail"
+      ];
+      depends = [ "/srv/media" ];
+    };
+    "/srv/media-views/media-tv/Series" = {
+      device = "/srv/media/Series";
+      fsType = "none";
+      options = [
+        "bind"
+        "nofail"
+      ];
+      depends = [ "/srv/media" ];
+    };
+    "/srv/media-views/media-movies/Completed" = {
+      device = "/srv/media/Completed";
+      fsType = "none";
+      options = [
+        "bind"
+        "nofail"
+      ];
+      depends = [ "/srv/media" ];
+    };
+    "/srv/media-views/media-movies/Films" = {
+      device = "/srv/media/Films";
+      fsType = "none";
+      options = [
+        "bind"
+        "nofail"
+      ];
+      depends = [ "/srv/media" ];
+    };
+    "/srv/media-views/media-library/Series" = {
+      device = "/srv/media/Series";
+      fsType = "none";
+      options = [
+        "bind"
+        "nofail"
+      ];
+      depends = [ "/srv/media" ];
+    };
+    "/srv/media-views/media-library/Films" = {
+      device = "/srv/media/Films";
+      fsType = "none";
+      options = [
+        "bind"
+        "nofail"
+      ];
+      depends = [ "/srv/media" ];
+    };
+  };
 }
