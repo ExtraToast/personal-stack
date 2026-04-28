@@ -67,38 +67,40 @@ in
   services.samba = {
     enable = true;
     openFirewall = true;
-    settings.global = {
-      workgroup = "WORKGROUP";
-      "server string" = "personal-stack-home";
-      security = "user";
-      "map to guest" = "Bad User";
-      "server role" = "standalone server";
-      "server min protocol" = "SMB2";
-      "vfs objects" = "fruit streams_xattr";
-      "fruit:metadata" = "stream";
-      "fruit:model" = "MacSamba";
-      "fruit:posix_rename" = "yes";
-      "fruit:veto_appledouble" = "no";
-      "fruit:nfs_aces" = "no";
-      "fruit:wipe_intentionally_left_blank_rfork" = "yes";
-      "fruit:delete_empty_adfiles" = "yes";
-    };
-    shares."media-admin" = adminMediaShare "/srv/media";
-    shares."media-downloads" = writableMediaShare "/srv/media-views/media-downloads" "media-downloads";
-    shares."media-tv" = writableMediaShare "/srv/media-views/media-tv" "media-tv";
-    shares."media-movies" = writableMediaShare "/srv/media-views/media-movies" "media-movies";
-    shares."media-library" = readonlyMediaShare "/srv/media-views/media-library" "media-library";
-    shares.timemachine = {
-      path = "/srv/media/TimeMachine";
-      browseable = "yes";
-      "read only" = "no";
-      "guest ok" = "no";
-      "valid users" = "media-root";
-      "force user" = "deploy";
-      "force group" = "deploy";
-      "vfs objects" = "fruit streams_xattr";
-      "fruit:time machine" = "yes";
-      "fruit:time machine max size" = "300G";
+    settings = {
+      global = {
+        workgroup = "WORKGROUP";
+        "server string" = "personal-stack-home";
+        security = "user";
+        "map to guest" = "Bad User";
+        "server role" = "standalone server";
+        "server min protocol" = "SMB2";
+        "vfs objects" = "fruit streams_xattr";
+        "fruit:metadata" = "stream";
+        "fruit:model" = "MacSamba";
+        "fruit:posix_rename" = "yes";
+        "fruit:veto_appledouble" = "no";
+        "fruit:nfs_aces" = "no";
+        "fruit:wipe_intentionally_left_blank_rfork" = "yes";
+        "fruit:delete_empty_adfiles" = "yes";
+      };
+      "media-admin" = adminMediaShare "/srv/media";
+      "media-downloads" = writableMediaShare "/srv/media-views/media-downloads" "media-downloads";
+      "media-tv" = writableMediaShare "/srv/media-views/media-tv" "media-tv";
+      "media-movies" = writableMediaShare "/srv/media-views/media-movies" "media-movies";
+      "media-library" = readonlyMediaShare "/srv/media-views/media-library" "media-library";
+      timemachine = {
+        path = "/srv/media/TimeMachine";
+        browseable = "yes";
+        "read only" = "no";
+        "guest ok" = "no";
+        "valid users" = "media-root";
+        "force user" = "deploy";
+        "force group" = "deploy";
+        "vfs objects" = "fruit streams_xattr";
+        "fruit:time machine" = "yes";
+        "fruit:time machine max size" = "300G";
+      };
     };
   };
 }
