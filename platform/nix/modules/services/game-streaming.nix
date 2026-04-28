@@ -378,10 +378,12 @@ in
         WOLF_DOCKER_SOCKET = "/var/run/docker.sock";
         WOLF_LOG_LEVEL = "INFO";
         WOLF_RENDER_NODE = "/dev/dri/renderD128";
+        WOLF_SOCKET_PATH = "/var/run/wolf/wolf.sock";
         WOLF_STOP_CONTAINER_ON_EXIT = "TRUE";
       };
       volumes = [
         "${wolfState}:${wolfState}:rw"
+        "/run/wolf:/var/run/wolf:rw"
         "/var/run/docker.sock:/var/run/docker.sock:rw"
         "/dev:/dev:rw"
         "/run/udev:/run/udev:rw"
@@ -418,6 +420,9 @@ in
     "d ${pcGamesMount}/lutris 0775 ${gameUser} users - -"
     "d ${pcGamesMount}/prefixes 0775 ${gameUser} users - -"
     "d ${pcGamesMount}/steam 0775 ${gameUser} users - -"
+    "d /var/lib/personal-stack/wolfmanager 0750 root docker - -"
+    "d /var/lib/personal-stack/wolfmanager/config 0750 root docker - -"
+    "d /run/wolf 0750 root docker - -"
     "d ${wolfState} 0750 root docker - -"
     "d ${wolfState}/cfg 0750 root docker - -"
     "d ${wolfState}/profile_data 0750 ${gameUser} users - -"

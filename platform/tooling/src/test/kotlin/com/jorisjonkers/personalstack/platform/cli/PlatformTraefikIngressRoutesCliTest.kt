@@ -82,6 +82,11 @@ class PlatformTraefikIngressRoutesCliTest {
             .contains("name: qbittorrent")
             .contains("match: 'Host(`qbittorrent.jorisjonkers.dev`)'")
             .contains("port: 8080")
+            .contains("name: wolf")
+            .contains("match: 'Host(`wolf.jorisjonkers.dev`)'")
+            .contains("name: wolfmanager")
+            .contains("namespace: utility-system")
+            .contains("port: 3000")
             .doesNotContain("jorisjonkers.test")
 
         assertThat(stderr.toString(StandardCharsets.UTF_8)).isBlank()

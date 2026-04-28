@@ -113,3 +113,7 @@ data:
       exposure: "public"
       access: "sso_protected"
       host: "vault.jorisjonkers.dev"
+    - name: "wolf"
+      exposure: "public"
+      access: "sso_protected"
+      host: "wolf.jorisjonkers.dev"

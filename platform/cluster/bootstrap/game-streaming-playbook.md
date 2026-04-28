@@ -31,6 +31,14 @@ PC launchers use writable library directories under `/srv/games/pc`:
 
 ## Wolf
 
+Browser management is exposed separately from gameplay:
+
+- WolfManager URL: `https://wolf.jorisjonkers.dev`
+- First login follows WolfManager upstream defaults unless a persisted config
+  already exists under `/var/lib/personal-stack/wolfmanager/config`.
+- The URL is protected by the stack forward-auth flow. Grant the `WOLF`
+  service permission in the admin UI to make the MyApps card visible.
+
 Check Wolf and Docker after deploy:
 
 ```sh
@@ -40,11 +48,37 @@ systemctl status docker-wolf.service
 docker logs --tail 200 wolf
 ```
 
+Check WolfManager after Flux reconciles:
+
+```sh
+kubectl -n utility-system get pods -l app.kubernetes.io/name=wolfmanager -o wide
+kubectl -n utility-system logs deploy/wolfmanager --tail=100
+kubectl -n utility-system get svc wolfmanager
+```
+
 The first deploy seeds `/etc/wolf/cfg/config.toml`. Wolf owns that file after
 seeding because Moonlight pairing state is written into it. The reconcile unit
 adds missing Steam, Heroic, and Lutris app entries to existing configs without
 overwriting pairings or local Wolf UI changes. It writes one backup at
 `/etc/wolf/cfg/config.toml.pre-store-launchers`.
+
+## Moonlight Access
+
+`https://wolf.jorisjonkers.dev` is the browser management UI, not the
+GameStream endpoint. Moonlight should connect directly to the GTX node:
+
+- LAN: add `enschede-gtx-960m-1` if local DNS resolves it, otherwise add the
+  node's LAN IP.
+- Tailnet: add `100.89.41.92`, or the Tailscale MagicDNS name for
+  `enschede-gtx-960m-1` if MagicDNS is enabled on the client.
+
+Automatic discovery may not show the host outside the same L2 network because
+Moonlight discovery relies on local broadcast/mDNS-style traffic. Manual add is
+expected on Tailscale, routed Wi-Fi/VLANs, and remote clients. Pairing and
+streaming then use Wolf's native ports opened by the NixOS module:
+
+- TCP: `47984`, `47989`, `47990`, `48010`
+- UDP: `47998-48010`, `8000-8010`
 
 Use the Moonlight app list as follows:
 

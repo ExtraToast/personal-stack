@@ -147,6 +147,13 @@ export const SERVICE_REGISTRY: ServiceEntry[] = [
     iconUrl: '/icons/adguard.svg',
     description: 'DNS filter',
   },
+  {
+    permission: 'WOLF',
+    label: 'Wolf',
+    url: buildServiceUrl('wolf'),
+    iconUrl: '/icons/wolf.svg',
+    description: 'Game streaming control',
+  },
 ]
 
 export function getAccessibleServices(permissions: string[]): ServiceEntry[] {

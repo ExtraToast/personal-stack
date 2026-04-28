@@ -78,6 +78,10 @@ class PlatformEdgeRouteCatalogCliTest {
             .contains("name: \"qbittorrent\"")
             .contains("service: \"qbittorrent\"")
             .contains("host: \"qbittorrent.jorisjonkers.dev\"")
+            .contains("name: \"wolf\"")
+            .contains("service: \"wolf\"")
+            .contains("host: \"wolf.jorisjonkers.dev\"")
+            .contains("access: \"sso_protected\"")
             .doesNotContain("test_host")
             .doesNotContain("jorisjonkers.test")
 

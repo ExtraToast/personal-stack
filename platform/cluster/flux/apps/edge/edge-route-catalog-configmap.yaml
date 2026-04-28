@@ -121,3 +121,7 @@ data:
       service: "vault"
       host: "vault.jorisjonkers.dev"
       access: "sso_protected"
+    - name: "wolf"
+      service: "wolf"
+      host: "wolf.jorisjonkers.dev"
+      access: "sso_protected"
