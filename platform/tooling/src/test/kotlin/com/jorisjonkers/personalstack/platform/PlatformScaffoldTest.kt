@@ -23,6 +23,7 @@ class PlatformScaffoldTest {
                 "platform/nix/profiles/utility.nix",
                 "platform/nix/profiles/gpu-nvidia.nix",
                 "platform/nix/modules/base/default.nix",
+                "platform/nix/modules/services/game-streaming.nix",
                 "platform/nix/authorized-keys/README.md",
                 "platform/nix/modules/image/raspberry-pi-sd-image.nix",
                 "platform/nix/hosts/frankfurt-contabo-1/default.nix",
@@ -32,6 +33,7 @@ class PlatformScaffoldTest {
                 "platform/scripts/bootstrap/bootstrap-tailnet.sh",
                 "platform/scripts/bootstrap/bootstrap-k3s-worker.sh",
                 "platform/scripts/build/build-pi-image.sh",
+                "platform/cluster/bootstrap/game-streaming-playbook.md",
                 "platform/cluster/flux/clusters/production/kustomization.yaml",
             )
 

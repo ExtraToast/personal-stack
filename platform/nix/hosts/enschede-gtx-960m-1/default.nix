@@ -5,6 +5,7 @@
     ../../profiles/utility.nix
     ../../profiles/gpu-nvidia.nix
     ../../modules/k3s/node-labels.nix
+    ../../modules/services/game-streaming.nix
     ./disko.nix
   ];
 
@@ -24,6 +25,7 @@
     "personal-stack/role-utility-host" = "true";
     "personal-stack/capability-tailscale" = "true";
     "personal-stack/capability-lan-ingress" = "true";
+    "personal-stack/capability-game-streaming" = "true";
     # capability-samba deliberately absent: the media drive (/srv/media)
     # is mounted on enschede-t1000-1, not here.
     # capability-adguard deliberately absent: AdGuard runs only on
