@@ -10,6 +10,8 @@ class PlatformSambaNixTest {
     fun `samba exposes role-scoped media shares with a dedicated all-access identity`() {
         val samba = repositoryRoot.resolve("platform/nix/modules/services/samba.nix").toFile().readText()
         val mediaStorage = repositoryRoot.resolve("platform/nix/modules/services/media-storage.nix").toFile().readText()
+        val baseNix = repositoryRoot.resolve("platform/nix/modules/base/default.nix").toFile().readText()
+        val t1000Disko = repositoryRoot.resolve("platform/nix/hosts/enschede-t1000-1/disko.nix").toFile().readText()
         val globalSambaSettings = samba.substringAfter("global = {").substringBefore("};")
 
         assertThat(samba)
@@ -57,5 +59,15 @@ class PlatformSambaNixTest {
             .contains("device = \"/srv/media/Series\"")
             .contains("device = \"/srv/media/Films\"")
             .doesNotContain("media-tv")
+
+        assertThat(baseNix)
+            .contains("users.groups.deploy.gid = 1000;")
+            .contains("users.users.deploy = {")
+            .contains("uid = 1000;")
+            .contains("group = \"deploy\";")
+
+        assertThat(t1000Disko)
+            .contains("\"uid=1000\"")
+            .contains("\"gid=1000\"")
     }
 }
