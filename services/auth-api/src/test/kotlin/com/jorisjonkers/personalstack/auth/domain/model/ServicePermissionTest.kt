@@ -28,6 +28,8 @@ class ServicePermissionTest {
         "prowlarr.jorisjonkers.dev, PROWLARR",
         "qbittorrent.jorisjonkers.dev, QBITTORRENT",
         "adguard.jorisjonkers.dev, ADGUARD",
+        "wolf.jorisjonkers.dev, WOLF",
+        "wolf.jorisjonkers.test, WOLF",
     )
     fun `fromHost resolves production and local dev hostnames`(
         host: String,

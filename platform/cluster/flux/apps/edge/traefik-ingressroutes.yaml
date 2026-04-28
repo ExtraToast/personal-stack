@@ -492,3 +492,27 @@ spec:
           namespace: data-system
           port: 8200
   tls: {}
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: wolf
+  namespace: edge-system
+  annotations:
+    external-dns.alpha.kubernetes.io/target: ingress.jorisjonkers.dev
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: 'true'
+    kubernetes.io/ingress.class: traefik-public
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: 'Host(`wolf.jorisjonkers.dev`)'
+      middlewares:
+        - name: forward-auth
+          namespace: edge-system
+      services:
+        - name: wolfmanager
+          namespace: utility-system
+          port: 3000
+  tls: {}

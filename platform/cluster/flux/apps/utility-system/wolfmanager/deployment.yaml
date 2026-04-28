@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wolfmanager
+  namespace: utility-system
+  labels:
+    app.kubernetes.io/name: wolfmanager
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: wolfmanager
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: wolfmanager
+    spec:
+      nodeSelector:
+        personal-stack/capability-game-streaming: 'true'
+      containers:
+        - name: wolfmanager
+          image: ghcr.io/games-on-whales/wolfmanager/wolfmanager:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: NEXTAUTH_URL
+              value: https://wolf.jorisjonkers.dev
+            - name: WOLF_SOCKET_PATH
+              value: /var/run/wolf/wolf.sock
+            - name: DOCKER_HOST
+              value: unix:///var/run/docker.sock
+          volumeMounts:
+            - name: wolf-socket
+              mountPath: /var/run/wolf
+            - name: docker-socket
+              mountPath: /var/run/docker.sock
+            - name: config
+              mountPath: /app/config
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: wolf-socket
+          hostPath:
+            path: /run/wolf
+            type: Directory
+        - name: docker-socket
+          hostPath:
+            path: /var/run/docker.sock
+            type: Socket
+        - name: config
+          hostPath:
+            path: /var/lib/personal-stack/wolfmanager/config
+            type: DirectoryOrCreate

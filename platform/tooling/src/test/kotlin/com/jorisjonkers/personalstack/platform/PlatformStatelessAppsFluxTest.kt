@@ -10,10 +10,15 @@ class PlatformStatelessAppsFluxTest {
     fun `production cluster kustomization includes stateless apps`() {
         val clusterKustomization =
             repositoryRoot.resolve("platform/cluster/flux/clusters/production/kustomization.yaml").toFile().readText()
+        val clusterKustomizations =
+            repositoryRoot.resolve("platform/cluster/flux/clusters/production/kustomizations.yaml").toFile().readText()
         val appKustomization =
             repositoryRoot.resolve("platform/cluster/flux/apps/stateless/kustomization.yaml").toFile().readText()
 
-        assertThat(clusterKustomization).contains("- ../../apps/stateless")
+        assertThat(clusterKustomization).contains("- kustomizations.yaml")
+        assertThat(clusterKustomizations)
+            .contains("name: apps-stateless")
+            .contains("path: ./platform/cluster/flux/apps/stateless")
         assertThat(appKustomization)
             .contains("- app-ui")
             .contains("- auth-ui")
@@ -85,4 +90,30 @@ class PlatformStatelessAppsFluxTest {
             .contains("port: 8191")
     }
 
+    @Test
+    fun `wolfmanager runs on the game streaming node behind a cluster service`() {
+        val appKustomization =
+            repositoryRoot.resolve("platform/cluster/flux/apps/utility-system/kustomization.yaml").toFile().readText()
+        val deployment =
+            repositoryRoot.resolve("platform/cluster/flux/apps/utility-system/wolfmanager/deployment.yaml").toFile().readText()
+        val service = repositoryRoot.resolve("platform/cluster/flux/apps/utility-system/wolfmanager/service.yaml").toFile().readText()
+
+        assertThat(appKustomization).contains("- wolfmanager")
+        assertThat(deployment)
+            .contains("kind: Deployment")
+            .contains("name: wolfmanager")
+            .contains("namespace: utility-system")
+            .contains("ghcr.io/games-on-whales/wolfmanager/wolfmanager:latest")
+            .contains("personal-stack/capability-game-streaming: 'true'")
+            .contains("NEXTAUTH_URL")
+            .contains("https://wolf.jorisjonkers.dev")
+            .contains("WOLF_SOCKET_PATH")
+            .contains("/var/run/wolf/wolf.sock")
+            .contains("/var/run/docker.sock")
+            .contains("/var/lib/personal-stack/wolfmanager/config")
+        assertThat(service)
+            .contains("kind: Service")
+            .contains("name: wolfmanager")
+            .contains("port: 3000")
+    }
 }

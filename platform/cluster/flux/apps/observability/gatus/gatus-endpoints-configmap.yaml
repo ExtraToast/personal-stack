@@ -193,3 +193,10 @@ data:
       conditions:
       - "[STATUS] == 200"
       - "[RESPONSE_TIME] < 1500"
+    - name: "wolf"
+      group: "public-apps"
+      url: "http://wolfmanager.utility-system.svc.cluster.local:3000/"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"

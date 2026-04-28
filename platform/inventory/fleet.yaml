@@ -162,6 +162,10 @@ service_intent:
       # restarts and mirrors the on-disk layout the retired NixOS
       # service used.
       - adguard
+      # WolfManager manages the host-native Games On Whales Wolf service
+      # running on enschede-gtx-960m-1. Gameplay still streams directly
+      # from that node to Moonlight; this is only the browser management UI.
+      - wolf
     internal_platform:
       - postgres
       - rabbitmq
@@ -222,6 +226,7 @@ placement_intent:
     - jellyseerr
     - bazarr
     - adguard
+    - wolf
     - samba
 
   gpu_specific:
@@ -244,6 +249,7 @@ exposure_intent:
     - vault
     - headlamp
     - adguard
+    - wolf
 
   public_and_lan:
     - bazarr
@@ -279,6 +285,7 @@ access_intent:
     - vault
     - headlamp
     - adguard
+    - wolf
   host_labels:
     app-ui: root
     auth-ui: auth
@@ -299,6 +306,7 @@ access_intent:
     radarr: radarr
     sonarr: sonarr
     adguard: adguard
+    wolf: wolf
     samba: samba
     # Kubernetes dashboard (Headlamp) at dashboard.jorisjonkers.dev.
     headlamp: dashboard
@@ -311,6 +319,10 @@ ingress_intent:
     adguard:
       namespace: utility-system
       service: adguard
+      port: 3000
+    wolf:
+      namespace: utility-system
+      service: wolfmanager
       port: 3000
     app-ui:
       namespace: app-system

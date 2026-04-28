@@ -39,6 +39,10 @@ enum class ServicePermission(
     // the old utility host; now publicly exposed behind forward-auth so grantees can
     // manage query logs and blocklists off-LAN.
     ADGUARD("adguard"),
+
+    // WolfManager controls the host-native Wolf game streaming service. Actual
+    // Moonlight gameplay traffic connects directly to the GTX node.
+    WOLF("wolf"),
     ;
 
     val subdomains: Set<String> = subdomains.toSet()

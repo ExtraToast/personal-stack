@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: wolfmanager
+  namespace: utility-system
+  labels:
+    app.kubernetes.io/name: wolfmanager
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: wolfmanager
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+      protocol: TCP
