@@ -18,6 +18,7 @@ spec:
       nodeSelector:
         personal-stack/site: enschede
         personal-stack/role-utility-host: 'true'
+        personal-stack/capability-samba: 'true'
       containers:
         - name: jellyseerr
           image: ghcr.io/seerr-team/seerr:v3.1.1
