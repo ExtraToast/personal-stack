@@ -106,19 +106,37 @@ After restore, check ownership:
 
 The `utility` profile now prepares the legacy share layout on the T1000:
 
-- `films` -> `/srv/media/Films`
-- `series` -> `/srv/media/Series`
-- `anime` -> `/srv/media/Anime`
-- `media` -> `/srv/media`
+- `media-admin` -> `/srv/media`
+  - Valid user: `media-root`
+  - Purpose: all-access administrative view of the DataBeast media volume.
+- `media-downloads` -> `/srv/media-views/media-downloads`
+  - Valid users: `media-root`, `media-downloads`
+  - Contains bind-mounted `Downloading` and `Completed`.
+- `media-tv` -> `/srv/media-views/media-tv`
+  - Valid users: `media-root`, `media-tv`
+  - Contains bind-mounted `Completed` and `Series`.
+- `media-movies` -> `/srv/media-views/media-movies`
+  - Valid users: `media-root`, `media-movies`
+  - Contains bind-mounted `Completed` and `Films`.
+- `media-library` -> `/srv/media-views/media-library`
+  - Valid users: `media-root`, `media-library`
+  - Read-only view of bind-mounted `Series` and `Films`.
 - `timemachine` -> `/srv/media/TimeMachine`
+  - Valid user: `media-root`
 
 Before clients reconnect:
 
-1. Set a Samba password for `deploy`:
-   `ssh -p 2222 deploy@enschede-t1000-1 sudo smbpasswd -a deploy`
+1. Set the all-access Samba password for `media-root`, reusing the password
+   that previously protected the broad all-access media share:
+   `ssh -p 2222 deploy@enschede-t1000-1 sudo smbpasswd -a media-root`
 2. Validate the exported share list:
-   `smbclient -L //enschede-t1000-1 -U deploy`
-3. Validate write access to the main share and read access to the library shares.
+   `smbclient -L //enschede-t1000-1 -U media-root`
+3. Validate write access to `media-admin`, `media-downloads`, `media-tv`,
+   and `media-movies`.
+4. Validate that `media-library` is browseable but read-only.
+5. Add Samba passwords for narrower role users only when a real client needs
+   that narrower access:
+   `media-downloads`, `media-tv`, `media-movies`, or `media-library`.
 
 ## Cutover Validation
 
@@ -134,8 +152,15 @@ After the old jobs are down and the new node is live:
    `prowlarr.jorisjonkers.dev`
    `qbittorrent.jorisjonkers.dev`
 3. Confirm downloads still land under `/srv/media/Downloading` and complete
-   into the expected media tree.
-4. Confirm SMB clients can still browse the media shares on the new node.
+   into `/srv/media/Completed`.
+4. Confirm Sonarr imports from `Completed` into `Series`.
+5. Confirm Radarr imports from `Completed` into `Films`.
+6. Confirm Jellyfin can scan, write metadata, and delete files in `Series`
+   and `Films`.
+7. Confirm Bazarr can read and write subtitle files in `Series` and `Films`.
+8. Confirm Jellyseerr can read `Series` and `Films` without write access.
+9. Confirm SMB clients can browse only the directories exposed by their role
+   share.
 
 Do not wipe the old home node until at least one real download, one library
 scan, one playback test, and one SMB client write test have all succeeded.
