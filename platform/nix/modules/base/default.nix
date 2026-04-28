@@ -83,8 +83,11 @@ in
     install or deploy-rs activation.
   '';
 
+  users.groups.deploy.gid = 1000;
   users.users.deploy = {
     isNormalUser = true;
+    uid = 1000;
+    group = "deploy";
     extraGroups = [ "wheel" ];
     openssh.authorizedKeys.keys = deployAuthorizedKeys;
   };
