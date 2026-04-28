@@ -3,7 +3,9 @@ let
   gameUser = "gamehost";
   gameHome = "/home/${gameUser}";
   gamesMount = "/srv/games";
-  pcGamesMount = "${gamesMount}/pc";
+  localGamesMount = "/srv/game-streaming";
+  localRomsMount = "${localGamesMount}/roms";
+  pcGamesMount = "${localGamesMount}/pc";
   wolfState = "/etc/wolf";
   wolfSteamApp = ''
         [[profiles.apps]]
@@ -200,7 +202,9 @@ let
             ]
             mounts = [
                 "${gamesMount}:/ROMs:ro",
-                "${gamesMount}:/games:ro"
+                "${gamesMount}:/games:ro",
+                "${localRomsMount}:/ROMs-local:ro",
+                "${localGamesMount}:/games-local:ro"
             ]
             ports = []
             base_create_json = """
@@ -241,7 +245,9 @@ let
             ]
             mounts = [
                 "${gamesMount}:/ROMs:ro",
-                "${gamesMount}:/games:ro"
+                "${gamesMount}:/games:ro",
+                "${localRomsMount}:/ROMs-local:ro",
+                "${localGamesMount}:/games-local:ro"
             ]
             ports = []
             base_create_json = """
@@ -280,7 +286,9 @@ let
             ]
             mounts = [
                 "${gamesMount}:/ROMs:ro",
-                "${gamesMount}:/games:ro"
+                "${gamesMount}:/games:ro",
+                "${localRomsMount}:/ROMs-local:ro",
+                "${localGamesMount}:/games-local:rw"
             ]
             ports = []
             base_create_json = """
@@ -387,7 +395,6 @@ in
         "/var/run/docker.sock:/var/run/docker.sock:rw"
         "/dev:/dev:rw"
         "/run/udev:/run/udev:rw"
-        "${gamesMount}:${gamesMount}:ro"
       ];
       extraOptions = [
         "--network=host"
@@ -414,6 +421,12 @@ in
 
   systemd.tmpfiles.rules = [
     "d ${gamesMount} 0755 root root - -"
+    "d ${localGamesMount} 0775 ${gameUser} users - -"
+    "d ${localGamesMount}/imports 0775 ${gameUser} users - -"
+    "d ${localGamesMount}/imports/t1000 0775 ${gameUser} users - -"
+    "d ${localRomsMount} 0775 ${gameUser} users - -"
+    "d ${localRomsMount}/switch 0775 ${gameUser} users - -"
+    "d ${localRomsMount}/wii 0775 ${gameUser} users - -"
     "d ${pcGamesMount} 0775 ${gameUser} users - -"
     "d ${pcGamesMount}/downloads 0775 ${gameUser} users - -"
     "d ${pcGamesMount}/heroic 0775 ${gameUser} users - -"
@@ -498,11 +511,12 @@ in
   };
 
   fileSystems.${gamesMount} = {
-    device = "/dev/disk/by-label/GameRoms";
-    fsType = "auto";
+    device = "/dev/disk/by-uuid/1120-414D";
+    fsType = "vfat";
     options = [
       "nofail"
       "noauto"
+      "ro"
       "x-systemd.automount"
       "x-systemd.device-timeout=10s"
       "x-systemd.idle-timeout=10min"

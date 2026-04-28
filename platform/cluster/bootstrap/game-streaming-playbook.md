@@ -6,28 +6,73 @@ Wolf exposes virtual displays to Moonlight clients, so the client can request
 
 ## Storage
 
-The external ROM drive is mounted at `/srv/games` by label:
+The external Seagate OneTouch Wii/GameCube drive is mounted at `/srv/games` by
+filesystem UUID. The FAT32 filesystem currently has no label, and the code uses
+the UUID to avoid writing a label to a Wii-compatible disk:
 
 ```sh
-ls -la /dev/disk/by-label/GameRoms
+ls -la /dev/disk/by-uuid/1120-414D
 systemctl status srv-games.automount
 ls -la /srv/games
 ```
 
-Wolf app containers receive that drive read-only as both `/ROMs` and `/games`.
-Keep ROMs on the drive in frontend-friendly platform directories where possible.
-For Wii/GameCube, prefer `/srv/games/wii` and `/srv/games/gc`; if the current
-drive uses `/srv/games/wii-gc`, RetroArch can still browse it directly via
-`/games/wii-gc`, but ES-DE may need per-system path configuration.
+This mount is read-only on the GTX host. Do not rename, repair, relabel, or
+copy into the Wii/GameCube paths from Linux unless that is an explicit recovery
+operation. The drive must remain compatible with the existing Wii setup.
 
-PC launchers use writable library directories under `/srv/games/pc`:
+Protected external paths discovered on the drive:
 
-- Steam: `/srv/games/pc/steam`
-- Epic, GOG, and Amazon Prime Games through Heroic: `/srv/games/pc/heroic`
+- GameCube: `/srv/games/games/<title [GAMEID]>/game.iso`, `game.ciso`, and
+  occasional `disc2.iso`. Current scan found 190 title directories and 202 disc
+  files.
+- Wii: `/srv/games/wbfs/<title [GAMEID]>/<GAMEID>.wbfs`, with at least one
+  split `.wbf1` file. Current scan found 212 Wii title directories.
+- Nintendont memory cards: `/srv/games/saves/GALP.raw`,
+  `/srv/games/saves/GZLE.raw`, and `/srv/games/saves/ninmem.raw`.
+
+Wolf app containers receive the external drive read-only as both `/ROMs` and
+`/games`, so RetroArch/ES-DE can browse `/ROMs/games`, `/ROMs/wbfs`, and
+`/ROMs/saves` without mutating them.
+
+The GTX internal SSD has a separate writable workspace at `/srv/game-streaming`.
+Use this for PC launchers, imported ROMs, Switch images, downloads, and anything
+that does not need to stay on the Wii-compatible FAT32 disk.
+
+PC launchers use writable library directories under `/srv/game-streaming/pc`:
+
+- Steam: `/srv/game-streaming/pc/steam`
+- Epic, GOG, and Amazon Prime Games through Heroic:
+  `/srv/game-streaming/pc/heroic`
 - EA App, Ubisoft Connect, Battle.net, itch.io, and generic Wine games through
-  Lutris: `/srv/games/pc/lutris`
-- Shared Wine prefixes and installers: `/srv/games/pc/prefixes` and
-  `/srv/games/pc/downloads`
+  Lutris: `/srv/game-streaming/pc/lutris`
+- Shared Wine prefixes and installers: `/srv/game-streaming/pc/prefixes` and
+  `/srv/game-streaming/pc/downloads`
+
+Local/imported emulator content can live under:
+
+- `/srv/game-streaming/roms`
+- `/srv/game-streaming/imports/t1000/Emulation`
+
+RetroArch and ES-DE receive those SSD paths as `/ROMs-local` and `/games-local`
+in addition to the protected external `/ROMs` and `/games` mounts.
+
+To inspect the t1000 media drive for game files without copying:
+
+```sh
+platform/scripts/game-streaming/copy-t1000-emulation-to-gtx.sh
+```
+
+To copy `/srv/media/Emulation` from t1000 to the GTX SSD import area:
+
+```sh
+platform/scripts/game-streaming/copy-t1000-emulation-to-gtx.sh --execute
+```
+
+That script copies to `/srv/game-streaming/imports/t1000/Emulation` and refuses
+destinations under `/srv/games`. The t1000 scan found one Wii `.wbfs` under
+`/srv/media/Emulation/ROMS/wii` and four Switch `.xci` files under
+`/srv/media/Emulation/switch/games`; Switch images are too large for FAT32 as
+single files and should stay on the GTX SSD if copied.
 
 ## Wolf
 
@@ -99,8 +144,8 @@ this Maxwell-era GPU. Validate in this order:
 ```sh
 nvidia-smi
 cat /sys/module/nvidia_drm/parameters/modeset
-ls -la /dev/dri/renderD128 /dev/uinput /dev/uhid /dev/nvidia*
-docker run --rm --gpus=all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
+ls -la /dev/dri/renderD129 /dev/uinput /dev/uhid /dev/nvidia*
+docker run --rm --device=nvidia.com/gpu=all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
 ```
 
 Expected:
