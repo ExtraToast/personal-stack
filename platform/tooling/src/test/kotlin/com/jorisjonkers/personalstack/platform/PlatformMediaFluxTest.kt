@@ -189,6 +189,7 @@ class PlatformMediaFluxTest {
             .contains("ghcr.io/seerr-team/seerr:v3.1.1")
             .contains("personal-stack/site: enschede")
             .contains("personal-stack/role-utility-host:")
+            .contains("personal-stack/capability-samba:")
             .contains("path: /srv/media/Series")
             .contains("path: /srv/media/Films")
             .contains("path: /var/lib/personal-stack/media/jellyseerr")
