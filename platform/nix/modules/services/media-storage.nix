@@ -44,6 +44,7 @@
   fileSystems = {
     "/srv/media-views/media-downloads/Downloading" = {
       device = "/srv/media/Downloading";
+      fsType = "none";
       options = [
         "bind"
         "nofail"
@@ -52,6 +53,7 @@
     };
     "/srv/media-views/media-downloads/Completed" = {
       device = "/srv/media/Completed";
+      fsType = "none";
       options = [
         "bind"
         "nofail"
@@ -60,6 +62,7 @@
     };
     "/srv/media-views/media-tv/Completed" = {
       device = "/srv/media/Completed";
+      fsType = "none";
       options = [
         "bind"
         "nofail"
@@ -68,6 +71,7 @@
     };
     "/srv/media-views/media-tv/Series" = {
       device = "/srv/media/Series";
+      fsType = "none";
       options = [
         "bind"
         "nofail"
@@ -76,6 +80,7 @@
     };
     "/srv/media-views/media-movies/Completed" = {
       device = "/srv/media/Completed";
+      fsType = "none";
       options = [
         "bind"
         "nofail"
@@ -84,6 +89,7 @@
     };
     "/srv/media-views/media-movies/Films" = {
       device = "/srv/media/Films";
+      fsType = "none";
       options = [
         "bind"
         "nofail"
@@ -92,6 +98,7 @@
     };
     "/srv/media-views/media-library/Series" = {
       device = "/srv/media/Series";
+      fsType = "none";
       options = [
         "bind"
         "nofail"
@@ -100,6 +107,7 @@
     };
     "/srv/media-views/media-library/Films" = {
       device = "/srv/media/Films";
+      fsType = "none";
       options = [
         "bind"
         "nofail"
