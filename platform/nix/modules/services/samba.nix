@@ -47,10 +47,10 @@ in
       group = "media-share";
       description = "Samba identity for download staging media access";
     };
-    "media-tv" = {
+    "media-series" = {
       isSystemUser = true;
       group = "media-share";
-      description = "Samba identity for TV import media access";
+      description = "Samba identity for series import media access";
     };
     "media-movies" = {
       isSystemUser = true;
@@ -75,18 +75,10 @@ in
         "map to guest" = "Bad User";
         "server role" = "standalone server";
         "server min protocol" = "SMB2";
-        "vfs objects" = "fruit streams_xattr";
-        "fruit:metadata" = "stream";
-        "fruit:model" = "MacSamba";
-        "fruit:posix_rename" = "yes";
-        "fruit:veto_appledouble" = "no";
-        "fruit:nfs_aces" = "no";
-        "fruit:wipe_intentionally_left_blank_rfork" = "yes";
-        "fruit:delete_empty_adfiles" = "yes";
       };
       "media-admin" = adminMediaShare "/srv/media";
       "media-downloads" = writableMediaShare "/srv/media-views/media-downloads" "media-downloads";
-      "media-tv" = writableMediaShare "/srv/media-views/media-tv" "media-tv";
+      "media-series" = writableMediaShare "/srv/media-views/media-series" "media-series";
       "media-movies" = writableMediaShare "/srv/media-views/media-movies" "media-movies";
       "media-library" = readonlyMediaShare "/srv/media-views/media-library" "media-library";
       timemachine = {
@@ -98,6 +90,13 @@ in
         "force user" = "deploy";
         "force group" = "deploy";
         "vfs objects" = "fruit streams_xattr";
+        "fruit:metadata" = "stream";
+        "fruit:model" = "MacSamba";
+        "fruit:posix_rename" = "yes";
+        "fruit:veto_appledouble" = "no";
+        "fruit:nfs_aces" = "no";
+        "fruit:wipe_intentionally_left_blank_rfork" = "yes";
+        "fruit:delete_empty_adfiles" = "yes";
         "fruit:time machine" = "yes";
         "fruit:time machine max size" = "300G";
       };

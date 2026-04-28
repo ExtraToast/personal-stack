@@ -21,9 +21,9 @@
     "d /srv/media-views/media-downloads 0755 root root - -"
     "d /srv/media-views/media-downloads/Downloading 0755 root root - -"
     "d /srv/media-views/media-downloads/Completed 0755 root root - -"
-    "d /srv/media-views/media-tv 0755 root root - -"
-    "d /srv/media-views/media-tv/Completed 0755 root root - -"
-    "d /srv/media-views/media-tv/Series 0755 root root - -"
+    "d /srv/media-views/media-series 0755 root root - -"
+    "d /srv/media-views/media-series/Completed 0755 root root - -"
+    "d /srv/media-views/media-series/Series 0755 root root - -"
     "d /srv/media-views/media-movies 0755 root root - -"
     "d /srv/media-views/media-movies/Completed 0755 root root - -"
     "d /srv/media-views/media-movies/Films 0755 root root - -"
@@ -60,7 +60,7 @@
       ];
       depends = [ "/srv/media" ];
     };
-    "/srv/media-views/media-tv/Completed" = {
+    "/srv/media-views/media-series/Completed" = {
       device = "/srv/media/Completed";
       fsType = "none";
       options = [
@@ -69,7 +69,7 @@
       ];
       depends = [ "/srv/media" ];
     };
-    "/srv/media-views/media-tv/Series" = {
+    "/srv/media-views/media-series/Series" = {
       device = "/srv/media/Series";
       fsType = "none";
       options = [

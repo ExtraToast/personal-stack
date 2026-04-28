@@ -104,7 +104,7 @@ After restore, check ownership:
 
 ## Samba Bring-Up
 
-The `utility` profile now prepares the legacy share layout on the T1000:
+The `utility` profile now prepares role-scoped media shares on the T1000:
 
 - `media-admin` -> `/srv/media`
   - Valid user: `media-root`
@@ -112,8 +112,8 @@ The `utility` profile now prepares the legacy share layout on the T1000:
 - `media-downloads` -> `/srv/media-views/media-downloads`
   - Valid users: `media-root`, `media-downloads`
   - Contains bind-mounted `Downloading` and `Completed`.
-- `media-tv` -> `/srv/media-views/media-tv`
-  - Valid users: `media-root`, `media-tv`
+- `media-series` -> `/srv/media-views/media-series`
+  - Valid users: `media-root`, `media-series`
   - Contains bind-mounted `Completed` and `Series`.
 - `media-movies` -> `/srv/media-views/media-movies`
   - Valid users: `media-root`, `media-movies`
@@ -131,12 +131,12 @@ Before clients reconnect:
    `ssh -p 2222 deploy@enschede-t1000-1 sudo smbpasswd -a media-root`
 2. Validate the exported share list:
    `smbclient -L //enschede-t1000-1 -U media-root`
-3. Validate write access to `media-admin`, `media-downloads`, `media-tv`,
+3. Validate write access to `media-admin`, `media-downloads`, `media-series`,
    and `media-movies`.
 4. Validate that `media-library` is browseable but read-only.
 5. Add Samba passwords for narrower role users only when a real client needs
    that narrower access:
-   `media-downloads`, `media-tv`, `media-movies`, or `media-library`.
+   `media-downloads`, `media-series`, `media-movies`, or `media-library`.
 
 ## Cutover Validation
 
