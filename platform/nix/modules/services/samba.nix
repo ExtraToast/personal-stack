@@ -75,6 +75,11 @@ in
         "map to guest" = "Bad User";
         "server role" = "standalone server";
         "server min protocol" = "SMB2";
+        # Finder probes DFS paths when connecting to an IP-based SMB URL.
+        # This standalone server does not host DFS referrals, and leaving
+        # DFS enabled makes those probes fail as "share does not exist"
+        # even though normal share enumeration succeeds.
+        "host msdfs" = "no";
         "vfs objects" = "fruit streams_xattr";
         "fruit:metadata" = "stream";
         "fruit:model" = "MacSamba";
