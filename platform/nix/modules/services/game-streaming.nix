@@ -377,7 +377,7 @@ in
         WOLF_CFG_FILE = "${wolfState}/cfg/config.toml";
         WOLF_DOCKER_SOCKET = "/var/run/docker.sock";
         WOLF_LOG_LEVEL = "INFO";
-        WOLF_RENDER_NODE = "/dev/dri/renderD128";
+        WOLF_RENDER_NODE = "/dev/dri/renderD129";
         WOLF_SOCKET_PATH = "/var/run/wolf/wolf.sock";
         WOLF_STOP_CONTAINER_ON_EXIT = "TRUE";
       };
@@ -391,7 +391,7 @@ in
       ];
       extraOptions = [
         "--network=host"
-        "--gpus=all"
+        "--device=nvidia.com/gpu=all"
         "--device=/dev/dri"
         "--device=/dev/uinput"
         "--device=/dev/uhid"
