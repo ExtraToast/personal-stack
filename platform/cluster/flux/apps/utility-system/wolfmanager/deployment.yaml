@@ -68,7 +68,7 @@ spec:
         - name: wolf-socket
           hostPath:
             path: /run/wolf
-            type: Directory
+            type: DirectoryOrCreate
         - name: docker-socket
           hostPath:
             path: /var/run/docker.sock

@@ -110,6 +110,8 @@ class PlatformStatelessAppsFluxTest {
             .contains("WOLF_SOCKET_PATH")
             .contains("/var/run/wolf/wolf.sock")
             .contains("/var/run/docker.sock")
+            .contains("path: /run/wolf")
+            .contains("type: DirectoryOrCreate")
             .contains("/var/lib/personal-stack/wolfmanager/config")
         assertThat(service)
             .contains("kind: Service")
