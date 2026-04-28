@@ -25,7 +25,7 @@ class PlatformGpuNvidiaRoleTest {
             .contains("hardware.nvidia = {")
             .contains("open = false;")
             .contains("modesetting.enable = true;")
-            .contains("package = config.boot.kernelPackages.nvidiaPackages.stable;")
+            .contains("package = lib.mkDefault config.boot.kernelPackages.nvidiaPackages.stable;")
             .contains("hardware.nvidia-container-toolkit.enable = true;")
             .contains("libva")
             .contains("pciutils")

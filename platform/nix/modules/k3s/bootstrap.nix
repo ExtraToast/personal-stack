@@ -1,4 +1,4 @@
-{ config, lib, ... }:
+{ config, lib, pkgs, ... }:
 let
   cfg = config.personalStack.k3sBootstrap;
   tokenDirectory = builtins.dirOf cfg.workerJoinTokenFile;
@@ -41,11 +41,26 @@ in
       "d ${tokenDirectory} 0700 root root - -"
     ];
 
-    # tailscale0 must exist before k3s starts, otherwise flannel fails to
-    # bind and the node comes up without cluster networking.
+    # tailscale0 must have its tailnet IP before k3s starts. During NixOS
+    # activation tailscaled can be restarted immediately before k3s; the
+    # interface exists, but k3s exits fatally if flannel checks it before the
+    # global unicast address is assigned.
     systemd.services.k3s = {
       after = [ "tailscaled.service" ];
       requires = [ "tailscaled.service" ];
+      preStart = lib.mkBefore ''
+        attempt=0
+        while [ "$attempt" -lt 60 ]; do
+          if [ -n "$(${pkgs.iproute2}/bin/ip -o -4 addr show dev tailscale0 scope global 2>/dev/null)" ]; then
+            exit 0
+          fi
+          attempt=$((attempt + 1))
+          ${pkgs.coreutils}/bin/sleep 1
+        done
+
+        echo "tailscale0 did not receive a global IPv4 address within 60s" >&2
+        exit 1
+      '';
     };
 
     services.k3s = lib.mkMerge [

@@ -67,6 +67,7 @@ nodes:
     capabilities:
       - tailscale
       - lan-ingress
+      - game-streaming
       - nvidia
 
   enschede-t1000-1:
@@ -184,6 +185,7 @@ service_intent:
   host_native:
     enschede-gtx-960m-1:
       - tailscale
+      - game-streaming
     enschede-t1000-1:
       - samba
       - tailscale

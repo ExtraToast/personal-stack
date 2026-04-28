@@ -24,6 +24,9 @@ class PlatformK3sBootstrapTest {
             .contains("6443")
             .contains("allowedUDPPorts = [ 8472 ]")
             .contains("systemd.tmpfiles.rules")
+            .contains("preStart = lib.mkBefore")
+            .contains("ip -o -4 addr show dev tailscale0 scope global")
+            .contains("tailscale0 did not receive a global IPv4 address within 60s")
     }
 
     @Test
