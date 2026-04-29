@@ -33,6 +33,7 @@ class PlatformScaffoldTest {
                 "platform/scripts/bootstrap/bootstrap-tailnet.sh",
                 "platform/scripts/bootstrap/bootstrap-k3s-worker.sh",
                 "platform/scripts/build/build-pi-image.sh",
+                "platform/scripts/game-streaming/copy-t1000-emulation-to-gtx.sh",
                 "platform/cluster/bootstrap/game-streaming-playbook.md",
                 "platform/cluster/flux/clusters/production/kustomization.yaml",
             )

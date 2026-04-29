@@ -20,12 +20,21 @@ class PlatformDataServicesFluxTest {
     fun `postgres runs as a stateful workload with init script and persistent storage`() {
         val manifest = repositoryRoot.resolve("platform/cluster/flux/apps/data/postgres/deployment.yaml").toFile().readText()
         val initScript = repositoryRoot.resolve("platform/cluster/flux/apps/data/postgres/init-script-configmap.yaml").toFile().readText()
+        val postgresConfig = repositoryRoot.resolve("platform/cluster/flux/apps/data/postgres/config-configmap.yaml").toFile().readText()
+        val kustomization = repositoryRoot.resolve("platform/cluster/flux/apps/data/postgres/kustomization.yaml").toFile().readText()
+        val reconcileJob =
+            repositoryRoot.resolve("platform/cluster/flux/apps/data/postgres/wolfmanager-reconcile-job.yaml").toFile().readText()
 
         assertThat(initScript)
             .contains("kind: ConfigMap")
             .contains("name: postgres-init-script")
             .contains("init-databases.sh: |")
+            .contains("CREATE DATABASE wolfmanager_db OWNER")
             .contains("CREATE DATABASE n8n_db OWNER")
+
+        assertThat(postgresConfig).contains("listen_addresses = '*'")
+
+        assertThat(kustomization).contains("wolfmanager-reconcile-job.yaml")
 
         assertThat(manifest)
             .contains("kind: ServiceAccount")
@@ -39,7 +48,6 @@ class PlatformDataServicesFluxTest {
             .contains("vault.hashicorp.com/agent-inject:")
             .contains("vault.hashicorp.com/role: postgres")
             .contains("/vault/secrets/postgres.env")
-            .contains("listen_addresses=*")
             .contains("mountPath: /docker-entrypoint-initdb.d/init-databases.sh")
             .contains("subPath: init-databases.sh")
             .contains("claimName: postgres-data")
@@ -48,6 +56,15 @@ class PlatformDataServicesFluxTest {
             .contains("name: postgres")
             .contains("port: 5432")
             .contains("personal-stack/site: frankfurt")
+
+        assertThat(reconcileJob)
+            .contains("name: postgres-wolfmanager-reconcile")
+            .contains("vault.hashicorp.com/role: postgres")
+            .contains("wolfmanager.user")
+            .contains("wolfmanager.password")
+            .contains("CREATE ROLE")
+            .contains("CREATE DATABASE")
+            .contains("wolfmanager_db")
     }
 
     @Test
@@ -119,6 +136,8 @@ class PlatformDataServicesFluxTest {
         assertThat(bootstrapScript)
             .contains("vault policy write postgres")
             .contains("vault policy write rabbitmq")
+            .contains("vault kv patch secret/platform/postgres")
+            .contains("wolfmanager.user=wolfmanager_user")
             .contains("auth/kubernetes/role/postgres")
             .contains("auth/kubernetes/role/rabbitmq")
             .contains("secret/data/platform/postgres")

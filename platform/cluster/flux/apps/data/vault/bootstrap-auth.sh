@@ -145,6 +145,10 @@ path "secret/data/platform/edge" {
   capabilities = ["read"]
 }
 
+path "secret/data/platform/postgres" {
+  capabilities = ["read"]
+}
+
 path "secret/data/platform/observability" {
   capabilities = ["read"]
 }
@@ -214,6 +218,14 @@ vault write auth/kubernetes/role/vso \
   bound_service_account_namespaces="vso-system,cert-manager,external-dns,observability,automation-system" \
   policies="vso" \
   ttl="1h"
+
+if ! vault kv get -field=wolfmanager.user secret/platform/postgres >/dev/null 2>&1; then
+  WOLFMANAGER_PASSWORD="$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+  vault kv patch secret/platform/postgres \
+    wolfmanager.user=wolfmanager_user \
+    wolfmanager.password="${WOLFMANAGER_PASSWORD}"
+  unset WOLFMANAGER_PASSWORD
+fi
 
 # RabbitMQ dynamic secrets engine. Reconfigure the connection on every
 # bootstrap so the URI + admin creds always match the current cluster;

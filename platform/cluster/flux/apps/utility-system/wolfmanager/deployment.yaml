@@ -36,6 +36,13 @@ spec:
               value: /var/run/wolf/wolf.sock
             - name: DOCKER_HOST
               value: unix:///var/run/docker.sock
+            - name: DATABASE_TYPE
+              value: postgresql
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: wolfmanager-db
+                  key: DATABASE_URL
           volumeMounts:
             - name: wolf-socket
               mountPath: /var/run/wolf
@@ -68,7 +75,7 @@ spec:
         - name: wolf-socket
           hostPath:
             path: /run/wolf
-            type: Directory
+            type: DirectoryOrCreate
         - name: docker-socket
           hostPath:
             path: /var/run/docker.sock

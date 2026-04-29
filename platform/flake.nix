@@ -113,6 +113,10 @@
 
       deploy.nodes.enschede-gtx-960m-1 = {
         hostname = "100.89.41.92";
+        # This host has external-game-drive automounts and long-running game
+        # streaming services. deploy-rs can confirm before the remote magic
+        # rollback hook is ready, which rolls back an otherwise healthy switch.
+        magicRollback = false;
         profiles.system = {
           sshUser = "deploy";
           user = "root";

@@ -5,3 +5,4 @@ resources:
   - init-script-configmap.yaml
   - config-configmap.yaml
   - deployment.yaml
+  - wolfmanager-reconcile-job.yaml

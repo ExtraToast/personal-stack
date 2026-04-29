@@ -187,6 +187,7 @@ spec:
   prune: true
   dependsOn:
     - name: apps-core
+    - name: apps-data
   sourceRef:
     kind: GitRepository
     name: flux-system
