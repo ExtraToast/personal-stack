@@ -46,6 +46,8 @@ spec:
           AUTH_DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "auth.password" }}{{ end }}
           ASSISTANT_DB_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "assistant.user" }}{{ end }}
           ASSISTANT_DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "assistant.password" }}{{ end }}
+          WOLFMANAGER_DB_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "wolfmanager.user" }}{{ end }}
+          WOLFMANAGER_DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "wolfmanager.password" }}{{ end }}
     spec:
       serviceAccountName: postgres
       nodeSelector:
