@@ -115,6 +115,7 @@ class PlatformHostDefinitionsTest {
 
     @Test
     fun `gtx 960m host imports game streaming service`() {
+        val flake = repositoryRoot.resolve("platform/flake.nix").toFile().readText()
         val hostDefinition =
             repositoryRoot.resolve("platform/nix/hosts/enschede-gtx-960m-1/default.nix").toFile().readText()
         val module = repositoryRoot.resolve("platform/nix/modules/services/game-streaming.nix").toFile().readText()
@@ -124,6 +125,9 @@ class PlatformHostDefinitionsTest {
         assertThat(gtxNode.capabilities).contains("game-streaming", "nvidia")
         assertThat(fleet.serviceIntent.hostNative.getValue("enschede-gtx-960m-1"))
             .contains("game-streaming")
+        assertThat(flake)
+            .contains("deploy.nodes.enschede-gtx-960m-1")
+            .contains("magicRollback = false")
         assertThat(hostDefinition)
             .contains("../../modules/services/game-streaming.nix")
             .contains("\"personal-stack/capability-game-streaming\" = \"true\"")
