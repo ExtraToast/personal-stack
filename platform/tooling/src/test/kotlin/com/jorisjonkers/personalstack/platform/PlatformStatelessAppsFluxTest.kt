@@ -92,12 +92,19 @@ class PlatformStatelessAppsFluxTest {
 
     @Test
     fun `wolfmanager runs on the game streaming node behind a cluster service`() {
+        val clusterKustomizations =
+            repositoryRoot.resolve("platform/cluster/flux/clusters/production/kustomizations.yaml").toFile().readText()
         val appKustomization =
             repositoryRoot.resolve("platform/cluster/flux/apps/utility-system/kustomization.yaml").toFile().readText()
         val deployment =
             repositoryRoot.resolve("platform/cluster/flux/apps/utility-system/wolfmanager/deployment.yaml").toFile().readText()
         val service = repositoryRoot.resolve("platform/cluster/flux/apps/utility-system/wolfmanager/service.yaml").toFile().readText()
+        val vaultSecrets =
+            repositoryRoot.resolve("platform/cluster/flux/apps/utility-system/wolfmanager/vault-secrets.yaml").toFile().readText()
 
+        assertThat(clusterKustomizations)
+            .contains("name: apps-utility-system")
+            .contains("name: apps-data")
         assertThat(appKustomization).contains("- wolfmanager")
         assertThat(deployment)
             .contains("kind: Deployment")
@@ -109,6 +116,10 @@ class PlatformStatelessAppsFluxTest {
             .contains("https://wolf.jorisjonkers.dev")
             .contains("WOLF_SOCKET_PATH")
             .contains("/var/run/wolf/wolf.sock")
+            .contains("DATABASE_TYPE")
+            .contains("value: postgresql")
+            .contains("DATABASE_URL")
+            .contains("name: wolfmanager-db")
             .contains("/var/run/docker.sock")
             .contains("path: /run/wolf")
             .contains("type: DirectoryOrCreate")
@@ -117,5 +128,16 @@ class PlatformStatelessAppsFluxTest {
             .contains("kind: Service")
             .contains("name: wolfmanager")
             .contains("port: 3000")
+        assertThat(vaultSecrets)
+            .contains("kind: ServiceAccount")
+            .contains("name: vault-secrets-operator")
+            .contains("kind: VaultDynamicSecret")
+            .contains("name: wolfmanager-db")
+            .contains("mount: database")
+            .contains("path: creds/wolfmanager")
+            .contains("DATABASE_URL")
+            .contains("postgresql://")
+            .contains("wolfmanager_db")
+            .contains("rolloutRestartTargets")
     }
 }

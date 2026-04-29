@@ -21,11 +21,16 @@ class PlatformDataServicesFluxTest {
         val manifest = repositoryRoot.resolve("platform/cluster/flux/apps/data/postgres/deployment.yaml").toFile().readText()
         val initScript = repositoryRoot.resolve("platform/cluster/flux/apps/data/postgres/init-script-configmap.yaml").toFile().readText()
         val config = repositoryRoot.resolve("platform/cluster/flux/apps/data/postgres/config-configmap.yaml").toFile().readText()
+        val kustomization = repositoryRoot.resolve("platform/cluster/flux/apps/data/postgres/kustomization.yaml").toFile().readText()
+        val reconcileJob =
+            repositoryRoot.resolve("platform/cluster/flux/apps/data/postgres/wolfmanager-reconcile-job.yaml").toFile().readText()
 
         assertThat(initScript)
             .contains("kind: ConfigMap")
             .contains("name: postgres-init-script")
             .contains("init-databases.sh: |")
+            .contains("CREATE DATABASE wolfmanager_db OWNER")
+            .contains("CREATE ROLE \${WOLFMANAGER_DB_USER} NOLOGIN")
             .contains("CREATE DATABASE n8n_db OWNER")
 
         assertThat(config)
@@ -33,6 +38,8 @@ class PlatformDataServicesFluxTest {
             .contains("name: postgres-config")
             .contains("postgresql.conf: |")
             .contains("listen_addresses = '*'")
+
+        assertThat(kustomization).contains("wolfmanager-reconcile-job.yaml")
 
         assertThat(manifest)
             .contains("kind: ServiceAccount")
@@ -54,6 +61,14 @@ class PlatformDataServicesFluxTest {
             .contains("name: postgres")
             .contains("port: 5432")
             .contains("personal-stack/site: frankfurt")
+
+        assertThat(reconcileJob)
+            .contains("name: postgres-wolfmanager-reconcile")
+            .contains("vault.hashicorp.com/role: postgres")
+            .contains("WOLFMANAGER_DB_USER=wolfmanager_user")
+            .contains("CREATE ROLE \${WOLFMANAGER_DB_USER} NOLOGIN")
+            .contains("CREATE DATABASE")
+            .contains("wolfmanager_db")
     }
 
     @Test
@@ -125,6 +140,10 @@ class PlatformDataServicesFluxTest {
         assertThat(bootstrapScript)
             .contains("vault policy write postgres")
             .contains("vault policy write rabbitmq")
+            .contains("database/creds/wolfmanager")
+            .contains("allowed_roles=\"n8n,auth-api,assistant-api,wolfmanager\"")
+            .contains("database/roles/wolfmanager")
+            .contains("WOLFMANAGER_PARENT_ROLE=\"wolfmanager_user\"")
             .contains("auth/kubernetes/role/postgres")
             .contains("auth/kubernetes/role/rabbitmq")
             .contains("secret/data/platform/postgres")
