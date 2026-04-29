@@ -14,8 +14,8 @@ dependencies {
     // the strict binary-compat check in Detekt's task init ("detekt was
     // compiled with Kotlin 2.3.0 but is currently running with 2.3.20").
     // Lift both once a newer detekt drops.
-    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:2.3.0")
-    implementation("org.jetbrains.kotlin:kotlin-allopen:2.3.0")
+    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:2.3.21")
+    implementation("org.jetbrains.kotlin:kotlin-allopen:2.3.21")
     implementation("org.springframework.boot:spring-boot-gradle-plugin:4.0.5")
     implementation("dev.detekt:detekt-gradle-plugin:2.0.0-alpha.2")
     implementation("org.jlleitschuh.gradle:ktlint-gradle:14.2.0")
@@ -25,6 +25,6 @@ dependencies {
     // references to in generated Keys.java, and the runtime classes are
     // also gone so just bumping one side doesn't help. Lift both once
     // jOOQ codegen catches up or we replace the generator output.
-    implementation("org.jooq:jooq-codegen:3.19.18")
-    implementation("org.jooq:jooq-meta-extensions:3.19.18")
+    implementation("org.jooq:jooq-codegen:3.21.2")
+    implementation("org.jooq:jooq-meta-extensions:3.21.2")
 }
