@@ -20,12 +20,19 @@ class PlatformDataServicesFluxTest {
     fun `postgres runs as a stateful workload with init script and persistent storage`() {
         val manifest = repositoryRoot.resolve("platform/cluster/flux/apps/data/postgres/deployment.yaml").toFile().readText()
         val initScript = repositoryRoot.resolve("platform/cluster/flux/apps/data/postgres/init-script-configmap.yaml").toFile().readText()
+        val config = repositoryRoot.resolve("platform/cluster/flux/apps/data/postgres/config-configmap.yaml").toFile().readText()
 
         assertThat(initScript)
             .contains("kind: ConfigMap")
             .contains("name: postgres-init-script")
             .contains("init-databases.sh: |")
             .contains("CREATE DATABASE n8n_db OWNER")
+
+        assertThat(config)
+            .contains("kind: ConfigMap")
+            .contains("name: postgres-config")
+            .contains("postgresql.conf: |")
+            .contains("listen_addresses = '*'")
 
         assertThat(manifest)
             .contains("kind: ServiceAccount")
@@ -39,7 +46,6 @@ class PlatformDataServicesFluxTest {
             .contains("vault.hashicorp.com/agent-inject:")
             .contains("vault.hashicorp.com/role: postgres")
             .contains("/vault/secrets/postgres.env")
-            .contains("listen_addresses=*")
             .contains("mountPath: /docker-entrypoint-initdb.d/init-databases.sh")
             .contains("subPath: init-databases.sh")
             .contains("claimName: postgres-data")
