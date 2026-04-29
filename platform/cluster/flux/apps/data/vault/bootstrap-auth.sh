@@ -145,10 +145,6 @@ path "secret/data/platform/edge" {
   capabilities = ["read"]
 }
 
-path "secret/data/platform/postgres" {
-  capabilities = ["read"]
-}
-
 path "secret/data/platform/observability" {
   capabilities = ["read"]
 }
@@ -158,6 +154,10 @@ path "secret/data/platform/automation" {
 }
 
 path "database/creds/n8n" {
+  capabilities = ["read"]
+}
+
+path "database/creds/wolfmanager" {
   capabilities = ["read"]
 }
 EOF
@@ -215,17 +215,9 @@ vault write auth/kubernetes/role/stalwart \
 
 vault write auth/kubernetes/role/vso \
   bound_service_account_names="vault-secrets-operator" \
-  bound_service_account_namespaces="vso-system,cert-manager,external-dns,observability,automation-system" \
+  bound_service_account_namespaces="vso-system,cert-manager,external-dns,observability,automation-system,utility-system" \
   policies="vso" \
   ttl="1h"
-
-if ! vault kv get -field=wolfmanager.user secret/platform/postgres >/dev/null 2>&1; then
-  WOLFMANAGER_PASSWORD="$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')"
-  vault kv patch secret/platform/postgres \
-    wolfmanager.user=wolfmanager_user \
-    wolfmanager.password="${WOLFMANAGER_PASSWORD}"
-  unset WOLFMANAGER_PASSWORD
-fi
 
 # RabbitMQ dynamic secrets engine. Reconfigure the connection on every
 # bootstrap so the URI + admin creds always match the current cluster;
@@ -273,11 +265,12 @@ PG_ADMIN_PASS=$(vault kv get -field=postgres.password secret/platform/postgres)
 # grants via IN ROLE ... INHERIT. Hardcoding the name here lets us
 # delete the stale n8n.user/n8n.password fields from KV.
 N8N_PARENT_ROLE="n8n_user"
+WOLFMANAGER_PARENT_ROLE="wolfmanager_user"
 AUTH_PARENT_ROLE=$(vault kv get -field=auth.user secret/platform/postgres)
 ASSISTANT_PARENT_ROLE=$(vault kv get -field=assistant.user secret/platform/postgres)
 vault write database/config/postgres \
   plugin_name=postgresql-database-plugin \
-  allowed_roles="n8n,auth-api,assistant-api" \
+  allowed_roles="n8n,auth-api,assistant-api,wolfmanager" \
   connection_url="postgres://{{username}}:{{password}}@postgres.data-system.svc.cluster.local:5432/postgres?sslmode=disable" \
   username="${PG_ADMIN_USER}" \
   password="${PG_ADMIN_PASS}" \
@@ -291,6 +284,15 @@ vault write database/roles/n8n \
   max_ttl="768h" \
   creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}' IN ROLE \"${N8N_PARENT_ROLE}\" INHERIT;" \
   revocation_statements="REASSIGN OWNED BY \"{{name}}\" TO \"${N8N_PARENT_ROLE}\"; DROP OWNED BY \"{{name}}\"; DROP ROLE \"{{name}}\";"
+# WolfManager reads DATABASE_URL once at container start. VSO rotates
+# database/creds/wolfmanager into a Kubernetes Secret and restarts the
+# deployment so each process uses current credentials.
+vault write database/roles/wolfmanager \
+  db_name=postgres \
+  default_ttl="72h" \
+  max_ttl="768h" \
+  creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}' IN ROLE \"${WOLFMANAGER_PARENT_ROLE}\" INHERIT;" \
+  revocation_statements="REASSIGN OWNED BY \"{{name}}\" TO \"${WOLFMANAGER_PARENT_ROLE}\"; DROP OWNED BY \"{{name}}\"; DROP ROLE \"{{name}}\";"
 # auth-api's application.yml declares spring.cloud.vault.database.role: auth-api
 # and Spring Cloud Vault mints creds via database/creds/auth-api at startup
 # and periodically through its lifecycle manager. Without this role every
@@ -313,4 +315,4 @@ vault write database/roles/assistant-api \
   max_ttl="168h" \
   creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}' IN ROLE \"${ASSISTANT_PARENT_ROLE}\" INHERIT;" \
   revocation_statements="REASSIGN OWNED BY \"{{name}}\" TO \"${ASSISTANT_PARENT_ROLE}\"; DROP OWNED BY \"{{name}}\"; DROP ROLE \"{{name}}\";"
-unset PG_ADMIN_USER PG_ADMIN_PASS N8N_PARENT_ROLE AUTH_PARENT_ROLE ASSISTANT_PARENT_ROLE
+unset PG_ADMIN_USER PG_ADMIN_PASS N8N_PARENT_ROLE WOLFMANAGER_PARENT_ROLE AUTH_PARENT_ROLE ASSISTANT_PARENT_ROLE

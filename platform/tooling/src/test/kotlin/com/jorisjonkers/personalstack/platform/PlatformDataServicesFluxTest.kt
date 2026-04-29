@@ -20,7 +20,7 @@ class PlatformDataServicesFluxTest {
     fun `postgres runs as a stateful workload with init script and persistent storage`() {
         val manifest = repositoryRoot.resolve("platform/cluster/flux/apps/data/postgres/deployment.yaml").toFile().readText()
         val initScript = repositoryRoot.resolve("platform/cluster/flux/apps/data/postgres/init-script-configmap.yaml").toFile().readText()
-        val postgresConfig = repositoryRoot.resolve("platform/cluster/flux/apps/data/postgres/config-configmap.yaml").toFile().readText()
+        val config = repositoryRoot.resolve("platform/cluster/flux/apps/data/postgres/config-configmap.yaml").toFile().readText()
         val kustomization = repositoryRoot.resolve("platform/cluster/flux/apps/data/postgres/kustomization.yaml").toFile().readText()
         val reconcileJob =
             repositoryRoot.resolve("platform/cluster/flux/apps/data/postgres/wolfmanager-reconcile-job.yaml").toFile().readText()
@@ -30,9 +30,14 @@ class PlatformDataServicesFluxTest {
             .contains("name: postgres-init-script")
             .contains("init-databases.sh: |")
             .contains("CREATE DATABASE wolfmanager_db OWNER")
+            .contains("CREATE ROLE \${WOLFMANAGER_DB_USER} NOLOGIN")
             .contains("CREATE DATABASE n8n_db OWNER")
 
-        assertThat(postgresConfig).contains("listen_addresses = '*'")
+        assertThat(config)
+            .contains("kind: ConfigMap")
+            .contains("name: postgres-config")
+            .contains("postgresql.conf: |")
+            .contains("listen_addresses = '*'")
 
         assertThat(kustomization).contains("wolfmanager-reconcile-job.yaml")
 
@@ -60,9 +65,8 @@ class PlatformDataServicesFluxTest {
         assertThat(reconcileJob)
             .contains("name: postgres-wolfmanager-reconcile")
             .contains("vault.hashicorp.com/role: postgres")
-            .contains("wolfmanager.user")
-            .contains("wolfmanager.password")
-            .contains("CREATE ROLE")
+            .contains("WOLFMANAGER_DB_USER=wolfmanager_user")
+            .contains("CREATE ROLE \${WOLFMANAGER_DB_USER} NOLOGIN")
             .contains("CREATE DATABASE")
             .contains("wolfmanager_db")
     }
@@ -136,8 +140,10 @@ class PlatformDataServicesFluxTest {
         assertThat(bootstrapScript)
             .contains("vault policy write postgres")
             .contains("vault policy write rabbitmq")
-            .contains("vault kv patch secret/platform/postgres")
-            .contains("wolfmanager.user=wolfmanager_user")
+            .contains("database/creds/wolfmanager")
+            .contains("allowed_roles=\"n8n,auth-api,assistant-api,wolfmanager\"")
+            .contains("database/roles/wolfmanager")
+            .contains("WOLFMANAGER_PARENT_ROLE=\"wolfmanager_user\"")
             .contains("auth/kubernetes/role/postgres")
             .contains("auth/kubernetes/role/rabbitmq")
             .contains("secret/data/platform/postgres")

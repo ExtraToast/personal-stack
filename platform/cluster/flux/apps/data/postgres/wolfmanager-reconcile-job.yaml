@@ -20,8 +20,6 @@ spec:
         vault.hashicorp.com/agent-inject-template-postgres.env: |
           POSTGRES_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "postgres.user" }}{{ end }}
           POSTGRES_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "postgres.password" }}{{ end }}
-          WOLFMANAGER_DB_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "wolfmanager.user" }}{{ end }}
-          WOLFMANAGER_DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "wolfmanager.password" }}{{ end }}
     spec:
       restartPolicy: OnFailure
       serviceAccountName: postgres
@@ -37,20 +35,8 @@ spec:
               . /vault/secrets/postgres.env
               set +a
 
-              case "${WOLFMANAGER_DB_USER}" in
-                ''|*[!a-zA-Z0-9_]*)
-                  echo "Invalid WOLFMANAGER_DB_USER" >&2
-                  exit 1
-                  ;;
-              esac
-              case "${WOLFMANAGER_DB_PASSWORD}" in
-                ''|*[!a-fA-F0-9]*)
-                  echo "Invalid WOLFMANAGER_DB_PASSWORD" >&2
-                  exit 1
-                  ;;
-              esac
-
               export PGPASSWORD="${POSTGRES_PASSWORD}"
+              WOLFMANAGER_DB_USER=wolfmanager_user
 
               psql -v ON_ERROR_STOP=1 \
                 --host=postgres.data-system.svc.cluster.local \
@@ -59,9 +45,9 @@ spec:
               DO \$\$
               BEGIN
                 IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${WOLFMANAGER_DB_USER}') THEN
-                  CREATE ROLE ${WOLFMANAGER_DB_USER} WITH LOGIN PASSWORD '${WOLFMANAGER_DB_PASSWORD}';
+                  CREATE ROLE ${WOLFMANAGER_DB_USER} NOLOGIN;
                 ELSE
-                  ALTER ROLE ${WOLFMANAGER_DB_USER} WITH LOGIN PASSWORD '${WOLFMANAGER_DB_PASSWORD}';
+                  ALTER ROLE ${WOLFMANAGER_DB_USER} NOLOGIN;
                 END IF;
               END
               \$\$;
