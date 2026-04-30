@@ -38,8 +38,7 @@ data:
     AUTH_DB_PASSWORD=$(resolve_value AUTH_DB_PASSWORD auth_db_password auth_password)
     ASSISTANT_DB_USER=$(resolve_value ASSISTANT_DB_USER assistant_db_user assistant_user)
     ASSISTANT_DB_PASSWORD=$(resolve_value ASSISTANT_DB_PASSWORD assistant_db_password assistant_password)
-    WOLFMANAGER_DB_USER=$(resolve_value WOLFMANAGER_DB_USER wolfmanager_db_user wolfmanager_user)
-    WOLFMANAGER_DB_PASSWORD=$(resolve_value WOLFMANAGER_DB_PASSWORD wolfmanager_db_password wolfmanager_password)
+    WOLFMANAGER_DB_USER=wolfmanager_user
     N8N_DB_USER=n8n_user
 
     psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
@@ -53,8 +52,10 @@ data:
         CREATE DATABASE assistant_db OWNER ${ASSISTANT_DB_USER};
         GRANT ALL PRIVILEGES ON DATABASE assistant_db TO ${ASSISTANT_DB_USER};
 
-        -- WolfManager database
-        CREATE USER ${WOLFMANAGER_DB_USER} WITH PASSWORD '${WOLFMANAGER_DB_PASSWORD}';
+        -- WolfManager database. WolfManager authenticates via Vault
+        -- postgres dynamic creds; wolfmanager_user is only a NOLOGIN
+        -- grant-parent that owns the schema and database.
+        CREATE ROLE ${WOLFMANAGER_DB_USER} NOLOGIN;
         CREATE DATABASE wolfmanager_db OWNER ${WOLFMANAGER_DB_USER};
         GRANT ALL PRIVILEGES ON DATABASE wolfmanager_db TO ${WOLFMANAGER_DB_USER};
 
