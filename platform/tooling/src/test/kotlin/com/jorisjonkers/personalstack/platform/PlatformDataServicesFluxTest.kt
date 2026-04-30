@@ -69,6 +69,15 @@ class PlatformDataServicesFluxTest {
             .contains("CREATE ROLE \${WOLFMANAGER_DB_USER} NOLOGIN")
             .contains("CREATE DATABASE")
             .contains("wolfmanager_db")
+            .contains("SET ROLE \${WOLFMANAGER_DB_USER}")
+            .contains("CREATE TABLE IF NOT EXISTS users")
+            .contains("CREATE TABLE IF NOT EXISTS client_devices")
+            .contains("CREATE TABLE IF NOT EXISTS games")
+            .contains("CREATE TABLE IF NOT EXISTS user_libraries")
+            .contains("CREATE TABLE IF NOT EXISTS user_games")
+            .contains("CREATE TABLE IF NOT EXISTS metadata_providers")
+            .contains("CREATE TABLE IF NOT EXISTS system_config")
+            .contains("CREATE TABLE IF NOT EXISTS tasks")
     }
 
     @Test

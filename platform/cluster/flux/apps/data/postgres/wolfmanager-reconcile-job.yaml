@@ -66,4 +66,124 @@ spec:
                 --dbname=wolfmanager_db <<EOSQL
               ALTER SCHEMA public OWNER TO ${WOLFMANAGER_DB_USER};
               GRANT ALL ON SCHEMA public TO ${WOLFMANAGER_DB_USER};
+
+              SET ROLE ${WOLFMANAGER_DB_USER};
+
+              CREATE TABLE IF NOT EXISTS users (
+                id uuid PRIMARY KEY,
+                username varchar(255) NOT NULL UNIQUE,
+                password_hash varchar(255) NOT NULL,
+                is_admin boolean NOT NULL DEFAULT false,
+                created_at timestamptz NOT NULL DEFAULT now(),
+                updated_at timestamptz NOT NULL DEFAULT now(),
+                has_changed_password boolean NOT NULL DEFAULT false,
+                display_name varchar(255),
+                steam_id varchar(100),
+                steam_api_key text
+              );
+              CREATE UNIQUE INDEX IF NOT EXISTS users_username_idx ON users (username);
+              CREATE INDEX IF NOT EXISTS users_steam_id_idx ON users (steam_id);
+
+              CREATE TABLE IF NOT EXISTS platforms (
+                id varchar(50) PRIMARY KEY,
+                name varchar(255) NOT NULL,
+                last_sync timestamptz NOT NULL DEFAULT now(),
+                version varchar(20) NOT NULL DEFAULT '1.0.0'
+              );
+              CREATE INDEX IF NOT EXISTS platforms_name_idx ON platforms (name);
+
+              CREATE TABLE IF NOT EXISTS client_devices (
+                id uuid PRIMARY KEY,
+                wolf_client_id varchar(255) NOT NULL,
+                user_id uuid NOT NULL REFERENCES users(id) ON DELETE cascade,
+                friendly_name varchar(255) NOT NULL,
+                pair_secret varchar(255) NOT NULL,
+                created_at timestamptz NOT NULL DEFAULT now(),
+                updated_at timestamptz NOT NULL DEFAULT now(),
+                last_seen timestamptz
+              );
+              CREATE INDEX IF NOT EXISTS client_devices_user_id_idx ON client_devices (user_id);
+              CREATE INDEX IF NOT EXISTS client_devices_pair_secret_idx ON client_devices (pair_secret);
+              CREATE INDEX IF NOT EXISTS client_devices_wolf_client_id_idx ON client_devices (wolf_client_id);
+              CREATE UNIQUE INDEX IF NOT EXISTS client_devices_user_id_wolf_client_id_unique_idx ON client_devices (user_id, wolf_client_id);
+              CREATE UNIQUE INDEX IF NOT EXISTS client_devices_user_id_pair_secret_unique_idx ON client_devices (user_id, pair_secret);
+
+              CREATE TABLE IF NOT EXISTS games (
+                id uuid PRIMARY KEY,
+                platform_id varchar(50) NOT NULL REFERENCES platforms(id) ON DELETE cascade,
+                platform_game_id varchar(100) NOT NULL,
+                name varchar(500) NOT NULL,
+                icon_url text NOT NULL DEFAULT '',
+                last_updated timestamptz NOT NULL DEFAULT now()
+              );
+              CREATE UNIQUE INDEX IF NOT EXISTS games_platform_game_idx ON games (platform_id, platform_game_id);
+              CREATE INDEX IF NOT EXISTS games_name_idx ON games (name);
+              CREATE INDEX IF NOT EXISTS games_platform_idx ON games (platform_id);
+
+              CREATE TABLE IF NOT EXISTS user_libraries (
+                id uuid PRIMARY KEY,
+                user_id uuid NOT NULL REFERENCES users(id) ON DELETE cascade,
+                platform_id varchar(50) NOT NULL REFERENCES platforms(id) ON DELETE cascade,
+                steam_id varchar(100),
+                created_at timestamptz NOT NULL DEFAULT now(),
+                updated_at timestamptz NOT NULL DEFAULT now()
+              );
+              CREATE UNIQUE INDEX IF NOT EXISTS user_libraries_user_platform_idx ON user_libraries (user_id, platform_id);
+              CREATE INDEX IF NOT EXISTS user_libraries_user_idx ON user_libraries (user_id);
+              CREATE INDEX IF NOT EXISTS user_libraries_platform_idx ON user_libraries (platform_id);
+
+              CREATE TABLE IF NOT EXISTS user_games (
+                id uuid PRIMARY KEY,
+                user_library_id uuid NOT NULL REFERENCES user_libraries(id) ON DELETE cascade,
+                game_id uuid NOT NULL REFERENCES games(id) ON DELETE cascade,
+                playtime_total integer NOT NULL DEFAULT 0,
+                playtime_linux integer NOT NULL DEFAULT 0,
+                last_played integer,
+                created_at timestamptz NOT NULL DEFAULT now(),
+                updated_at timestamptz NOT NULL DEFAULT now()
+              );
+              CREATE UNIQUE INDEX IF NOT EXISTS user_games_library_game_idx ON user_games (user_library_id, game_id);
+              CREATE INDEX IF NOT EXISTS user_games_library_idx ON user_games (user_library_id);
+              CREATE INDEX IF NOT EXISTS user_games_game_idx ON user_games (game_id);
+              CREATE INDEX IF NOT EXISTS user_games_last_played_idx ON user_games (last_played);
+
+              CREATE TABLE IF NOT EXISTS metadata_providers (
+                id uuid PRIMARY KEY,
+                name varchar(100) NOT NULL UNIQUE,
+                enabled boolean NOT NULL DEFAULT true,
+                api_key text,
+                config text NOT NULL DEFAULT '{}',
+                created_at timestamptz NOT NULL DEFAULT now(),
+                updated_at timestamptz NOT NULL DEFAULT now()
+              );
+              CREATE UNIQUE INDEX IF NOT EXISTS metadata_providers_name_idx ON metadata_providers (name);
+              CREATE INDEX IF NOT EXISTS metadata_providers_enabled_idx ON metadata_providers (enabled);
+
+              CREATE TABLE IF NOT EXISTS system_config (
+                id uuid PRIMARY KEY,
+                key varchar(255) NOT NULL UNIQUE,
+                value text NOT NULL,
+                created_at timestamptz NOT NULL DEFAULT now(),
+                updated_at timestamptz NOT NULL DEFAULT now()
+              );
+              CREATE UNIQUE INDEX IF NOT EXISTS system_config_key_idx ON system_config (key);
+
+              CREATE TABLE IF NOT EXISTS tasks (
+                id uuid PRIMARY KEY,
+                name varchar(255) NOT NULL UNIQUE,
+                description text NOT NULL,
+                schedule varchar(100) NOT NULL,
+                is_enabled boolean NOT NULL DEFAULT true,
+                status varchar(20) NOT NULL DEFAULT 'IDLE',
+                last_run_at timestamptz,
+                next_run_at timestamptz,
+                created_at timestamptz NOT NULL DEFAULT now(),
+                updated_at timestamptz NOT NULL DEFAULT now()
+              );
+              CREATE INDEX IF NOT EXISTS tasks_name_idx ON tasks (name);
+              CREATE INDEX IF NOT EXISTS tasks_status_idx ON tasks (status);
+              CREATE INDEX IF NOT EXISTS tasks_enabled_idx ON tasks (is_enabled);
+              CREATE INDEX IF NOT EXISTS tasks_next_run_idx ON tasks (next_run_at);
+
+              RESET ROLE;
               EOSQL
