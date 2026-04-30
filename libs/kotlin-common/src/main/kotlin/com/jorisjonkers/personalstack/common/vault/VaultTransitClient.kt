@@ -1,6 +1,8 @@
 package com.jorisjonkers.personalstack.common.vault
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.jorisjonkers.personalstack.common.observability.NS_PER_MS
+import com.jorisjonkers.personalstack.common.observability.TimingLog
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.jwt.JwtEncoder
@@ -37,12 +39,14 @@ open class SpringVaultTransitClient(
 ) : VaultTransitClient {
     companion object {
         private const val TRANSIT_SIGNATURE_PARTS = 3
+        private const val SLOW_VAULT_MS = 50L
     }
 
     override fun readKeyVersions(keyName: String): List<VaultTransitKeyVersion> {
         val response =
-            vaultTemplate.read("transit/keys/$keyName")
-                ?: error("No transit key found at transit/keys/$keyName")
+            timed("readKeyVersions", keyName) {
+                vaultTemplate.read("transit/keys/$keyName")
+            } ?: error("No transit key found at transit/keys/$keyName")
         val rawKeys =
             response.data?.get("keys") as? Map<*, *>
                 ?: error("Transit key '$keyName' does not expose key versions")
@@ -75,8 +79,9 @@ open class SpringVaultTransitClient(
             )
 
         val response =
-            vaultTemplate.write("transit/sign/$keyName", payload)
-                ?: error("Transit signing request returned no response for key '$keyName'")
+            timed("sign", keyName) {
+                vaultTemplate.write("transit/sign/$keyName", payload)
+            } ?: error("Transit signing request returned no response for key '$keyName'")
         val rawSignature =
             response.data?.get("signature")?.toString()
                 ?: error("Transit signing response did not include a signature for key '$keyName'")
@@ -85,6 +90,25 @@ open class SpringVaultTransitClient(
             "Unexpected transit signature format for key '$keyName'"
         }
         return Base64.getDecoder().decode(signatureParts[2])
+    }
+
+    private fun <T> timed(
+        op: String,
+        keyName: String,
+        block: () -> T,
+    ): T {
+        val startNs = System.nanoTime()
+        try {
+            return block()
+        } finally {
+            val durationMs = (System.nanoTime() - startNs) / NS_PER_MS
+            TimingLog.emit(
+                slow = durationMs >= SLOW_VAULT_MS,
+                kind = "vault_transit",
+                durationMs = durationMs,
+                kvs = mapOf("op" to op, "key" to keyName),
+            )
+        }
     }
 
     private fun parsePublicKey(pem: String): RSAPublicKey {
