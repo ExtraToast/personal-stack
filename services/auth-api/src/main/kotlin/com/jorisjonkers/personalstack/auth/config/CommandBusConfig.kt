@@ -3,6 +3,7 @@ package com.jorisjonkers.personalstack.auth.config
 import com.jorisjonkers.personalstack.common.command.Command
 import com.jorisjonkers.personalstack.common.command.CommandBus
 import com.jorisjonkers.personalstack.common.command.CommandHandler
+import org.springframework.aop.framework.AopProxyUtils
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import kotlin.reflect.KClass
@@ -35,7 +36,9 @@ class SpringCommandBus(
     }
 
     private fun resolveCommandType(handler: CommandHandler<*>): KClass<*>? =
-        handler::class
+        AopProxyUtils
+            .ultimateTargetClass(handler)
+            .kotlin
             .supertypes
             .firstOrNull { it.classifier == CommandHandler::class }
             ?.arguments
