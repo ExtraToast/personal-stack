@@ -23,6 +23,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.springframework.boot:spring-boot-starter-jooq")
+    implementation("org.springframework.boot:spring-boot-starter-aspectj")
     implementation("org.jooq:jooq")
     implementation("tools.jackson.module:jackson-module-kotlin:3.1.2")
     runtimeOnly("org.postgresql:postgresql")
