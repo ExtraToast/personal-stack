@@ -113,6 +113,14 @@ spec:
       kind: HelmRelease
       name: grafana
       namespace: observability
+    # apps-grafana-dashboards depends on apps-observability — needs the
+    # operator's CRDs installed before its CRs can dry-run, so the
+    # operator HR must report Ready as part of apps-observability's
+    # readiness.
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: grafana-operator
+      namespace: observability
     - apiVersion: helm.toolkit.fluxcd.io/v2
       kind: HelmRelease
       name: loki
