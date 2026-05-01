@@ -94,16 +94,30 @@ jobs:
 
           # JVM services stay amd64-only — they run on frankfurt-contabo-1 and
           # would crawl on a Pi (Cortex-A72 vs JVM class load + ZGC). UIs are
-          # nginx-served static bundles; build them multi-arch so they can
-          # schedule on the enschede Pi nodes and free CPU on Frankfurt.
+          # nginx-served static bundles; build them multi-arch (amd64+arm64)
+          # so they can schedule on the enschede Pi nodes and free CPU on
+          # Frankfurt.
+          #
+          # Multi-arch is gated on `main` only. The arm64 leg builds under
+          # QEMU emulation and roughly doubles the UI build time; we don't
+          # want to pay that on every reconcile / dispatch / future trigger
+          # that someone might add. Today the workflow's `on:` only fires
+          # for push to main, but this guard makes the intent explicit and
+          # forward-safe — if you add workflow_dispatch later, feature
+          # branches still build amd64-only.
           AMD64=linux/amd64
-          MULTIARCH=linux/amd64,linux/arm64
+          if [[ "${{ github.ref }}" == "refs/heads/main" && "${{ github.event_name }}" == "push" ]]; then
+            UI_PLATFORMS=linux/amd64,linux/arm64
+          else
+            UI_PLATFORMS=linux/amd64
+            echo "::notice::Not on main push (ref=${{ github.ref }}, event=${{ github.event_name }}); UIs build amd64-only this run."
+          fi
 
           [[ "$(any "$KOTLIN_SHARED"   "$FILTER_AUTH_API")"      == "true" ]] && append auth-api      services/auth-api/Dockerfile      "$AMD64"
           [[ "$(any "$KOTLIN_SHARED"   "$FILTER_ASSISTANT_API")" == "true" ]] && append assistant-api services/assistant-api/Dockerfile "$AMD64"
-          [[ "$(any "$FRONTEND_SHARED" "$FILTER_AUTH_UI")"       == "true" ]] && append auth-ui       services/auth-ui/Dockerfile       "$MULTIARCH"
-          [[ "$(any "$FRONTEND_SHARED" "$FILTER_ASSISTANT_UI")"  == "true" ]] && append assistant-ui  services/assistant-ui/Dockerfile  "$MULTIARCH"
-          [[ "$(any "$FRONTEND_SHARED" "$FILTER_APP_UI")"        == "true" ]] && append app-ui        services/app-ui/Dockerfile        "$MULTIARCH"
+          [[ "$(any "$FRONTEND_SHARED" "$FILTER_AUTH_UI")"       == "true" ]] && append auth-ui       services/auth-ui/Dockerfile       "$UI_PLATFORMS"
+          [[ "$(any "$FRONTEND_SHARED" "$FILTER_ASSISTANT_UI")"  == "true" ]] && append assistant-ui  services/assistant-ui/Dockerfile  "$UI_PLATFORMS"
+          [[ "$(any "$FRONTEND_SHARED" "$FILTER_APP_UI")"        == "true" ]] && append app-ui        services/app-ui/Dockerfile        "$UI_PLATFORMS"
 
           echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
           if [[ "$MATRIX" == "[]" ]]; then
