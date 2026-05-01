@@ -21,33 +21,69 @@ spec:
       personal-stack/site: frankfurt
     metricsGenerator:
       enabled: true
-      # Default chart sets remoteWriteUrl; we replace it with the
-      # explicit storage.remote_write block below so we can also enable
-      # send_exemplars (linking metrics → traces in Grafana).
-      config:
-        processor:
-          service_graphs:
-            enabled: true
-          span_metrics:
-            enabled: true
-          local_blocks:
-            # local_blocks + flush_to_storage powers TraceQL `rate()` /
-            # `quantile_over_time()` on recent data — the Drilldown view.
-            # Without this the metrics-generator never registers in the
-            # ring and Drilldown queries fail with "empty ring".
-            enabled: true
-            flush_to_storage: true
+      remoteWriteUrl: http://metrics-stack-prometheus.observability.svc.cluster.local:9090/api/v1/write
+    # The single-binary `tempo` chart's metricsGenerator template only
+    # wires service_graphs + span_metrics with default settings and
+    # ignores arbitrary `metricsGenerator.config` overrides. To enable
+    # local_blocks (required for TraceQL `rate()` / `quantile_over_time()`
+    # — the Drilldown view) we have to inject the processor block via
+    # the chart's `tempo.config` full-override. The chart pipes this
+    # string through `tpl` so Helm template directives still work.
+    #
+    # Config below mirrors the chart's default config plus the
+    # additions we need (local_blocks processor + flush_to_storage,
+    # send_exemplars on remote_write, and per-tenant overrides
+    # enabling all three processors with native histograms).
+    tempo:
+      config: |
+        multitenancy_enabled: false
+        usage_report:
+          reporting_enabled: false
+        compactor:
+          compaction:
+            block_retention: 168h
+        distributor:
+          receivers:
+            otlp:
+              protocols:
+                http:
+                  endpoint: 0.0.0.0:4318
+                grpc:
+                  endpoint: 0.0.0.0:4317
+        ingester:
+          max_block_duration: 5m
+        server:
+          http_listen_port: 3200
         storage:
-          remote_write:
-            - url: http://metrics-stack-prometheus.observability.svc.cluster.local:9090/api/v1/write
-              send_exemplars: true
-    # Per-tenant overrides — kube-prometheus-stack's Tempo helm chart
-    # disables generators per-tenant by default; this turns them on.
-    overrides:
-      defaults:
+          trace:
+            backend: local
+            wal:
+              path: /var/tempo/wal
+            local:
+              path: /var/tempo/blocks
+        querier:
+          frontend_worker:
+            frontend_address: 127.0.0.1:9095
         metrics_generator:
-          processors:
-            - service-graphs
-            - span-metrics
-            - local-blocks
-          generate_native_histograms: both
+          registry:
+            external_labels:
+              source: tempo
+              cluster: personal-stack
+          storage:
+            path: /var/tempo/generator/wal
+            remote_write:
+              - url: http://metrics-stack-prometheus.observability.svc.cluster.local:9090/api/v1/write
+                send_exemplars: true
+          processor:
+            service_graphs:
+            span_metrics:
+            local_blocks:
+              flush_to_storage: true
+        overrides:
+          defaults:
+            metrics_generator:
+              processors:
+                - service-graphs
+                - span-metrics
+                - local-blocks
+              generate_native_histograms: both
