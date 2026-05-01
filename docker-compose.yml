@@ -185,7 +185,7 @@ services:
       - grafana-data:/var/lib/grafana
       - ./infra/observability/grafana/provisioning/datasources/datasources.compose.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
       - ./infra/observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
-      - ./infra/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./platform/cluster/flux/apps/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/api/health || exit 1']
       interval: 10s
