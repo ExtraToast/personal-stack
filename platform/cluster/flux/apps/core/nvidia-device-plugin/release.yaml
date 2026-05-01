@@ -115,6 +115,23 @@ spec:
               # `index` makes the plugin request `nvidia.com/gpu=0` on
               # allocate, matching the spec.
               deviceIDStrategy: index
+          # Time-slicing: advertise each physical GPU as 4 schedulable
+          # replicas of nvidia.com/gpu so multiple pods can hold an
+          # allocation against the same device. Required so that
+          # dcgm-exporter (telemetry) and jellyfin (transcoding) both
+          # get GPU access on the single-GPU enschede-t1000-1 node —
+          # without time-slicing, k8s exclusivity made one starve the
+          # other and Jellyfin lost the scheduling race.
+          #
+          # Time-slicing isn't isolation: workloads share the same CUDA
+          # context and GPU memory. For our usage (heavy transcoding +
+          # lightweight monitoring scrape) the contention is fine.
+          # Bumping `replicas` if more GPU-consuming pods land later.
+          sharing:
+            timeSlicing:
+              resources:
+                - name: nvidia.com/gpu
+                  replicas: 4
     nodeSelector:
       personal-stack/capability-nvidia: 'true'
     # The chart default nodeAffinity requires node-feature-discovery labels

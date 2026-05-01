@@ -30,16 +30,13 @@ spec:
       - key: nvidia.com/gpu
         operator: Exists
         effect: NoSchedule
-    # GPU access for DCGM is unsolved on this NixOS / nvidia-cdi stack.
-    # Requesting `nvidia.com/gpu: 1` got DCGM running but blocked Jellyfin
-    # from scheduling (the t1000 has a single GPU and the resource is
-    # exclusive). Drop the request to give Jellyfin its GPU back; DCGM
-    # will go back to CrashLoopBackOff with `nvmlInit_v2` failures
-    # because nvidia-cdi only injects a device when the device-plugin
-    # has attached the CDI annotation. Proper fix is to enable
-    # nvidia-device-plugin time-slicing or MIG, tracked separately.
-    # Until then GPU dashboards stay empty — losing telemetry is much
-    # cheaper than losing transcoding.
+    # nvidia-cdi only injects the GPU into the container when the
+    # device-plugin has attached a CDI annotation, which only happens
+    # when the pod requests `nvidia.com/gpu`. Time-slicing on the
+    # device-plugin (configured in
+    # core/nvidia-device-plugin/release.yaml) advertises each physical
+    # GPU as 4 schedulable replicas, so this request takes one slice
+    # while Jellyfin still has 3 left for transcoding.
     runtimeClassName: nvidia-cdi
     extraEnv:
       - name: NVIDIA_VISIBLE_DEVICES
@@ -59,6 +56,8 @@ spec:
       requests:
         cpu: 50m
         memory: 64Mi
+        nvidia.com/gpu: 1
       limits:
         cpu: 200m
         memory: 256Mi
+        nvidia.com/gpu: 1
