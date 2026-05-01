@@ -26,11 +26,58 @@ data:
         source_labels = ["__meta_kubernetes_pod_name"]
         target_label  = "pod"
       }
+
+      // Promote the workload's app.kubernetes.io/name pod label to a
+      // Loki label called `service_name`. This is the join key our
+      // dashboards (auth-api.json, error-feed.json, service-template.json)
+      // and Grafana's tracesToLogsV2 link use to find logs for a given
+      // service. Without it Loki has no per-service label and queries
+      // like `{service_name="auth-api"}` return nothing.
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+        target_label  = "service_name"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_container_name"]
+        target_label  = "container"
+      }
+    }
+
+    // Spring services (auth-api, assistant-api) emit JSON via the
+    // Logstash Logback encoder: each line is {"@timestamp":"…",
+    // "level":"INFO","message":"…","traceId":"…","spanId":"…",…}.
+    // Surface `level` as a Loki label so {level=~"ERROR|WARN"} queries
+    // work, and stash traceId/spanId as structured metadata (high-
+    // cardinality — should never become labels).
+    loki.process "pods" {
+      forward_to = [loki.write.default.receiver]
+
+      stage.json {
+        expressions = {
+          level   = "level",
+          traceId = "traceId",
+          spanId  = "spanId",
+        }
+      }
+
+      stage.labels {
+        values = {
+          level = "",
+        }
+      }
+
+      stage.structured_metadata {
+        values = {
+          traceId = "",
+          spanId  = "",
+        }
+      }
     }
 
     loki.source.kubernetes "pods" {
       targets    = discovery.relabel.pods.output
-      forward_to = [loki.write.default.receiver]
+      forward_to = [loki.process.pods.receiver]
     }
 
     loki.write "default" {

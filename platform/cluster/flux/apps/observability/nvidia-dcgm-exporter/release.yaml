@@ -31,16 +31,14 @@ spec:
         operator: Exists
         effect: NoSchedule
     # Run under the nvidia-cdi RuntimeClass like nvidia-device-plugin,
-    # but ALSO request a GPU resource so the device-plugin attaches the
-    # CDI annotation that nvidia-cdi needs to inject the device. Without
-    # the resource request, runtimeClassName: nvidia-cdi runs the
-    # container without any nvidia.com/gpu= CDI device, so DCGM's
-    # `nvmlInit_v2` call fails with "Driver not loaded" and the
-    # process exits in a tight CrashLoopBackOff.
+    # but ALSO request a GPU resource so the device-plugin attaches
+    # the CDI annotation that nvidia-cdi needs to inject the device.
+    # Without the resource request, runtimeClassName: nvidia-cdi runs
+    # the container without any nvidia.com/gpu CDI device, so DCGM's
+    # nvmlInit_v2 fails with "Driver not loaded" and the process exits
+    # in a tight CrashLoopBackOff.
     runtimeClassName: nvidia-cdi
     extraEnv:
-      # CDI runtime reads these to choose which devices to inject.
-      # `all` plus `compute,utility` matches what nvidia-smi needs.
       - name: NVIDIA_VISIBLE_DEVICES
         value: all
       - name: NVIDIA_DRIVER_CAPABILITIES

@@ -95,6 +95,14 @@ management:
       group:
         liveness:
           include: ping
+  metrics:
+    tags:
+      # Common Micrometer tag added to every emitted metric. Matches
+      # the variable convention used by the spring-boot-jvm Grafana
+      # dashboard (variable `application`) and our service-template
+      # dashboard. Without this tag the dashboards have no way to
+      # filter per service.
+      application: ${spring.application.name}
 
 springdoc:
   api-docs:
