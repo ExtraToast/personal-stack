@@ -54,5 +54,36 @@ spec:
         hostPort: 80
       websecure:
         hostPort: 443
+      metrics:
+        port: 9100
+        expose:
+          default: false
+        exposedPort: 9100
+        protocol: TCP
+    logs:
+      general:
+        format: json
+      access:
+        enabled: true
+        format: json
+        fields:
+          defaultMode: keep
+          headers:
+            defaultMode: drop
+            names:
+              User-Agent: keep
+              Referer: keep
+              X-Forwarded-For: keep
+    metrics:
+      prometheus:
+        entryPoint: metrics
+        addEntryPointsLabels: true
+        addRoutersLabels: true
+        addServicesLabels: true
+    tracing:
+      otlp:
+        http:
+          endpoint: http://alloy.observability.svc.cluster.local:4318/v1/traces
+      sampleRate: 0.1
     nodeSelector:
       personal-stack/site: frankfurt
