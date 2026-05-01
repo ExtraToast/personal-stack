@@ -1,0 +1,16 @@
+# Block voluntary disruptions (node drain, voluntary eviction) from
+# taking the last Ready replica offline. With minAvailable=1 the
+# eviction API refuses to evict if doing so would leave 0 pods.
+# Required because app-ui sits behind the public ingress (and, for
+# auth-api, behind every other service's forward-auth) — even a
+# 30 s gap during ad-hoc node maintenance would lock users out.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: app-ui
+  namespace: app-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: app-ui
