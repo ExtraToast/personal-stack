@@ -1,0 +1,27 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: grafana-operator
+  namespace: observability
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: grafana-operator
+      sourceRef:
+        kind: HelmRepository
+        name: grafana-operator
+        namespace: observability
+  values:
+    # Operator runs alongside Grafana on Frankfurt. Keeps the
+    # GrafanaDashboard reconciliation latency low and avoids cross-site
+    # tailnet traffic for what is essentially a config push.
+    nodeSelector:
+      personal-stack/site: frankfurt
+    resources:
+      requests:
+        cpu: 50m
+        memory: 96Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi

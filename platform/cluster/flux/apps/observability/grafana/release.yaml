@@ -52,19 +52,10 @@ spec:
     nodeSelector:
       personal-stack/site: frankfurt
     sidecar:
-      dashboards:
-        enabled: true
-        label: grafana_dashboard
-        searchNamespace: observability
-        # `grafana_folder` annotation on a ConfigMap controls which folder
-        # the contained dashboards land in. Without this every dashboard
-        # ends up flat in "General".
-        folderAnnotation: grafana_folder
-        provider:
-          foldersFromFilesStructure: true
-        # Switch from default polling to k8s WATCH so dashboard reloads
-        # are sub-second instead of waiting on the next poll cycle.
-        watchMethod: WATCH
+      # Dashboards now provisioned by grafana-operator via
+      # GrafanaDashboard CRs (observability/grafana-operator/), so the
+      # ConfigMap-watching dashboards sidecar is no longer needed.
+      # Datasources sidecar stays — it watches grafana-datasources.yaml.
       datasources:
         enabled: true
         label: grafana_datasource

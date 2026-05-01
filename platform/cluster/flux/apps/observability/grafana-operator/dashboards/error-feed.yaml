@@ -1,0 +1,11 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: error-feed
+  namespace: observability
+spec:
+  folder: 'Logs'
+  resyncPeriod: 24h
+  instanceSelector: { matchLabels: { dashboards: grafana } }
+  json: |
+    {"uid":"error-feed","title":"Error feed","schemaVersion":39,"version":1,"refresh":"30s","time":{"from":"now-1h","to":"now"},"panels":[{"type":"timeseries","title":"Error log rate per service (5m)","datasource":{"type":"loki","uid":"loki"},"gridPos":{"h":8,"w":24,"x":0,"y":0},"targets":[{"expr":"sum by (service_name) (rate({level=~\"ERROR|WARN\"} | json [5m]))","legendFormat":"{{service_name}}","refId":"A"}]},{"type":"logs","title":"Live tail (ERROR + WARN, all services)","datasource":{"type":"loki","uid":"loki"},"gridPos":{"h":20,"w":24,"x":0,"y":8},"options":{"showTime":true,"showLabels":true,"wrapLogMessage":true,"dedupStrategy":"none","sortOrder":"Descending"},"targets":[{"expr":"{level=~\"ERROR|WARN\"} | json","refId":"A"}]}]}
