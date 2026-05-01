@@ -98,15 +98,15 @@ spec:
     # timeout, the HelmRelease goes Failed, and the apps-core flux
     # Kustomization stalls (which then blocks every downstream
     # Kustomization that depends on apps-core, including
-    # apps-observability). Same surge=0 pattern auth-api and
-    # assistant-api use for the same reason on the same node.
+    # apps-observability). The Traefik chart reads these directly under
+    # `deployment.rollingUpdate` (no `strategy:` wrapper), unlike the
+    # core/v1 Deployment shape — #220 used the wrong key and was a
+    # no-op, leaving the rollout stuck.
     deployment:
       kind: Deployment
       replicas: 1
-      strategy:
-        type: RollingUpdate
-        rollingUpdate:
-          maxSurge: 0
-          maxUnavailable: 1
+      rollingUpdate:
+        maxSurge: 0
+        maxUnavailable: 1
     nodeSelector:
       personal-stack/site: frankfurt
