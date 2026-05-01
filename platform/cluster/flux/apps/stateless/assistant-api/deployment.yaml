@@ -49,7 +49,7 @@ spec:
         personal-stack/site: frankfurt
       initContainers:
         - name: download-pyroscope-agent
-          image: alpine/curl:8.10.1
+          image: curlimages/curl:8.10.1
           command:
             - sh
             - -ec
