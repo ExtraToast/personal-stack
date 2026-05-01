@@ -1,0 +1,16 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: assistant-api
+  namespace: assistant-system
+  labels:
+    release: metrics-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: assistant-api
+  endpoints:
+    - port: http
+      path: /api/actuator/prometheus
+      interval: 30s
+      scheme: http
