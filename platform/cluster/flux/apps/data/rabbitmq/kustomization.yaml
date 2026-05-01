@@ -5,3 +5,4 @@ resources:
   - config-configmap.yaml
   - enabled-plugins-configmap.yaml
   - deployment.yaml
+  - servicemonitor.yaml
