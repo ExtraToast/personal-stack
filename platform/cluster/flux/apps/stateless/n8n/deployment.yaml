@@ -39,8 +39,14 @@ spec:
       enableServiceLinks: false
       securityContext:
         fsGroup: 1000
+      # Moved off Frankfurt (chronically 90% CPU requested) onto a Pi.
+      # n8n's image is published multi-arch on Docker Hub. The hot
+      # path is workflow execution, which mostly fans out to external
+      # HTTP endpoints — the cross-site Postgres calls (~30 ms each)
+      # add up only for write-heavy workflows; for typical webhook
+      # → API → response loops it's invisible.
       nodeSelector:
-        personal-stack/site: frankfurt
+        kubernetes.io/arch: arm64
       containers:
         - name: n8n
           image: n8nio/n8n:2.13.4

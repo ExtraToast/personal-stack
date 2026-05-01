@@ -13,11 +13,13 @@ spec:
         name: grafana-operator
         namespace: observability
   values:
-    # Operator runs alongside Grafana on Frankfurt. Keeps the
-    # GrafanaDashboard reconciliation latency low and avoids cross-site
-    # tailnet traffic for what is essentially a config push.
+    # Moved to a Pi to free Frankfurt CPU. The operator only talks to
+    # Grafana (cross-site ~30 ms) when reconciling CRs, which is rare
+    # — dashboards are static once synced. Image grafana/grafana-operator
+    # is multi-arch on ghcr.io. Negligible runtime overhead from the
+    # latency hit.
     nodeSelector:
-      personal-stack/site: frankfurt
+      kubernetes.io/arch: arm64
     resources:
       requests:
         cpu: 50m
