@@ -18,8 +18,26 @@ spec:
       labels:
         app.kubernetes.io/name: auth-ui
     spec:
+      # Pinned to enschede arm64 nodes (the Pis) — frees ~150m CPU per
+      # replica on Frankfurt, which is at 90% requested. UI is nginx-
+      # served static SPA so cross-site latency from Cloudflare →
+      # Frankfurt Traefik → Pi adds ~30 ms first byte but doesn't
+      # affect cached asset loads. PRECONDITION: the UI image at ghcr
+      # must be multi-arch (linux/amd64,linux/arm64) — see #228 (or
+      # the deploy.yml change shipped alongside this PR).
       nodeSelector:
-        personal-stack/site: frankfurt
+        kubernetes.io/arch: arm64
+      # Spread replicas across as many distinct Pis as possible so the
+      # UI is reachable from at least 2 nodes. ScheduleAnyway means we
+      # don't pend the second replica if only one Pi is healthy —
+      # degraded HA beats a Pending pod.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: auth-ui
       containers:
         - name: auth-ui
           image: ghcr.io/extratoast/personal-stack/auth-ui:latest
