@@ -94,6 +94,34 @@ spec:
             limits:
               cpu: 1500m
               memory: 3Gi
+        - name: postgres-exporter
+          image: quay.io/prometheuscommunity/postgres-exporter:v0.18.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              set -a
+              . /vault/secrets/postgres.env
+              set +a
+              export DATA_SOURCE_URI="localhost:5432/postgres?sslmode=disable"
+              export DATA_SOURCE_USER="$POSTGRES_USER"
+              export DATA_SOURCE_PASS="$POSTGRES_PASSWORD"
+              exec /bin/postgres_exporter
+          ports:
+            - containerPort: 9187
+              name: metrics
+          readinessProbe:
+            httpGet:
+              path: /
+              port: metrics
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
       volumes:
         - name: postgres-data
           persistentVolumeClaim:
@@ -118,3 +146,6 @@ spec:
     - name: db
       port: 5432
       targetPort: db
+    - name: metrics
+      port: 9187
+      targetPort: metrics
