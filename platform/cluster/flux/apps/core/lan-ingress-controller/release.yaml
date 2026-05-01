@@ -62,12 +62,15 @@ spec:
               X-Forwarded-For: keep
     metrics:
       prometheus:
+        enabled: true
         entryPoint: metrics
         addEntryPointsLabels: true
         addRoutersLabels: true
         addServicesLabels: true
     tracing:
       otlp:
+        enabled: true
         http:
+          enabled: true
           endpoint: http://alloy.observability.svc.cluster.local:4318/v1/traces
       sampleRate: 0.1
