@@ -6,6 +6,11 @@ metadata:
   labels:
     release: metrics-stack
 spec:
+  # Make Prometheus assign job=<service> from the Service's
+  # app.kubernetes.io/name label, instead of the default
+  # <namespace>/<servicemonitor-name> form which doesn't match
+  # any of our dashboard queries.
+  jobLabel: app.kubernetes.io/name
   selector:
     matchLabels:
       app.kubernetes.io/name: traefik
@@ -13,3 +18,6 @@ spec:
     - port: metrics
       path: /metrics
       interval: 30s
+      relabelings:
+        - targetLabel: instance_kind
+          replacement: public

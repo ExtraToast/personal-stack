@@ -53,6 +53,13 @@ management:
       group:
         liveness:
           include: ping
+  metrics:
+    tags:
+      # Common Micrometer tag — see auth-api/application.yml for the
+      # rationale; both services standardise on `application=<name>`
+      # so the spring-boot-jvm and service-template dashboards can
+      # filter consistently.
+      application: ${spring.application.name}
 
 springdoc:
   api-docs:
