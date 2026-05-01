@@ -75,7 +75,7 @@ spec:
         # jar into the application image. Pin the version to keep the
         # rollout deterministic.
         - name: download-pyroscope-agent
-          image: alpine/curl:8.10.1
+          image: curlimages/curl:8.10.1
           command:
             - sh
             - -ec
