@@ -37,6 +37,12 @@ spec:
             index:
               prefix: index_
               period: 24h
+      # Required for Grafana's Logs Drilldown: it queries
+      # /loki/api/v1/index/volume_range to render the volume histogram.
+      # Without volume_enabled Loki returns
+      #   "Log volume has not been configured" and Drilldown stays blank.
+      limits_config:
+        volume_enabled: true
     singleBinary:
       replicas: 1
       readinessProbe:
