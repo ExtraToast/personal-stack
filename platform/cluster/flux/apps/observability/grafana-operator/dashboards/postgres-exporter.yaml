@@ -1,0 +1,15 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: postgres-exporter
+  namespace: observability
+spec:
+  folder: 'Data Tier'
+  resyncPeriod: 24h
+  instanceSelector: { matchLabels: { dashboards: grafana } }
+  grafanaCom:
+    id: 9628
+    revision: 7
+  datasources:
+    - inputName: DS_PROMETHEUS
+      datasourceName: Prometheus

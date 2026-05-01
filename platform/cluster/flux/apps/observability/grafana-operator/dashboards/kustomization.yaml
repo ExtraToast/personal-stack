@@ -1,0 +1,33 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - assistant-api.yaml
+  - auth-api.yaml
+  - dcgm.yaml
+  - error-feed.yaml
+  - flux-cluster-stats.yaml
+  - flux-control-plane.yaml
+  - gatus-uptime.yaml
+  - home.yaml
+  - infrastructure-overview.yaml
+  - loki-logs.yaml
+  - metallb.yaml
+  - postgres-exporter.yaml
+  - postgresql-hikaricp.yaml
+  - pyroscope-overview.yaml
+  - rabbitmq-overview.yaml
+  - rabbitmq.yaml
+  - redis-exporter.yaml
+  - service-graph.yaml
+  - service-overview.yaml
+  - service-template.yaml
+  - slo-burn-rate.yaml
+  - spring-boot-2.1.yaml
+  - spring-boot-jvm.yaml
+  - stalwart.yaml
+  - tempo-operational.yaml
+  - tempo-traces.yaml
+  - traefik.yaml
+  - valkey-redis.yaml
+  - vault.yaml

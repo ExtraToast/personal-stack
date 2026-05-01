@@ -1,0 +1,25 @@
+# Tells the operator how to reach our existing Grafana so it can push
+# dashboards/folders/datasources via the HTTP API. The grafana helm
+# chart auto-creates a Secret named "grafana" with admin-user and
+# admin-password keys. We use that for API auth — Grafana still serves
+# end-users via OIDC.
+apiVersion: grafana.integreatly.org/v1beta1
+kind: Grafana
+metadata:
+  name: grafana
+  namespace: observability
+  labels:
+    dashboards: grafana
+spec:
+  external:
+    url: http://grafana.observability.svc.cluster.local
+    adminUser:
+      name: grafana
+      key: admin-user
+    adminPassword:
+      name: grafana
+      key: admin-password
+    # Required by the v1beta1 schema. The operator uses this namespace
+    # to scope multi-tenant resources; single-instance setup so any
+    # value works — keep it co-located with the operator.
+    tenantNamespace: observability

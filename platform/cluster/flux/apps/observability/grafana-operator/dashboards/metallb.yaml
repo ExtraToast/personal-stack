@@ -1,0 +1,15 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: metallb
+  namespace: observability
+spec:
+  folder: 'Networking'
+  resyncPeriod: 24h
+  instanceSelector: { matchLabels: { dashboards: grafana } }
+  grafanaCom:
+    id: 14127
+    revision: 1
+  datasources:
+    - inputName: DS_PROMETHEUS
+      datasourceName: Prometheus

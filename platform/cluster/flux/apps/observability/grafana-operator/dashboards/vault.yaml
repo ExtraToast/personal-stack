@@ -1,0 +1,15 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: vault
+  namespace: observability
+spec:
+  folder: 'Security'
+  resyncPeriod: 24h
+  instanceSelector: { matchLabels: { dashboards: grafana } }
+  grafanaCom:
+    id: 12904
+    revision: 1
+  datasources:
+    - inputName: DS_PROMETHEUS
+      datasourceName: Prometheus

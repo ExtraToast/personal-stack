@@ -1,0 +1,15 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: flux-control-plane
+  namespace: observability
+spec:
+  folder: 'GitOps'
+  resyncPeriod: 24h
+  instanceSelector: { matchLabels: { dashboards: grafana } }
+  grafanaCom:
+    id: 16714
+    revision: 1
+  datasources:
+    - inputName: DS_PROMETHEUS
+      datasourceName: Prometheus

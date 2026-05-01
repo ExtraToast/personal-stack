@@ -47,6 +47,18 @@ spec:
       serviceAccountName: assistant-api
       nodeSelector:
         personal-stack/site: frankfurt
+      initContainers:
+        - name: download-pyroscope-agent
+          image: alpine/curl:8.10.1
+          command:
+            - sh
+            - -ec
+            - |
+              curl -fsSL -o /agent/pyroscope.jar \
+                https://github.com/grafana/pyroscope-java/releases/download/v0.16.0/pyroscope.jar
+          volumeMounts:
+            - name: pyroscope-agent
+              mountPath: /agent
       containers:
         - name: assistant-api
           image: ghcr.io/extratoast/personal-stack/assistant-api:latest
@@ -68,6 +80,7 @@ spec:
                 -XX:+AlwaysPreTouch \
                 -XX:MaxRAMPercentage=75 \
                 -javaagent:/app/otel-javaagent.jar \
+                -javaagent:/pyroscope/pyroscope.jar \
                 -jar /app/app.jar
           env:
             - name: SERVER_PORT
@@ -125,6 +138,20 @@ spec:
               value: '5000'
             - name: OTEL_BSP_MAX_QUEUE_SIZE
               value: '2048'
+            - name: PYROSCOPE_APPLICATION_NAME
+              value: assistant-api
+            - name: PYROSCOPE_SERVER_ADDRESS
+              value: http://pyroscope.observability.svc.cluster.local:4040
+            - name: PYROSCOPE_FORMAT
+              value: jfr
+            - name: PYROSCOPE_PROFILER_EVENT
+              value: cpu
+            - name: PYROSCOPE_PROFILER_ALLOC
+              value: '524288'
+            - name: PYROSCOPE_PROFILER_LOCK
+              value: 10ms
+            - name: PYROSCOPE_LABELS
+              value: service.name=assistant-api,deployment.environment=production
           ports:
             - containerPort: 8082
               name: http
@@ -153,6 +180,13 @@ spec:
             limits:
               cpu: 1200m
               memory: 2304Mi
+          volumeMounts:
+            - name: pyroscope-agent
+              mountPath: /pyroscope
+              readOnly: true
+      volumes:
+        - name: pyroscope-agent
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

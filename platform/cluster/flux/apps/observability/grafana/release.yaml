@@ -38,16 +38,24 @@ spec:
     initChownData:
       enabled: false
     fullnameOverride: grafana
+    # Pyroscope datasource ships as a built-in core plugin in Grafana
+    # 11+, so no plugins block is needed for it. The Profiles Drilldown
+    # app does need to be installed.
+    plugins:
+      - grafana-pyroscope-app
+      - grafana-exploretraces-app
+      - grafana-lokiexplore-app
+      - grafana-metricsdrilldown-app
     persistence:
       enabled: true
       size: 10Gi
     nodeSelector:
       personal-stack/site: frankfurt
     sidecar:
-      dashboards:
-        enabled: true
-        label: grafana_dashboard
-        searchNamespace: observability
+      # Dashboards now provisioned by grafana-operator via
+      # GrafanaDashboard CRs (observability/grafana-operator/), so the
+      # ConfigMap-watching dashboards sidecar is no longer needed.
+      # Datasources sidecar stays — it watches grafana-datasources.yaml.
       datasources:
         enabled: true
         label: grafana_datasource

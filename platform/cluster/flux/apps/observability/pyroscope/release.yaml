@@ -1,0 +1,36 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: pyroscope
+  namespace: observability
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: pyroscope
+      sourceRef:
+        kind: HelmRepository
+        name: grafana
+        namespace: observability
+  values:
+    pyroscope:
+      replicaCount: 1
+      persistence:
+        enabled: true
+        size: 20Gi
+      # Single-binary mode covers homelab scale — distributed mode adds
+      # ingester/distributor/querier/store-gateway pods and is overkill
+      # for ~3 services pushing CPU/alloc/lock profiles.
+      resources:
+        requests:
+          cpu: 200m
+          memory: 512Mi
+        limits:
+          cpu: 1000m
+          memory: 2Gi
+    nodeSelector:
+      personal-stack/site: frankfurt
+    # No public ingress; Grafana datasource talks to it over the cluster
+    # service URL. Profiles never leave the cluster.
+    minio:
+      enabled: false

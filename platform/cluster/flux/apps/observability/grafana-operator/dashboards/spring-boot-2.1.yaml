@@ -1,0 +1,15 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: spring-boot-2.1
+  namespace: observability
+spec:
+  folder: 'JVM'
+  resyncPeriod: 24h
+  instanceSelector: { matchLabels: { dashboards: grafana } }
+  grafanaCom:
+    id: 12900
+    revision: 1
+  datasources:
+    - inputName: DS_PROMETHEUS
+      datasourceName: Prometheus

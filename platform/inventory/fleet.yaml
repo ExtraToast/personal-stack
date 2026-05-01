@@ -176,6 +176,7 @@ service_intent:
       - alloy
       - flaresolverr
       - vault
+      - pyroscope
     home_media:
       - downloads
       - qbittorrent
@@ -480,3 +481,9 @@ monitoring_intent:
       port: 6379
       health:
         type: tcp
+    pyroscope:
+      namespace: observability
+      service: pyroscope
+      port: 4040
+      health:
+        path: /ready

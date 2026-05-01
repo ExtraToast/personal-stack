@@ -42,6 +42,12 @@ spec:
         nodeSelector:
           personal-stack/site: frankfurt
         retention: 15d
+        # Required so Tempo's metrics-generator can remote-write
+        # span/service-graph metrics into the same Prometheus.
+        enableRemoteWriteReceiver: true
+        # Adding ~30 ServiceMonitors + DCGM + Pyroscope-derived recording
+        # rules + Tempo span-metrics roughly doubles cardinality vs
+        # Phase 1, so bump from 20Gi to 50Gi to keep 15-day retention.
         storageSpec:
           volumeClaimTemplate:
             spec:
@@ -49,4 +55,4 @@ spec:
                 - ReadWriteOnce
               resources:
                 requests:
-                  storage: 20Gi
+                  storage: 50Gi

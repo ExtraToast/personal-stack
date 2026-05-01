@@ -6,8 +6,11 @@ resources:
   - helm-repositories.yaml
   - metrics-stack
   - grafana
+  - grafana-operator
   - loki
   - tempo
   - alloy
   - gatus
+  - pyroscope
+  - nvidia-dcgm-exporter
   - backup-jobs.yaml
