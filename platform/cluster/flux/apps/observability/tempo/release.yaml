@@ -21,4 +21,33 @@ spec:
       personal-stack/site: frankfurt
     metricsGenerator:
       enabled: true
-      remoteWriteUrl: http://metrics-stack-prometheus.observability.svc.cluster.local:9090/api/v1/write
+      # Default chart sets remoteWriteUrl; we replace it with the
+      # explicit storage.remote_write block below so we can also enable
+      # send_exemplars (linking metrics → traces in Grafana).
+      config:
+        processor:
+          service_graphs:
+            enabled: true
+          span_metrics:
+            enabled: true
+          local_blocks:
+            # local_blocks + flush_to_storage powers TraceQL `rate()` /
+            # `quantile_over_time()` on recent data — the Drilldown view.
+            # Without this the metrics-generator never registers in the
+            # ring and Drilldown queries fail with "empty ring".
+            enabled: true
+            flush_to_storage: true
+        storage:
+          remote_write:
+            - url: http://metrics-stack-prometheus.observability.svc.cluster.local:9090/api/v1/write
+              send_exemplars: true
+    # Per-tenant overrides — kube-prometheus-stack's Tempo helm chart
+    # disables generators per-tenant by default; this turns them on.
+    overrides:
+      defaults:
+        metrics_generator:
+          processors:
+            - service-graphs
+            - span-metrics
+            - local-blocks
+          generate_native_histograms: both

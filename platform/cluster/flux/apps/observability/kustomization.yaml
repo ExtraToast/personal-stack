@@ -10,4 +10,6 @@ resources:
   - tempo
   - alloy
   - gatus
+  - pyroscope
+  - nvidia-dcgm-exporter
   - backup-jobs.yaml

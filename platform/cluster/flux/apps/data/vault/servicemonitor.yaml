@@ -1,0 +1,37 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vault
+  namespace: data-system
+  labels:
+    release: metrics-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vault
+  endpoints:
+    - port: http
+      path: /v1/sys/metrics
+      params:
+        format: [prometheus]
+      interval: 30s
+      scheme: http
+      authorization:
+        type: Bearer
+        # The token is synced from Vault's own KV via the VSO
+        # VaultStaticSecret in vso-secrets/vault-prometheus-token.yaml.
+        # The user creates the token once via:
+        #   vault policy write prometheus-metrics …
+        #   vault token create -policy=prometheus-metrics -period=720h …
+        #   vault kv patch secret/platform/observability vault.prometheus_token=…
+        credentials:
+          name: vault-prometheus-token
+          key: token
+      relabelings:
+        # Drop the standby vault pod from scraping — only the active
+        # leader exposes meaningful telemetry. (Single-replica setup
+        # today, but harmless to keep the relabel for the eventual HA
+        # case.)
+        - sourceLabels: [__meta_kubernetes_pod_label_vault_active]
+          regex: 'true'
+          action: keep

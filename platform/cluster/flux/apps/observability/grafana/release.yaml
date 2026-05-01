@@ -38,6 +38,14 @@ spec:
     initChownData:
       enabled: false
     fullnameOverride: grafana
+    # Pyroscope datasource ships as a built-in core plugin in Grafana
+    # 11+, so no plugins block is needed for it. The Profiles Drilldown
+    # app does need to be installed.
+    plugins:
+      - grafana-pyroscope-app
+      - grafana-exploretraces-app
+      - grafana-lokiexplore-app
+      - grafana-metricsdrilldown-app
     persistence:
       enabled: true
       size: 10Gi
@@ -48,6 +56,15 @@ spec:
         enabled: true
         label: grafana_dashboard
         searchNamespace: observability
+        # `grafana_folder` annotation on a ConfigMap controls which folder
+        # the contained dashboards land in. Without this every dashboard
+        # ends up flat in "General".
+        folderAnnotation: grafana_folder
+        provider:
+          foldersFromFilesStructure: true
+        # Switch from default polling to k8s WATCH so dashboard reloads
+        # are sub-second instead of waiting on the next poll cycle.
+        watchMethod: WATCH
       datasources:
         enabled: true
         label: grafana_datasource

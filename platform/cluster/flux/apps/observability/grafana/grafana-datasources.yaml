@@ -42,3 +42,21 @@ data:
             filterBySpanID: false
           tracesToMetrics:
             datasourceUid: prometheus
+          tracesToProfilesV2:
+            datasourceUid: pyroscope
+            profileTypeId: process_cpu:cpu:nanoseconds:cpu:nanoseconds
+            tags:
+              - { key: service.name, value: service_name }
+          serviceMap:
+            datasourceUid: prometheus
+          nodeGraph:
+            enabled: true
+
+      - name: Pyroscope
+        type: grafana-pyroscope-datasource
+        uid: pyroscope
+        access: proxy
+        url: http://pyroscope.observability.svc.cluster.local:4040
+        editable: false
+        jsonData:
+          minStep: '15s'

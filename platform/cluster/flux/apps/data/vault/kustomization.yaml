@@ -6,6 +6,7 @@ resources:
   - release.yaml
   - bootstrap-auth-job.yaml
   - sample-secret-reader.yaml
+  - servicemonitor.yaml
 
 # Generate the bootstrap-auth ConfigMap from the extracted shell script.
 # Kustomize appends a content hash to the generated name (e.g.

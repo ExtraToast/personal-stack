@@ -5,21 +5,210 @@ metadata:
   namespace: observability
 spec:
   groups:
-    - name: platform
+    # ───────── Edge / SLO ─────────
+    - name: platform-edge
       rules:
         - alert: PlatformIngressErrorsHigh
-          expr: sum(rate(traefik_service_requests_total{code=~"5.."}[5m])) > 0.05
-          for: 10m
-          labels:
-            severity: warning
+          expr: sum(rate(traefik_service_requests_total{code=~"5.."}[5m])) / sum(rate(traefik_service_requests_total[5m])) > 0.01
+          for: 5m
+          labels: { severity: warning }
           annotations:
             summary: Elevated ingress 5xx rate
-            description: Traefik is returning sustained 5xx responses.
+            description: Traefik 5xx ratio > 1% over the last 5m.
+        - alert: PlatformIngressLatencyHigh
+          expr: histogram_quantile(0.95, sum by (le) (rate(traefik_service_request_duration_seconds_bucket[5m]))) > 1
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: Edge p95 latency above 1s
+            description: Traefik p95 request duration > 1s for 10 minutes.
+        - alert: PlatformTLSCertExpiringSoon
+          expr: (traefik_tls_certs_not_after - time()) < (14 * 24 * 3600)
+          for: 1h
+          labels: { severity: warning }
+          annotations:
+            summary: TLS certificate near expiry
+            description: A certificate exposed by Traefik expires in < 14 days.
+
+    # ───────── SLO burn rate ─────────
+    - name: platform-slo
+      rules:
+        - alert: ServiceErrorBudgetFastBurn
+          # 99.9% target → budget = 0.001. Fast burn page when consuming
+          # >14.4× budget over 1h (Google SRE multi-window-multi-burn-rate).
+          expr: |
+            (
+              sum by (service_name) (rate(traces_spanmetrics_calls_total{status_code="STATUS_CODE_ERROR"}[1h]))
+              /
+              sum by (service_name) (rate(traces_spanmetrics_calls_total[1h]))
+            ) > (14.4 * 0.001)
+          for: 5m
+          labels: { severity: critical }
+          annotations:
+            summary: '{{ $labels.service_name }}: SLO fast-burn'
+            description: Error rate consumes >14.4× error budget over 1h. Page.
+        - alert: ServiceErrorBudgetSlowBurn
+          expr: |
+            (
+              sum by (service_name) (rate(traces_spanmetrics_calls_total{status_code="STATUS_CODE_ERROR"}[6h]))
+              /
+              sum by (service_name) (rate(traces_spanmetrics_calls_total[6h]))
+            ) > (1 * 0.001)
+          for: 30m
+          labels: { severity: warning }
+          annotations:
+            summary: '{{ $labels.service_name }}: SLO slow-burn'
+            description: Error rate consumes >1× error budget over 6h. Open a ticket.
+
+    # ───────── Service / pod health ─────────
+    - name: platform-services
+      rules:
+        - alert: PodCrashLooping
+          expr: increase(kube_pod_container_status_restarts_total[15m]) > 3
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: 'Pod restarting frequently: {{ $labels.namespace }}/{{ $labels.pod }}'
+            description: '{{ $labels.container }} has restarted >3 times in 15m.'
+        - alert: PodOOMKilled
+          expr: increase(container_oom_events_total[10m]) > 0
+          for: 1m
+          labels: { severity: warning }
+          annotations:
+            summary: 'OOM kill: {{ $labels.namespace }}/{{ $labels.pod }}'
+            description: Pod was OOM killed at least once in the last 10 minutes.
+        - alert: PodNotReady
+          expr: kube_pod_status_ready{condition="true"} == 0 and on (namespace, pod) kube_pod_status_phase{phase="Running"} == 1
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: 'Pod not ready: {{ $labels.namespace }}/{{ $labels.pod }}'
+            description: Pod is Running but not Ready for 10 minutes.
+
+    # ───────── JVM ─────────
+    - name: platform-jvm
+      rules:
+        - alert: JvmHeapHigh
+          expr: |
+            sum by (application) (jvm_memory_used_bytes{area="heap"})
+            / sum by (application) (jvm_memory_max_bytes{area="heap"} > 0) > 0.9
+          for: 15m
+          labels: { severity: warning }
+          annotations:
+            summary: '{{ $labels.application }}: JVM heap > 90%'
+            description: Old generation heap is sustained > 90% — risk of OOM/GC thrash.
+        - alert: JvmGcPauseHigh
+          expr: histogram_quantile(0.95, sum by (le, application) (rate(jvm_gc_pause_seconds_bucket[5m]))) > 0.5
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: '{{ $labels.application }}: GC pause p95 > 500ms'
+            description: Garbage-collection p95 pause time > 500ms for 5 minutes.
+
+    # ───────── Data tier ─────────
+    - name: platform-data
+      rules:
+        - alert: PostgresConnectionsHigh
+          expr: (pg_stat_activity_count / pg_settings_max_connections) > 0.8
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: Postgres connections > 80% of max
+            description: Connection saturation increases failure risk for new clients.
+        - alert: PostgresDown
+          expr: pg_up == 0
+          for: 2m
+          labels: { severity: critical }
+          annotations: { summary: Postgres exporter cannot reach the DB }
+        - alert: ValkeyEvictionsHappening
+          expr: rate(redis_evicted_keys_total[10m]) > 0
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: Valkey is evicting keys
+            description: Cache memory pressure — consider raising maxmemory.
+        - alert: ValkeyMemoryFragmentationHigh
+          expr: redis_memory_fragmentation_ratio > 1.5
+          for: 30m
+          labels: { severity: info }
+          annotations: { summary: 'Valkey fragmentation > 1.5 (sustained 30m)' }
+        - alert: RabbitMQQueueDepthHigh
+          expr: rabbitmq_queue_messages_unacked > 10000
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: 'RabbitMQ unacked > 10k: {{ $labels.queue }}'
+            description: Unacknowledged messages have piled up — consumer slow / dead.
+
+    # ───────── Storage ─────────
+    - name: platform-storage
+      rules:
+        - alert: PersistentVolumeFillingUp
+          expr: (kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes) > 0.85
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: 'PVC > 85% full: {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }}'
+            description: Volume is at >85% capacity. Resize or clean up before it hits 100%.
         - alert: PlatformNodeDiskPressure
           expr: max(kube_node_status_condition{condition="DiskPressure",status="true"}) > 0
           for: 5m
-          labels:
-            severity: critical
+          labels: { severity: critical }
           annotations:
             summary: Node reports disk pressure
             description: At least one Kubernetes node is under disk pressure.
+
+    # ───────── Cluster / kubelet ─────────
+    - name: platform-cluster
+      rules:
+        - alert: NodeNotReady
+          expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+          for: 5m
+          labels: { severity: critical }
+          annotations:
+            summary: 'Node not Ready: {{ $labels.node }}'
+            description: Kubelet has reported NotReady for 5 minutes.
+        - alert: KubeletDown
+          expr: up{job="kubelet"} == 0
+          for: 5m
+          labels: { severity: critical }
+          annotations: { summary: 'Kubelet is down: {{ $labels.node }}' }
+
+    # ───────── GitOps (Flux) ─────────
+    - name: platform-gitops
+      rules:
+        - alert: FluxKustomizationNotReady
+          expr: gotk_reconcile_condition{type="Ready",status="False"} == 1
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: 'Flux not Ready: {{ $labels.kind }}/{{ $labels.name }}'
+            description: A Flux resource has been Ready=False for 10 minutes.
+        - alert: FluxSourceFailing
+          expr: gotk_reconcile_condition{kind=~"GitRepository|HelmRepository",type="Ready",status="False"} == 1
+          for: 10m
+          labels: { severity: warning }
+          annotations: { summary: 'Flux source failing: {{ $labels.name }}' }
+
+    # ───────── Vault ─────────
+    - name: platform-vault
+      rules:
+        - alert: VaultSealed
+          expr: vault_core_unsealed == 0
+          for: 5m
+          labels: { severity: critical }
+          annotations: { summary: Vault is sealed }
+        - alert: VaultAuditFailures
+          expr: increase(vault_audit_log_request_failure[5m]) > 0
+          for: 1m
+          labels: { severity: warning }
+          annotations: { summary: Vault audit log write failure }
+
+    # ───────── Profiling ─────────
+    - name: platform-profiling
+      rules:
+        - alert: PyroscopeIngestErrors
+          expr: rate(pyroscope_ingester_ingest_errors_total[5m]) > 0
+          for: 10m
+          labels: { severity: warning }
+          annotations: { summary: Pyroscope is rejecting profile ingest }

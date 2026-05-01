@@ -6,5 +6,4 @@ kind: Kustomization
 resources:
   - release.yaml
   - grafana-datasources.yaml
-  - platform-overview-dashboard.yaml
   - dashboards

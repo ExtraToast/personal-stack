@@ -1,0 +1,52 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: dcgm-exporter
+  namespace: observability
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: dcgm-exporter
+      sourceRef:
+        kind: HelmRepository
+        name: nvidia-dcgm
+        namespace: observability
+  values:
+    # Run as a DaemonSet so every NVIDIA-capable host gets one exporter
+    # exposing its local GPU(s) on :9400/metrics.
+    nodeSelector:
+      personal-stack/capability-nvidia: 'true'
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: personal-stack/capability-nvidia
+                  operator: In
+                  values:
+                    - 'true'
+    tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+    # Run via the same nvidia-cdi RuntimeClass the device-plugin uses,
+    # for the same NixOS reasons (CDI spec instead of legacy nvidia
+    # hook). See nvidia-device-plugin/release.yaml for the rationale.
+    runtimeClassName: nvidia-cdi
+    serviceMonitor:
+      enabled: true
+      interval: 30s
+      additionalLabels:
+        release: metrics-stack
+    service:
+      enabled: true
+      type: ClusterIP
+      port: 9400
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi

@@ -58,6 +58,16 @@ spec:
               address = "[::]:8200"
               cluster_address = "[::]:8201"
               tls_disable = 1
+              # Allow unauthenticated /v1/sys/metrics from inside the
+              # cluster only — Prometheus scrapes from Frankfurt at the
+              # cluster Service IP. Without this the endpoint requires
+              # a token, but ServiceMonitor + bearer token via VSO is
+              # cleaner; we still keep auth on for defence in depth, so
+              # the token-based scraper below is what actually reaches
+              # this endpoint.
+              telemetry {
+                unauthenticated_metrics_access = false
+              }
             }
 
             storage "raft" {
@@ -65,3 +75,11 @@ spec:
             }
 
             service_registration "kubernetes" {}
+
+            # Expose Prometheus metrics format on /v1/sys/metrics?format=prometheus
+            # and keep histograms for 24h so percentiles aren't reset
+            # every scrape cycle.
+            telemetry {
+              prometheus_retention_time = "24h"
+              disable_hostname           = true
+            }

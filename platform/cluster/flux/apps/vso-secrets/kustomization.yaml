@@ -5,3 +5,4 @@ resources:
   - cloudflare-cert-manager.yaml
   - cloudflare-external-dns.yaml
   - grafana-oidc.yaml
+  - vault-prometheus-token.yaml

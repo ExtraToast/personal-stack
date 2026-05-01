@@ -83,6 +83,20 @@ spec:
               value: https://n8n.jorisjonkers.dev/auth/oidc/callback
             - name: OIDC_SCOPES
               value: openid email profile
+            # Expose Prometheus metrics on /metrics (same :5678 port).
+            # Captures workflow execution counts, success/failure ratios,
+            # active executions, queue depth, plus default Node.js
+            # process metrics.
+            - name: N8N_METRICS
+              value: 'true'
+            - name: N8N_METRICS_INCLUDE_DEFAULT_METRICS
+              value: 'true'
+            - name: N8N_METRICS_INCLUDE_API_ENDPOINTS
+              value: 'true'
+            - name: N8N_METRICS_INCLUDE_QUEUE_METRICS
+              value: 'true'
+            - name: N8N_METRICS_INCLUDE_WORKFLOW_ID_LABEL
+              value: 'true'
           ports:
             - containerPort: 5678
               name: http

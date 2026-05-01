@@ -6,3 +6,4 @@ resources:
   - hooks-configmap.yaml
   - vault-secrets.yaml
   - deployment.yaml
+  - servicemonitor.yaml

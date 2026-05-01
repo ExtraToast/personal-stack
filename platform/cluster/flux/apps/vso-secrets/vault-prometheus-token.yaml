@@ -1,0 +1,20 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: vault-prometheus-token
+  namespace: data-system
+spec:
+  vaultAuthRef: vso-system/default
+  type: kv-v2
+  mount: secret
+  path: platform/observability
+  destination:
+    name: vault-prometheus-token
+    create: true
+    transformation:
+      templates:
+        # ServiceMonitor's authorization.credentials reads the secret
+        # under this key; keep the name short.
+        token:
+          text: '{{- get .Secrets "vault.prometheus_token" -}}'
+  refreshAfter: 1h
