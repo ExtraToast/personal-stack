@@ -75,15 +75,38 @@ spec:
               Referer: keep
               X-Forwarded-For: keep
     metrics:
+      # Without `enabled: true` the chart silently skips wiring the
+      # static config block, so the Prometheus endpoint never came
+      # online after #213.
       prometheus:
+        enabled: true
         entryPoint: metrics
         addEntryPointsLabels: true
         addRoutersLabels: true
         addServicesLabels: true
     tracing:
       otlp:
+        enabled: true
         http:
+          enabled: true
           endpoint: http://alloy.observability.svc.cluster.local:4318/v1/traces
       sampleRate: 0.1
+    # hostPort 80/443 means only one Traefik pod can bind a node at a
+    # time. Default rolling update with maxSurge=1 tries to bring up a
+    # second pod alongside the running one — it stays Pending forever
+    # because the host ports are already taken, Helm hits its 5m
+    # timeout, the HelmRelease goes Failed, and the apps-core flux
+    # Kustomization stalls (which then blocks every downstream
+    # Kustomization that depends on apps-core, including
+    # apps-observability). Same surge=0 pattern auth-api and
+    # assistant-api use for the same reason on the same node.
+    deployment:
+      kind: Deployment
+      replicas: 1
+      strategy:
+        type: RollingUpdate
+        rollingUpdate:
+          maxSurge: 0
+          maxUnavailable: 1
     nodeSelector:
       personal-stack/site: frankfurt
