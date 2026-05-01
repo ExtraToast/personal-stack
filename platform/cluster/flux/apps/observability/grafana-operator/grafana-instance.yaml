@@ -19,3 +19,7 @@ spec:
     adminPassword:
       name: grafana
       key: admin-password
+    # Required by the v1beta1 schema. The operator uses this namespace
+    # to scope multi-tenant resources; single-instance setup so any
+    # value works — keep it co-located with the operator.
+    tenantNamespace: observability
