@@ -146,6 +146,27 @@ spec:
     kind: GitRepository
     name: flux-system
 ---
+# Grafana CRs (Grafana instance + folders + dashboards) need the
+# grafana-operator's CRDs, which the operator HelmRelease in
+# apps-observability installs. Splitting these into their own
+# Kustomization with dependsOn lets Flux dry-run them only after the
+# operator chart has applied. Keeping them in apps-observability would
+# fail with "no matches for kind Grafana" on every first reconcile.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: apps-grafana-dashboards
+  namespace: flux-system
+spec:
+  interval: 10m0s
+  path: ./platform/cluster/flux/apps/grafana-dashboards
+  prune: true
+  dependsOn:
+    - name: apps-observability
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:

@@ -1,8 +1,12 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+# Only the operator HelmRelease lives here. The Grafana / GrafanaFolder /
+# GrafanaDashboard custom resources moved to platform/cluster/flux/apps/
+# grafana-dashboards because they need the operator's CRDs to exist
+# before they can even dry-run. That dir is wired as a separate Flux
+# Kustomization (apps-grafana-dashboards) with dependsOn:
+# apps-observability so its reconcile waits until the operator chart
+# has installed its CRDs.
 resources:
   - release.yaml
-  - grafana-instance.yaml
-  - folders.yaml
-  - dashboards
