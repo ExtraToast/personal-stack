@@ -10,6 +10,19 @@ metadata:
     keel.sh/pollSchedule: '@every 2m'
 spec:
   replicas: 2
+  # nginx pods, ~10–20Mi RAM each — surge=1 maxUnavailable=0 gives
+  # true zero-downtime rollouts. The new pod becomes Ready before the
+  # old one terminates, so the Service load-balancer routes are never
+  # empty. Explicit strategy + progressDeadlineSeconds avoids relying
+  # on the chart-default 25% percentages, which round to the same
+  # values for replicas=2 but would silently change if anyone bumped
+  # replicas later.
+  progressDeadlineSeconds: 600
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app.kubernetes.io/name: auth-ui

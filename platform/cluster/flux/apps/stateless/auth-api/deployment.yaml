@@ -23,18 +23,32 @@ metadata:
     keel.sh/trigger: poll
     keel.sh/pollSchedule: '@every 2m'
 spec:
-  replicas: 1
+  # Two replicas because auth-api is on the forward-auth path for
+  # nearly every public service. A 1-replica rollout takes the whole
+  # cluster's auth surface offline for the JVM warmup window
+  # (~10–15 s); with 2 replicas + maxUnavailable=1 the partner is
+  # always Ready and Traefik forward-auth never sees a closed door.
+  #
+  # Frankfurt is CPU-tight (~750m free at 90% requested), so a second
+  # 1500m replica may sit Pending until something else releases CPU.
+  # That's fine: the Deployment becomes Available with 1 pod (because
+  # maxUnavailable=1 means desired-1 = 1 minimum), one replica keeps
+  # serving, and the spare schedules opportunistically. Critically,
+  # rollouts of new images replace one pod at a time and the surviving
+  # OLD pod keeps serving until the NEW pod is Ready — true zero-
+  # downtime even on a tight node.
+  replicas: 2
+  # Long deadline so a Pending second replica doesn't flip the
+  # HelmRelease to Failed (chart default is 600s = 10 min).
+  progressDeadlineSeconds: 1800
   # Kill the old pod before creating the new one. Default maxSurge=1
   # requires 1500m free CPU on frankfurt-contabo-1 for the overlap,
   # but the node is chronically near 91% requested — so a surge
-  # rollout blocks in `Pending` indefinitely (the auth-api 500 on /me
-  # after PR #170 merged was exactly this: new image couldn't
-  # schedule, old image kept serving 404s). Accept the ~30 s deploy
-  # gap; the Spring Boot pod warms up in a single-digit-second window
-  # behind Traefik's retry, which is far cheaper than rollback-
-  # hell when the surge never lands. Do NOT lower the CPU request —
-  # the perf PR #160 raised it to 1500m specifically to avoid CFS
-  # throttling during JVM class loading.
+  # rollout blocks in `Pending` indefinitely. Do NOT lower the CPU
+  # request — the perf PR #160 raised it to 1500m specifically to
+  # avoid CFS throttling during JVM class loading. With replicas=2
+  # the surge=0 still gives zero downtime: one of the two is always
+  # serving while the other is being replaced.
   strategy:
     type: RollingUpdate
     rollingUpdate:
