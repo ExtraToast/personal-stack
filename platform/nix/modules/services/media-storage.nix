@@ -46,17 +46,20 @@
       # 2-device btrfs media-pool across both 6 TB HDDs (formerly NTFS
       # DataBeast + its successor). Data profile is `single` (no striping —
       # each chunk lives on one device, losing one disk loses only its
-      # chunks); metadata is RAID1 across both devices. Both `device=`
-      # options are listed so neither member is load-bearing for boot
-      # ordering — systemd will wait for both before mounting.
+      # chunks); metadata is RAID1 across both devices.
+      #
+      # Only one `device=` is needed: udev's btrfs-scan tags both members
+      # with the same filesystem UUID, so the kernel registers the second
+      # device automatically and the mount finds it via UUID. Listing both
+      # devices here additionally triggers a kernel re-scan on `mount -o
+      # remount`, which can hang for minutes while a balance is in flight
+      # — and NixOS issues a remount on every fstab option change.
       device = "/dev/disk/by-id/ata-WDC_WD60EDAZ-11CFNB0_WD-WX22DA54RL1P";
       fsType = "btrfs";
       options = [
         "noatime"
         "compress=zstd:3"
         "nofail"
-        "device=/dev/disk/by-id/ata-WDC_WD60EDAZ-11CFNB0_WD-WX22DA54RL1P"
-        "device=/dev/disk/by-id/ata-WDC_WD60EDAZ-11U78B0_WD-WX32D514Z5N3"
       ];
     };
     "/srv/media-views/media-downloads/Downloading" = {
