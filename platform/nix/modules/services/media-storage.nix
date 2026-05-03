@@ -43,17 +43,20 @@
 
   fileSystems = {
     "/srv/media" = {
-      # 6 TB HDD, formerly NTFS DataBeast, migrated to btrfs as media-pool.
-      # First device of an eventual 2-disk pool (the second 6 TB joins via
-      # `btrfs device add` once the cutover has soaked); when it does, append
-      # a second `device=` option here so neither member is load-bearing for
-      # boot ordering.
+      # 2-device btrfs media-pool across both 6 TB HDDs (formerly NTFS
+      # DataBeast + its successor). Data profile is `single` (no striping —
+      # each chunk lives on one device, losing one disk loses only its
+      # chunks); metadata is RAID1 across both devices. Both `device=`
+      # options are listed so neither member is load-bearing for boot
+      # ordering — systemd will wait for both before mounting.
       device = "/dev/disk/by-id/ata-WDC_WD60EDAZ-11CFNB0_WD-WX22DA54RL1P";
       fsType = "btrfs";
       options = [
         "noatime"
         "compress=zstd:3"
         "nofail"
+        "device=/dev/disk/by-id/ata-WDC_WD60EDAZ-11CFNB0_WD-WX22DA54RL1P"
+        "device=/dev/disk/by-id/ata-WDC_WD60EDAZ-11U78B0_WD-WX32D514Z5N3"
       ];
     };
     "/srv/media-views/media-downloads/Downloading" = {
