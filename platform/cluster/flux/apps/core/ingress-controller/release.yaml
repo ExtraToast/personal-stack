@@ -97,14 +97,19 @@ spec:
     # because the host ports are already taken, Helm hits its 5m
     # timeout, the HelmRelease goes Failed, and the apps-core flux
     # Kustomization stalls (which then blocks every downstream
-    # Kustomization that depends on apps-core, including
-    # apps-observability). The Traefik chart reads these directly under
-    # `deployment.rollingUpdate` (no `strategy:` wrapper), unlike the
-    # core/v1 Deployment shape — #220 used the wrong key and was a
-    # no-op, leaving the rollout stuck.
+    # Kustomization that depends on apps-core).
+    #
+    # The traefik chart's value path for this is `updateStrategy.*` at
+    # the top level, *not* `deployment.rollingUpdate.*` — the previous
+    # nesting (added in #220, kept in #227) was a silent no-op and the
+    # live Deployment kept the chart default of maxSurge=1 /
+    # maxUnavailable=0. Verified against `helm show values traefik
+    # --version 39.0.9`.
     deployment:
       kind: Deployment
       replicas: 1
+    updateStrategy:
+      type: RollingUpdate
       rollingUpdate:
         maxSurge: 0
         maxUnavailable: 1
