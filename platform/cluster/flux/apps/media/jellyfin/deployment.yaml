@@ -61,6 +61,42 @@ spec:
                     operator: In
                     values:
                       - 'true'
+      # The upstream `jellyfin/jellyfin` image runs as root by default
+      # and ignores the linuxserver-style PUID/PGID env vars (those
+      # only apply to the linuxserver image variants). With Jellyfin
+      # running as UID 0 and the "save metadata into media folders"
+      # library setting enabled, every refresh wrote `folder.jpg`,
+      # `backdrop.jpg`, `season.nfo`, `*-thumb.jpg` into /srv/media as
+      # root, which then blocked Sonarr (UID 1000 in its container)
+      # from importing into those season folders. Pin Jellyfin to the
+      # same UID/GID the rest of the media stack uses (1000 = `deploy`
+      # on the host) so writes there land deploy:deploy. /dev/nvidia*
+      # is mode 666 on the host, so GPU passthrough still works as
+      # non-root.
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      initContainers:
+        # Existing /config trees on bind-mount have ~5 k root-owned
+        # files left over from the prior root run; without a chown
+        # Jellyfin (now UID 1000) cannot read its own SQLite databases,
+        # plugin state, or library JSON. One-shot recursive chown is
+        # idempotent — subsequent restarts find everything already 1000.
+        - name: chown-config
+          image: busybox:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 0
+          command:
+            - sh
+            - -ec
+            - |
+              chown -R 1000:1000 /config
+              echo "/config now owned 1000:1000"
+          volumeMounts:
+            - name: jellyfin-config
+              mountPath: /config
       containers:
         - name: jellyfin
           image: jellyfin/jellyfin:10.11.8
