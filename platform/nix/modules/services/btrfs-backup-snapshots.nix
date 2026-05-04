@@ -32,9 +32,13 @@ in
       Nice = 19;
       IOSchedulingClass = "idle";
       IOSchedulingPriority = 7;
-      # Full first send of ~120 GiB over local NVMe finishes in well
-      # under an hour; cap at 4 h so a wedged ioctl can't run forever.
-      TimeoutStartSec = "4h";
+      # The first full ~120 GiB send is bottlenecked on the source HDD
+      # under simultaneous media-write load: idle I/O class yields to
+      # qBittorrent/Plex/Samba writers, so observed throughput dropped
+      # to ~5 MB/s and the original 4 h cap killed the send mid-receive.
+      # 12 h covers the seed run with margin while still bounding a
+      # genuinely wedged ioctl. Subsequent incrementals are minutes.
+      TimeoutStartSec = "12h";
 
       # Modest hardening. Aggressive sandboxing (DynamicUser, capability
       # carving, ProtectSystem=strict without ReadWritePaths) interacts
