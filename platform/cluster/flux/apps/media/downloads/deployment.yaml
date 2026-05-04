@@ -100,10 +100,18 @@ spec:
           # localhost (within this pod's shared net namespace) and we
           # don't want to ship its login credentials to a sidecar.
           # qBittorrent supports skipping WebUI auth for whitelisted
-          # source subnets — flip that on for loopback. Idempotent: if
-          # qBittorrent.conf already exists, edit in place; otherwise
-          # seed a minimal one and let qBittorrent fill in the rest on
-          # first start.
+          # source subnets — flip that on for loopback.
+          #
+          # The two pref keys here contain a literal backslash
+          # (`WebUI\AuthSubnetWhitelist...`). Earlier versions of this
+          # script piped the keys into awk via `-v k=...`, which
+          # silently interprets backslash escapes in the value: `\A`
+          # decayed to `A` and the rendered conf had unrecognised
+          # `WebUIAuthSubnetWhitelist` keys, leaving WebAPI auth on
+          # and the port-sync sidecar getting 403 on every request.
+          # We now build the file with grep + an awk source-literal
+          # (where `\\` in the source is one literal backslash), which
+          # avoids -v entirely.
           image: busybox:latest
           imagePullPolicy: IfNotPresent
           command:
@@ -114,25 +122,28 @@ spec:
               CONF=$CONF_DIR/qBittorrent.conf
               mkdir -p "$CONF_DIR"
               [ -f "$CONF" ] || printf '[Preferences]\n' > "$CONF"
-              ensure() {
-                key=$1; val=$2
-                if grep -Fq "${key}=" "$CONF"; then
-                  awk -v k="$key" -v v="$val" '
-                    index($0, k"=") == 1 { print k"="v; next } { print }
-                  ' "$CONF" > "$CONF.tmp" && mv "$CONF.tmp" "$CONF"
-                elif grep -Fq '[Preferences]' "$CONF"; then
-                  awk -v line="${key}=${val}" '
-                    { print } /^\[Preferences\]/ && !ins { print line; ins=1 }
-                  ' "$CONF" > "$CONF.tmp" && mv "$CONF.tmp" "$CONF"
-                else
-                  printf '\n[Preferences]\n%s=%s\n' "$key" "$val" >> "$CONF"
-                fi
-              }
-              ensure 'WebUI\AuthSubnetWhitelistEnabled' 'true'
-              ensure 'WebUI\AuthSubnetWhitelist' '127.0.0.0/8, ::1/128'
+              # Drop any prior versions of the two keys (broken or
+              # canonical) so re-runs converge on the right form.
+              grep -v -E '^WebUI\\?AuthSubnetWhitelist(Enabled)?=' "$CONF" > "$CONF.tmp"
+              # Make sure the [Preferences] header survived.
+              grep -qF '[Preferences]' "$CONF.tmp" || printf '[Preferences]\n' >> "$CONF.tmp"
+              # Insert the two canonical lines right under the header.
+              # `\\` in awk source = one literal backslash in output.
+              awk '
+                /^\[Preferences\]$/ && !done {
+                  print
+                  print "WebUI\\AuthSubnetWhitelistEnabled=true"
+                  print "WebUI\\AuthSubnetWhitelist=127.0.0.0/8, ::1/128"
+                  done = 1
+                  next
+                }
+                { print }
+              ' "$CONF.tmp" > "$CONF"
+              rm -f "$CONF.tmp"
               chown -R 1000:1000 "$CONF_DIR"
               chmod 600 "$CONF"
-              echo "qBittorrent.conf WebUI auth-bypass for loopback ensured"
+              echo "qBittorrent.conf WebUI auth-bypass for loopback ensured:"
+              grep -E '^WebUI\\?AuthSubnet' "$CONF" || true
           volumeMounts:
             - name: qbittorrent-config
               mountPath: /config
