@@ -46,6 +46,16 @@ spec:
           #                      ClusterIP addresses
           FIREWALL_OUTBOUND_SUBNETS='100.64.0.0/10,192.168.0.0/16,172.16.0.0/12,10.42.0.0/16,10.43.0.0/16'
           FIREWALL_INPUT_PORTS='8080,9696'
+          # PIA hands out a forwarded inbound port; without it qBittorrent
+          # can only reach peers via outbound connections, which starves
+          # upload throughput. Gluetun negotiates and renews the port via
+          # PIA's API and exposes it on its HTTP control server at
+          # GET /v1/openvpn/portforwarded . The qbittorrent-port-sync
+          # sidecar below pushes the assigned port into qBittorrent's
+          # listen socket whenever it changes. NB: only PIA regions that
+          # advertise port-forward support work — pia.server_regions in
+          # Vault must list one of those (most non-US regions qualify).
+          VPN_PORT_FORWARDING=on
           # By default Gluetun owns /etc/resolv.conf and points it at its
           # own DoT resolver (so public DNS leaks can't escape the tunnel).
           # That also means cluster DNS (coredns at 10.43.0.10) gets
@@ -85,6 +95,47 @@ spec:
             capabilities:
               add:
                 - NET_ADMIN
+        - name: qbittorrent-localhost-auth
+          # The port-sync sidecar talks to qBittorrent's WebAPI on
+          # localhost (within this pod's shared net namespace) and we
+          # don't want to ship its login credentials to a sidecar.
+          # qBittorrent supports skipping WebUI auth for whitelisted
+          # source subnets — flip that on for loopback. Idempotent: if
+          # qBittorrent.conf already exists, edit in place; otherwise
+          # seed a minimal one and let qBittorrent fill in the rest on
+          # first start.
+          image: busybox:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -ec
+            - |
+              CONF_DIR=/config/qBittorrent/config
+              CONF=$CONF_DIR/qBittorrent.conf
+              mkdir -p "$CONF_DIR"
+              [ -f "$CONF" ] || printf '[Preferences]\n' > "$CONF"
+              ensure() {
+                key=$1; val=$2
+                if grep -Fq "${key}=" "$CONF"; then
+                  awk -v k="$key" -v v="$val" '
+                    index($0, k"=") == 1 { print k"="v; next } { print }
+                  ' "$CONF" > "$CONF.tmp" && mv "$CONF.tmp" "$CONF"
+                elif grep -Fq '[Preferences]' "$CONF"; then
+                  awk -v line="${key}=${val}" '
+                    { print } /^\[Preferences\]/ && !ins { print line; ins=1 }
+                  ' "$CONF" > "$CONF.tmp" && mv "$CONF.tmp" "$CONF"
+                else
+                  printf '\n[Preferences]\n%s=%s\n' "$key" "$val" >> "$CONF"
+                fi
+              }
+              ensure 'WebUI\AuthSubnetWhitelistEnabled' 'true'
+              ensure 'WebUI\AuthSubnetWhitelist' '127.0.0.0/8, ::1/128'
+              chown -R 1000:1000 "$CONF_DIR"
+              chmod 600 "$CONF"
+              echo "qBittorrent.conf WebUI auth-bypass for loopback ensured"
+          volumeMounts:
+            - name: qbittorrent-config
+              mountPath: /config
       containers:
         - name: gluetun
           image: qmcgaw/gluetun:v3.40.0
@@ -158,6 +209,51 @@ spec:
             limits:
               cpu: 1500m
               memory: 3Gi
+        - name: qbittorrent-port-sync
+          # Polls Gluetun's HTTP control server for the PIA-assigned
+          # forwarded port and writes it into qBittorrent's listen
+          # socket via the WebAPI. PIA renews the port lease every few
+          # minutes and the value can change on every reconnect, so
+          # this loops forever rather than running once.
+          image: curlimages/curl:8.10.1
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              GLUETUN='http://localhost:8000'
+              QBT='http://localhost:8080'
+              INTERVAL=60
+              LAST_PORT=''
+
+              echo "[port-sync] waiting for qBittorrent WebAPI..."
+              until curl -fsS -o /dev/null "$QBT/api/v2/app/version"; do
+                sleep 5
+              done
+              echo "[port-sync] qBittorrent reachable; entering watch loop"
+
+              while :; do
+                resp=$(curl -fsS "$GLUETUN/v1/openvpn/portforwarded" 2>/dev/null || true)
+                port=$(printf '%s' "$resp" | sed -n 's/.*"port":[[:space:]]*\([0-9][0-9]*\).*/\1/p')
+                if [ -n "$port" ] && [ "$port" != "0" ] && [ "$port" != "$LAST_PORT" ]; then
+                  echo "[port-sync] forwarded port: ${LAST_PORT:-<none>} -> $port"
+                  if curl -fsS -o /dev/null -X POST "$QBT/api/v2/app/setPreferences" \
+                      --data-urlencode "json={\"listen_port\":$port}"; then
+                    LAST_PORT="$port"
+                    echo "[port-sync] applied listen_port=$port"
+                  else
+                    echo "[port-sync] WARN: failed to set listen_port=$port"
+                  fi
+                fi
+                sleep "$INTERVAL"
+              done
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
         - name: prowlarr
           image: linuxserver/prowlarr:latest
           imagePullPolicy: IfNotPresent
