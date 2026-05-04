@@ -10,13 +10,27 @@
   environment.systemPackages = [ pkgs.ntfs3g ];
 
   systemd.tmpfiles.rules = [
+    # `d` only sets owner/mode on creation; for directories that already
+    # exist (e.g. carried over from the NTFS pool) it leaves perms alone.
+    # The NTFS->btrfs migration left Downloading/Completed/Films/Series as
+    # root:root 0755, which silently broke qBittorrent (UID 1000) creating
+    # new files. Pair each `d` with `z` so subsequent activations realign
+    # owner/mode on the directory inode (no recursion — leaves child
+    # files' perms intact).
     "d /srv/media 0775 deploy deploy - -"
+    "z /srv/media 0775 deploy deploy - -"
     "d /srv/media/Completed 0775 deploy deploy - -"
+    "z /srv/media/Completed 0775 deploy deploy - -"
     "d /srv/media/Downloading 0775 deploy deploy - -"
+    "z /srv/media/Downloading 0775 deploy deploy - -"
     "d /srv/media/Films 0775 deploy deploy - -"
+    "z /srv/media/Films 0775 deploy deploy - -"
     "d /srv/media/Series 0775 deploy deploy - -"
+    "z /srv/media/Series 0775 deploy deploy - -"
     "d /srv/media/Anime 0775 deploy deploy - -"
+    "z /srv/media/Anime 0775 deploy deploy - -"
     "d /srv/media/TimeMachine 0775 deploy deploy - -"
+    "z /srv/media/TimeMachine 0775 deploy deploy - -"
     "d /srv/media-views 0755 root root - -"
     "d /srv/media-views/media-downloads 0755 root root - -"
     "d /srv/media-views/media-downloads/Downloading 0755 root root - -"
