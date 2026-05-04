@@ -118,8 +118,18 @@ spec:
             - sh
             - -ec
             - |
-              CONF_DIR=/config/qBittorrent/config
+              # linuxserver/qbittorrent reads its preferences from
+              # /config/qBittorrent/qBittorrent.conf (NOT
+              # /config/qBittorrent/config/qBittorrent.conf — the
+              # `config/` subdir does not exist in the linuxserver
+              # image). Earlier revisions wrote to the wrong path; a
+              # stub file got created there and qBittorrent silently
+              # ignored it, leaving auth-required defaults in effect.
+              CONF_DIR=/config/qBittorrent
               CONF=$CONF_DIR/qBittorrent.conf
+              # Sweep the wrong-path stub left by previous deploys.
+              rm -f /config/qBittorrent/config/qBittorrent.conf
+              rmdir /config/qBittorrent/config 2>/dev/null || true
               mkdir -p "$CONF_DIR"
               [ -f "$CONF" ] || printf '[Preferences]\n' > "$CONF"
               # Drop any prior versions of the two keys (broken or
