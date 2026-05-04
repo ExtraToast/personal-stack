@@ -7,6 +7,7 @@
     ../../modules/k3s/node-labels.nix
     ../../modules/services/media-storage.nix
     ../../modules/services/backup-storage.nix
+    ../../modules/services/btrfs-backup-snapshots.nix
     ../../modules/services/samba.nix
     ./disko.nix
   ];
