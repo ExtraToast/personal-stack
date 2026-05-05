@@ -179,13 +179,16 @@ spec:
             # rationale (eliminates CFS throttling during JVM class load).
             # Lower than auth-api's 1500m because steady-state usage is
             # ~100m and assistant-api isn't on the cluster's forward-auth
-            # critical path — slightly slower cold start is acceptable in
-            # exchange for Frankfurt CPU-request headroom for safe rollouts.
+            # critical path. Set to 1000m (down from 1200m) after 750m
+            # was found to push Spring/Flyway startup past the 300s
+            # startupProbe window, killing the pod mid-roll. 1000m keeps
+            # cold start under ~3 min while still saving ~400m × 2 of
+            # Frankfurt CPU headroom for safe auth-api rollouts.
             requests:
-              cpu: 750m
+              cpu: 1000m
               memory: 1792Mi
             limits:
-              cpu: 750m
+              cpu: 1000m
               memory: 2304Mi
           volumeMounts:
             - name: pyroscope-agent
