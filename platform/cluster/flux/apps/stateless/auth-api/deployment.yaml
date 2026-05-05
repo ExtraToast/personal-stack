@@ -117,12 +117,24 @@ spec:
               # ZGC: sub-ms pauses under cache-warm loads + better throughput
               # than G1 on workloads that touch many short-lived objects (jOOQ
               # row mappers, Jackson, OAuth2 token responses).
-              # AlwaysPreTouch: take the page-fault hit up front during startup
-              # rather than amortised across the first few seconds of traffic.
+              # SharedArchiveFile: AppCDS class-data archive built at image
+              # build time (see Dockerfile cds-train stage). Skips the bulk
+              # of the Spring/jOOQ/jackson class loading at boot — measured
+              # ~25 % faster cold start at 1 CPU on this codebase.
+              # AllowArchivingWithJavaAgent: must match the training-stage
+              # flag, otherwise HotSpot rejects the archive at runtime with
+              # `Loading dynamic archive failed` (the OTel javaagent rewrites
+              # bytecode at class load, and the JVM enforces matching agent
+              # state between dump and load to keep the cache safe).
+              # AlwaysPreTouch was deliberately removed: it added ~25 s of
+              # page-fault work to cold start, and the AppCDS win matters
+              # more than amortising page faults in steady state.
               exec java \
                 -XX:+UseZGC \
-                -XX:+AlwaysPreTouch \
                 -XX:MaxRAMPercentage=75 \
+                -XX:+UnlockDiagnosticVMOptions \
+                -XX:+AllowArchivingWithJavaAgent \
+                -XX:SharedArchiveFile=/app/application.jsa \
                 -javaagent:/app/otel-javaagent.jar \
                 -javaagent:/pyroscope/pyroscope.jar \
                 -jar /app/app.jar

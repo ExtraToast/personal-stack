@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletResponse
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Profile
 import org.springframework.core.annotation.Order
 import org.springframework.http.MediaType
 import org.springframework.jdbc.core.JdbcOperations
@@ -125,7 +126,14 @@ class AuthorizationServerConfig(
             buildHeadlampClient(),
         )
 
+    // The JdbcOAuth2AuthorizationService constructor calls getColumnMetadata()
+    // on the JDBC connection, which means bean creation eagerly opens a real
+    // Postgres connection. That breaks the AppCDS training run in the Docker
+    // build (no Postgres reachable), so we exclude this bean under the
+    // `cds-training` profile and let Spring Security fall back to its
+    // in-memory default; the runtime profile (prod) still wires this in.
     @Bean
+    @Profile("!cds-training")
     fun authorizationService(
         jdbcOperations: JdbcOperations,
         registeredClientRepository: RegisteredClientRepository,
@@ -161,7 +169,10 @@ class AuthorizationServerConfig(
             .build()
     }
 
+    // Same JDBC-eager-on-construction issue as authorizationService — skip
+    // during AppCDS training, fall back to Spring Security's in-memory default.
     @Bean
+    @Profile("!cds-training")
     fun authorizationConsentService(
         jdbcOperations: JdbcOperations,
         registeredClientRepository: RegisteredClientRepository,

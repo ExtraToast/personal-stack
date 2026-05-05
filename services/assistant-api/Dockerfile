@@ -23,9 +23,29 @@ RUN apk add --no-cache curl && \
     curl -fsSL -o /otel-javaagent.jar \
     "https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.26.1/opentelemetry-javaagent.jar"
 
+# AppCDS training stage — see auth-api/Dockerfile for the full rationale.
+# Extracts the fat jar into a layered layout, refreshes the Spring context
+# under the `cds-training` profile (Flyway off so no Postgres needed), and
+# dumps `application.jsa` for the runtime stage to SharedArchiveFile.
+FROM eclipse-temurin:25-jre-alpine AS cds-train
+WORKDIR /train
+COPY --from=build /app/services/assistant-api/build/libs/*.jar app.jar
+COPY --from=otel /otel-javaagent.jar /otel-javaagent.jar
+RUN java -Djarmode=tools -jar app.jar extract --destination /train/app && \
+    cd /train/app && \
+    java \
+      -Dspring.profiles.active=cds-training \
+      -Dspring.context.exit=onRefresh \
+      -XX:ArchiveClassesAtExit=/train/app/application.jsa \
+      -XX:+UnlockDiagnosticVMOptions \
+      -XX:+AllowArchivingWithJavaAgent \
+      -javaagent:/otel-javaagent.jar \
+      -jar app.jar && \
+    test -s /train/app/application.jsa
+
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
-COPY --from=build /app/services/assistant-api/build/libs/*.jar app.jar
+COPY --from=cds-train /train/app/ ./
 COPY --from=otel /otel-javaagent.jar otel-javaagent.jar
 EXPOSE 8082
-ENTRYPOINT ["java", "-javaagent:otel-javaagent.jar", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-XX:SharedArchiveFile=/app/application.jsa", "-javaagent:otel-javaagent.jar", "-jar", "app.jar"]
