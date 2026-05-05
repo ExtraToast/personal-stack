@@ -211,8 +211,6 @@ placement_intent:
     - loki
     - tempo
     - alloy
-    - flaresolverr
-    - n8n
     - gatus
     - vault
     - headlamp
@@ -229,6 +227,8 @@ placement_intent:
     - adguard
     - wolf
     - samba
+    - flaresolverr
+    - n8n
 
   gpu_specific:
     jellyfin:

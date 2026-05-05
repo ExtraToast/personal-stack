@@ -177,11 +177,15 @@ spec:
           resources:
             # request == cpu limit; see auth-api deployment.yaml for the
             # rationale (eliminates CFS throttling during JVM class load).
+            # Lower than auth-api's 1500m because steady-state usage is
+            # ~100m and assistant-api isn't on the cluster's forward-auth
+            # critical path — slightly slower cold start is acceptable in
+            # exchange for Frankfurt CPU-request headroom for safe rollouts.
             requests:
-              cpu: 1200m
+              cpu: 750m
               memory: 1792Mi
             limits:
-              cpu: 1200m
+              cpu: 750m
               memory: 2304Mi
           volumeMounts:
             - name: pyroscope-agent

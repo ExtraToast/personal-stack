@@ -14,7 +14,7 @@ spec:
         app.kubernetes.io/name: flaresolverr
     spec:
       nodeSelector:
-        personal-stack/site: frankfurt
+        personal-stack/site: enschede
       containers:
         - name: flaresolverr
           image: 21hsmw/flaresolverr:nodriver

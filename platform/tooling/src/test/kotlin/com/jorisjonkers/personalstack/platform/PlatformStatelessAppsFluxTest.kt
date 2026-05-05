@@ -84,7 +84,10 @@ class PlatformStatelessAppsFluxTest {
             .contains("21hsmw/flaresolverr:nodriver")
             .contains("containerPort: 8191")
             .contains("path: /health")
-            .contains("personal-stack/site: frankfurt")
+            // Pinned to enschede so it co-locates with prowlarr (its only
+            // caller) and frees ~500m of CPU request on the saturated
+            // frankfurt-contabo-1 node.
+            .contains("personal-stack/site: enschede")
             .contains("kind: Service")
             .contains("name: flaresolverr")
             .contains("port: 8191")
