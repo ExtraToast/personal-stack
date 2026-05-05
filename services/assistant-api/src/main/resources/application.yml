@@ -26,6 +26,24 @@ spring:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/assistant_db
     username: ${DB_USER:assistant_user}
     password: ${DB_PASSWORD:assistant_password}
+    hikari:
+      pool-name: assistant-api-pool
+      maximum-pool-size: 10
+      minimum-idle: 10
+      connection-timeout: 10000
+      validation-timeout: 5000
+      idle-timeout: 600000
+      keepalive-time: 30000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+      initialization-fail-timeout: 60000
+      auto-commit: true
+      data-source-properties:
+        tcpKeepAlive: true
+        socketTimeout: 30
+        connectTimeout: 10
+        loginTimeout: 10
+        ApplicationName: assistant-api
   flyway:
     enabled: true
     locations: classpath:db/migration
