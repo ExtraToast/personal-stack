@@ -76,12 +76,15 @@ spec:
               set +a
               # See auth-api deployment.yaml for the rationale behind these
               # JVM flags (MaxRAMPercentage for cgroup-aware heap sizing,
-              # ZGC for sub-ms pauses, AlwaysPreTouch for front-loaded
-              # page faults).
+              # ZGC for sub-ms pauses, SharedArchiveFile + the matching
+              # AllowArchivingWithJavaAgent flag for AppCDS, AlwaysPreTouch
+              # removed in favour of the AppCDS speedup).
               exec java \
                 -XX:+UseZGC \
-                -XX:+AlwaysPreTouch \
                 -XX:MaxRAMPercentage=75 \
+                -XX:+UnlockDiagnosticVMOptions \
+                -XX:+AllowArchivingWithJavaAgent \
+                -XX:SharedArchiveFile=/app/application.jsa \
                 -javaagent:/app/otel-javaagent.jar \
                 -javaagent:/pyroscope/pyroscope.jar \
                 -jar /app/app.jar

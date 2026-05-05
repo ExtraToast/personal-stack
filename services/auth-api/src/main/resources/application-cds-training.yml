@@ -1,0 +1,10 @@
+# Profile activated only by the AppCDS training stage in the Dockerfile.
+# Spring Boot's `spring.context.exit=onRefresh` runs the full ApplicationContext
+# refresh and then exits before the embedded server starts — that's the moment
+# we want HotSpot to dump `application.jsa` so a real boot can SharedArchiveFile
+# it back in. Disable Flyway so the training run doesn't try to reach a Postgres
+# that the build environment doesn't have. All other startup wiring is already
+# lazy (Hikari, Lettuce, RabbitTemplate, mail, Vault).
+spring:
+  flyway:
+    enabled: false
