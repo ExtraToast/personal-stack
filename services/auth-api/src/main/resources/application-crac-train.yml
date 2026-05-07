@@ -1,0 +1,42 @@
+# Profile activated by the CRaC training stage in CI. Drives synthetic local
+# traffic against the running JVM so the C1/C2 JIT tiers compile the request
+# pipeline (Tomcat, Spring Security filter chain, Jackson, jOOQ-generated SQL,
+# OAuth2 token endpoints) before `Core.checkpointRestore()` dumps the JVM. The
+# checkpoint files are then baked into the production image so a fresh pod
+# restores in <1 s with the hot path already JIT-compiled.
+#
+# This profile is also expected to be combined with a CRaC-enabled JDK
+# (BellSoft Liberica or Azul Zulu) and the JVM flag
+# `-XX:CRaCCheckpointTo=/opt/crac/checkpoint` so the dump lands at the
+# expected path. The Dockerfile and CI workflow that wire those together land
+# in a follow-up PR; merging only this profile is a no-op in production
+# because `crac.train.enabled` defaults to false.
+crac:
+  train:
+    enabled: true
+    iterations: 200
+    checkpoint-after-warmup: true
+    endpoints:
+      # Anonymous endpoints — exercise actuator, JWKS, OpenID metadata so
+      # restored pods serve those instantly (every relying-party warms its
+      # JWKS cache off the issuer on its own startup).
+      - /api/actuator/health
+      - /api/actuator/health/readiness
+      - /.well-known/openid-configuration
+      - /.well-known/jwks.json
+      # Auth-required endpoints — return 401, but that still drives the
+      # full Spring Security filter chain and Jackson error rendering,
+      # which is the bulk of the request path.
+      - /api/v1/auth/me
+
+spring:
+  # CRaC training needs the full bean graph wired (Hikari + Lettuce +
+  # RabbitTemplate close cleanly at checkpoint via Spring's CRaC lifecycle
+  # hooks; if they're never started they're never registered, and the
+  # restore-time bean graph diverges from a real boot). Vault stays off —
+  # secrets are injected via env vars in CI from non-Vault sources.
+  cloud:
+    vault:
+      enabled: false
+      database:
+        enabled: false

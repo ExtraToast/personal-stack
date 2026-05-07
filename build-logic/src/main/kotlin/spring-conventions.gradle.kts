@@ -18,6 +18,13 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
+    // CRaC API. Spring Boot wires its lifecycle hooks against this jar at
+    // runtime so HikariCP, Lettuce, RabbitTemplate etc. close cleanly at
+    // checkpoint and re-open at restore. Image-build infrastructure lives
+    // outside the JVM (Dockerfile + CI), but the dependency belongs here
+    // so every Spring service in this monorepo can opt into a checkpoint
+    // build by enabling the `crac-train` profile.
+    implementation("org.crac:crac:1.5.0")
     // Observability
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     implementation("net.logstash.logback:logstash-logback-encoder:8.0")
