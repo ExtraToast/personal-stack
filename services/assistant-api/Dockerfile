@@ -18,34 +18,24 @@ COPY libs/kotlin-common/src/main/ libs/kotlin-common/src/main/
 COPY services/assistant-api/src/main/ services/assistant-api/src/main/
 RUN gradle :services:assistant-api:bootJar --no-daemon
 
+# Eclipse Temurin only used here for the otel jar download — its alpine
+# variant has curl out of the box and is small. The runtime stage has
+# moved to BellSoft Liberica below.
 FROM eclipse-temurin:25-jre-alpine AS otel
 RUN apk add --no-cache curl && \
     curl -fsSL -o /otel-javaagent.jar \
     "https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.26.1/opentelemetry-javaagent.jar"
 
-# AppCDS training stage — see auth-api/Dockerfile for the full rationale.
-# Extracts the fat jar into a layered layout, refreshes the Spring context
-# under the `cds-training` profile (Flyway off so no Postgres needed), and
-# dumps `application.jsa` for the runtime stage to SharedArchiveFile.
-FROM eclipse-temurin:25-jre-alpine AS cds-train
-WORKDIR /train
-COPY --from=build /app/services/assistant-api/build/libs/*.jar app.jar
-COPY --from=otel /otel-javaagent.jar /otel-javaagent.jar
-RUN java -Djarmode=tools -jar app.jar extract --destination /train/app && \
-    cd /train/app && \
-    java \
-      -Dspring.profiles.active=cds-training \
-      -Dspring.context.exit=onRefresh \
-      -XX:ArchiveClassesAtExit=/train/app/application.jsa \
-      -XX:+UnlockDiagnosticVMOptions \
-      -XX:+AllowArchivingWithJavaAgent \
-      -javaagent:/otel-javaagent.jar \
-      -jar app.jar && \
-    test -s /train/app/application.jsa
-
-FROM eclipse-temurin:25-jre-alpine
+# Runtime base: BellSoft Liberica JDK 21 with CRaC patches on Debian slim
+# (glibc). See auth-api/Dockerfile for the full rationale — this PR is
+# the precondition for the build-time checkpoint flow in follow-up PRs.
+# AppCDS is intentionally dropped (Liberica CRaC's CDS handling differs
+# and CRaC will replace it anyway). Cold start temporarily regresses
+# to the pre-AppCDS baseline; #254 extends the 300 s startupProbe to
+# 600 s to cover it and must merge first.
+FROM bellsoft/liberica-runtime-container:jdk-21-crac-slim-glibc
 WORKDIR /app
-COPY --from=cds-train /train/app/ ./
+COPY --from=build /app/services/assistant-api/build/libs/*.jar app.jar
 COPY --from=otel /otel-javaagent.jar otel-javaagent.jar
 EXPOSE 8082
-ENTRYPOINT ["java", "-XX:SharedArchiveFile=/app/application.jsa", "-javaagent:otel-javaagent.jar", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-javaagent:otel-javaagent.jar", "-jar", "app.jar"]

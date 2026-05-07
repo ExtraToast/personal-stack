@@ -76,15 +76,12 @@ spec:
               set +a
               # See auth-api deployment.yaml for the rationale behind these
               # JVM flags (MaxRAMPercentage for cgroup-aware heap sizing,
-              # ZGC for sub-ms pauses, SharedArchiveFile + the matching
-              # AllowArchivingWithJavaAgent flag for AppCDS, AlwaysPreTouch
-              # removed in favour of the AppCDS speedup).
+              # ZGC for sub-ms pauses). AppCDS args were dropped together
+              # with the image switch to BellSoft Liberica CRaC; CRaC
+              # restore (next PR in the stack) supersedes AppCDS.
               exec java \
                 -XX:+UseZGC \
                 -XX:MaxRAMPercentage=75 \
-                -XX:+UnlockDiagnosticVMOptions \
-                -XX:+AllowArchivingWithJavaAgent \
-                -XX:SharedArchiveFile=/app/application.jsa \
                 -javaagent:/app/otel-javaagent.jar \
                 -javaagent:/pyroscope/pyroscope.jar \
                 -jar /app/app.jar
