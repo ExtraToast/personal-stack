@@ -33,6 +33,24 @@ RUN apk add --no-cache curl && \
 # and CRaC will replace it anyway). Cold start temporarily regresses
 # to the pre-AppCDS baseline; #254 extends the 300 s startupProbe to
 # 600 s to cover it and must merge first.
+# Training-capable image. See auth-api/Dockerfile for the full
+# rationale — runs CracTrainingRunner against local sidecar
+# Postgres/Valkey/RabbitMQ and dumps a JVM checkpoint to
+# /opt/crac/checkpoint. Used only by the crac-train CI workflow.
+FROM bellsoft/liberica-runtime-container:jdk-21-crac-slim-glibc AS train
+WORKDIR /app
+COPY --from=build /app/services/assistant-api/build/libs/*.jar app.jar
+COPY --from=otel /otel-javaagent.jar otel-javaagent.jar
+RUN mkdir -p /opt/crac/checkpoint
+EXPOSE 8082
+ENTRYPOINT ["java", \
+    "-XX:CRaCCheckpointTo=/opt/crac/checkpoint", \
+    "-XX:+UseZGC", \
+    "-XX:MaxRAMPercentage=75", \
+    "-Dspring.profiles.active=crac-train", \
+    "-javaagent:otel-javaagent.jar", \
+    "-jar", "app.jar"]
+
 FROM bellsoft/liberica-runtime-container:jdk-21-crac-slim-glibc
 WORKDIR /app
 COPY --from=build /app/services/assistant-api/build/libs/*.jar app.jar

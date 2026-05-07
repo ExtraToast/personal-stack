@@ -1,0 +1,125 @@
+name: CRaC Train
+
+# Manually-triggered workflow that produces a CRaC checkpoint for each
+# JVM service. Runs the `train` Dockerfile target alongside Postgres,
+# Valkey, and RabbitMQ sidecar containers; the kotlin-common
+# CracTrainingRunner (under `crac-train` profile) drives synthetic
+# warmup against the configured endpoints, then triggers
+# `Core.checkpointRestore()`. The JVM dumps to /opt/crac/checkpoint and
+# exits 137. CI uploads the checkpoint dir as a build artifact for
+# inspection — wiring it into the production image build + restore-time
+# entrypoint lands in a follow-up PR.
+on:
+  workflow_dispatch:
+
+jobs:
+  train:
+    name: Train ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: auth-api
+            db_name: auth_db
+            db_user: auth_user
+            db_password: auth_password
+            port: 8081
+          - service: assistant-api
+            db_name: assistant_db
+            db_user: assistant_user
+            db_password: assistant_password
+            port: 8082
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: ${{ matrix.db_name }}
+          POSTGRES_USER: ${{ matrix.db_user }}
+          POSTGRES_PASSWORD: ${{ matrix.db_password }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+      valkey:
+        image: valkey/valkey:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+      rabbitmq:
+        image: rabbitmq:3-management-alpine
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: docker/setup-buildx-action@v4
+      - name: Build train image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: services/${{ matrix.service }}/Dockerfile
+          target: train
+          load: true
+          tags: ${{ matrix.service }}-train:local
+          cache-from: type=gha,scope=${{ matrix.service }}
+      - name: Run training (drives warmup, dumps checkpoint)
+        run: |
+          set -euo pipefail
+          mkdir -p ./checkpoint
+          chmod 777 ./checkpoint
+          # --privileged so CRIU has CHECKPOINT_RESTORE / SYS_PTRACE on
+          # any host-kernel seccomp profile. --network=host lets the
+          # container reach GHA service sidecars on localhost. Exit 137
+          # is the expected clean-CRaC-dump signal.
+          set +e
+          docker run --rm \
+            --privileged \
+            --network=host \
+            -v "$PWD/checkpoint:/opt/crac/checkpoint" \
+            -e DB_HOST=localhost \
+            -e DB_PORT=5432 \
+            -e DB_USER=${{ matrix.db_user }} \
+            -e DB_PASSWORD=${{ matrix.db_password }} \
+            -e VALKEY_HOST=localhost \
+            -e VALKEY_PORT=6379 \
+            -e SPRING_RABBITMQ_HOST=localhost \
+            -e SPRING_RABBITMQ_PORT=5672 \
+            -e SPRING_RABBITMQ_USERNAME=guest \
+            -e SPRING_RABBITMQ_PASSWORD=guest \
+            -e SERVER_PORT=${{ matrix.port }} \
+            ${{ matrix.service }}-train:local
+          EXIT_CODE=$?
+          set -e
+          echo "Container exit code: ${EXIT_CODE}"
+          echo "::group::Checkpoint directory listing"
+          ls -la ./checkpoint || true
+          echo "::endgroup::"
+          if [ -z "$(ls -A ./checkpoint 2>/dev/null)" ]; then
+            echo "::error::checkpoint dir is empty — CRaC dump did not produce files"
+            exit 1
+          fi
+          # Exit 137 is the expected SIGKILL-shape signal that CRaC
+          # uses after a clean dump. Any other non-zero is a real failure.
+          if [ "${EXIT_CODE}" -ne 0 ] && [ "${EXIT_CODE}" -ne 137 ]; then
+            echo "::error::training container exited ${EXIT_CODE}"
+            exit "${EXIT_CODE}"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.service }}-checkpoint
+          path: checkpoint/
+          if-no-files-found: error
+          retention-days: 7

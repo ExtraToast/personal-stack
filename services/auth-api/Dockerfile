@@ -41,6 +41,27 @@ RUN apk add --no-cache curl && \
 # 300 s); the 600 s startupProbe budget on auth-api covers it.
 # assistant-api needs PR #254 (startupProbe 300 s -> 600 s, mirrors
 # auth-api PR #250) merged first.
+# Training-capable image. Used only by the crac-train CI workflow:
+# launched alongside Postgres + Valkey + RabbitMQ sidecars, drives the
+# `crac-train` Spring profile (CracTrainingRunner from kotlin-common
+# hits each warmup endpoint locally then calls Core.checkpointRestore()),
+# and dumps the JVM checkpoint to /opt/crac/checkpoint before exiting
+# 137. CI then `docker cp`s the checkpoint dir out and uploads it as
+# an artifact. Production never runs this stage.
+FROM bellsoft/liberica-runtime-container:jdk-21-crac-slim-glibc AS train
+WORKDIR /app
+COPY --from=build /app/services/auth-api/build/libs/*.jar app.jar
+COPY --from=otel /otel-javaagent.jar otel-javaagent.jar
+RUN mkdir -p /opt/crac/checkpoint
+EXPOSE 8081
+ENTRYPOINT ["java", \
+    "-XX:CRaCCheckpointTo=/opt/crac/checkpoint", \
+    "-XX:+UseZGC", \
+    "-XX:MaxRAMPercentage=75", \
+    "-Dspring.profiles.active=crac-train", \
+    "-javaagent:otel-javaagent.jar", \
+    "-jar", "app.jar"]
+
 FROM bellsoft/liberica-runtime-container:jdk-21-crac-slim-glibc
 WORKDIR /app
 COPY --from=build /app/services/auth-api/build/libs/*.jar app.jar
