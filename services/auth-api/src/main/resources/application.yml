@@ -75,6 +75,19 @@ spring:
           starttls:
             enable: true
             required: false
+          # Stalwart in the cluster serves a Let's Encrypt cert for its
+          # public hostname (mail.jorisjonkers.dev), but auth-api connects
+          # to the in-cluster service name `stalwart.mail-system.svc.cluster.local`
+          # so endpoint-identity verification cannot match the SAN. JDK 21
+          # (Liberica CRaC) enforces that check at the SSLSocket layer
+          # regardless of JavaMail's `checkserveridentity` flag, where
+          # JDK 25 (Temurin) was lenient — `mail` health flipped DOWN the
+          # moment we switched the runtime base in PR #255. Trust any
+          # server cert on this hop: the segment is pod-to-pod inside the
+          # cluster, the alternative is plumbing a separate ingress for
+          # SMTP just to satisfy hostname matching.
+          ssl:
+            trust: '*'
 
 app:
   mail:
