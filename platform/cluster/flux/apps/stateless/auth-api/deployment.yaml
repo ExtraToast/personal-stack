@@ -243,7 +243,17 @@ spec:
               path: /api/actuator/health/liveness
               port: http
             periodSeconds: 5
-            failureThreshold: 60
+            # 600 s (120 × 5 s) window covers the worst-observed cold start
+            # at request==limit==1000m + AppCDS: a fresh roll measured
+            # "Started AuthApi" at 208 s with the container's overall
+            # process-running time hitting 302 s, so the previous 300 s
+            # budget killed the pod ~2 s before Spring Boot finished.
+            # auth-api carries OAuth2 server + the full Spring Security
+            # filter chain, so it's slower to wire than assistant-api
+            # (which Started at 156 s under the same conditions). 600 s
+            # leaves comfortable margin without changing the steady-state
+            # liveness budget below.
+            failureThreshold: 120
           readinessProbe:
             httpGet:
               path: /api/actuator/health/readiness
