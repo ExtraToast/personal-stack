@@ -31,6 +31,9 @@ describe('accountView', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    // The view now awaits authStore.initSession() before its auth gate.
+    // Skip the network call in tests by marking the session pre-loaded.
+    useAuthStore().sessionInitialized = true
   })
 
   afterEach(() => {
