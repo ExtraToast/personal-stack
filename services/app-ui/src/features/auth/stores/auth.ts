@@ -6,6 +6,11 @@ import { buildLogoutUrl, checkSession, startLoginFlow } from '../services/authSe
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<AuthUser | null>(null)
   const roles = ref<string[]>([])
+  // True once an initSession() attempt has resolved (success or failure).
+  // Views that gate redirects on auth state must await initSession() before
+  // deciding, so a slow/cold-start /me does not eagerly bounce signed-in
+  // users back to the home page.
+  const sessionInitialized = ref(false)
 
   const isAuthenticated = computed(() => user.value !== null)
   const isAdmin = computed(() => roles.value.includes('ROLE_ADMIN'))
@@ -23,6 +28,23 @@ export const useAuthStore = defineStore('auth', () => {
     roles.value = sessionUser.roles ?? []
   }
 
+  // Memoised, error-swallowing variant for app bootstrap and view-level
+  // gates. Multiple concurrent callers share the same in-flight promise;
+  // once it resolves sessionInitialized flips to true and subsequent calls
+  // return immediately.
+  let inflight: Promise<void> | null = null
+  function initSession(): Promise<void> {
+    if (sessionInitialized.value) return Promise.resolve()
+    if (inflight) return inflight
+    inflight = fetchSession()
+      .catch(() => undefined)
+      .finally(() => {
+        sessionInitialized.value = true
+        inflight = null
+      })
+    return inflight
+  }
+
   function logout(): void {
     const logoutUrl = buildLogoutUrl()
     user.value = null
@@ -33,11 +55,13 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     user,
     roles,
+    sessionInitialized,
     isAuthenticated,
     isAdmin,
     servicePermissions,
     login,
     fetchSession,
+    initSession,
     logout,
   }
 })

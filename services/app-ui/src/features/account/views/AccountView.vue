@@ -63,6 +63,9 @@ const passwordStrengthClass = computed(() => {
 })
 
 onMounted(async () => {
+  // Wait for the in-flight /me check; bouncing on the eagerly-null user
+  // would kick signed-in visitors back to home during a slow cold start.
+  await authStore.initSession()
   if (!authStore.isAuthenticated) {
     router.push('/')
     return

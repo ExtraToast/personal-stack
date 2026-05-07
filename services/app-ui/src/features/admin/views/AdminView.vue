@@ -27,6 +27,9 @@ async function loadUsers(): Promise<void> {
 }
 
 onMounted(async () => {
+  // Wait for the in-flight /me check before checking admin role; otherwise
+  // a slow cold start would 302 admins back to home before roles arrive.
+  await authStore.initSession()
   if (!authStore.isAdmin) {
     await router.replace('/')
     return

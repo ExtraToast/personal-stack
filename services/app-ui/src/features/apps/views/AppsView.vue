@@ -8,6 +8,10 @@ const authStore = useAuthStore()
 const router = useRouter()
 
 onMounted(async () => {
+  // Wait for the in-flight /me check before deciding to bounce to home.
+  // Without this, a direct hit on /apps during the auth backend's cold
+  // start would redirect the signed-in user away.
+  await authStore.initSession()
   if (!authStore.isAuthenticated) {
     await router.replace('/')
   }

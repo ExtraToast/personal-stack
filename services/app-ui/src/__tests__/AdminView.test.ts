@@ -34,6 +34,9 @@ describe('adminView', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    // The view now awaits authStore.initSession() before its admin-role
+    // gate. Skip the network call in tests by marking the session loaded.
+    useAuthStore().sessionInitialized = true
   })
 
   afterEach(() => {
