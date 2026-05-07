@@ -43,6 +43,11 @@ dependencies {
     compileOnly("org.springframework.boot:spring-boot-starter-mail:4.0.5")
     compileOnly("org.springframework:spring-context:7.0.7")
     compileOnly("org.springframework.security:spring-security-oauth2-jose:7.0.4")
+    // CRaC API. Compile-only here because the runtime jar is pulled in by
+    // every Spring service through spring-conventions, and consumers that
+    // never enable the `crac.train.enabled` flag never load the auto-config.
+    compileOnly("org.crac:crac:1.5.0")
+    compileOnly("org.springframework.boot:spring-boot-autoconfigure:4.0.5")
 
     testImplementation("org.junit.jupiter:junit-jupiter:6.0.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -54,5 +59,7 @@ dependencies {
     testImplementation("org.springframework.vault:spring-vault-core:4.0.1")
     testImplementation("org.springframework:spring-context:7.0.7")
     testImplementation("org.springframework.security:spring-security-oauth2-jose:7.0.4")
+    testImplementation("org.crac:crac:1.5.0")
+    testImplementation("org.springframework.boot:spring-boot-autoconfigure:4.0.5")
     implementation("com.tngtech.archunit:archunit-junit5:1.4.1")
 }
