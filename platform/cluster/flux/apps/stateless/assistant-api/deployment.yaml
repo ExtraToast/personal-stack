@@ -166,7 +166,14 @@ spec:
               path: /api/actuator/health/liveness
               port: http
             periodSeconds: 5
-            failureThreshold: 60
+            # 600 s (120 × 5 s) window matches auth-api's PR #250 — the 300 s
+            # budget had no margin for cold-start variance and got crossed
+            # the moment a rebuild forced the second replica to roll, sending
+            # the pod into an exit-137 / restart loop. Cold start under
+            # AppCDS at 1000m typically lands around 150–200 s, so 600 s is
+            # ample headroom without altering the steady-state liveness
+            # budget below.
+            failureThreshold: 120
           readinessProbe:
             httpGet:
               path: /api/actuator/health/readiness
