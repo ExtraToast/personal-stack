@@ -256,15 +256,19 @@ spec:
             timeoutSeconds: 5
           resources:
             # request == cpu limit so Linux CFS doesn't throttle JVM class
-            # loading during cold start. On the previous 750m/1500m split
-            # the pod took ~170s to become ready because class init is
-            # CPU-bound and largely single-threaded; raising the request
-            # lets it run uncontended. The Frankfurt node has spare CPU.
+            # loading during cold start. Lowered from 1500m to 1000m once
+            # PR #245's AppCDS archive halved the cold-start class-load
+            # cost (assistant-api Spring context refresh fell from ~85 s
+            # at 750m to ~37 s at 1000m + AppCDS in production); auth-api
+            # carries more startup wiring than assistant-api, so we keep
+            # 1000m rather than dropping further. This is what finally
+            # fits two replicas inside the Frankfurt CPU-request budget
+            # so rolling updates don't deadlock on maxUnavailable=1.
             requests:
-              cpu: 1500m
+              cpu: 1000m
               memory: 2Gi
             limits:
-              cpu: 1500m
+              cpu: 1000m
               memory: 3Gi
           volumeMounts:
             - name: pyroscope-agent
