@@ -78,16 +78,21 @@ spring:
           # Stalwart in the cluster serves a Let's Encrypt cert for its
           # public hostname (mail.jorisjonkers.dev), but auth-api connects
           # to the in-cluster service name `stalwart.mail-system.svc.cluster.local`
-          # so endpoint-identity verification cannot match the SAN. JDK 21
-          # (Liberica CRaC) enforces that check at the SSLSocket layer
-          # regardless of JavaMail's `checkserveridentity` flag, where
-          # JDK 25 (Temurin) was lenient — `mail` health flipped DOWN the
-          # moment we switched the runtime base in PR #255. Trust any
-          # server cert on this hop: the segment is pod-to-pod inside the
-          # cluster, the alternative is plumbing a separate ingress for
-          # SMTP just to satisfy hostname matching.
+          # so the SAN cannot match. PR #256 added `ssl.trust=*` which
+          # makes the X509TrustManager accept any chain, but the failure
+          # came back as a SAN mismatch at a different layer:
+          # Angus Mail (Jakarta Mail's successor, on Spring Boot 4)
+          # additionally sets `sslParameters.endpointIdentificationAlgorithm
+          # = "HTTPS"` during the SSLSocket handshake, and JDK 21
+          # enforces SAN matching via that path regardless of the trust
+          # manager. Setting `checkserveridentity=false` tells Angus Mail
+          # to leave that algorithm null. The hop is pod-to-pod inside
+          # the cluster network; trusting any server cert and skipping
+          # hostname matching is acceptable here, the alternative is
+          # plumbing a dedicated SMTP ingress just to satisfy SAN.
           ssl:
             trust: '*'
+            checkserveridentity: false
 
 app:
   mail:
