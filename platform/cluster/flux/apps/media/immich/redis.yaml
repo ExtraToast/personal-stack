@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: immich-redis
+  namespace: media-system
+  labels:
+    app.kubernetes.io/name: immich-redis
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: immich-redis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: immich-redis
+    spec:
+      nodeSelector:
+        personal-stack/site: enschede
+        personal-stack/role-utility-host: 'true'
+        personal-stack/capability-samba: 'true'
+      containers:
+        - name: redis
+          image: docker.io/valkey/valkey:9-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: redis
+              containerPort: 6379
+          readinessProbe:
+            tcpSocket:
+              port: redis
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: redis
+            timeoutSeconds: 5
+            initialDelaySeconds: 10
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: immich-redis
+  namespace: media-system
+spec:
+  selector:
+    app.kubernetes.io/name: immich-redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis

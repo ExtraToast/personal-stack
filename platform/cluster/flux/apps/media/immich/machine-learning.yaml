@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: immich-machine-learning
+  namespace: media-system
+  labels:
+    app.kubernetes.io/name: immich-machine-learning
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: immich-machine-learning
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: immich-machine-learning
+    spec:
+      runtimeClassName: nvidia-cdi
+      nodeSelector:
+        personal-stack/site: enschede
+        personal-stack/role-utility-host: 'true'
+        personal-stack/capability-samba: 'true'
+        personal-stack/capability-nvidia: 'true'
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: personal-stack/gpu-model-t1000
+                    operator: In
+                    values:
+                      - 'true'
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - key: personal-stack/gpu-model-gtx960m
+                    operator: In
+                    values:
+                      - 'true'
+      containers:
+        - name: immich-machine-learning
+          image: ghcr.io/immich-app/immich-machine-learning:v2.7.5-cuda
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: TZ
+              value: Europe/Amsterdam
+          ports:
+            - name: http
+              containerPort: 3003
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: cache
+              mountPath: /cache
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+              nvidia.com/gpu: 1
+            limits:
+              cpu: 4000m
+              memory: 6Gi
+              nvidia.com/gpu: 1
+      volumes:
+        - name: cache
+          hostPath:
+            path: /var/lib/personal-stack/media/immich-ml-cache
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: immich-machine-learning
+  namespace: media-system
+spec:
+  selector:
+    app.kubernetes.io/name: immich-machine-learning
+  ports:
+    - name: http
+      port: 3003
+      targetPort: http

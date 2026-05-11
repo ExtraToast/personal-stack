@@ -14,6 +14,13 @@ data:
       conditions:
       - "[STATUS] == 200"
       - "[RESPONSE_TIME] < 1500"
+    - name: "immich"
+      group: "home-media"
+      url: "http://immich-server.media-system.svc.cluster.local:2283/api/server/ping"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
     - name: "jellyfin"
       group: "home-media"
       url: "https://jellyfin.jorisjonkers.dev/"
@@ -86,6 +93,13 @@ data:
     - name: "prometheus"
       group: "internal-platform"
       url: "http://metrics-stack-prometheus.observability.svc.cluster.local:9090/-/healthy"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
+    - name: "pyroscope"
+      group: "internal-platform"
+      url: "http://pyroscope.observability.svc.cluster.local:4040/ready"
       interval: "60s"
       conditions:
       - "[STATUS] == 200"

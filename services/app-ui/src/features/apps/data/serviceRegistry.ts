@@ -141,6 +141,13 @@ export const SERVICE_REGISTRY: ServiceEntry[] = [
     description: 'Torrent client',
   },
   {
+    permission: 'IMMICH',
+    label: 'Immich',
+    url: buildServiceUrl('immich'),
+    iconUrl: '/icons/immich.svg',
+    description: 'Photo library',
+  },
+  {
     permission: 'ADGUARD',
     label: 'AdGuard Home',
     url: buildServiceUrl('adguard'),
