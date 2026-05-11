@@ -29,9 +29,9 @@ dependencies {
     implementation("dev.turingcomplete:kotlin-onetimepassword:2.4.1")
     implementation("commons-codec:commons-codec")
     testImplementation("org.springframework.security:spring-security-test")
-    testImplementation("org.testcontainers:postgresql")
-    testImplementation("org.testcontainers:rabbitmq")
-    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:testcontainers-postgresql")
+    testImplementation("org.testcontainers:testcontainers-rabbitmq")
+    testImplementation("org.testcontainers:testcontainers-junit-jupiter")
 }
 
 // Export OpenAPI spec during build for client generation

@@ -8,7 +8,13 @@ plugins {
 dependencyManagement {
     imports {
         mavenBom("org.springframework.modulith:spring-modulith-bom:1.3.2")
-        mavenBom("org.testcontainers:testcontainers-bom:1.21.4")
+        mavenBom("org.testcontainers:testcontainers-bom:2.0.5")
+    }
+    dependencies {
+        // Spring Boot 4.0.x BOM pins jOOQ to 3.19.x; our codegen plugin runs
+        // jOOQ 3.21.2 so the runtime must match or generated Java fails to
+        // compile (ForeignKeyRule, Constants.VERSION_3_21, DSL.exists shape).
+        dependency("org.jooq:jooq:3.21.2")
     }
 }
 
