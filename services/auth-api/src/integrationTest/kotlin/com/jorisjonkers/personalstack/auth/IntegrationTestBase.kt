@@ -5,18 +5,17 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.testcontainers.containers.GenericContainer
-import org.testcontainers.containers.PostgreSQLContainer
-import org.testcontainers.containers.RabbitMQContainer
 import org.testcontainers.junit.jupiter.Testcontainers
+import org.testcontainers.postgresql.PostgreSQLContainer
+import org.testcontainers.rabbitmq.RabbitMQContainer
 
 @Tag("integration")
 @SpringBootTest
 @Testcontainers
 abstract class IntegrationTestBase {
     companion object {
-        @Suppress("DEPRECATION")
         private val postgres =
-            PostgreSQLContainer<Nothing>("postgres:17-alpine").apply {
+            PostgreSQLContainer("postgres:17-alpine").apply {
                 withDatabaseName("auth_db")
                 withUsername("auth_user")
                 withPassword("auth_password")
@@ -28,7 +27,6 @@ abstract class IntegrationTestBase {
                 withExposedPorts(6379)
             }
 
-        @Suppress("DEPRECATION")
         private val rabbitmq = RabbitMQContainer("rabbitmq:3-management-alpine")
 
         init {

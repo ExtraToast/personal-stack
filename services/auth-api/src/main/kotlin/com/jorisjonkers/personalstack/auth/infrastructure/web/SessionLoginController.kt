@@ -16,6 +16,7 @@ import jakarta.validation.Valid
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.ResponseEntity
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.core.authority.FactorGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository
 import org.springframework.web.bind.annotation.PostMapping
@@ -97,8 +98,18 @@ class SessionLoginController(
                 username = credentials.username,
                 roles = buildRoles(credentials),
             )
+        // Spring Security 7.0.5's JwtGenerator derives auth_time from the latest
+        // FactorGrantedAuthority on the Authentication and assert-fails the token
+        // request if no factor authority is present. Stamp a FACTOR_PASSWORD
+        // (plus FACTOR_OTT for TOTP) at session creation so the downstream
+        // OAuth2 token exchange has an authenticationTime to read.
+        val factorAuthorities = buildFactorAuthorities(credentials.totpEnabled)
         val authentication =
-            UsernamePasswordAuthenticationToken(authenticatedUser, null, authenticatedUser.authorities)
+            UsernamePasswordAuthenticationToken(
+                authenticatedUser,
+                null,
+                authenticatedUser.authorities + factorAuthorities,
+            )
 
         val context = SecurityContextHolder.createEmptyContext()
         context.authentication = authentication
@@ -111,6 +122,12 @@ class SessionLoginController(
             context,
         )
     }
+
+    private fun buildFactorAuthorities(totpUsed: Boolean): List<FactorGrantedAuthority> =
+        buildList {
+            add(FactorGrantedAuthority.fromFactor("PASSWORD"))
+            if (totpUsed) add(FactorGrantedAuthority.fromFactor("OTT"))
+        }
 
     private fun buildRoles(credentials: UserCredentials): List<String> =
         buildList {
