@@ -90,6 +90,13 @@ data:
       conditions:
       - "[STATUS] == 200"
       - "[RESPONSE_TIME] < 1500"
+    - name: "pyroscope"
+      group: "internal-platform"
+      url: "http://pyroscope.observability.svc.cluster.local:4040/ready"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
     - name: "rabbitmq"
       group: "internal-platform"
       url: "tcp://rabbitmq.data-system.svc.cluster.local:5672"

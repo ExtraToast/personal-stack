@@ -31,6 +31,8 @@
     "z /srv/media/Anime 0775 deploy deploy - -"
     "d /srv/media/TimeMachine 0775 deploy deploy - -"
     "z /srv/media/TimeMachine 0775 deploy deploy - -"
+    "d /srv/media/Photos 0775 deploy deploy - -"
+    "z /srv/media/Photos 0775 deploy deploy - -"
     "d /srv/media-views 0755 root root - -"
     "d /srv/media-views/media-downloads 0755 root root - -"
     "d /srv/media-views/media-downloads/Downloading 0755 root root - -"
@@ -53,6 +55,10 @@
     "d /var/lib/personal-stack/media/radarr 0755 deploy deploy - -"
     "d /var/lib/personal-stack/media/jellyfin 0755 deploy deploy - -"
     "d /var/lib/personal-stack/media/jellyseerr 0755 deploy deploy - -"
+    "d /var/lib/personal-stack/media/immich 0755 deploy deploy - -"
+    # Postgres data dir must be 0700, owned by the image's postgres UID 70.
+    "d /var/lib/personal-stack/media/immich-postgres 0700 70 70 - -"
+    "d /var/lib/personal-stack/media/immich-ml-cache 0755 deploy deploy - -"
   ];
 
   fileSystems = {
