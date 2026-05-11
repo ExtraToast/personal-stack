@@ -17,6 +17,13 @@ spec:
     deploymentMode: SingleBinary
     loki:
       auth_enabled: false
+      # SingleBinary deployment with a single replica — the chart's
+      # commonConfig defaults replication_factor to 3, which makes every
+      # read fail with "too many unhealthy instances in the ring"
+      # because there are only ever 1 of each role to talk to. Pin to 1
+      # so the distributor accepts writes and the querier accepts reads.
+      commonConfig:
+        replication_factor: 1
       # The SingleBinary statefulset template requires bucketNames.chunks
       # even though local filesystem storage is used; chart validation
       # rejects the release otherwise. Names are unused placeholders.
