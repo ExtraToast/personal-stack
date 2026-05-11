@@ -103,6 +103,24 @@ spec:
               value: 'true'
             - name: N8N_METRICS_INCLUDE_WORKFLOW_ID_LABEL
               value: 'true'
+            # OpenTelemetry tracing — n8n emits two span kinds:
+            # workflow.execute (one per workflow run with id, name, mode,
+            # status, error type) and node.execute (one per node, nested
+            # under its workflow span, with node id/name/type/version and
+            # input/output item counts). Endpoint points at the Alloy
+            # DaemonSet's Service OTLP receiver — base URL, no /v1/traces
+            # suffix (n8n appends it). Sampling=1.0 to match the rest of
+            # the stack on this low-traffic homelab.
+            - name: N8N_OTEL_ENABLED
+              value: 'true'
+            - name: N8N_OTEL_SERVICE_NAME
+              value: n8n
+            - name: N8N_OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://alloy.observability.svc.cluster.local:4318
+            - name: N8N_OTEL_TRACES_SAMPLE_RATE
+              value: '1.0'
+            - name: N8N_OTEL_RESOURCE_ATTRIBUTES
+              value: deployment.environment=production
           ports:
             - containerPort: 5678
               name: http
