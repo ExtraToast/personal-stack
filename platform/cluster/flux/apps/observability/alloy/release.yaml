@@ -21,12 +21,12 @@ spec:
       # If we ever add a liveness probe, it needs the full httpGet block.
       readinessProbe:
         timeoutSeconds: 5
-      # OTLP receivers — without these in `extraPorts` the Service only
-      # exposes the UI port (12345) and any client pushing to
+      # Without these in `extraPorts` the Service only exposes the UI
+      # port (12345) and any client pushing to
       # alloy.observability.svc.cluster.local:4318 (Traefik, Spring
-      # services, anything else with OTLP push) connects to nothing.
-      # `otelcol.receiver.otlp` in config.alloy listens on these ports
-      # inside the pod; this exposes them via the Service.
+      # services, n8n, anything else with OTLP push) connects to nothing.
+      # `otelcol.receiver.otlp` below listens on these ports inside the
+      # pod; this exposes them via the Service.
       extraPorts:
         - name: otlp-grpc
           port: 4317
@@ -39,8 +39,131 @@ spec:
     fullnameOverride: alloy
     controller:
       type: daemonset
+    # The chart's DaemonSet template mounts the ConfigMap whose name is
+    # derived from the chart's fullname, regardless of the documented
+    # `configMap.name` override (verified on chart 1.8.1 — setting
+    # `configMap.create: false; configMap.name: alloy-config` produces a
+    # pod that mounts the chart's auto-created stub ConfigMap, not the
+    # external one). The single-source-of-truth pattern is to let the
+    # chart manage its own ConfigMap and inline the content here.
     configMap:
-      create: false
-      name: alloy-config
+      create: true
+      content: |
+        logging {
+          level  = "info"
+          format = "logfmt"
+        }
+
+        discovery.kubernetes "pods" {
+          role = "pod"
+        }
+
+        discovery.relabel "pods" {
+          targets = discovery.kubernetes.pods.targets
+
+          rule {
+            source_labels = ["__meta_kubernetes_namespace"]
+            target_label  = "namespace"
+          }
+
+          rule {
+            source_labels = ["__meta_kubernetes_pod_name"]
+            target_label  = "pod"
+          }
+
+          // Promote the workload's app.kubernetes.io/name pod label to a
+          // Loki label called `service_name`. This is the join key our
+          // dashboards (auth-api.json, error-feed.json, service-template.json)
+          // and Grafana's tracesToLogsV2 link use to find logs for a given
+          // service. Without it Loki has no per-service label and queries
+          // like `{service_name="auth-api"}` return nothing.
+          rule {
+            source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+            target_label  = "service_name"
+          }
+
+          rule {
+            source_labels = ["__meta_kubernetes_pod_container_name"]
+            target_label  = "container"
+          }
+        }
+
+        // Spring services (auth-api, assistant-api) emit JSON via the
+        // Logstash Logback encoder: each line is {"@timestamp":"…",
+        // "level":"INFO","message":"…","traceId":"…","spanId":"…",…}.
+        // Surface `level` as a Loki label so {level=~"ERROR|WARN"} queries
+        // work, and stash traceId/spanId as structured metadata (high-
+        // cardinality — should never become labels).
+        loki.process "pods" {
+          forward_to = [loki.write.default.receiver]
+
+          stage.json {
+            expressions = {
+              level   = "level",
+              traceId = "traceId",
+              spanId  = "spanId",
+            }
+          }
+
+          stage.labels {
+            values = {
+              level = "",
+            }
+          }
+
+          stage.structured_metadata {
+            values = {
+              traceId = "",
+              spanId  = "",
+            }
+          }
+        }
+
+        loki.source.kubernetes "pods" {
+          targets    = discovery.relabel.pods.output
+          forward_to = [loki.process.pods.receiver]
+        }
+
+        loki.write "default" {
+          endpoint {
+            url = "http://loki.observability.svc.cluster.local:3100/loki/api/v1/push"
+          }
+        }
+
+        otelcol.receiver.otlp "default" {
+          grpc {
+            endpoint = "0.0.0.0:4317"
+          }
+
+          http {
+            endpoint = "0.0.0.0:4318"
+          }
+
+          output {
+            logs   = [otelcol.processor.batch.default.input]
+            traces = [otelcol.processor.batch.default.input]
+          }
+        }
+
+        otelcol.processor.batch "default" {
+          output {
+            logs   = [otelcol.exporter.loki.default.input]
+            traces = [otelcol.exporter.otlphttp.tempo.input]
+          }
+        }
+
+        otelcol.exporter.loki "default" {
+          forward_to = [loki.write.default.receiver]
+        }
+
+        otelcol.exporter.otlphttp "tempo" {
+          client {
+            endpoint = "http://tempo.observability.svc.cluster.local:4318"
+            tls {
+              insecure             = true
+              insecure_skip_verify = true
+            }
+          }
+        }
     serviceMonitor:
       enabled: true
