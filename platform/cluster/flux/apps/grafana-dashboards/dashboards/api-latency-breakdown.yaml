@@ -1,0 +1,154 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: api-latency-breakdown
+  namespace: observability
+spec:
+  folder: 'Services'
+  resyncPeriod: 24h
+  instanceSelector: { matchLabels: { dashboards: grafana } }
+  json: |
+    {
+      "uid": "api-latency-breakdown",
+      "title": "API latency breakdown",
+      "tags": ["api", "latency", "burndown", "tempo"],
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": { "from": "now-1h", "to": "now" },
+      "templating": {
+        "list": [
+          {
+            "name": "service",
+            "type": "query",
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "query": { "query": "label_values(personal_stack_request_seconds_count, application)", "refId": "service" },
+            "current": { "selected": true, "text": "auth-api", "value": "auth-api" }
+          },
+          {
+            "name": "uri",
+            "type": "query",
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "query": { "query": "label_values(personal_stack_request_seconds_count{application=\"$service\"}, uri)", "refId": "uri" },
+            "includeAll": true,
+            "multi": true,
+            "allValue": ".*",
+            "current": { "selected": true, "text": "All", "value": "$__all" }
+          }
+        ]
+      },
+      "panels": [
+        { "type": "row", "title": "Overview", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 } },
+        {
+          "type": "timeseries",
+          "title": "Request rate per URI (top 10)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 1 },
+          "targets": [
+            { "expr": "topk(10, sum by (uri) (rate(personal_stack_request_seconds_count{application=\"$service\", uri=~\"$uri\"}[$__rate_interval])))", "legendFormat": "{{uri}}", "refId": "A" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 } } }
+        },
+        {
+          "type": "timeseries",
+          "title": "p95 request latency per URI (top 10 slowest)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 1 },
+          "targets": [
+            { "expr": "topk(10, histogram_quantile(0.95, sum by (uri, le) (rate(personal_stack_request_seconds_bucket{application=\"$service\", uri=~\"$uri\"}[$__rate_interval]))))", "legendFormat": "{{uri}}", "refId": "A", "exemplar": true }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 } } },
+          "options": { "tooltip": { "mode": "multi" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "Error rate per URI (4xx + 5xx)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 1 },
+          "targets": [
+            { "expr": "sum by (uri, status) (rate(personal_stack_request_seconds_count{application=\"$service\", uri=~\"$uri\", outcome=~\"CLIENT_ERROR|SERVER_ERROR\"}[$__rate_interval]))", "legendFormat": "{{uri}} {{status}}", "refId": "A" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "bars", "fillOpacity": 50, "stacking": { "mode": "normal" } } } }
+        },
+        { "type": "row", "title": "Per-phase latency breakdown", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 } },
+        {
+          "type": "timeseries",
+          "title": "Mean latency stack — filters + handler + DB time per request",
+          "description": "Stacked area: average request time decomposed into framework filters (request − handler), handler (controller + serialization minus DB), and DB (mean DB time per request, derived from total DB query time / total request count for the selected service). DB shows service-wide because db.query is not URI-tagged — per-URI DB time is on the trace span only.",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 9, "w": 12, "x": 0, "y": 10 },
+          "targets": [
+            { "expr": "(sum(rate(personal_stack_request_seconds_sum{application=\"$service\", uri=~\"$uri\"}[$__rate_interval])) - sum(rate(personal_stack_request_handler_seconds_sum{application=\"$service\", uri=~\"$uri\"}[$__rate_interval]))) / clamp_min(sum(rate(personal_stack_request_seconds_count{application=\"$service\", uri=~\"$uri\"}[$__rate_interval])), 1e-9)", "legendFormat": "filters", "refId": "A" },
+            { "expr": "(sum(rate(personal_stack_request_handler_seconds_sum{application=\"$service\", uri=~\"$uri\"}[$__rate_interval])) - sum(rate(personal_stack_db_query_seconds_sum{application=\"$service\"}[$__rate_interval]))) / clamp_min(sum(rate(personal_stack_request_seconds_count{application=\"$service\", uri=~\"$uri\"}[$__rate_interval])), 1e-9)", "legendFormat": "handler (excl. db)", "refId": "B" },
+            { "expr": "sum(rate(personal_stack_db_query_seconds_sum{application=\"$service\"}[$__rate_interval])) / clamp_min(sum(rate(personal_stack_request_seconds_count{application=\"$service\", uri=~\"$uri\"}[$__rate_interval])), 1e-9)", "legendFormat": "db", "refId": "C" }
+          ],
+          "fieldConfig": {
+            "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 60, "lineWidth": 1, "stacking": { "mode": "normal" } } },
+            "overrides": [
+              { "matcher": { "id": "byName", "options": "filters" }, "properties": [{ "id": "color", "value": { "fixedColor": "#8AB8FF", "mode": "fixed" } }] },
+              { "matcher": { "id": "byName", "options": "handler (excl. db)" }, "properties": [{ "id": "color", "value": { "fixedColor": "#73BF69", "mode": "fixed" } }] },
+              { "matcher": { "id": "byName", "options": "db" }, "properties": [{ "id": "color", "value": { "fixedColor": "#F2495C", "mode": "fixed" } }] }
+            ]
+          },
+          "options": { "legend": { "calcs": ["mean", "lastNotNull"], "displayMode": "table", "placement": "right" }, "tooltip": { "mode": "multi" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "p95 — request vs handler",
+          "description": "p95 of the whole request and of the handler portion. The gap between the two is what Spring Security / session / CORS / Jackson serialization adds on top of the controller.",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 9, "w": 12, "x": 12, "y": 10 },
+          "targets": [
+            { "expr": "histogram_quantile(0.95, sum by (le) (rate(personal_stack_request_seconds_bucket{application=\"$service\", uri=~\"$uri\"}[$__rate_interval])))", "legendFormat": "p95 request", "refId": "A", "exemplar": true },
+            { "expr": "histogram_quantile(0.95, sum by (le) (rate(personal_stack_request_handler_seconds_bucket{application=\"$service\", uri=~\"$uri\"}[$__rate_interval])))", "legendFormat": "p95 handler", "refId": "B", "exemplar": true },
+            { "expr": "histogram_quantile(0.50, sum by (le) (rate(personal_stack_request_seconds_bucket{application=\"$service\", uri=~\"$uri\"}[$__rate_interval])))", "legendFormat": "p50 request", "refId": "C" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 } } },
+          "options": { "tooltip": { "mode": "multi" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "DB queries — rate by jOOQ type",
+          "description": "personal_stack_db_query_seconds emitted by JooqQueryTimingListener — one observation per statement.",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 19 },
+          "targets": [
+            { "expr": "sum by (type) (rate(personal_stack_db_query_seconds_count{application=\"$service\"}[$__rate_interval]))", "legendFormat": "{{type}} q/s", "refId": "A" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ops", "custom": { "drawStyle": "line", "fillOpacity": 20, "lineWidth": 2, "stacking": { "mode": "normal" } } } }
+        },
+        {
+          "type": "timeseries",
+          "title": "DB queries — p95 latency by jOOQ type",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 19 },
+          "targets": [
+            { "expr": "histogram_quantile(0.95, sum by (type, le) (rate(personal_stack_db_query_seconds_bucket{application=\"$service\"}[$__rate_interval])))", "legendFormat": "{{type}} p95", "refId": "A", "exemplar": true }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 } } }
+        },
+        { "type": "row", "title": "Slowest endpoints", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 } },
+        {
+          "type": "table",
+          "title": "Top 20 URIs by p95 latency",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 28 },
+          "targets": [
+            { "expr": "topk(20, histogram_quantile(0.95, sum by (uri, method, le) (rate(personal_stack_request_seconds_bucket{application=\"$service\"}[$__rate_interval]))))", "legendFormat": "{{method}} {{uri}}", "refId": "A", "format": "table", "instant": true }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [{ "matcher": { "id": "byName", "options": "Value" }, "properties": [{ "id": "displayName", "value": "p95 latency" }] }] },
+          "transformations": [{ "id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true } } }]
+        },
+        { "type": "row", "title": "Traces & logs", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 40 } },
+        {
+          "type": "logs",
+          "title": "Logs for selection",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 41 },
+          "targets": [
+            { "expr": "{service_name=\"$service\"} | json | level=~\"INFO|WARN|ERROR\"", "refId": "A" }
+          ],
+          "options": { "showTime": true, "showLabels": true, "wrapLogMessage": true, "enableLogDetails": true, "sortOrder": "Descending" }
+        }
+      ]
+    }
