@@ -5,6 +5,7 @@ resources:
   - namespace.yaml
   - bazarr
   - downloads
+  - immich
   - jellyfin
   - jellyseerr
   - radarr

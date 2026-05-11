@@ -34,6 +34,7 @@ enum class ServicePermission(
     BAZARR("bazarr"),
     PROWLARR("prowlarr"),
     QBITTORRENT("qbittorrent"),
+    IMMICH("immich"),
 
     // AdGuard Home DNS filter UI at adguard.jorisjonkers.dev. Previously LAN-only on
     // the old utility host; now publicly exposed behind forward-auth so grantees can

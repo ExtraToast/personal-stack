@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: immich-postgres
+  namespace: media-system
+  labels:
+    app.kubernetes.io/name: immich-postgres
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: immich-postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: immich-postgres
+    spec:
+      nodeSelector:
+        personal-stack/site: enschede
+        personal-stack/role-utility-host: 'true'
+        personal-stack/capability-samba: 'true'
+      securityContext:
+        runAsUser: 70
+        runAsGroup: 70
+        fsGroup: 70
+      containers:
+        - name: postgres
+          image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRES_DB
+              value: immich
+            - name: POSTGRES_USER
+              value: immich
+            - name: POSTGRES_INITDB_ARGS
+              value: '--data-checksums'
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          envFrom:
+            - secretRef:
+                name: immich-postgres
+          ports:
+            - name: db
+              containerPort: 5432
+          readinessProbe:
+            exec:
+              command: [pg_isready, -U, immich, -d, immich]
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: db
+            timeoutSeconds: 5
+            initialDelaySeconds: 30
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: 250m
+              memory: 1Gi
+            limits:
+              cpu: 2000m
+              memory: 3Gi
+      volumes:
+        - name: data
+          hostPath:
+            path: /var/lib/personal-stack/media/immich-postgres
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: immich-postgres
+  namespace: media-system
+spec:
+  selector:
+    app.kubernetes.io/name: immich-postgres
+  ports:
+    - name: db
+      port: 5432
+      targetPort: db

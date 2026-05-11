@@ -186,6 +186,7 @@ service_intent:
       - jellyfin
       - jellyseerr
       - bazarr
+      - immich
 
   host_native:
     enschede-gtx-960m-1:
@@ -224,6 +225,7 @@ placement_intent:
     - jellyfin
     - jellyseerr
     - bazarr
+    - immich
     - adguard
     - wolf
     - samba
@@ -254,6 +256,7 @@ exposure_intent:
 
   public_and_lan:
     - bazarr
+    - immich
     - jellyfin
     - jellyseerr
     - prowlarr
@@ -278,6 +281,7 @@ access_intent:
     - assistant-api
     - stalwart
     - bazarr
+    - immich
     - prowlarr
     - qbittorrent
     - radarr
@@ -300,6 +304,7 @@ access_intent:
     rabbitmq: rabbitmq
     vault: vault
     bazarr: bazarr
+    immich: immich
     jellyfin: jellyfin
     jellyseerr: jellyseerr
     prowlarr: prowlarr
@@ -376,6 +381,12 @@ ingress_intent:
       namespace: media-system
       service: bazarr
       port: 6767
+    immich:
+      namespace: media-system
+      service: immich-server
+      port: 2283
+      health:
+        path: /api/server/ping
     jellyfin:
       namespace: media-system
       service: jellyfin

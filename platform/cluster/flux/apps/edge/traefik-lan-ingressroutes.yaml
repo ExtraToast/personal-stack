@@ -20,6 +20,25 @@ spec:
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
+  name: immich-lan
+  namespace: edge-system
+  annotations:
+    kubernetes.io/ingress.class: traefik-lan
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: 'Host(`immich.jorisjonkers.dev`)'
+      services:
+        - name: immich-server
+          namespace: media-system
+          port: 2283
+  tls: {}
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
   name: jellyfin-lan
   namespace: edge-system
   annotations:
