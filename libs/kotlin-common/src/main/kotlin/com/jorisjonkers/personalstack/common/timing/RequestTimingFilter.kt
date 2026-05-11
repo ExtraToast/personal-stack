@@ -25,6 +25,7 @@ import org.springframework.web.servlet.HandlerMapping
 class RequestTimingFilter(
     private val observationRegistry: ObservationRegistry = ObservationRegistry.NOOP,
 ) : OncePerRequestFilter() {
+    @Suppress("TooGenericExceptionCaught") // Any thrown error should be recorded on the observation.
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
@@ -43,51 +44,50 @@ class RequestTimingFilter(
             observation.error(t)
             throw t
         } finally {
-            val durationMs = (System.nanoTime() - startNanos) / RequestTimingAttributes.NANOS_PER_MILLI
-            val query = request.queryString
-            val path = if (query.isNullOrEmpty()) request.requestURI else "${request.requestURI}?$query"
-            val queryCount = request.getAttribute(RequestTimingAttributes.QUERY_COUNT) as? Int ?: 0
-            val queryNanos = request.getAttribute(RequestTimingAttributes.TOTAL_QUERY_NANOS) as? Long ?: 0L
-            val queryMs = queryNanos / RequestTimingAttributes.NANOS_PER_MILLI
-            // Late-bind the high-signal tags now that the chain has run and
-            // Spring has populated the matched URI template attribute. The
-            // template (`/api/users/{id}`) is what dashboards filter on —
-            // not the concrete URL, which would explode metric cardinality.
-            observation
-                .lowCardinalityKeyValue("uri", uriTemplate(request))
-                .lowCardinalityKeyValue("status", response.status.toString())
-                .lowCardinalityKeyValue("outcome", outcome(response.status))
-                .highCardinalityKeyValue("http.target", path)
-                .highCardinalityKeyValue("db.query_count", queryCount.toString())
-                .highCardinalityKeyValue("db.query_ms", queryMs.toString())
-            scope.close()
-            observation.stop()
-            timingLogger.info(
-                "[request] {} {} status={} duration_ms={} queries={} query_ms={}",
-                request.method,
-                path,
-                response.status,
-                durationMs,
-                queryCount,
-                queryMs,
-            )
+            finishObservation(observation, scope, request, response, startNanos)
         }
+    }
+
+    private fun finishObservation(
+        observation: Observation,
+        scope: Observation.Scope,
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+        startNanos: Long,
+    ) {
+        val durationMs = (System.nanoTime() - startNanos) / RequestTimingAttributes.NANOS_PER_MILLI
+        val query = request.queryString
+        val path = if (query.isNullOrEmpty()) request.requestURI else "${request.requestURI}?$query"
+        val queryCount = request.getAttribute(RequestTimingAttributes.QUERY_COUNT) as? Int ?: 0
+        val queryNanos = request.getAttribute(RequestTimingAttributes.TOTAL_QUERY_NANOS) as? Long ?: 0L
+        val queryMs = queryNanos / RequestTimingAttributes.NANOS_PER_MILLI
+        // Late-bind tags now that the chain has run and Spring has populated
+        // the matched URI template attribute. The template (`/api/users/{id}`)
+        // is what dashboards filter on — the concrete URL would explode
+        // metric cardinality.
+        observation
+            .lowCardinalityKeyValue("uri", uriTemplate(request))
+            .lowCardinalityKeyValue("status", response.status.toString())
+            .highCardinalityKeyValue("http.target", path)
+            .highCardinalityKeyValue("db.query_count", queryCount.toString())
+            .highCardinalityKeyValue("db.query_ms", queryMs.toString())
+        scope.close()
+        observation.stop()
+        timingLogger.info(
+            "[request] {} {} status={} duration_ms={} queries={} query_ms={}",
+            request.method,
+            path,
+            response.status,
+            durationMs,
+            queryCount,
+            queryMs,
+        )
     }
 
     private fun uriTemplate(request: HttpServletRequest): String {
         val matched = request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE) as? String
         return matched ?: "UNKNOWN"
     }
-
-    private fun outcome(status: Int): String =
-        when (status / 100) {
-            1 -> "INFORMATIONAL"
-            2 -> "SUCCESS"
-            3 -> "REDIRECTION"
-            4 -> "CLIENT_ERROR"
-            5 -> "SERVER_ERROR"
-            else -> "UNKNOWN"
-        }
 
     companion object {
         const val OBSERVATION_NAME: String = "personal_stack.request"
