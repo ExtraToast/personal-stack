@@ -19,71 +19,37 @@ spec:
       size: 20Gi
     nodeSelector:
       personal-stack/site: frankfurt
-    metricsGenerator:
-      enabled: true
-      remoteWriteUrl: http://metrics-stack-prometheus.observability.svc.cluster.local:9090/api/v1/write
-    # The single-binary `tempo` chart's metricsGenerator template only
-    # wires service_graphs + span_metrics with default settings and
-    # ignores arbitrary `metricsGenerator.config` overrides. To enable
-    # local_blocks (required for TraceQL `rate()` / `quantile_over_time()`
-    # — the Drilldown view) we have to inject the processor block via
-    # the chart's `tempo.config` full-override. The chart pipes this
-    # string through `tpl` so Helm template directives still work.
-    #
-    # Config below mirrors the chart's default config plus the
-    # additions we need (local_blocks processor + flush_to_storage,
-    # send_exemplars on remote_write, and per-tenant overrides
-    # enabling all three processors with native histograms).
+    # All Tempo config has to be nested under `tempo:` for the chart to
+    # pick it up. The chart has no top-level `metricsGenerator` or `config`
+    # keys; values placed at the top level (which is what we had before)
+    # are silently dropped and the chart renders its defaults. Verified
+    # by reading /conf/tempo.yaml inside tempo-0 — the file had no
+    # `metrics_generator:` block and no `overrides.defaults` config,
+    # which is why every TraceQL `rate()` query failed with
+    # `error finding generators: empty ring`.
     tempo:
-      config: |
-        multitenancy_enabled: false
-        usage_report:
-          reporting_enabled: false
-        compactor:
-          compaction:
-            block_retention: 168h
-        distributor:
-          receivers:
-            otlp:
-              protocols:
-                http:
-                  endpoint: 0.0.0.0:4318
-                grpc:
-                  endpoint: 0.0.0.0:4317
-        ingester:
-          max_block_duration: 5m
-        server:
-          http_listen_port: 3200
+      retention: 168h
+      metricsGenerator:
+        enabled: true
+        remoteWriteUrl: http://metrics-stack-prometheus.observability.svc.cluster.local:9090/api/v1/write
+        # local_blocks is what powers TraceQL `rate()` / `quantile_over_time()`
+        # over recent data (the Drilldown view). Without it the generator
+        # joins the ring but the querier still 500s with "empty ring"
+        # because there are zero generators answering for that processor.
+        processor:
+          local_blocks:
+            flush_to_storage: true
+          service_graphs: {}
+          span_metrics: {}
         storage:
-          trace:
-            backend: local
-            wal:
-              path: /var/tempo/wal
-            local:
-              path: /var/tempo/blocks
-        querier:
-          frontend_worker:
-            frontend_address: 127.0.0.1:9095
-        metrics_generator:
-          registry:
-            external_labels:
-              source: tempo
-              cluster: personal-stack
-          storage:
-            path: /var/tempo/generator/wal
-            remote_write:
-              - url: http://metrics-stack-prometheus.observability.svc.cluster.local:9090/api/v1/write
-                send_exemplars: true
-          processor:
-            service_graphs:
-            span_metrics:
-            local_blocks:
-              flush_to_storage: true
-        overrides:
-          defaults:
-            metrics_generator:
-              processors:
-                - service-graphs
-                - span-metrics
-                - local-blocks
-              generate_native_histograms: both
+          path: /var/tempo/generator/wal
+        traces_storage:
+          path: /var/tempo/generator/traces
+      overrides:
+        defaults:
+          metrics_generator:
+            processors:
+              - service-graphs
+              - span-metrics
+              - local-blocks
+            generate_native_histograms: both
