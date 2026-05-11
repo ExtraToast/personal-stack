@@ -21,6 +21,21 @@ spec:
       # If we ever add a liveness probe, it needs the full httpGet block.
       readinessProbe:
         timeoutSeconds: 5
+      # OTLP receivers — without these in `extraPorts` the Service only
+      # exposes the UI port (12345) and any client pushing to
+      # alloy.observability.svc.cluster.local:4318 (Traefik, Spring
+      # services, anything else with OTLP push) connects to nothing.
+      # `otelcol.receiver.otlp` in config.alloy listens on these ports
+      # inside the pod; this exposes them via the Service.
+      extraPorts:
+        - name: otlp-grpc
+          port: 4317
+          targetPort: 4317
+          protocol: TCP
+        - name: otlp-http
+          port: 4318
+          targetPort: 4318
+          protocol: TCP
     fullnameOverride: alloy
     controller:
       type: daemonset
