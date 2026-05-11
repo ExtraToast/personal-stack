@@ -27,6 +27,7 @@ class ServicePermissionTest {
         "bazarr.jorisjonkers.dev, BAZARR",
         "prowlarr.jorisjonkers.dev, PROWLARR",
         "qbittorrent.jorisjonkers.dev, QBITTORRENT",
+        "immich.jorisjonkers.dev, IMMICH",
         "adguard.jorisjonkers.dev, ADGUARD",
         "wolf.jorisjonkers.dev, WOLF",
         "wolf.jorisjonkers.test, WOLF",
