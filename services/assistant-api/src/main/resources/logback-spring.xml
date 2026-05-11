@@ -14,6 +14,15 @@
     <root level="INFO">
       <appender-ref ref="JSON_STDOUT"/>
     </root>
+    <!--
+      Silence the legacy per-request / per-handler / per-query timing log
+      lines in production. The same data now flows through the Observation
+      API to Prometheus + Tempo, so the lines are pure duplication. They
+      stay verbose in the `local` profile (root=DEBUG) for ad-hoc dev work.
+    -->
+    <logger name="com.jorisjonkers.personalstack.common.timing.request" level="WARN"/>
+    <logger name="com.jorisjonkers.personalstack.common.timing.handler" level="WARN"/>
+    <logger name="com.jorisjonkers.personalstack.common.timing.jooq" level="WARN"/>
   </springProfile>
 
   <springProfile name="local">
