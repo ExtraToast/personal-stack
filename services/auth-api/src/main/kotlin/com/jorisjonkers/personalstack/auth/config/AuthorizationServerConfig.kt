@@ -124,6 +124,7 @@ class AuthorizationServerConfig(
             buildRabbitMqClient(),
             buildVaultClient(vaultClientSecret),
             buildHeadlampClient(),
+            buildImmichClient(),
         )
 
     // The JdbcOAuth2AuthorizationService constructor calls getColumnMetadata()
@@ -300,6 +301,7 @@ class AuthorizationServerConfig(
                 "n8n" to ServicePermission.N8N,
                 "headlamp" to ServicePermission.DASHBOARD,
                 "rabbitmq" to ServicePermission.RABBITMQ,
+                "immich" to ServicePermission.IMMICH,
             )
     }
 }
