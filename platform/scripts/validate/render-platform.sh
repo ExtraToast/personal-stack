@@ -22,12 +22,14 @@ nix flake check "${repo_root}/platform"
 "${repo_root}/platform/scripts/render/render-edge-route-catalog-configmap.sh"
 "${repo_root}/platform/scripts/render/render-traefik-ingressroutes.sh"
 "${repo_root}/platform/scripts/render/render-traefik-lan-ingressroutes.sh"
+"${repo_root}/platform/scripts/render/render-gatus-config-configmap.sh"
 (
   cd "${repo_root}"
   git diff --exit-code -- platform/cluster/flux/apps/edge/edge-catalog-configmap.yaml
   git diff --exit-code -- platform/cluster/flux/apps/edge/edge-route-catalog-configmap.yaml
   git diff --exit-code -- platform/cluster/flux/apps/edge/traefik-ingressroutes.yaml
   git diff --exit-code -- platform/cluster/flux/apps/edge/traefik-lan-ingressroutes.yaml
+  git diff --exit-code -- platform/cluster/flux/apps/observability/gatus/gatus-endpoints-configmap.yaml
 )
 # Delegates manifest validation to render-flux.sh, which runs:
 # - kustomize build
