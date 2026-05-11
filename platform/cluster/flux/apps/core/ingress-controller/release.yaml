@@ -90,7 +90,10 @@ spec:
         http:
           enabled: true
           endpoint: http://alloy.observability.svc.cluster.local:4318/v1/traces
-      sampleRate: 0.1
+      # Sample everything — request volume on this stack is small and
+      # the per-URI dashboards starve at 10% sampling. Lower this if
+      # Tempo storage becomes a problem.
+      sampleRate: 1.0
     # hostPort 80/443 means only one Traefik pod can bind a node at a
     # time. Default rolling update with maxSurge=1 tries to bring up a
     # second pod alongside the running one — it stays Pending forever

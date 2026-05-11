@@ -22,6 +22,11 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-jooq")
     implementation("org.jooq:jooq")
     runtimeOnly("org.postgresql:postgresql")
+    // Tracing runtime jars. kotlin-common's TimingAutoConfiguration becomes
+    // active when these are on the classpath: spans flow to Alloy → Tempo
+    // and MDC traceId/spanId start populating in the JSON log lines.
+    runtimeOnly("io.micrometer:micrometer-tracing-bridge-otel")
+    runtimeOnly("io.opentelemetry:opentelemetry-exporter-otlp")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testImplementation("org.testcontainers:testcontainers-rabbitmq")

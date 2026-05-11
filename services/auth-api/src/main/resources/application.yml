@@ -136,6 +136,23 @@ management:
       # dashboard. Without this tag the dashboards have no way to
       # filter per service.
       application: ${spring.application.name}
+  # OTLP tracing: spans flow to the Alloy DaemonSet which forwards to
+  # Tempo. sampling=1.0 because this stack's traffic is low and
+  # dashboards filter by URI — partial sampling would starve the
+  # low-rate endpoints. propagation=w3c matches the traceparent
+  # header Traefik emits, so the trace continues across the ingress.
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_PROBABILITY:1.0}
+    propagation:
+      type: w3c
+  otlp:
+    tracing:
+      endpoint: ${OTLP_TRACING_ENDPOINT:http://alloy.observability.svc.cluster.local:4318/v1/traces}
+  observations:
+    key-values:
+      service.name: ${spring.application.name}
+      deployment.environment: ${DEPLOYMENT_ENVIRONMENT:unknown}
 
 springdoc:
   api-docs:
