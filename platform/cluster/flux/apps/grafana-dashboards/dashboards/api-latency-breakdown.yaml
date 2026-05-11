@@ -66,7 +66,7 @@ spec:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "gridPos": { "h": 8, "w": 8, "x": 16, "y": 1 },
           "targets": [
-            { "expr": "sum by (uri, status) (rate(personal_stack_request_seconds_count{application=\"$service\", uri=~\"$uri\", outcome=~\"CLIENT_ERROR|SERVER_ERROR\"}[$__rate_interval]))", "legendFormat": "{{uri}} {{status}}", "refId": "A" }
+            { "expr": "sum by (uri, status) (rate(personal_stack_request_seconds_count{application=\"$service\", uri=~\"$uri\", status=~\"4..|5..\"}[$__rate_interval]))", "legendFormat": "{{uri}} {{status}}", "refId": "A" }
           ],
           "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "bars", "fillOpacity": 50, "stacking": { "mode": "normal" } } } }
         },
