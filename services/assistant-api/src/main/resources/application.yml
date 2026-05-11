@@ -78,6 +78,19 @@ management:
       # so the spring-boot-jvm and service-template dashboards can
       # filter consistently.
       application: ${spring.application.name}
+  # OTLP tracing — see auth-api/application.yml for the rationale.
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_PROBABILITY:1.0}
+    propagation:
+      type: w3c
+  otlp:
+    tracing:
+      endpoint: ${OTLP_TRACING_ENDPOINT:http://alloy.observability.svc.cluster.local:4318/v1/traces}
+  observations:
+    key-values:
+      service.name: ${spring.application.name}
+      deployment.environment: ${DEPLOYMENT_ENVIRONMENT:unknown}
 
 springdoc:
   api-docs:

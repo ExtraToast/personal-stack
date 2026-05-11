@@ -26,6 +26,12 @@ dependencies {
     implementation("org.jooq:jooq")
     implementation("tools.jackson.module:jackson-module-kotlin:3.1.2")
     runtimeOnly("org.postgresql:postgresql")
+    // Tracing runtime jars. With these on the classpath Spring Boot
+    // activates micrometer-tracing + the OTLP exporter and starts shipping
+    // spans to Alloy → Tempo; MDC traceId/spanId begin populating the JSON
+    // log lines so Loki↔Tempo correlation works.
+    runtimeOnly("io.micrometer:micrometer-tracing-bridge-otel")
+    runtimeOnly("io.opentelemetry:opentelemetry-exporter-otlp")
     implementation("dev.turingcomplete:kotlin-onetimepassword:2.4.1")
     implementation("commons-codec:commons-codec")
     testImplementation("org.springframework.security:spring-security-test")

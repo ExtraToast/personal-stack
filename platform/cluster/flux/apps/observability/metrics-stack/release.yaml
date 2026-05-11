@@ -45,6 +45,15 @@ spec:
         # Required so Tempo's metrics-generator can remote-write
         # span/service-graph metrics into the same Prometheus.
         enableRemoteWriteReceiver: true
+        # Store trace exemplars alongside each histogram bucket so the
+        # API-latency dashboards can render a clickable traceID dot per
+        # request. Grafana's Prometheus datasource already declares
+        # exemplarTraceIdDestinations → tempo, so this is the missing
+        # half of the pipeline. The feature flag is the upstream
+        # `--enable-feature=exemplar-storage` Prometheus argument.
+        enableExemplarStorage: true
+        enableFeatures:
+          - exemplar-storage
         # Adding ~30 ServiceMonitors + DCGM + Pyroscope-derived recording
         # rules + Tempo span-metrics roughly doubles cardinality vs
         # Phase 1, so bump from 20Gi to 50Gi to keep 15-day retention.
