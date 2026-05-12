@@ -24,11 +24,15 @@ open class EmailService(
 
     @Async
     open fun send(request: EmailRequest) {
-        var lastException: Exception? = null
+        var lastException: MailException? = null
         for (attempt in 1..maxRetries) {
-            if (trySend(request, attempt)) return
-            lastException = lastException
+            val failure = trySend(request, attempt) ?: return
+            lastException = failure
         }
+        // The exception flowing into this log is the *whole point* of
+        // running on a background thread: without it, every SMTP-side
+        // misconfiguration (AUTH 535, connection refused, TLS handshake,
+        // expired credentials, missing principal …) is invisible.
         log.error(
             "Email delivery failed after {} attempts to={} subject=\"{}\"",
             maxRetries,
@@ -41,24 +45,24 @@ open class EmailService(
     private fun trySend(
         request: EmailRequest,
         attempt: Int,
-    ): Boolean =
+    ): MailException? =
         try {
             doSend(request)
             log.info("Email sent to={} subject=\"{}\" attempt={}/{}", request.to, request.subject, attempt, maxRetries)
-            true
+            null
         } catch (e: MailException) {
             log.warn(
-                "Email send failed to={} subject=\"{}\" attempt={}/{}: {}",
+                "Email send failed to={} subject=\"{}\" attempt={}/{}",
                 request.to,
                 request.subject,
                 attempt,
                 maxRetries,
-                e.message,
+                e,
             )
             if (attempt < maxRetries) {
                 Thread.sleep(attempt * RETRY_BACKOFF_MS)
             }
-            false
+            e
         }
 
     private fun doSend(request: EmailRequest) {
