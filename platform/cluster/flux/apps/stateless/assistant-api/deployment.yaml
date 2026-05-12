@@ -128,13 +128,9 @@ spec:
               value: none
             - name: OTEL_TRACES_EXPORTER
               value: otlp
-            # See auth-api deployment.yaml for the rationale behind these
-            # OTel tunings (10% sampling, 5s exporter timeout + batch
-            # schedule, bounded queue).
-            - name: OTEL_TRACES_SAMPLER
-              value: parentbased_traceidratio
-            - name: OTEL_TRACES_SAMPLER_ARG
-              value: '0.1'
+            # See auth-api deployment.yaml for the rationale behind
+            # these OTel tunings (agent-default sampling, 5s exporter
+            # timeout + batch schedule, bounded queue).
             - name: OTEL_EXPORTER_OTLP_TIMEOUT
               value: '5000'
             - name: OTEL_BSP_SCHEDULE_DELAY

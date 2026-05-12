@@ -141,6 +141,10 @@ management:
   # dashboards filter by URI — partial sampling would starve the
   # low-rate endpoints. propagation=w3c matches the traceparent
   # header Traefik emits, so the trace continues across the ingress.
+  # In prod the OTel Java agent (attached via -javaagent in
+  # deployment.yaml) owns sampling via OTEL_TRACES_SAMPLER and may
+  # override this; in local dev (no agent) the property below is
+  # what takes effect.
   tracing:
     sampling:
       probability: ${TRACING_SAMPLE_PROBABILITY:1.0}

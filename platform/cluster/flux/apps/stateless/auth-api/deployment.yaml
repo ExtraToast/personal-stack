@@ -188,16 +188,15 @@ spec:
               value: none
             - name: OTEL_TRACES_EXPORTER
               value: otlp
-            # Sample 10% of traces. Without this the exporter tries to ship
-            # every span to Alloy on the critical path; if Alloy flaps (as
-            # it did during the ROUTER-permission incident) the batch
-            # processor's retry queue fills and blocks request threads
-            # during flush. 10% is plenty for a personal stack — we
-            # still see every unique trace shape within minutes.
-            - name: OTEL_TRACES_SAMPLER
-              value: parentbased_traceidratio
-            - name: OTEL_TRACES_SAMPLER_ARG
-              value: '0.1'
+            # No OTEL_TRACES_SAMPLER — fall back to the agent's
+            # default (parentbased_always_on, 100% sampling). The
+            # previous setting of parentbased_traceidratio + 0.1
+            # dropped 90% of user traces and was masking /me, /login,
+            # page-load spans behind the much louder kubelet probes;
+            # PR #277 filters actuator/health out at the source so the
+            # trace volume stays manageable even at 100%. If Alloy
+            # ever becomes the bottleneck, prefer raising
+            # OTEL_BSP_MAX_QUEUE_SIZE before reintroducing sampling.
             # Fail the OTLP POST fast if Alloy is slow/down, and drain
             # the batch every 5s instead of waiting for a full 8192-span
             # buffer. Together these cap worst-case exporter-induced
