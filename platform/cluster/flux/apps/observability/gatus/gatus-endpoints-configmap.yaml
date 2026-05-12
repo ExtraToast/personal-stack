@@ -172,6 +172,12 @@ data:
       conditions:
       - "[STATUS] == 200"
       - "[RESPONSE_TIME] < 1500"
+    - name: "faro"
+      group: "public-apps"
+      url: "tcp://alloy.observability.svc.cluster.local:4318"
+      interval: "60s"
+      conditions:
+      - "[CONNECTED] == true"
     - name: "gatus"
       group: "public-apps"
       url: "https://status.jorisjonkers.dev/health"

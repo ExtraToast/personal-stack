@@ -19,10 +19,16 @@ interface FaroConfig {
   instrumentations: unknown[]
 }
 
+function isFaroConfig(value: unknown): value is FaroConfig {
+  return typeof value === 'object' && value !== null && 'url' in value && 'app' in value
+}
+
 function firstCallConfig(): FaroConfig {
   const call = initializeFaroMock.mock.calls[0]
   if (!call) throw new Error('initializeFaro was not called')
-  return call[0] as FaroConfig
+  const config = call[0]
+  if (!isFaroConfig(config)) throw new Error('initializeFaro was called with an unexpected shape')
+  return config
 }
 
 describe('initFaro', () => {
