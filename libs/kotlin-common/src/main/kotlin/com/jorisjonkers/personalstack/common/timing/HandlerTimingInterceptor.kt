@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.slf4j.LoggerFactory
 import org.springframework.web.servlet.HandlerInterceptor
+import org.springframework.web.servlet.ModelAndView
 import java.time.Instant
 
 /**
@@ -28,6 +29,17 @@ class HandlerTimingInterceptor : HandlerInterceptor {
         request.setAttribute(RequestTimingAttributes.HANDLER_START_NANOS, System.nanoTime())
         request.setAttribute(RequestTimingAttributes.HANDLER_START_INSTANT, Instant.now())
         return true
+    }
+
+    override fun postHandle(
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+        handler: Any,
+        modelAndView: ModelAndView?,
+    ) {
+        // Fires after the controller method returns the response object
+        // but before Spring MVC dispatches to a view / message converter.
+        request.setAttribute(RequestTimingAttributes.HANDLER_INVOKED_INSTANT, Instant.now())
     }
 
     override fun afterCompletion(

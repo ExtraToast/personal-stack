@@ -14,14 +14,23 @@ import java.time.Instant
 /**
  * Outer filter ordered before everything else. Collaborates with
  * `SecurityChainBoundaryFilter` (post Spring Security) and
- * `HandlerTimingInterceptor` (around the controller) to record four
- * `Instant` checkpoints per request, then emits up to four retroactive
+ * `HandlerTimingInterceptor` (around the controller) to record five
+ * `Instant` checkpoints per request, then emits up to five retroactive
  * child spans under the OTel agent's SERVER span:
  *
  *  - `pipeline.security-chain`       request start → security chain end
  *  - `pipeline.handler-dispatch`     security chain end → handler start
- *  - `pipeline.handler`              handler start → handler end
+ *  - `pipeline.controller`           handler start → controller returned
+ *  - `pipeline.view-render`          controller returned → handler end
  *  - `pipeline.response-finalize`    handler end → request end
+ *
+ * Splitting handler invocation from view rendering separates time
+ * spent in user code from time spent in Spring MVC's message-converter
+ * write (Jackson serialization for REST controllers). For very slow
+ * responses this isolates "controller is slow" from "serializing the
+ * payload is slow". When `postHandle` does not fire (handler threw,
+ * route unmapped) the filter falls back to a single `pipeline.handler`
+ * span so the segment is still visible.
  *
  * Span emission uses `Span.spanBuilder.setStartTimestamp/end(Instant)`
  * so the spans line up exactly with where time was actually spent,
@@ -61,13 +70,20 @@ class RequestPipelineSpanFilter(
             request.getAttribute(RequestTimingAttributes.SECURITY_CHAIN_END_INSTANT) as? Instant
         val handlerStart =
             request.getAttribute(RequestTimingAttributes.HANDLER_START_INSTANT) as? Instant
+        val handlerInvoked =
+            request.getAttribute(RequestTimingAttributes.HANDLER_INVOKED_INSTANT) as? Instant
         val handlerEnd =
             request.getAttribute(RequestTimingAttributes.HANDLER_END_INSTANT) as? Instant
         val parent = Context.current()
 
         emitSpan("pipeline.security-chain", requestStart, securityChainEnd, parent)
         emitSpan("pipeline.handler-dispatch", securityChainEnd, handlerStart, parent)
-        emitSpan("pipeline.handler", handlerStart, handlerEnd, parent)
+        if (handlerInvoked != null) {
+            emitSpan("pipeline.controller", handlerStart, handlerInvoked, parent)
+            emitSpan("pipeline.view-render", handlerInvoked, handlerEnd, parent)
+        } else {
+            emitSpan("pipeline.handler", handlerStart, handlerEnd, parent)
+        }
         emitSpan("pipeline.response-finalize", handlerEnd, requestEnd, parent)
     }
 
