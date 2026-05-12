@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: stalwart-principal-bootstrap
+  namespace: mail-system
+---
+# Idempotent provisioning of the `auth` SMTP principal in Stalwart.
+# Without this Job the auth-api SMTP submission fails AUTH 535 every
+# time and registration confirmation mails never leave the cluster.
+# The Vault Agent sidecar renders /vault/secrets/principal.env with
+# both the Stalwart admin credentials and the auth-api mail
+# credentials, and the bootstrap script reconciles the principal
+# (POST when missing, PATCH when present) so secrets stay in
+# lockstep with whatever auth-api uses.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: stalwart-principal-bootstrap
+  namespace: mail-system
+  # Job.spec.template is immutable, so a content-hashed ConfigMap
+  # name change (every edit of principal-bootstrap.sh) requires
+  # delete + recreate. The Flux Kustomization controller does that
+  # when this annotation is set.
+  annotations:
+    kustomize.toolkit.fluxcd.io/force: enabled
+spec:
+  backoffLimit: 5
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: stalwart-principal-bootstrap
+      annotations:
+        vault.hashicorp.com/agent-inject: 'true'
+        vault.hashicorp.com/agent-inject-token: 'true'
+        vault.hashicorp.com/agent-pre-populate-only: 'true'
+        vault.hashicorp.com/role: stalwart-bootstrap
+        vault.hashicorp.com/agent-inject-secret-principal.env: secret/data/auth-api
+        vault.hashicorp.com/agent-inject-template-principal.env: |
+          MAIL_USERNAME={{ with secret "secret/data/auth-api" }}{{ index .Data.data "mail.username" }}{{ end }}
+          MAIL_PASSWORD={{ with secret "secret/data/auth-api" }}{{ index .Data.data "mail.password" }}{{ end }}
+          STALWART_ADMIN_USER={{ with secret "secret/data/platform/mail" }}{{ index .Data.data "stalwart.admin_user" }}{{ end }}
+          STALWART_ADMIN_SECRET={{ with secret "secret/data/platform/mail" }}{{ index .Data.data "stalwart.admin_password" }}{{ end }}
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: stalwart-principal-bootstrap
+      nodeSelector:
+        personal-stack/site: frankfurt
+      containers:
+        - name: bootstrap
+          image: curlimages/curl:8.10.1
+          command:
+            - sh
+            - /bootstrap/principal-bootstrap.sh
+          volumeMounts:
+            - name: bootstrap
+              mountPath: /bootstrap
+              readOnly: true
+      volumes:
+        - name: bootstrap
+          configMap:
+            name: stalwart-principal-bootstrap
+            defaultMode: 493

@@ -1,17 +1,38 @@
 package com.jorisjonkers.personalstack.common.email
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import jakarta.mail.internet.MimeMessage
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
+import org.springframework.mail.MailAuthenticationException
 import org.springframework.mail.MailSendException
 import org.springframework.mail.javamail.JavaMailSender
 
 class EmailServiceTest {
     private val mailSender = mockk<JavaMailSender>(relaxed = true)
     private val mimeMessage = mockk<MimeMessage>(relaxed = true)
+
+    private val emailServiceLogger =
+        LoggerFactory.getLogger(EmailService::class.java) as Logger
+    private val logAppender = ListAppender<ILoggingEvent>()
+
+    init {
+        logAppender.start()
+        emailServiceLogger.addAppender(logAppender)
+    }
+
+    @AfterEach
+    fun cleanup() {
+        emailServiceLogger.detachAppender(logAppender)
+    }
 
     private fun createService(maxRetries: Int = 3) =
         EmailService(
@@ -76,6 +97,32 @@ class EmailServiceTest {
         service.send(request)
 
         verify(exactly = 2) { mailSender.send(mimeMessage) }
+    }
+
+    @Test
+    fun `send logs the underlying exception after all retries are exhausted`() {
+        // Regression: an earlier revision lost the caught exception in
+        // the retry loop (`lastException = lastException`) so the final
+        // ERROR log carried `null` — every SMTP misconfiguration in
+        // production looked the same.
+        every { mailSender.createMimeMessage() } returns mimeMessage
+        val authFailure = MailAuthenticationException("535 5.7.8 Authentication failed")
+        every { mailSender.send(any<MimeMessage>()) } throws authFailure
+
+        val service = createService(maxRetries = 2)
+        service.send(
+            EmailRequest(
+                to = "user@example.com",
+                subject = "Hello",
+                textBody = "Body",
+            ),
+        )
+
+        val finalError =
+            logAppender.list.single { it.level == Level.ERROR && "Email delivery failed" in it.formattedMessage }
+        assertThat(finalError.throwableProxy).isNotNull
+        assertThat(finalError.throwableProxy.className).isEqualTo(authFailure.javaClass.name)
+        assertThat(finalError.throwableProxy.message).contains("535")
     }
 
     @Test
