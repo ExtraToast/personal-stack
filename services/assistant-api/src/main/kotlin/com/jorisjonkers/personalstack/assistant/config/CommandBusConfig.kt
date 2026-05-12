@@ -3,9 +3,11 @@ package com.jorisjonkers.personalstack.assistant.config
 import com.jorisjonkers.personalstack.common.command.Command
 import com.jorisjonkers.personalstack.common.command.CommandBus
 import com.jorisjonkers.personalstack.common.command.CommandHandler
+import org.springframework.aop.support.AopUtils
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import kotlin.reflect.KClass
+import kotlin.reflect.full.allSupertypes
 
 @Configuration
 class CommandBusConfig {
@@ -34,9 +36,14 @@ class SpringCommandBus(
         handler.handle(command)
     }
 
+    // See auth-api's CommandBusConfig — same rationale: unwrap CGLIB
+    // proxies and walk the full supertype graph so the generic
+    // CommandHandler<T> parameter is found even when AOP wraps the bean.
     private fun resolveCommandType(handler: CommandHandler<*>): KClass<*>? =
-        handler::class
-            .supertypes
+        AopUtils
+            .getTargetClass(handler)
+            .kotlin
+            .allSupertypes
             .firstOrNull { it.classifier == CommandHandler::class }
             ?.arguments
             ?.firstOrNull()
