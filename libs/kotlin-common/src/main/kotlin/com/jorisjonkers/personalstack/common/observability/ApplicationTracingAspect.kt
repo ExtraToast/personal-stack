@@ -1,7 +1,8 @@
 package com.jorisjonkers.personalstack.common.observability
 
-import io.micrometer.observation.Observation
-import io.micrometer.observation.ObservationRegistry
+import io.opentelemetry.api.GlobalOpenTelemetry
+import io.opentelemetry.api.trace.StatusCode
+import io.opentelemetry.api.trace.Tracer
 import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.annotation.Around
 import org.aspectj.lang.annotation.Aspect
@@ -10,57 +11,112 @@ import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.context.annotation.Bean
 
-// Wraps every method on every Spring bean under
-// com.jorisjonkers.personalstack.** with a Micrometer observation.
-// Bridged to OTel via `micrometer-tracing-bridge-otel` already on
-// every service's runtime classpath, so each method becomes a span
-// in Tempo with class-qualified name (e.g. `JooqUserRepository.findById`).
+// Wraps every method on every Spring stereotype bean under
+// `com.jorisjonkers.personalstack..*` with an OTel span. Earlier
+// revisions of this aspect used Micrometer's Observation API and
+// relied on micrometer-tracing-bridge-otel to convert observations
+// into spans; with the OTel Java agent attached the bridge silently
+// fails to produce spans (the agent installs its own Tracer
+// independently of Spring Boot's MicrometerTracingAutoConfiguration,
+// and the bridge handler ends up writing to a no-op SDK).
 //
-// The pointcut is deliberately bound to our package only: we don't
-// want spans for Spring's filter chain, Lettuce commands, Jackson
-// serialisation, etc. — only code we own and can fix.
-//
-// Configuration classes are excluded because their methods run at
-// startup, never on the request path. Tracing helpers and the aspect
-// itself are also excluded to avoid recursion.
-//
-// Bean is only registered when ObservationRegistry is on the
-// classpath (i.e. when Spring Boot's actuator + observation stack
-// are active). For non-Spring consumers of kotlin-common this is a
-// no-op.
+// Going straight at the agent's `GlobalOpenTelemetry.getTracer(...)`
+// is unambiguous: the span lives in the agent's context, becomes a
+// child of whatever SERVER span is current (e.g. the Tomcat span
+// the agent created), and ships through the agent's exporter.
 @AutoConfiguration
-@ConditionalOnClass(ObservationRegistry::class, Aspect::class)
+@ConditionalOnClass(Tracer::class, Aspect::class)
 class ApplicationTracingAspectAutoConfiguration {
     @Bean
-    fun applicationTracingAspect(registry: ObservationRegistry): ApplicationTracingAspect =
-        ApplicationTracingAspect(registry)
+    fun applicationTracingAspect(): ApplicationTracingAspect =
+        ApplicationTracingAspect(GlobalOpenTelemetry.getTracer(INSTRUMENTATION_SCOPE))
+
+    private companion object {
+        // Tempo will show this as the InstrumentationScope on every
+        // span emitted by the aspect — keep it unambiguous.
+        private const val INSTRUMENTATION_SCOPE =
+            "com.jorisjonkers.personalstack.application"
+    }
 }
 
 @Aspect
 class ApplicationTracingAspect(
-    private val registry: ObservationRegistry,
+    private val tracer: Tracer,
 ) {
     // Catching Throwable is correct for an AOP @Around — the wrapped
     // call can throw anything and the span must record + re-throw it.
     @Suppress("TooGenericExceptionCaught")
     @Around(POINTCUT)
     fun trace(pjp: ProceedingJoinPoint): Any? {
-        val signature = pjp.signature as? MethodSignature
-        val className = signature?.declaringType?.simpleName ?: pjp.target?.javaClass?.simpleName ?: "Unknown"
-        val methodName = signature?.name ?: pjp.signature.name
-        val spanName = "$className.$methodName"
-        val observation = Observation.start(spanName, registry)
+        val sig = pjp.signature as? MethodSignature
+        val cls =
+            sig?.declaringType?.simpleName ?: pjp.target?.javaClass?.simpleName ?: "Unknown"
+        val method = sig?.name ?: pjp.signature.name
+        val argsRepr = renderArgs(cls, pjp.args)
+        val spanName = if (argsRepr.isEmpty()) "$cls.$method" else "$cls.$method($argsRepr)"
+        val span = tracer.spanBuilder(spanName).startSpan()
+        if (argsRepr.isNotEmpty()) {
+            span.setAttribute("code.args", argsRepr)
+        }
         return try {
-            observation.openScope().use { pjp.proceed() }
+            span.makeCurrent().use { pjp.proceed() }
         } catch (t: Throwable) {
-            observation.error(t)
+            span.recordException(t)
+            span.setStatus(StatusCode.ERROR, t.message ?: t.javaClass.simpleName)
             throw t
         } finally {
-            observation.stop()
+            span.end()
         }
     }
 
+    // Render call arguments for the span name + the `code.args`
+    // attribute. Each arg is `toString`-d, capped at 32 chars; the
+    // joined string is capped at 80 chars total. Classes whose
+    // simple name contains a likely-sensitive token are redacted
+    // wholesale — a coarse but safe default given Kotlin doesn't
+    // compile parameter names into bytecode without `-parameters`,
+    // so per-parameter filtering isn't available cheaply.
+    private fun renderArgs(
+        className: String,
+        args: Array<Any?>?,
+    ): String {
+        if (args.isNullOrEmpty()) return ""
+        if (SENSITIVE_CLASS_TOKENS.any { className.contains(it, ignoreCase = true) }) {
+            return "redacted"
+        }
+        val out = StringBuilder()
+        for ((i, arg) in args.withIndex()) {
+            if (i > 0) out.append(", ")
+            val raw = arg?.toString() ?: "null"
+            val safe =
+                if (raw.length > MAX_ARG_CHARS) raw.take(MAX_ARG_CHARS - 3) + "..." else raw
+            out.append(safe)
+            if (out.length > MAX_TOTAL_CHARS) {
+                out.setLength(MAX_TOTAL_CHARS)
+                out.append("…")
+                break
+            }
+        }
+        return out.toString()
+    }
+
     private companion object {
+        private const val MAX_ARG_CHARS = 32
+        private const val MAX_TOTAL_CHARS = 80
+
+        private val SENSITIVE_CLASS_TOKENS =
+            listOf(
+                "Token",
+                "Password",
+                "Vault",
+                "Credential",
+                "Jwt",
+                "Cipher",
+                "Crypto",
+                "Secret",
+                "Session",
+            )
+
         // Targets Spring stereotype-annotated classes in our packages.
         // kotlin-spring's allopen plugin opens these by default, which
         // means CGLIB can proxy them; non-stereotyped @Bean factories
