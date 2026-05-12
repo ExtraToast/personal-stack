@@ -161,6 +161,7 @@ class JooqUserRepositoryIntegrationTest : IntegrationTestBase() {
                 DSL.using(
                     dsl.configuration().derive(*DefaultExecuteListenerProvider.providers(counter)),
                 ),
+                cacheManager,
             )
 
         val found = scopedRepo.findById(user.id)
@@ -209,20 +210,73 @@ class JooqUserRepositoryIntegrationTest : IntegrationTestBase() {
         val user = buildUser(username = "evict-me", email = "evict-me@example.com")
         userRepository.create(user, "\$2a\$10\$hash")
 
-        // Populate the cache.
-        userRepository.findById(user.id)
-        assertThat(cacheManager.getCache(CACHE_USERS_BY_ID)?.get(user.id.value))
-            .describedAs("findById should have populated the byId cache")
-            .isNotNull
+        val initial = userRepository.findById(user.id)!!
+        assertThat(initial.role).isEqualTo(Role.USER)
 
-        // The update mutator's @CacheEvict on byId must clear the entry.
         userRepository.update(user.copy(role = Role.ADMIN))
 
-        assertThat(cacheManager.getCache(CACHE_USERS_BY_ID)?.get(user.id.value))
-            .describedAs(
-                "update should have evicted the byId cache entry so the next " +
-                    "read reflects the persisted role change instead of the stale USER role",
-            ).isNull()
+        val refreshed = userRepository.findById(user.id)!!
+        assertThat(refreshed.role).isEqualTo(Role.ADMIN)
+    }
+
+    @Test
+    fun `deleteById evicts every user cache`() {
+        val user = buildUser(username = "wipe-me", email = "wipe-me@example.com")
+        userRepository.create(user, "\$2a\$10\$hash")
+
+        assertThat(userRepository.findById(user.id)).isNotNull
+        assertThat(userRepository.findByUsername("wipe-me")).isNotNull
+        assertThat(userRepository.findByEmail("wipe-me@example.com")).isNotNull
+        assertThat(userRepository.findCredentialsByUsername("wipe-me")).isNotNull
+
+        userRepository.deleteById(user.id)
+
+        assertThat(userRepository.findById(user.id)).isNull()
+        assertThat(userRepository.findByUsername("wipe-me")).isNull()
+        assertThat(userRepository.findByEmail("wipe-me@example.com")).isNull()
+        assertThat(userRepository.findCredentialsByUsername("wipe-me")).isNull()
+    }
+
+    @Test
+    fun `saveServicePermissions evicts the users byId cache`() {
+        val user = buildUser(username = "grant-me", email = "grant-me@example.com")
+        userRepository.create(user, "\$2a\$10\$hash")
+
+        val initial = userRepository.findById(user.id)!!
+        assertThat(initial.servicePermissions).isEmpty()
+
+        userRepository.saveServicePermissions(user.id, setOf(ServicePermission.VAULT))
+
+        val refreshed = userRepository.findById(user.id)!!
+        assertThat(refreshed.servicePermissions).containsExactly(ServicePermission.VAULT)
+    }
+
+    @Test
+    fun `saveTotpSecret is reflected on the next findCredentialsByUsername`() {
+        val user = buildUser(username = "totp-secret-me", email = "totp-secret-me@example.com")
+        userRepository.create(user, "\$2a\$10\$hash")
+
+        val initial = userRepository.findCredentialsByUsername("totp-secret-me")!!
+        assertThat(initial.totpSecret).isNull()
+
+        userRepository.saveTotpSecret(user.id, "JBSWY3DPEHPK3PXP")
+
+        val refreshed = userRepository.findCredentialsByUsername("totp-secret-me")!!
+        assertThat(refreshed.totpSecret).isEqualTo("JBSWY3DPEHPK3PXP")
+    }
+
+    @Test
+    fun `updatePassword is reflected on the next findCredentialsByUsername`() {
+        val user = buildUser(username = "rotate-me", email = "rotate-me@example.com")
+        userRepository.create(user, "\$2a\$10\$old")
+
+        val initial = userRepository.findCredentialsByUsername("rotate-me")!!
+        assertThat(initial.passwordHash).isEqualTo("\$2a\$10\$old")
+
+        userRepository.updatePassword(user.id, "\$2a\$10\$new")
+
+        val refreshed = userRepository.findCredentialsByUsername("rotate-me")!!
+        assertThat(refreshed.passwordHash).isEqualTo("\$2a\$10\$new")
     }
 
     private class SelectCountingListener : ExecuteListener {
