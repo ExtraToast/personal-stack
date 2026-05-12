@@ -1,7 +1,11 @@
 package com.jorisjonkers.personalstack.auth
 
+import org.jooq.DSLContext
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Tag
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.cache.CacheManager
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.testcontainers.containers.GenericContainer
@@ -13,6 +17,22 @@ import org.testcontainers.rabbitmq.RabbitMQContainer
 @SpringBootTest
 @Testcontainers
 abstract class IntegrationTestBase {
+    @Autowired
+    private lateinit var dsl: DSLContext
+
+    @Autowired
+    private lateinit var cacheManager: CacheManager
+
+    @AfterEach
+    fun resetSharedState() {
+        dsl.execute(
+            "TRUNCATE TABLE app_user, email_confirmation_token, password_reset_token, " +
+                "user_service_permissions, oauth2_authorization, oauth2_authorization_consent " +
+                "RESTART IDENTITY CASCADE",
+        )
+        cacheManager.cacheNames.forEach { cacheManager.getCache(it)?.clear() }
+    }
+
     companion object {
         private val postgres =
             PostgreSQLContainer("postgres:17-alpine").apply {

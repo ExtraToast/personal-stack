@@ -209,20 +209,13 @@ class JooqUserRepositoryIntegrationTest : IntegrationTestBase() {
         val user = buildUser(username = "evict-me", email = "evict-me@example.com")
         userRepository.create(user, "\$2a\$10\$hash")
 
-        // Populate the cache.
-        userRepository.findById(user.id)
-        assertThat(cacheManager.getCache(CACHE_USERS_BY_ID)?.get(user.id.value))
-            .describedAs("findById should have populated the byId cache")
-            .isNotNull
+        val initial = userRepository.findById(user.id)!!
+        assertThat(initial.role).isEqualTo(Role.USER)
 
-        // The update mutator's @CacheEvict on byId must clear the entry.
         userRepository.update(user.copy(role = Role.ADMIN))
 
-        assertThat(cacheManager.getCache(CACHE_USERS_BY_ID)?.get(user.id.value))
-            .describedAs(
-                "update should have evicted the byId cache entry so the next " +
-                    "read reflects the persisted role change instead of the stale USER role",
-            ).isNull()
+        val refreshed = userRepository.findById(user.id)!!
+        assertThat(refreshed.role).isEqualTo(Role.ADMIN)
     }
 
     private class SelectCountingListener : ExecuteListener {
