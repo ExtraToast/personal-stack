@@ -1,5 +1,7 @@
 package com.jorisjonkers.personalstack.common.timing
 
+import io.opentelemetry.api.GlobalOpenTelemetry
+import io.opentelemetry.api.trace.Tracer
 import org.jooq.impl.DefaultExecuteListenerProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -51,4 +53,18 @@ class TimingAutoConfiguration {
                 registry.addInterceptor(HandlerTimingInterceptor())
             }
         }
+
+    @Bean
+    @ConditionalOnClass(OncePerRequestFilter::class, Tracer::class)
+    fun securityChainBoundaryFilter(): SecurityChainBoundaryFilter = SecurityChainBoundaryFilter()
+
+    @Bean
+    @ConditionalOnClass(OncePerRequestFilter::class, Tracer::class)
+    fun requestPipelineSpanFilter(): RequestPipelineSpanFilter =
+        RequestPipelineSpanFilter(GlobalOpenTelemetry.getTracer(PIPELINE_INSTRUMENTATION_SCOPE))
+
+    private companion object {
+        const val PIPELINE_INSTRUMENTATION_SCOPE =
+            "com.jorisjonkers.personalstack.timing.pipeline"
+    }
 }
