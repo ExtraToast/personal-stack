@@ -163,6 +163,23 @@ fun buildHeadlampClient(): RegisteredClient =
         .tokenSettings(defaultTokenSettings())
         .build()
 
+fun buildImmichClient(): RegisteredClient =
+    RegisteredClient
+        .withId(deterministicId("immich"))
+        .clientId("immich")
+        .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
+        .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+        .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+        .redirectUri("https://immich.jorisjonkers.dev/auth/login")
+        .redirectUri("https://immich.jorisjonkers.test/auth/login")
+        .redirectUri("app.immich:///oauth-callback")
+        .scope(OidcScopes.OPENID)
+        .scope(OidcScopes.PROFILE)
+        .scope(OidcScopes.EMAIL)
+        .clientSettings(noConsentSettings(requirePkce = true))
+        .tokenSettings(defaultTokenSettings())
+        .build()
+
 fun buildVaultClient(secret: String): RegisteredClient =
     RegisteredClient
         .withId(deterministicId("vault"))
