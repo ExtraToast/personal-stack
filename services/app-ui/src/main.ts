@@ -1,3 +1,4 @@
+import { initFaro } from '@personal-stack/vue-common'
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import App from './App.vue'
@@ -7,6 +8,14 @@ import { router } from './router'
 import './index.css'
 
 async function bootstrap(): Promise<void> {
+  // Real-user monitoring. No-op in dev (VITE_FARO_URL unset); in prod
+  // ships browser navigation + fetch + error spans to Alloy → Tempo.
+  void initFaro({
+    appName: 'app-ui',
+    environment: import.meta.env.MODE,
+    otlpUrl: import.meta.env.VITE_FARO_URL,
+  })
+
   const app = createApp(App)
   const pinia = createPinia()
   app.use(pinia)

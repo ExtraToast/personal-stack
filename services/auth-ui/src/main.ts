@@ -1,3 +1,4 @@
+import { initFaro } from '@personal-stack/vue-common'
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import App from './App.vue'
@@ -6,6 +7,13 @@ import { useAuthStore } from './stores/auth'
 import './index.css'
 
 async function bootstrap(): Promise<void> {
+  // Real-user monitoring. See app-ui/src/main.ts for the rationale.
+  void initFaro({
+    appName: 'auth-ui',
+    environment: import.meta.env.MODE,
+    otlpUrl: import.meta.env.VITE_FARO_URL,
+  })
+
   const app = createApp(App)
   const pinia = createPinia()
   app.use(pinia)
