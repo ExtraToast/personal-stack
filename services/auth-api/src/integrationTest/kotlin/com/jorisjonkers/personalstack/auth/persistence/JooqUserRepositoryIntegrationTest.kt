@@ -161,6 +161,7 @@ class JooqUserRepositoryIntegrationTest : IntegrationTestBase() {
                 DSL.using(
                     dsl.configuration().derive(*DefaultExecuteListenerProvider.providers(counter)),
                 ),
+                cacheManager,
             )
 
         val found = scopedRepo.findById(user.id)
@@ -216,6 +217,66 @@ class JooqUserRepositoryIntegrationTest : IntegrationTestBase() {
 
         val refreshed = userRepository.findById(user.id)!!
         assertThat(refreshed.role).isEqualTo(Role.ADMIN)
+    }
+
+    @Test
+    fun `deleteById evicts every user cache`() {
+        val user = buildUser(username = "wipe-me", email = "wipe-me@example.com")
+        userRepository.create(user, "\$2a\$10\$hash")
+
+        assertThat(userRepository.findById(user.id)).isNotNull
+        assertThat(userRepository.findByUsername("wipe-me")).isNotNull
+        assertThat(userRepository.findByEmail("wipe-me@example.com")).isNotNull
+        assertThat(userRepository.findCredentialsByUsername("wipe-me")).isNotNull
+
+        userRepository.deleteById(user.id)
+
+        assertThat(userRepository.findById(user.id)).isNull()
+        assertThat(userRepository.findByUsername("wipe-me")).isNull()
+        assertThat(userRepository.findByEmail("wipe-me@example.com")).isNull()
+        assertThat(userRepository.findCredentialsByUsername("wipe-me")).isNull()
+    }
+
+    @Test
+    fun `saveServicePermissions evicts the users byId cache`() {
+        val user = buildUser(username = "grant-me", email = "grant-me@example.com")
+        userRepository.create(user, "\$2a\$10\$hash")
+
+        val initial = userRepository.findById(user.id)!!
+        assertThat(initial.servicePermissions).isEmpty()
+
+        userRepository.saveServicePermissions(user.id, setOf(ServicePermission.VAULT))
+
+        val refreshed = userRepository.findById(user.id)!!
+        assertThat(refreshed.servicePermissions).containsExactly(ServicePermission.VAULT)
+    }
+
+    @Test
+    fun `saveTotpSecret evicts the credentials cache`() {
+        val user = buildUser(username = "totp-secret-me", email = "totp-secret-me@example.com")
+        userRepository.create(user, "\$2a\$10\$hash")
+
+        val initial = userRepository.findCredentialsByUsername("totp-secret-me")!!
+        assertThat(initial.totpSecret).isNull()
+
+        userRepository.saveTotpSecret(user.id, "JBSWY3DPEHPK3PXP")
+
+        val refreshed = userRepository.findCredentialsByUsername("totp-secret-me")!!
+        assertThat(refreshed.totpSecret).isEqualTo("JBSWY3DPEHPK3PXP")
+    }
+
+    @Test
+    fun `updatePassword evicts the credentials cache`() {
+        val user = buildUser(username = "rotate-me", email = "rotate-me@example.com")
+        userRepository.create(user, "\$2a\$10\$old")
+
+        val initial = userRepository.findCredentialsByUsername("rotate-me")!!
+        assertThat(initial.passwordHash).isEqualTo("\$2a\$10\$old")
+
+        userRepository.updatePassword(user.id, "\$2a\$10\$new")
+
+        val refreshed = userRepository.findCredentialsByUsername("rotate-me")!!
+        assertThat(refreshed.passwordHash).isEqualTo("\$2a\$10\$new")
     }
 
     private class SelectCountingListener : ExecuteListener {
