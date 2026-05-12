@@ -78,7 +78,8 @@ management:
       # so the spring-boot-jvm and service-template dashboards can
       # filter consistently.
       application: ${spring.application.name}
-  # OTLP tracing — see auth-api/application.yml for the rationale.
+  # OTLP tracing — see auth-api/application.yml for the rationale,
+  # including the note about OTel-agent-owned sampling in prod.
   tracing:
     sampling:
       probability: ${TRACING_SAMPLE_PROBABILITY:1.0}
