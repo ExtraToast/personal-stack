@@ -61,19 +61,33 @@ class ApplicationTracingAspect(
     }
 
     private companion object {
-        // Aspect itself + its autoconfig + the actuator-observation filter
-        // bean must be excluded to prevent recursion: the aspect creates an
-        // Observation, which calls our ObservationPredicate, which would in
-        // turn be wrapped by the aspect. Listed by FQN so the test source
-        // (also in this package) is *not* excluded; the test deliberately
-        // proxies a target class that lives here.
+        // Targets Spring stereotype-annotated classes in our packages.
+        // kotlin-spring's allopen plugin opens these by default, which
+        // means CGLIB can proxy them; non-stereotyped @Bean factories
+        // (RequestTimingFilter, JooqQueryTimingListener, ...) remain
+        // Kotlin-final and would fail CGLIB.
+        //
+        // Restricting to stereotypes is also semantically right: those
+        // are our *business* beans — controllers, services, repositories
+        // — which is exactly the layer we want to find slowness in.
+        // Configuration classes are filtered out (only run at startup).
+        //
+        // The aspect's own classes are excluded by FQN to prevent
+        // recursion; the test source (also in observability package)
+        // is *not* excluded so the unit test can drive a proxy.
         private const val OBS_PKG = "com.jorisjonkers.personalstack.common.observability"
         private const val POINTCUT =
             "execution(* com.jorisjonkers.personalstack..*.*(..)) " +
-                "&& !within(com.jorisjonkers.personalstack..config..*) " +
-                "&& !within(com.jorisjonkers.personalstack..*Config) " +
-                "&& !within(com.jorisjonkers.personalstack..*Configuration) " +
-                "&& !within(com.jorisjonkers.personalstack..*Properties) " +
+                "&& (" +
+                "@within(org.springframework.stereotype.Component) " +
+                "|| @within(org.springframework.stereotype.Service) " +
+                "|| @within(org.springframework.stereotype.Repository) " +
+                "|| @within(org.springframework.stereotype.Controller) " +
+                "|| @within(org.springframework.web.bind.annotation.RestController) " +
+                "|| @within(org.springframework.web.bind.annotation.RestControllerAdvice) " +
+                "|| @within(org.springframework.web.bind.annotation.ControllerAdvice) " +
+                ") " +
+                "&& !@within(org.springframework.context.annotation.Configuration) " +
                 "&& !within($OBS_PKG.ApplicationTracingAspect) " +
                 "&& !within($OBS_PKG.ApplicationTracingAspectAutoConfiguration) " +
                 "&& !within($OBS_PKG.ActuatorObservationFilterAutoConfiguration) " +

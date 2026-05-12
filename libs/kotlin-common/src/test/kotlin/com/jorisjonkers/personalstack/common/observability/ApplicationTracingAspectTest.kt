@@ -6,6 +6,7 @@ import io.micrometer.observation.ObservationRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.aop.aspectj.annotation.AspectJProxyFactory
+import org.springframework.stereotype.Service
 
 class ApplicationTracingAspectTest {
     private fun fixture(): Pair<RecordingHandler, TracedService> {
@@ -40,6 +41,7 @@ class ApplicationTracingAspectTest {
     }
 
     @Suppress("FunctionOnlyReturningConstant")
+    @Service
     open class TracedService {
         open fun greet(name: String): String = "hello $name"
 
