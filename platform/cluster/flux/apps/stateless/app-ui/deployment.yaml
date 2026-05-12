@@ -37,7 +37,7 @@ spec:
       # Frankfurt Traefik → Pi adds ~30 ms first byte but doesn't
       # affect cached asset loads. PRECONDITION: the UI image at ghcr
       # must be multi-arch (linux/amd64,linux/arm64) — see #228 (or
-      # the deploy.yml change shipped alongside this PR).
+      # the build-and-publish.yml change shipped alongside this PR).
       nodeSelector:
         kubernetes.io/arch: arm64
       # Spread replicas across as many distinct Pis as possible so the

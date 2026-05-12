@@ -1,11 +1,17 @@
-name: Deploy
+# Builds + publishes container images to ghcr.io with `:latest` and
+# `:<sha>` tags. Cluster rollout is handled out-of-band: Keel polls
+# ghcr every 2 minutes and rolls the matching Deployment when the
+# `:latest` digest changes, while Flux reconciles manifest changes
+# from `main`. Neither is this workflow's responsibility — the name
+# reflects that.
+name: Build & Publish
 
 on:
   push:
     branches: [main]
 
 concurrency:
-  group: deploy
+  group: build-and-publish
   cancel-in-progress: false
 
 env:
@@ -35,7 +41,7 @@ jobs:
           base: ${{ github.event.before }}
           filters: |
             workflow:
-              - '.github/workflows/deploy.yml'
+              - '.github/workflows/build-and-publish.yml'
             auth-api:
               - 'services/auth-api/**'
             assistant-api:
