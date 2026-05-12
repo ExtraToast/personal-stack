@@ -166,6 +166,10 @@ service_intent:
       # running on enschede-gtx-960m-1. Gameplay still streams directly
       # from that node to Moonlight; this is only the browser management UI.
       - wolf
+      # Public OTLP receiver for Grafana Faro (browser RUM). Routes to the
+      # existing Alloy DaemonSet — no separate workload, just an ingress
+      # path so the SPAs can POST traces to faro.jorisjonkers.dev/v1/traces.
+      - faro
     internal_platform:
       - postgres
       - rabbitmq
@@ -212,6 +216,7 @@ placement_intent:
     - loki
     - tempo
     - alloy
+    - faro
     - gatus
     - vault
     - headlamp
@@ -253,6 +258,7 @@ exposure_intent:
     - headlamp
     - adguard
     - wolf
+    - faro
 
   public_and_lan:
     - bazarr
@@ -316,6 +322,10 @@ access_intent:
     samba: samba
     # Kubernetes dashboard (Headlamp) at dashboard.jorisjonkers.dev.
     headlamp: dashboard
+    # Browser RUM ingest endpoint. Not behind forward-auth because the
+    # browser fires `OPTIONS /v1/traces` pre-flights from any user with
+    # a SPA loaded; forward-auth would 302 those to the login page.
+    faro: faro
 
 ingress_intent:
   kubernetes_backends:
@@ -436,6 +446,17 @@ ingress_intent:
       namespace: utility-system
       service: headlamp
       port: 80
+    # Grafana Faro browser RUM. Routes to the existing Alloy DaemonSet
+    # (port 4318, named otlp-http on the Service after the extraPorts
+    # block in alloy/release.yaml). The SPAs POST OTLP/HTTP traces to
+    # https://faro.jorisjonkers.dev/v1/traces.
+    faro:
+      namespace: observability
+      service: alloy
+      port: 4318
+      health:
+        type: tcp
+        port: 4318
   # Per-service WAN origin. Default is CF-proxied via the Frankfurt
   # VPS (`ingress.jorisjonkers.dev`). Services listed here override
   # that: `home_direct` switches the Cloudflare A record to the home

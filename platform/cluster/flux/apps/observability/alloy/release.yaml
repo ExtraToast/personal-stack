@@ -132,6 +132,17 @@ spec:
 
             http {
               endpoint = "0.0.0.0:4318"
+              // Grafana Faro Web SDK POSTs from each SPA's origin.
+              // Without explicit CORS allowance the browser blocks the
+              // OPTIONS pre-flight and no traces ever reach Tempo.
+              cors {
+                allowed_origins = [
+                  "https://jorisjonkers.dev",
+                  "https://auth.jorisjonkers.dev",
+                  "https://assistant.jorisjonkers.dev",
+                ]
+                allowed_headers = ["*"]
+              }
             }
 
             output {
