@@ -208,21 +208,40 @@ spec:
               ]
             }
             output {
-              traces = [otelcol.processor.transform.traefik_span_names.input]
+              traces = [otelcol.processor.transform.span_names.input]
             }
           }
 
-          // Traefik's OTel-go HTTP instrumentation names server spans
-          // after the HTTP method only (`GET`, `POST`). Rewrite the
-          // name to `<method> <path>` so the trace list is browsable.
-          // OTTL with a `where` guard means non-Traefik spans pass
-          // through untouched.
-          otelcol.processor.transform "traefik_span_names" {
+          // Standardise span names so the originating service is
+          // visible directly in the trace list:
+          //
+          //   `GET /api/v1/auth/me` (auth-api) → `GET auth-api /api/v1/auth/me`
+          //   `GET /api/v1/auth/me` (traefik)  → `GET traefik /api/v1/auth/me`
+          //   `ReverseProxy`                   → `ReverseProxy ← traefik`
+          //   `SELECT auth_db`                 → unchanged (no service prefix needed)
+          //   `JooqUserRepository.findById`    → `auth-api JooqUserRepository.findById`
+          //
+          // OTTL statements run independently per span; guards on
+          // attribute existence keep them safe for spans that lack
+          // the relevant fields.
+          otelcol.processor.transform "span_names" {
             error_mode = "ignore"
             trace_statements {
               context    = "span"
               statements = [
-                `set(name, Concat([attributes["http.request.method"], attributes["url.path"]], " ")) where resource.attributes["service.name"] == "traefik" and IsString(attributes["url.path"]) and IsString(attributes["http.request.method"])`,
+                // SERVER span with templated http.route (Spring MVC)
+                `set(name, Concat([attributes["http.request.method"], resource.attributes["service.name"], attributes["http.route"]], " ")) where kind == SPAN_KIND_SERVER and IsString(attributes["http.request.method"]) and IsString(resource.attributes["service.name"]) and IsString(attributes["http.route"])`,
+                // SERVER span without http.route — Traefik. Include the
+                // Host so the trace list disambiguates vhosts that share
+                // paths (auth.jorisjonkers.dev/api/x vs
+                // assistant.jorisjonkers.dev/api/x).
+                `set(name, Concat([attributes["http.request.method"], resource.attributes["service.name"], Concat([attributes["server.address"], attributes["url.path"]], "")], " ")) where kind == SPAN_KIND_SERVER and IsString(attributes["http.request.method"]) and IsString(resource.attributes["service.name"]) and IsString(attributes["server.address"]) and IsString(attributes["url.path"]) and not IsString(attributes["http.route"])`,
+                // SERVER span fallback when server.address is missing too
+                `set(name, Concat([attributes["http.request.method"], resource.attributes["service.name"], attributes["url.path"]], " ")) where kind == SPAN_KIND_SERVER and IsString(attributes["http.request.method"]) and IsString(resource.attributes["service.name"]) and IsString(attributes["url.path"]) and not IsString(attributes["http.route"]) and not IsString(attributes["server.address"])`,
+                // CLIENT HTTP span — annotate which service made the call
+                `set(name, Concat([name, "←", resource.attributes["service.name"]], " ")) where kind == SPAN_KIND_CLIENT and IsString(resource.attributes["service.name"]) and IsString(attributes["http.request.method"])`,
+                // INTERNAL spans (the AOP aspect, async work) — prefix `ClassName.method` with the service
+                `set(name, Concat([resource.attributes["service.name"], name], " ")) where kind == SPAN_KIND_INTERNAL and IsString(resource.attributes["service.name"])`,
               ]
             }
             output {

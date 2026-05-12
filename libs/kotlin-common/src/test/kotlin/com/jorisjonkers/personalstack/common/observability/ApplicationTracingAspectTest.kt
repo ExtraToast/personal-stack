@@ -1,43 +1,90 @@
 package com.jorisjonkers.personalstack.common.observability
 
-import io.micrometer.observation.Observation
-import io.micrometer.observation.ObservationHandler
-import io.micrometer.observation.ObservationRegistry
+import io.opentelemetry.api.trace.StatusCode
+import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter
+import io.opentelemetry.sdk.trace.SdkTracerProvider
+import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.springframework.aop.aspectj.annotation.AspectJProxyFactory
 import org.springframework.stereotype.Service
 
 class ApplicationTracingAspectTest {
-    private fun fixture(): Pair<RecordingHandler, TracedService> {
-        val recorder = RecordingHandler()
-        val registry =
-            ObservationRegistry.create().apply {
-                observationConfig().observationHandler(recorder)
-            }
-        val aspect = ApplicationTracingAspect(registry)
-        val target = TracedService()
+    private val spans = InMemorySpanExporter.create()
+    private val provider =
+        SdkTracerProvider
+            .builder()
+            .addSpanProcessor(SimpleSpanProcessor.create(spans))
+            .build()
+    private val tracer = provider.get("test")
+
+    @AfterEach
+    fun cleanup() {
+        provider.shutdown()
+    }
+
+    private fun proxied(): TracedService {
+        val aspect = ApplicationTracingAspect(tracer)
         val factory =
-            AspectJProxyFactory(target).apply {
+            AspectJProxyFactory(TracedService()).apply {
                 addAspect(aspect)
             }
-        return recorder to factory.getProxy()
+        return factory.getProxy()
     }
 
     @Test
-    fun `creates a span named ClassName_method`() {
-        val (recorder, proxy) = fixture()
-        proxy.greet("world")
-        assertThat(recorder.observations.map { it.name }).containsExactly("TracedService.greet")
+    fun `creates a span named ClassName_method with rendered arguments`() {
+        proxied().greet("world")
+        val recorded = spans.finishedSpanItems
+        assertThat(recorded).hasSize(1)
+        assertThat(recorded[0].name).isEqualTo("TracedService.greet(world)")
+        assertThat(recorded[0].status.statusCode).isEqualTo(StatusCode.UNSET)
     }
 
     @Test
     fun `records errors when the method throws`() {
-        val (recorder, proxy) = fixture()
-        runCatching { proxy.boom() }
-        val rec = recorder.observations.single()
-        assertThat(rec.name).isEqualTo("TracedService.boom")
-        assertThat(rec.error).isInstanceOf(IllegalStateException::class.java)
+        runCatching { proxied().boom() }
+        val recorded = spans.finishedSpanItems
+        assertThat(recorded).hasSize(1)
+        assertThat(recorded[0].name).isEqualTo("TracedService.boom")
+        assertThat(recorded[0].status.statusCode).isEqualTo(StatusCode.ERROR)
+        assertThat(recorded[0].events).anySatisfy { event ->
+            assertThat(event.name).isEqualTo("exception")
+        }
+    }
+
+    @Test
+    fun `arguments are appended to the span name and exposed as code_args`() {
+        proxied().greet("world")
+        val recorded = spans.finishedSpanItems.single()
+        assertThat(recorded.name).isEqualTo("TracedService.greet(world)")
+        assertThat(recorded.attributes.asMap()).containsEntry(
+            io.opentelemetry.api.common.AttributeKey
+                .stringKey("code.args"),
+            "world",
+        )
+    }
+
+    @Test
+    fun `arguments are redacted wholesale for sensitive-looking classes`() {
+        val aspect = ApplicationTracingAspect(tracer)
+        val factory =
+            AspectJProxyFactory(SensitiveTokenService()).apply {
+                addAspect(aspect)
+            }
+        val proxy: SensitiveTokenService = factory.getProxy()
+        proxy.createToken("alice", "s3cret")
+        val recorded = spans.finishedSpanItems.single()
+        assertThat(recorded.name).isEqualTo("SensitiveTokenService.createToken(redacted)")
+    }
+
+    @Test
+    fun `long arguments are truncated`() {
+        proxied().greet("x".repeat(200))
+        val recorded = spans.finishedSpanItems.single()
+        assertThat(recorded.name).startsWith("TracedService.greet(")
+        assertThat(recorded.name.length).isLessThan(120)
     }
 
     @Suppress("FunctionOnlyReturningConstant")
@@ -48,24 +95,12 @@ class ApplicationTracingAspectTest {
         open fun boom(): Nothing = throw IllegalStateException("nope")
     }
 
-    private data class Recorded(
-        val name: String,
-        val error: Throwable?,
-    )
-
-    private class RecordingHandler : ObservationHandler<Observation.Context> {
-        val observations = mutableListOf<Recorded>()
-        private var lastError: Throwable? = null
-
-        override fun supportsContext(context: Observation.Context): Boolean = true
-
-        override fun onError(context: Observation.Context) {
-            lastError = context.error
-        }
-
-        override fun onStop(context: Observation.Context) {
-            observations.add(Recorded(context.name ?: "<unnamed>", lastError))
-            lastError = null
-        }
+    @Suppress("FunctionOnlyReturningConstant")
+    @Service
+    open class SensitiveTokenService {
+        open fun createToken(
+            username: String,
+            password: String,
+        ): String = "token-$username"
     }
 }
