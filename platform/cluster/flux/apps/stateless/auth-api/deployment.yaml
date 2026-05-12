@@ -205,7 +205,14 @@ spec:
               value: '5000'
             - name: OTEL_BSP_SCHEDULE_DELAY
               value: '5000'
+            # Bumped from the default 2048 because libs/kotlin-common's
+            # ApplicationTracingAspect wraps every bean method in our
+            # packages with a Micrometer observation — a single /me
+            # request produces tens of spans, hundreds on busier
+            # endpoints. Smaller queues drop spans under burst.
             - name: OTEL_BSP_MAX_QUEUE_SIZE
+              value: '16384'
+            - name: OTEL_BSP_MAX_EXPORT_BATCH_SIZE
               value: '2048'
             # Pyroscope continuous profiling. Agent ships profiles
             # (CPU + alloc + lock) to the in-cluster pyroscope server

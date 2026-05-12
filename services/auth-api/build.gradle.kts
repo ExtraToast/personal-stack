@@ -14,6 +14,12 @@ jooqCodegen {
 
 dependencies {
     implementation(project(":libs:kotlin-common"))
+    // Enables the wildcard tracing aspect in kotlin-common — without
+    // spring-aop the @Aspect bean isn't proxied and the advice never
+    // fires. Spring Boot 4 dropped the `spring-boot-starter-aop`
+    // shortcut, so pull the underlying jars directly.
+    implementation("org.springframework:spring-aop")
+    implementation("org.aspectj:aspectjweaver:1.9.25.1")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-authorization-server")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.session:spring-session-data-redis")

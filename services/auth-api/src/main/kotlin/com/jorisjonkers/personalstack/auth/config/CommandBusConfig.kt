@@ -3,9 +3,11 @@ package com.jorisjonkers.personalstack.auth.config
 import com.jorisjonkers.personalstack.common.command.Command
 import com.jorisjonkers.personalstack.common.command.CommandBus
 import com.jorisjonkers.personalstack.common.command.CommandHandler
+import org.springframework.aop.support.AopUtils
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import kotlin.reflect.KClass
+import kotlin.reflect.full.allSupertypes
 
 @Configuration
 class CommandBusConfig {
@@ -34,9 +36,16 @@ class SpringCommandBus(
         handler.handle(command)
     }
 
+    // The handler may be wrapped in a CGLIB proxy (Spring AOP) which
+    // loses the `CommandHandler<T>` generic type parameter. Unwrap to
+    // the original target class and walk *all* supertypes — not just
+    // the direct ones — so the lookup works whether the bean is the
+    // raw handler, a JDK proxy, or a CGLIB subclass.
     private fun resolveCommandType(handler: CommandHandler<*>): KClass<*>? =
-        handler::class
-            .supertypes
+        AopUtils
+            .getTargetClass(handler)
+            .kotlin
+            .allSupertypes
             .firstOrNull { it.classifier == CommandHandler::class }
             ?.arguments
             ?.firstOrNull()
