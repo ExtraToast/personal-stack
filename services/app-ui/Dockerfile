@@ -8,7 +8,7 @@ RUN pnpm install --frozen-lockfile
 COPY libs/vue-common/ libs/vue-common/
 COPY services/app-ui/ services/app-ui/
 ARG VITE_AUTH_URL=https://auth.jorisjonkers.dev
-ARG VITE_FARO_URL=https://faro.jorisjonkers.dev/v1/traces
+ARG VITE_FARO_URL=https://faro.jorisjonkers.dev/collect
 RUN VITE_AUTH_URL=${VITE_AUTH_URL} \
     VITE_FARO_URL=${VITE_FARO_URL} \
     pnpm --filter @personal-stack/app-ui build
