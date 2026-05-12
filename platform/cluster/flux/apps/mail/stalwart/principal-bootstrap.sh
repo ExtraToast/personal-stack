@@ -30,9 +30,16 @@ create_payload() {
 JSON
 }
 
+# Stalwart's PATCH /api/principal/{name} takes an array of
+# `{action,field,value}` operations — *not* RFC 6902 JSON Patch and
+# *not* a JSON Merge Patch on the principal body. Verified against
+# the live admin API: anything else returns
+# `{"status":400,"title":"Invalid parameters",
+#   "detail":"JSON deserialization failed"}` and the principal stays
+# at its old secret.
 patch_secrets_payload() {
   cat <<JSON
-{"secrets":["$SECRET"],"emails":["$EMAIL"]}
+[{"action":"set","field":"secrets","value":["$SECRET"]},{"action":"set","field":"emails","value":["$EMAIL"]}]
 JSON
 }
 
