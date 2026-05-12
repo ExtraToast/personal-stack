@@ -3,7 +3,6 @@ package com.jorisjonkers.personalstack.auth.infrastructure.persistence
 import com.jorisjonkers.personalstack.auth.config.CacheConfig.Companion.CACHE_USERS_BY_EMAIL
 import com.jorisjonkers.personalstack.auth.config.CacheConfig.Companion.CACHE_USERS_BY_ID
 import com.jorisjonkers.personalstack.auth.config.CacheConfig.Companion.CACHE_USERS_BY_USERNAME
-import com.jorisjonkers.personalstack.auth.config.CacheConfig.Companion.CACHE_USERS_CREDENTIALS_BY_USERNAME
 import com.jorisjonkers.personalstack.auth.domain.model.Role
 import com.jorisjonkers.personalstack.auth.domain.model.ServicePermission
 import com.jorisjonkers.personalstack.auth.domain.model.User
@@ -58,11 +57,6 @@ class JooqUserRepository(
             .fetchOne()
             ?.let { it.toUser(it.extractPermissions()) }
 
-    @Cacheable(
-        cacheNames = [CACHE_USERS_CREDENTIALS_BY_USERNAME],
-        key = "#username",
-        unless = "#result == null",
-    )
     override fun findCredentialsByUsername(username: String): UserCredentials? =
         dsl
             .select(*APP_USER.fields(), permissionsField)
@@ -211,10 +205,7 @@ class JooqUserRepository(
         email: String?,
     ) {
         cacheManager.getCache(CACHE_USERS_BY_ID)?.evict(userId.value)
-        username?.let {
-            cacheManager.getCache(CACHE_USERS_BY_USERNAME)?.evict(it)
-            cacheManager.getCache(CACHE_USERS_CREDENTIALS_BY_USERNAME)?.evict(it)
-        }
+        username?.let { cacheManager.getCache(CACHE_USERS_BY_USERNAME)?.evict(it) }
         email?.let { cacheManager.getCache(CACHE_USERS_BY_EMAIL)?.evict(it) }
     }
 

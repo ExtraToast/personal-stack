@@ -1,7 +1,6 @@
 package com.jorisjonkers.personalstack.auth.config
 
 import com.jorisjonkers.personalstack.auth.domain.model.User
-import com.jorisjonkers.personalstack.auth.domain.model.UserCredentials
 import org.springframework.cache.annotation.EnableCaching
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -17,22 +16,10 @@ import tools.jackson.module.kotlin.KotlinModule
 import java.time.Duration
 
 /**
- * Valkey-backed Spring Cache wiring. Spring Session already uses the
- * Valkey pod in `data-system`; caching piggybacks on the same
- * connection factory via spring-boot-starter-data-redis.
- *
- * Namespaces (== cache names) live on top-level keys:
- *   users.byId                 — User by UserId
- *   users.byUsername           — User by username
- *   users.byEmail              — User by email
- *   users.credentialsByUsername — UserCredentials by username (used on the
- *                                hot /session-login path; shorter TTL because
- *                                it rides password/TOTP changes)
- *
- * Per-cache TTLs keep stale-read windows bounded even in the
- * pathological case where a mutator's @CacheEvict is skipped by
- * self-invocation (none today — all annotated methods are top-level
- * `override fun`s on the Spring-proxied bean).
+ * Valkey-backed Spring Cache wiring. Caches User-profile reads only.
+ * Credentials (password hash, TOTP secret) are intentionally read
+ * straight from Postgres on every login — see the comment on the
+ * cache name constants below.
  */
 @Configuration
 @EnableCaching
@@ -45,8 +32,6 @@ class CacheConfig {
                 CACHE_USERS_BY_ID to configFor(mapper, User::class.java, USER_CACHE_TTL),
                 CACHE_USERS_BY_USERNAME to configFor(mapper, User::class.java, USER_CACHE_TTL),
                 CACHE_USERS_BY_EMAIL to configFor(mapper, User::class.java, USER_CACHE_TTL),
-                CACHE_USERS_CREDENTIALS_BY_USERNAME to
-                    configFor(mapper, UserCredentials::class.java, CREDENTIALS_CACHE_TTL),
             )
         return RedisCacheManager
             .builder(connectionFactory)
@@ -91,22 +76,18 @@ class CacheConfig {
         const val CACHE_USERS_BY_ID = "users.byId"
         const val CACHE_USERS_BY_USERNAME = "users.byUsername"
         const val CACHE_USERS_BY_EMAIL = "users.byEmail"
-        const val CACHE_USERS_CREDENTIALS_BY_USERNAME = "users.credentialsByUsername"
 
-        // User reads are mostly idempotent for the cache's lifetime:
-        // profile data changes rarely (settings edits, role updates),
-        // and every such mutation goes through an evicting repository
-        // method. A 5-minute TTL is a safety net for mutations that
-        // somehow skip the repository (e.g. an operator patches a row
-        // via psql), not the primary consistency mechanism.
+        // Profile caches: 5-minute TTL as a safety net for mutations
+        // that bypass the repository (e.g. operator patches a row via
+        // psql); every in-app mutator evicts precisely.
         private val USER_CACHE_TTL: Duration = Duration.ofMinutes(5)
 
-        // Credentials (password hash, TOTP secret) change rarely in
-        // absolute terms but the cost of a stale read is higher: a
-        // rotated password that keeps authenticating for 5 minutes is
-        // a security finding. 60 s keeps the cache useful for burst
-        // traffic on the /session-login path without letting the
-        // stale window linger.
-        private val CREDENTIALS_CACHE_TTL: Duration = Duration.ofSeconds(60)
+        // findCredentialsByUsername (login hot path) is deliberately
+        // not cached. A previous credentialsByUsername cache caused a
+        // cohort of integration-test flakes — Spring's @Cacheable PUT
+        // races a subsequent same-thread evict under Lettuce, so a
+        // password rotation + immediate re-login could read stale
+        // hash. Login is ~1 query per session, which Postgres handles
+        // trivially on this stack.
     }
 }

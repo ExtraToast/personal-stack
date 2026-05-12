@@ -252,7 +252,7 @@ class JooqUserRepositoryIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
-    fun `saveTotpSecret evicts the credentials cache`() {
+    fun `saveTotpSecret is reflected on the next findCredentialsByUsername`() {
         val user = buildUser(username = "totp-secret-me", email = "totp-secret-me@example.com")
         userRepository.create(user, "\$2a\$10\$hash")
 
@@ -266,7 +266,7 @@ class JooqUserRepositoryIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
-    fun `updatePassword evicts the credentials cache`() {
+    fun `updatePassword is reflected on the next findCredentialsByUsername`() {
         val user = buildUser(username = "rotate-me", email = "rotate-me@example.com")
         userRepository.create(user, "\$2a\$10\$old")
 
