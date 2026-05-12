@@ -36,6 +36,14 @@ spec:
           port: 4318
           targetPort: 4318
           protocol: TCP
+        # Grafana Faro browser RUM. The SPAs POST Faro-format JSON
+        # envelopes to `faro.jorisjonkers.dev/collect`, Traefik routes
+        # to this Service, and `faro.receiver` below splits the
+        # envelope into logs (Loki) and OTel spans (Tempo).
+        - name: faro
+          port: 12347
+          targetPort: 12347
+          protocol: TCP
       # The chart reads inline River config from `alloy.configMap.content`
       # (nested under the `alloy` key, not at the top level — putting it
       # at the top level is silently ignored and the chart ships its
@@ -132,9 +140,10 @@ spec:
 
             http {
               endpoint = "0.0.0.0:4318"
-              // Grafana Faro Web SDK POSTs from each SPA's origin.
-              // Without explicit CORS allowance the browser blocks the
-              // OPTIONS pre-flight and no traces ever reach Tempo.
+              // CORS is still useful for any client that posts OTLP
+              // directly to alloy (e.g. a future native OTel browser
+              // SDK). The SPAs no longer hit this endpoint — they go
+              // through faro.receiver on :12347.
               cors {
                 allowed_origins = [
                   "https://jorisjonkers.dev",
@@ -147,6 +156,76 @@ spec:
 
             output {
               logs   = [otelcol.processor.batch.default.input]
+              traces = [otelcol.processor.filter.drop_actuator.input]
+            }
+          }
+
+          // Browser RUM: SPAs POST Faro's native JSON envelope to
+          // `faro.jorisjonkers.dev/collect` (Traefik → this Service
+          // port 12347). The receiver splits the envelope into logs
+          // (errors, console events, user events) and OTel-format
+          // spans, sending each to the matching pipeline.
+          faro.receiver "default" {
+            server {
+              listen_address       = "0.0.0.0"
+              listen_port          = 12347
+              cors_allowed_origins = [
+                "https://jorisjonkers.dev",
+                "https://auth.jorisjonkers.dev",
+                "https://assistant.jorisjonkers.dev",
+              ]
+            }
+
+            extra_log_labels = {
+              source = "faro",
+            }
+
+            output {
+              logs   = [loki.write.default.receiver]
+              traces = [otelcol.processor.filter.drop_actuator.input]
+            }
+          }
+
+          // Drop actuator/health spans at the collector. The OTel
+          // Java agent's Tomcat hook creates them independent of
+          // Spring's ObservationRegistry, so the Spring-side filter
+          // in libs/kotlin-common is a no-op for these spans —
+          // Alloy is the right place to drop them. We match both the
+          // templated `http.route` (Spring) and the raw `url.path`
+          // (Traefik / Faro / anything else).
+          otelcol.processor.filter "drop_actuator" {
+            error_mode = "ignore"
+            traces {
+              span = [
+                `attributes["http.route"] == "/api/actuator/health/**"`,
+                `attributes["http.route"] == "/api/actuator/health"`,
+                `attributes["http.route"] == "/actuator/health/**"`,
+                `attributes["http.route"] == "/actuator/health"`,
+                `attributes["http.route"] == "/api/v1/health"`,
+                `IsMatch(attributes["url.path"], "^/api/actuator/.*") == true`,
+                `IsMatch(attributes["url.path"], "^/actuator/.*") == true`,
+                `attributes["url.path"] == "/api/v1/health"`,
+              ]
+            }
+            output {
+              traces = [otelcol.processor.transform.traefik_span_names.input]
+            }
+          }
+
+          // Traefik's OTel-go HTTP instrumentation names server spans
+          // after the HTTP method only (`GET`, `POST`). Rewrite the
+          // name to `<method> <path>` so the trace list is browsable.
+          // OTTL with a `where` guard means non-Traefik spans pass
+          // through untouched.
+          otelcol.processor.transform "traefik_span_names" {
+            error_mode = "ignore"
+            trace_statements {
+              context    = "span"
+              statements = [
+                `set(name, Concat([attributes["http.request.method"], attributes["url.path"]], " ")) where resource.attributes["service.name"] == "traefik" and IsString(attributes["url.path"]) and IsString(attributes["http.request.method"])`,
+              ]
+            }
+            output {
               traces = [otelcol.processor.batch.default.input]
             }
           }

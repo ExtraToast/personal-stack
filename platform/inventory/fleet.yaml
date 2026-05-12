@@ -446,17 +446,19 @@ ingress_intent:
       namespace: utility-system
       service: headlamp
       port: 80
-    # Grafana Faro browser RUM. Routes to the existing Alloy DaemonSet
-    # (port 4318, named otlp-http on the Service after the extraPorts
-    # block in alloy/release.yaml). The SPAs POST OTLP/HTTP traces to
-    # https://faro.jorisjonkers.dev/v1/traces.
+    # Grafana Faro browser RUM. Routes to Alloy's `faro.receiver`
+    # (port 12347 — see alloy/release.yaml). The SPAs POST Faro's
+    # native JSON envelope to https://faro.jorisjonkers.dev/collect;
+    # Alloy splits it into Loki logs + Tempo OTel spans. The earlier
+    # design that pointed at port 4318 (OTLP HTTP) silently dropped
+    # everything because Faro doesn't speak OTLP wire format.
     faro:
       namespace: observability
       service: alloy
-      port: 4318
+      port: 12347
       health:
         type: tcp
-        port: 4318
+        port: 12347
   # Per-service WAN origin. Default is CF-proxied via the Frankfurt
   # VPS (`ingress.jorisjonkers.dev`). Services listed here override
   # that: `home_direct` switches the Cloudflare A record to the home

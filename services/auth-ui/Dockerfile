@@ -11,7 +11,7 @@ COPY services/auth-ui/package.json services/auth-ui/
 RUN pnpm install --frozen-lockfile
 COPY libs/vue-common/ libs/vue-common/
 COPY services/auth-ui/ services/auth-ui/
-ARG VITE_FARO_URL=https://faro.jorisjonkers.dev/v1/traces
+ARG VITE_FARO_URL=https://faro.jorisjonkers.dev/collect
 RUN VITE_FARO_URL=${VITE_FARO_URL} pnpm --filter @personal-stack/auth-ui build
 
 FROM nginx:alpine
