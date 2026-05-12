@@ -30,7 +30,7 @@ class RequestPipelineSpanFilterTest {
     }
 
     @Test
-    fun `emits four pipeline child spans when all checkpoints are populated`() {
+    fun `emits five pipeline child spans when all checkpoints including postHandle are populated`() {
         val request = MockHttpServletRequest("GET", "/api/v1/auth/me")
         val response = MockHttpServletResponse()
         val populatingChain =
@@ -38,7 +38,8 @@ class RequestPipelineSpanFilterTest {
                 val t = Instant.now()
                 req.setAttribute(RequestTimingAttributes.SECURITY_CHAIN_END_INSTANT, t.plusNanos(1_000))
                 req.setAttribute(RequestTimingAttributes.HANDLER_START_INSTANT, t.plusNanos(2_000))
-                req.setAttribute(RequestTimingAttributes.HANDLER_END_INSTANT, t.plusNanos(3_000))
+                req.setAttribute(RequestTimingAttributes.HANDLER_INVOKED_INSTANT, t.plusNanos(3_000))
+                req.setAttribute(RequestTimingAttributes.HANDLER_END_INSTANT, t.plusNanos(4_000))
                 // Yield enough wall time for the filter's requestEnd
                 // capture to be strictly after handler-end.
                 Thread.sleep(5)
@@ -51,9 +52,33 @@ class RequestPipelineSpanFilterTest {
             .containsExactlyInAnyOrder(
                 "pipeline.security-chain",
                 "pipeline.handler-dispatch",
-                "pipeline.handler",
+                "pipeline.controller",
+                "pipeline.view-render",
                 "pipeline.response-finalize",
             )
+    }
+
+    @Test
+    fun `falls back to combined handler span when postHandle did not fire`() {
+        // postHandle is skipped when the controller throws — in that
+        // case we want a single handler span rather than losing the
+        // segment entirely.
+        val request = MockHttpServletRequest("GET", "/api/v1/auth/me")
+        val response = MockHttpServletResponse()
+        val populatingChain =
+            FilterChain { req: ServletRequest, _: ServletResponse ->
+                val t = Instant.now()
+                req.setAttribute(RequestTimingAttributes.SECURITY_CHAIN_END_INSTANT, t.plusNanos(1_000))
+                req.setAttribute(RequestTimingAttributes.HANDLER_START_INSTANT, t.plusNanos(2_000))
+                req.setAttribute(RequestTimingAttributes.HANDLER_END_INSTANT, t.plusNanos(4_000))
+                Thread.sleep(5)
+            }
+
+        filter.doFilter(request, response, populatingChain)
+
+        val names = spans.finishedSpanItems.map { it.name }
+        assertThat(names).contains("pipeline.handler")
+        assertThat(names).doesNotContain("pipeline.controller", "pipeline.view-render")
     }
 
     @Test
