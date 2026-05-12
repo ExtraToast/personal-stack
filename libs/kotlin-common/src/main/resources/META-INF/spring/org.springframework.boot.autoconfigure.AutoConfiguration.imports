@@ -1,2 +1,3 @@
 com.jorisjonkers.personalstack.common.crac.CracAutoConfiguration
+com.jorisjonkers.personalstack.common.observability.ActuatorObservationFilterAutoConfiguration
 com.jorisjonkers.personalstack.common.timing.TimingAutoConfiguration
