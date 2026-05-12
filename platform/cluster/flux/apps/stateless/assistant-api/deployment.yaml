@@ -135,7 +135,10 @@ spec:
               value: '5000'
             - name: OTEL_BSP_SCHEDULE_DELAY
               value: '5000'
+            # See auth-api deployment.yaml — same rationale.
             - name: OTEL_BSP_MAX_QUEUE_SIZE
+              value: '16384'
+            - name: OTEL_BSP_MAX_EXPORT_BATCH_SIZE
               value: '2048'
             - name: PYROSCOPE_APPLICATION_NAME
               value: assistant-api

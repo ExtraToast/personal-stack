@@ -38,6 +38,15 @@ dependencies {
     // Optional Spring deps for infrastructure adapters — provided at runtime by services
     compileOnly("org.springframework.boot:spring-boot-starter-amqp:4.0.6")
     compileOnly("org.springframework.boot:spring-boot-starter-web:4.0.6")
+    // AOP + Micrometer Observation for ApplicationTracingAspect. Spring Boot 4
+    // dropped the `spring-boot-starter-aop` shortcut so the underlying
+    // artifacts are pulled directly. `aspectjweaver` is needed at runtime for
+    // the @Aspect/@Around bytecode; spring-aop is the proxy-creating side.
+    // Pulled transitively by spring-boot-starter-actuator on consumers,
+    // but listed explicitly here so the aspect compiles standalone.
+    compileOnly("org.springframework:spring-aop:7.0.7")
+    compileOnly("org.aspectj:aspectjweaver:1.9.25.1")
+    compileOnly("io.micrometer:micrometer-observation:1.16.4")
     compileOnly("org.springframework.boot:spring-boot-starter-validation:4.0.6")
     compileOnly("org.springframework.vault:spring-vault-core:4.0.2")
     compileOnly("org.springframework.boot:spring-boot-starter-mail:4.0.6")
@@ -59,6 +68,9 @@ dependencies {
     testImplementation("org.assertj:assertj-core:3.27.7")
     testImplementation("org.springframework.boot:spring-boot-starter-amqp:4.0.6")
     testImplementation("org.springframework.boot:spring-boot-starter-web:4.0.6")
+    testImplementation("org.springframework:spring-aop:7.0.7")
+    testImplementation("org.aspectj:aspectjweaver:1.9.25.1")
+    testImplementation("io.micrometer:micrometer-observation:1.16.4")
     testImplementation("org.springframework.boot:spring-boot-starter-mail:4.0.6")
     testImplementation("org.springframework.vault:spring-vault-core:4.0.2")
     testImplementation("org.springframework:spring-context:7.0.7")
