@@ -40,6 +40,9 @@ class ApplicationTracingAspectAutoConfiguration {
 class ApplicationTracingAspect(
     private val registry: ObservationRegistry,
 ) {
+    // Catching Throwable is correct for an AOP @Around — the wrapped
+    // call can throw anything and the span must record + re-throw it.
+    @Suppress("TooGenericExceptionCaught")
     @Around(POINTCUT)
     fun trace(pjp: ProceedingJoinPoint): Any? {
         val signature = pjp.signature as? MethodSignature

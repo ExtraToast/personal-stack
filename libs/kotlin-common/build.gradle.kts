@@ -6,6 +6,14 @@ plugins {
     jacoco
 }
 
+// Opens Spring stereotype classes + their methods so CGLIB can proxy
+// them. Required for ApplicationTracingAspect — without it the
+// @RestControllerAdvice + future @Component classes in this module
+// remain Kotlin-final and Spring AOP can't wrap them. The kotlin-spring
+// plugin is already on the build-logic classpath via kotlin-allopen,
+// so we apply it imperatively here without re-declaring a version.
+apply(plugin = "org.jetbrains.kotlin.plugin.spring")
+
 jacoco {
     toolVersion = "0.8.12"
 }
