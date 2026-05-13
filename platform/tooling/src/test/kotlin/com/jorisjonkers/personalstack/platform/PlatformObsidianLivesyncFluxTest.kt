@@ -79,7 +79,20 @@ class PlatformObsidianLivesyncFluxTest {
         assertThat(manifest)
             .contains("path: /_up")
             .doesNotContain("tcpSocket:")
-        assertThat(configMap)
+
+        // `require_valid_user_except_for_up` is a `[chttpd]` setting,
+        // not a `[chttpd_auth]` one — putting it under `[chttpd_auth]`
+        // loads into the config tree (visible via /_node/_local/_config)
+        // but is silently ignored, and `/_up` keeps returning 401. Pin
+        // both keys to the same `[chttpd]` block under single-node.ini.
+        val singleNode =
+            configMap.substringAfter("single-node.ini: |", missingDelimiterValue = "")
+                .takeIf { it.isNotBlank() }
+                ?: error("no single-node.ini key in configmap")
+        val chttpdBlock =
+            Regex("""\[chttpd\][^\[]*""").find(singleNode)?.value
+                ?: error("no [chttpd] section in single-node.ini")
+        assertThat(chttpdBlock)
             .contains("require_valid_user = true")
             .contains("require_valid_user_except_for_up = true")
     }
