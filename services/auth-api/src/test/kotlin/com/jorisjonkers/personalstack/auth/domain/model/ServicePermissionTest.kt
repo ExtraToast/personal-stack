@@ -31,6 +31,8 @@ class ServicePermissionTest {
         "adguard.jorisjonkers.dev, ADGUARD",
         "wolf.jorisjonkers.dev, WOLF",
         "wolf.jorisjonkers.test, WOLF",
+        "obsidian.jorisjonkers.dev, OBSIDIAN",
+        "obsidian.jorisjonkers.test, OBSIDIAN",
     )
     fun `fromHost resolves production and local dev hostnames`(
         host: String,

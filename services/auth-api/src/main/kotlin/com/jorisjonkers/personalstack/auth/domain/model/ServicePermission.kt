@@ -44,6 +44,11 @@ enum class ServicePermission(
     // WolfManager controls the host-native Wolf game streaming service. Actual
     // Moonlight gameplay traffic connects directly to the GTX node.
     WOLF("wolf"),
+
+    // Browser-Obsidian (linuxserver/obsidian via Selkies) at
+    // obsidian.jorisjonkers.dev. Edits the same knowledge-vault repo the
+    // ingest worker writes canonical notes into.
+    OBSIDIAN("obsidian"),
     ;
 
     val subdomains: Set<String> = subdomains.toSet()
