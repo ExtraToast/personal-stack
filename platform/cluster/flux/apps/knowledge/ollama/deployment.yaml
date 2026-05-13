@@ -1,0 +1,147 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ollama
+  namespace: knowledge-system
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-models
+  namespace: knowledge-system
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: knowledge-system
+spec:
+  replicas: 1
+  # RWO PVC for the model cache — recreate on rollout, no concurrent writers.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ollama
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ollama
+    spec:
+      serviceAccountName: ollama
+      # Pin to the t1000 node — the gtx960m belongs to the game-streaming
+      # path and can serve as fallback. Both expose
+      # personal-stack/capability-nvidia: 'true'; the nodeSelector here
+      # plus the topologySpread below keeps Ollama on the dedicated host
+      # while leaving the gaming GPU undisturbed by inference loads.
+      nodeSelector:
+        personal-stack/capability-nvidia: 'true'
+      runtimeClassName: nvidia
+      initContainers:
+        # Pre-pull models into the PVC so the first /api/embeddings call
+        # doesn't trigger a multi-second download. The init container
+        # starts ollama in the background, polls until the local API is
+        # ready, pulls each model, then exits — the background process
+        # dies with the shell and the model bytes live on the PVC.
+        - name: model-puller
+          image: ollama/ollama:0.5.7
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              ollama serve &
+              for i in $(seq 1 30); do
+                if ollama list >/dev/null 2>&1; then break; fi
+                sleep 1
+              done
+              ollama pull nomic-embed-text
+              exit 0
+          env:
+            - name: OLLAMA_HOST
+              value: 127.0.0.1:11434
+            - name: OLLAMA_MODELS
+              value: /root/.ollama/models
+          volumeMounts:
+            - name: models
+              mountPath: /root/.ollama
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+      containers:
+        - name: ollama
+          image: ollama/ollama:0.5.7
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 11434
+              name: http
+          env:
+            # 4 GiB of VRAM on the t1000 is tight. Pin to one loaded model
+            # at a time — sequential reload tax is acceptable for an
+            # async ingest pipeline; concurrent loads OOM the GPU.
+            - name: OLLAMA_MAX_LOADED_MODELS
+              value: '1'
+            - name: OLLAMA_NUM_PARALLEL
+              value: '2'
+            - name: OLLAMA_KEEP_ALIVE
+              value: 30m
+            - name: OLLAMA_HOST
+              value: 0.0.0.0:11434
+            - name: OLLAMA_MODELS
+              value: /root/.ollama/models
+          startupProbe:
+            httpGet:
+              path: /
+              port: http
+            failureThreshold: 30
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: models
+              mountPath: /root/.ollama
+          resources:
+            requests:
+              cpu: 250m
+              memory: 1Gi
+              nvidia.com/gpu: 1
+            limits:
+              cpu: 2000m
+              memory: 3500Mi
+              nvidia.com/gpu: 1
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: ollama-models
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: knowledge-system
+spec:
+  selector:
+    app.kubernetes.io/name: ollama
+  ports:
+    - name: http
+      port: 11434
+      targetPort: http

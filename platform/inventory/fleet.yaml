@@ -181,6 +181,7 @@ service_intent:
       - flaresolverr
       - vault
       - pyroscope
+      - ollama
     home_media:
       - downloads
       - qbittorrent
@@ -236,6 +237,7 @@ placement_intent:
     - samba
     - flaresolverr
     - n8n
+    - ollama
 
   gpu_specific:
     jellyfin:
@@ -521,3 +523,9 @@ monitoring_intent:
       port: 4040
       health:
         path: /ready
+    ollama:
+      namespace: knowledge-system
+      service: ollama
+      port: 11434
+      health:
+        type: tcp

@@ -84,6 +84,12 @@ data:
       conditions:
       - "[STATUS] == 200"
       - "[RESPONSE_TIME] < 1500"
+    - name: "ollama"
+      group: "internal-platform"
+      url: "tcp://ollama.knowledge-system.svc.cluster.local:11434"
+      interval: "60s"
+      conditions:
+      - "[CONNECTED] == true"
     - name: "postgres"
       group: "internal-platform"
       url: "tcp://postgres.data-system.svc.cluster.local:5432"
