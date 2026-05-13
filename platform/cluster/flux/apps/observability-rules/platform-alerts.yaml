@@ -212,3 +212,120 @@ spec:
           for: 10m
           labels: { severity: warning }
           annotations: { summary: Pyroscope is rejecting profile ingest }
+
+    # ───────── JVM services — request pipeline ─────────
+    # Per-stage latency from Tempo's `traces_spanmetrics_*`. The
+    # span-derived dimensions (http.route, k8s.pod.name) were added
+    # in #292. p95 thresholds picked at ~3× current healthy p95 so
+    # alerts fire on genuine regression rather than normal noise.
+    - name: platform-jvm-pipeline
+      rules:
+        - alert: ControllerLatencyHighP95
+          expr: |
+            histogram_quantile(0.95,
+              sum by (le, service_name, http_route) (
+                rate(traces_spanmetrics_latency_bucket{
+                  span_name="pipeline.controller", service_name=~"auth-api|assistant-api"
+                }[5m])
+              )
+            ) > 2
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: '{{ $labels.service_name }} {{ $labels.http_route }}: p95 controller latency > 2s'
+            description: |
+              `pipeline.controller` p95 — wall clock spent inside the
+              controller method body + Jackson response write — has been
+              > 2s for 10 minutes on this route. Open the per-endpoint
+              dashboard, filter by route + pod, check the pipeline.*
+              breakdown.
+
+        - alert: ResponseFinalizeLatencyHighP95
+          expr: |
+            histogram_quantile(0.95,
+              sum by (le, service_name, http_route) (
+                rate(traces_spanmetrics_latency_bucket{
+                  span_name="pipeline.response-finalize", service_name=~"auth-api|assistant-api"
+                }[5m])
+              )
+            ) > 1
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: '{{ $labels.service_name }} {{ $labels.http_route }}: p95 response-finalize > 1s'
+            description: Outbound network back-pressure or session write-back stall after handler returns.
+
+    # ───────── JVM services — Redis (Lettuce) ─────────
+    - name: platform-jvm-redis
+      rules:
+        - alert: LettuceCommandTimeouts
+          # `error=CancellationException` is what Lettuce reports when a
+          # command exceeds `spring.data.redis.timeout`. Sustained
+          # non-zero rate means Redis or the Lettuce event loop is
+          # backed up; each affected request blocks for the full
+          # timeout window before the cache falls through.
+          expr: |
+            sum by (service_name, db_operation) (
+              rate(lettuce_seconds_count{error="CancellationException"}[5m])
+            ) > 0.05
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: '{{ $labels.service_name }} Redis {{ $labels.db_operation }} timing out'
+            description: Lettuce returned a CancellationException at >0.05/s for 5 min. Investigate Valkey load and the Lettuce event-loop concurrency.
+
+        - alert: LettuceCommandLatencyHighP95
+          expr: |
+            histogram_quantile(0.95,
+              sum by (le, service_name, db_operation) (
+                rate(lettuce_seconds_bucket{error="none"}[5m])
+              )
+            ) > 0.2
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: '{{ $labels.service_name }} Redis {{ $labels.db_operation }} p95 > 200ms'
+            description: Per-command Redis p95 has been > 200ms for 10 min. Healthy is single-digit ms on a local Valkey.
+
+    # ───────── JVM services — Postgres (Hikari) ─────────
+    - name: platform-jvm-hikari
+      rules:
+        - alert: HikariConnectionsPending
+          expr: hikaricp_connections_pending{application=~"auth-api|assistant-api"} > 0
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: '{{ $labels.application }} ({{ $labels.instance }}): Hikari pool exhausted'
+            description: Connections are queued waiting for a free DB connection. Pool size or query duration is wrong.
+
+        - alert: HikariAcquireLatencyHighP95
+          expr: |
+            histogram_quantile(0.95,
+              sum by (le, application, instance) (
+                rate(hikaricp_connections_acquire_seconds_bucket{application=~"auth-api|assistant-api"}[5m])
+              )
+            ) > 1
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: '{{ $labels.application }} ({{ $labels.instance }}): Hikari acquire p95 > 1s'
+            description: Time waiting for a connection from the pool is dominating request latency.
+
+    # ───────── JVM services — Garbage collection ─────────
+    - name: platform-jvm-gc
+      rules:
+        - alert: JvmGcPauseLong
+          # ZGC pauses are supposed to be < 1ms. > 500ms is a real
+          # stall (allocation stall / unloading / metaspace) and maps
+          # to multi-hundred-ms gaps inside `pipeline.controller`.
+          expr: |
+            histogram_quantile(0.95,
+              sum by (le, application, instance, cause) (
+                rate(jvm_gc_pause_seconds_bucket{application=~"auth-api|assistant-api"}[5m])
+              )
+            ) > 0.5
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: '{{ $labels.application }} ({{ $labels.instance }}): GC pause p95 > 500ms ({{ $labels.cause }})'
+            description: Overlay `gc.pause` spans in Tempo with the slow trace to confirm the gap is GC-driven.
