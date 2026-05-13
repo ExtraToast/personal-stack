@@ -175,6 +175,16 @@ path "database/creds/n8n" {
 path "database/creds/wolfmanager" {
   capabilities = ["read"]
 }
+
+# knowledge-system: deploy key for the private knowledge-vault repo
+# (read by the obsidian pod's init container) plus any future leaf
+# secrets owned by knowledge-system services (knowledge-api, the Python
+# ingest worker). Wildcard keeps future services from needing further
+# policy edits — VSO's namespace-scoped VaultStaticSecret resources
+# already gate which Pod actually sees the projected Secret.
+path "secret/data/knowledge-system/*" {
+  capabilities = ["read"]
+}
 EOF
 
 vault policy write auth-api /tmp/auth-api.hcl
@@ -237,7 +247,7 @@ vault write auth/kubernetes/role/stalwart-bootstrap \
 
 vault write auth/kubernetes/role/vso \
   bound_service_account_names="vault-secrets-operator" \
-  bound_service_account_namespaces="vso-system,cert-manager,external-dns,observability,automation-system,utility-system" \
+  bound_service_account_namespaces="vso-system,cert-manager,external-dns,observability,automation-system,utility-system,knowledge-system" \
   policies="vso" \
   ttl="1h"
 
