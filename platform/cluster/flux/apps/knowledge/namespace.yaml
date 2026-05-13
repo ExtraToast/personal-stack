@@ -2,5 +2,9 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: knowledge-system
-  labels:
-    pod-security.kubernetes.io/enforce: restricted
+  # No pod-security.kubernetes.io/enforce label: matches every other
+  # workload namespace in this cluster (automation-system, data-system,
+  # auth-system, …). The previous `restricted` label rejected the obsidian
+  # Deployment because the linuxserver/obsidian image needs to run a full
+  # X session as the abc user with normal capabilities, which can't be
+  # made to satisfy the `restricted` profile without forking the image.
