@@ -13,20 +13,20 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@grafana/faro-web-sdk": "^1.18.0",
-    "@grafana/faro-web-tracing": "^1.18.0",
+    "@grafana/faro-web-sdk": "^2.5.0",
+    "@grafana/faro-web-tracing": "^2.5.0",
     "pinia": "^3.0.4",
-    "vue": "^3.5.33",
+    "vue": "^3.5.34",
     "vue-router": "^5.0.6"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.6",
     "@vitest/coverage-v8": "^4.1.5",
-    "@vue/test-utils": "^2.4.9",
-    "jsdom": "^29.1.0",
+    "@vue/test-utils": "^2.4.10",
+    "jsdom": "^29.1.1",
     "typescript": "^6.0.3",
     "vite": "^8.0.10",
     "vitest": "^4.1.5",
-    "vue-tsc": "^3.2.7"
+    "vue-tsc": "^3.2.8"
   }
 }
