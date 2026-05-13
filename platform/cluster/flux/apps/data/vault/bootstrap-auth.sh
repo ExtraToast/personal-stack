@@ -176,6 +176,24 @@ path "database/creds/wolfmanager" {
   capabilities = ["read"]
 }
 
+# knowledge-api reads the shared Postgres kb_user/kb_password (still
+# colocated with the other service creds under platform/postgres so
+# rotations stay single-source) plus any future service-private leaf
+# secrets like the /mcp bearer-bypass token allow-list.
+EOF
+
+cat <<'EOF' >/tmp/knowledge-api.hcl
+path "secret/data/platform/postgres" {
+  capabilities = ["read"]
+}
+
+path "secret/data/knowledge-api" {
+  capabilities = ["read"]
+}
+EOF
+
+cat <<'EOF' >>/tmp/vso.hcl
+
 # knowledge-system: deploy key for the private knowledge-vault repo
 # (read by the obsidian pod's init container) plus any future leaf
 # secrets owned by knowledge-system services (knowledge-api, the Python
@@ -196,6 +214,7 @@ vault policy write downloads /tmp/downloads.hcl
 vault policy write stalwart /tmp/stalwart.hcl
 vault policy write stalwart-bootstrap /tmp/stalwart-bootstrap.hcl
 vault policy write vso /tmp/vso.hcl
+vault policy write knowledge-api /tmp/knowledge-api.hcl
 
 vault write auth/kubernetes/role/auth-api \
   bound_service_account_names="auth-api" \
@@ -249,6 +268,12 @@ vault write auth/kubernetes/role/vso \
   bound_service_account_names="vault-secrets-operator" \
   bound_service_account_namespaces="vso-system,cert-manager,external-dns,observability,automation-system,utility-system,knowledge-system" \
   policies="vso" \
+  ttl="1h"
+
+vault write auth/kubernetes/role/knowledge-api \
+  bound_service_account_names="knowledge-api" \
+  bound_service_account_namespaces="knowledge-system" \
+  policies="knowledge-api" \
   ttl="1h"
 
 # RabbitMQ dynamic secrets engine. Reconfigure the connection on every

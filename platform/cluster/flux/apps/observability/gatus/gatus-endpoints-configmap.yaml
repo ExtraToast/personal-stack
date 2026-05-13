@@ -199,6 +199,13 @@ data:
       conditions:
       - "[STATUS] == 200"
       - "[RESPONSE_TIME] < 1500"
+    - name: "knowledge-api"
+      group: "public-apps"
+      url: "http://knowledge-api.knowledge-system.svc.cluster.local:8080/api/actuator/health/readiness"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
     - name: "n8n"
       group: "public-apps"
       url: "https://n8n.jorisjonkers.dev/"

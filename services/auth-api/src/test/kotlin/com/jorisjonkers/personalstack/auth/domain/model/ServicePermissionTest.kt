@@ -33,6 +33,8 @@ class ServicePermissionTest {
         "wolf.jorisjonkers.test, WOLF",
         "obsidian.jorisjonkers.dev, OBSIDIAN",
         "obsidian.jorisjonkers.test, OBSIDIAN",
+        "kb.jorisjonkers.dev, KNOWLEDGE_API",
+        "kb.jorisjonkers.test, KNOWLEDGE_API",
     )
     fun `fromHost resolves production and local dev hostnames`(
         host: String,

@@ -168,6 +168,13 @@ export const SERVICE_REGISTRY: ServiceEntry[] = [
     iconUrl: '/icons/obsidian.svg',
     description: 'Knowledge-base editor',
   },
+  {
+    permission: 'KNOWLEDGE_API',
+    label: 'Knowledge API',
+    url: buildServiceUrl('kb', '/api/actuator/health'),
+    iconUrl: '/icons/knowledge-api.svg',
+    description: 'Knowledge-base MCP backend',
+  },
 ]
 
 export function getAccessibleServices(permissions: string[]): ServiceEntry[] {

@@ -178,6 +178,10 @@ service_intent:
       # plugins sync directly via Basic Auth — intentionally NOT
       # sso_protected (forward-auth would 302 the plugin's first request).
       - obsidian-sync
+      # Kotlin/Spring service that owns the provenance schema for the
+      # knowledge base. Phase 4a ships the actuator-only skeleton; the
+      # MCP transport + tools land in stacked follow-ups (4b, 4c).
+      - knowledge-api
     internal_platform:
       - postgres
       - rabbitmq
@@ -230,6 +234,7 @@ placement_intent:
     - headlamp
     - obsidian
     - obsidian-sync
+    - knowledge-api
 
   enschede_only:
     - downloads
@@ -271,6 +276,7 @@ exposure_intent:
     - faro
     - obsidian
     - obsidian-sync
+    - knowledge-api
 
   public_and_lan:
     - bazarr
@@ -310,6 +316,7 @@ access_intent:
     - adguard
     - wolf
     - obsidian
+    - knowledge-api
   host_labels:
     app-ui: root
     auth-ui: auth
@@ -341,6 +348,7 @@ access_intent:
     faro: faro
     obsidian: obsidian
     obsidian-sync: obsidian-sync
+    knowledge-api: kb
 
 ingress_intent:
   kubernetes_backends:
@@ -435,6 +443,13 @@ ingress_intent:
       # CouchDB's /_up returns 200 unauthenticated, ideal for probes.
       health:
         path: /_up
+    knowledge-api:
+      namespace: knowledge-system
+      service: knowledge-api
+      port: 8080
+      # Same actuator path as the other Spring services in the stack.
+      health:
+        path: /api/actuator/health/readiness
     prowlarr:
       namespace: media-system
       service: prowlarr

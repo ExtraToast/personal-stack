@@ -8,6 +8,7 @@ COPY build-logic/ build-logic/
 COPY libs/kotlin-common/build.gradle.kts libs/kotlin-common/
 COPY services/auth-api/build.gradle.kts services/auth-api/
 COPY services/assistant-api/build.gradle.kts services/assistant-api/
+COPY services/knowledge-api/build.gradle.kts services/knowledge-api/
 COPY services/system-tests/build.gradle.kts services/system-tests/
 
 # Resolve dependencies (cached unless build files change)
