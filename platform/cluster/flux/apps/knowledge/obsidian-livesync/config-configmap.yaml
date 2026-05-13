@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: obsidian-livesync-config
+  namespace: knowledge-system
+data:
+  # CouchDB drops these .ini files into /opt/couchdb/etc/local.d/ on
+  # startup. CORS settings come straight from the official self-hosted
+  # LiveSync setup guide; the three origins are mobile Obsidian (Capacitor),
+  # desktop Obsidian (custom app:// scheme), and a localhost fallback for
+  # the Obsidian community plugin dev port.
+  cors.ini: |
+    [chttpd]
+    enable_cors = true
+
+    [cors]
+    origins = app://obsidian.md, capacitor://localhost, http://localhost
+    credentials = true
+    methods = GET, PUT, POST, HEAD, DELETE
+    headers = accept, authorization, content-type, origin, referer, x-csrf-token, if-match, if-none-match
+
+  # Single-node mode — CouchDB defaults to clustered mode and refuses
+  # most operations until /_cluster_setup is finalised. This skips that
+  # entirely; we never need clustering for a personal-stack LiveSync.
+  single-node.ini: |
+    [couchdb]
+    single_node = true
+
+    [chttpd]
+    require_valid_user = true

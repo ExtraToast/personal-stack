@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: obsidian-livesync
+  namespace: knowledge-system
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: obsidian-livesync
+  namespace: knowledge-system
+spec:
+  selector:
+    app.kubernetes.io/name: obsidian-livesync
+  ports:
+    - name: http
+      port: 5984
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: obsidian-livesync
+  namespace: knowledge-system
+spec:
+  serviceName: obsidian-livesync
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: obsidian-livesync
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: obsidian-livesync
+    spec:
+      serviceAccountName: obsidian-livesync
+      # As with n8n/obsidian, suppress the auto-injected per-Service env
+      # vars — they collide with CouchDB's own COUCHDB_* names.
+      enableServiceLinks: false
+      nodeSelector:
+        personal-stack/site: frankfurt
+      containers:
+        - name: couchdb
+          image: couchdb:3.4
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            # COUCHDB_USER + COUCHDB_PASSWORD projected by VSO from
+            # secret/data/knowledge-system/obsidian-livesync.
+            - secretRef:
+                name: obsidian-livesync-creds
+          env:
+            # CouchDB needs a cluster-cookie secret even in single-node;
+            # any stable string works since we never form a cluster.
+            - name: ERL_FLAGS
+              value: '-setcookie obsidian-livesync-single-node'
+          ports:
+            - containerPort: 5984
+              name: http
+          volumeMounts:
+            - name: data
+              mountPath: /opt/couchdb/data
+            - name: config
+              mountPath: /opt/couchdb/etc/local.d/cors.ini
+              subPath: cors.ini
+              readOnly: true
+            - name: config
+              mountPath: /opt/couchdb/etc/local.d/single-node.ini
+              subPath: single-node.ini
+              readOnly: true
+          startupProbe:
+            httpGet:
+              path: /_up
+              port: http
+            failureThreshold: 30
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /_up
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /_up
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+      volumes:
+        - name: config
+          configMap:
+            name: obsidian-livesync-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
