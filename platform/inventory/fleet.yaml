@@ -315,7 +315,14 @@ access_intent:
     - headlamp
     - adguard
     - wolf
-    - obsidian
+    # `obsidian` intentionally absent — the linuxserver/obsidian image
+    # streams the UI through Selkies (WebRTC over a `/ws` WebSocket).
+    # forward-auth 302s the WS upgrade to auth-ui and the browser
+    # cannot follow the redirect mid-handshake, so the session stalls
+    # at a blank screen. The pod runs Selkies in
+    # BASIC_AUTH_USER/PASSWORD mode (creds from the `obsidian-selkies`
+    # VSO Secret) instead — Basic Auth survives WS upgrades and is
+    # the only gate the public ingress applies.
     - knowledge-api
   host_labels:
     app-ui: root
@@ -436,6 +443,13 @@ ingress_intent:
       namespace: knowledge-system
       service: obsidian
       port: 3000
+      # Selkies fronts every endpoint with HTTP Basic Auth (creds from
+      # the `obsidian-selkies` VSO Secret). An unauthenticated probe is
+      # supposed to get 401 — that's the healthy signal here.
+      # `expected_status: 401` tells Gatus to flip green on 401 instead
+      # of treating it as a failure.
+      health:
+        expected_status: 401
     obsidian-sync:
       namespace: knowledge-system
       service: obsidian-livesync

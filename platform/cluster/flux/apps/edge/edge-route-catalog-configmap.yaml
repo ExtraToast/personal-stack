@@ -104,7 +104,7 @@ data:
     - name: "obsidian"
       service: "obsidian"
       host: "obsidian.jorisjonkers.dev"
-      access: "sso_protected"
+      access: "direct"
     - name: "obsidian-sync"
       service: "obsidian-sync"
       host: "obsidian-sync.jorisjonkers.dev"
