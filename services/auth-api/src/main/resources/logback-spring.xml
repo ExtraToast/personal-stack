@@ -7,8 +7,16 @@
     <!-- Production: structured JSON logging for Grafana Loki ingestion -->
     <appender name="JSON_STDOUT" class="ch.qos.logback.core.ConsoleAppender">
       <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-        <includeMdcKeyName>traceId</includeMdcKeyName>
-        <includeMdcKeyName>spanId</includeMdcKeyName>
+        <!-- OTel Java agent's logback-mdc instrumentation injects
+             these snake_case keys into MDC for every log call inside a
+             traced request. The historical Sleuth convention was
+             camelCase (traceId/spanId); the agent uses OTel-standard
+             snake_case (trace_id/span_id/trace_flags). The encoder
+             surfaces them as top-level JSON fields, which Loki's
+             derivedFields can then turn into clickable trace links. -->
+        <includeMdcKeyName>trace_id</includeMdcKeyName>
+        <includeMdcKeyName>span_id</includeMdcKeyName>
+        <includeMdcKeyName>trace_flags</includeMdcKeyName>
         <customFields>{"service":"auth-api","service.name":"auth-api","service.version":"${serviceVersion}","deployment.environment":"${deploymentEnvironment}"}</customFields>
       </encoder>
     </appender>

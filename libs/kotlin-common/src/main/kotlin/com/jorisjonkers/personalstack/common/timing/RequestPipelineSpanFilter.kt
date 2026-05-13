@@ -1,5 +1,6 @@
 package com.jorisjonkers.personalstack.common.timing
 
+import io.opentelemetry.api.common.AttributeKey
 import io.opentelemetry.api.trace.Span
 import io.opentelemetry.api.trace.Tracer
 import io.opentelemetry.context.Context
@@ -57,12 +58,13 @@ class RequestPipelineSpanFilter(
         try {
             filterChain.doFilter(request, response)
         } finally {
-            emitPipelineSpans(request, requestStart, Instant.now())
+            emitPipelineSpans(request, response, requestStart, Instant.now())
         }
     }
 
     private fun emitPipelineSpans(
         request: HttpServletRequest,
+        response: HttpServletResponse,
         requestStart: Instant,
         requestEnd: Instant,
     ) {
@@ -75,16 +77,42 @@ class RequestPipelineSpanFilter(
         val handlerEnd =
             request.getAttribute(RequestTimingAttributes.HANDLER_END_INSTANT) as? Instant
         val parent = Context.current()
+        val attrs = requestAttributes(request, response)
 
-        emitSpan("pipeline.security-chain", requestStart, securityChainEnd, parent)
-        emitSpan("pipeline.handler-dispatch", securityChainEnd, handlerStart, parent)
+        emitSpan("pipeline.security-chain", requestStart, securityChainEnd, parent, attrs)
+        emitSpan("pipeline.handler-dispatch", securityChainEnd, handlerStart, parent, attrs)
         if (handlerInvoked != null) {
-            emitSpan("pipeline.controller", handlerStart, handlerInvoked, parent)
-            emitSpan("pipeline.view-render", handlerInvoked, handlerEnd, parent)
+            emitSpan("pipeline.controller", handlerStart, handlerInvoked, parent, attrs)
+            emitSpan("pipeline.view-render", handlerInvoked, handlerEnd, parent, attrs)
         } else {
-            emitSpan("pipeline.handler", handlerStart, handlerEnd, parent)
+            emitSpan("pipeline.handler", handlerStart, handlerEnd, parent, attrs)
         }
-        emitSpan("pipeline.response-finalize", handlerEnd, requestEnd, parent)
+        emitSpan("pipeline.response-finalize", handlerEnd, requestEnd, parent, attrs)
+    }
+
+    /**
+     * Snapshot the request/response attributes that should be copied onto
+     * every pipeline child span. The agent's SERVER span already carries
+     * these, but Tempo's span-derived metrics generator can only slice by
+     * dimensions present on the *child* span, so attaching them here is
+     * what makes `pipeline.controller` filterable by `http.route` etc.
+     *
+     * `http.route` is set by Spring MVC after handler-mapping resolves;
+     * if the request hasn't been mapped yet (e.g. emitted on the way out
+     * of a security filter that rejected it), it falls back to the path.
+     */
+    private fun requestAttributes(
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+    ): Map<String, Any> {
+        val route =
+            request.getAttribute(HANDLER_MAPPING_BEST_MATCHING_PATTERN_ATTRIBUTE) as? String
+                ?: request.requestURI
+        return buildMap(MAX_ATTRS) {
+            put("http.method", request.method ?: "")
+            put("http.route", route ?: "")
+            put("http.status_code", response.status.toLong())
+        }
     }
 
     private fun emitSpan(
@@ -92,6 +120,7 @@ class RequestPipelineSpanFilter(
         start: Instant?,
         end: Instant?,
         parent: Context,
+        attrs: Map<String, Any>,
     ) {
         if (start == null || end == null || !end.isAfter(start)) return
         val span: Span =
@@ -100,6 +129,22 @@ class RequestPipelineSpanFilter(
                 .setParent(parent)
                 .setStartTimestamp(start)
                 .startSpan()
+        for ((k, v) in attrs) {
+            when (v) {
+                is Long -> span.setAttribute(AttributeKey.longKey(k), v)
+                is String -> if (v.isNotEmpty()) span.setAttribute(AttributeKey.stringKey(k), v)
+            }
+        }
         span.end(end)
+    }
+
+    private companion object {
+        // Spring MVC stores the best-matching @RequestMapping pattern
+        // under this request attribute after HandlerMapping resolves
+        // the request. Equivalent to HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE
+        // without dragging spring-webmvc into this filter's compile path.
+        private const val HANDLER_MAPPING_BEST_MATCHING_PATTERN_ATTRIBUTE =
+            "org.springframework.web.servlet.HandlerMapping.bestMatchingPattern"
+        private const val MAX_ATTRS = 4
     }
 }
