@@ -92,6 +92,19 @@ spec:
           # works fine. Linuxserver publishes the same image to both.
           image: linuxserver/obsidian:latest
           imagePullPolicy: IfNotPresent
+          # Selkies' WebSocket data channel (`/ws`) cannot pass through
+          # forward-auth — the upgrade gets 302'd to the auth-ui and
+          # the browser can't follow a redirect during the WS
+          # handshake, so the session stalls at a blank screen.
+          # `BASIC_AUTH_USER` / `BASIC_AUTH_PASSWORD` come from the
+          # `obsidian-selkies` Secret (projected by VSO from Vault)
+          # and switch the image into self-auth mode: every endpoint
+          # including `/ws` requires HTTP Basic Auth, which browsers
+          # send automatically on same-origin requests. The IngressRoute
+          # drops the forward-auth middleware in tandem.
+          envFrom:
+            - secretRef:
+                name: obsidian-selkies
           env:
             - name: PUID
               value: '1000'

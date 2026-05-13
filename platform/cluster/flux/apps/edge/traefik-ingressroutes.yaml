@@ -409,9 +409,6 @@ spec:
   routes:
     - kind: Rule
       match: 'Host(`obsidian.jorisjonkers.dev`)'
-      middlewares:
-        - name: forward-auth
-          namespace: edge-system
       services:
         - name: obsidian
           namespace: knowledge-system

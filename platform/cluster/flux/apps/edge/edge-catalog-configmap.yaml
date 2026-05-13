@@ -83,7 +83,7 @@ data:
       host: "n8n.jorisjonkers.dev"
     - name: "obsidian"
       exposure: "public"
-      access: "sso_protected"
+      access: "direct"
       host: "obsidian.jorisjonkers.dev"
     - name: "obsidian-sync"
       exposure: "public"

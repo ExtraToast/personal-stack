@@ -215,10 +215,10 @@ data:
       - "[RESPONSE_TIME] < 1500"
     - name: "obsidian"
       group: "public-apps"
-      url: "http://obsidian.knowledge-system.svc.cluster.local:3000/"
+      url: "https://obsidian.jorisjonkers.dev/"
       interval: "60s"
       conditions:
-      - "[STATUS] == 200"
+      - "[STATUS] == 401"
       - "[RESPONSE_TIME] < 1500"
     - name: "obsidian-sync"
       group: "public-apps"
