@@ -81,7 +81,16 @@ class PlatformN8nFluxTest {
             .contains("subPath: hooks.js")
             .contains("containerPort: 5678")
             .contains("path: /healthz")
-            .contains("personal-stack/site: frankfurt")
+            // RWO PVC + local-path provisioner pins the PV to whichever
+            // node first bound it (frankfurt-contabo-1). The pod's
+            // nodeSelector must match that exact hostname or the rollout
+            // gets stuck Pending with the previous pod still running on
+            // stale dynamic DB credentials. Asserting on
+            // `kubernetes.io/hostname` (and not a broader label like
+            // arch=arm64) catches the regression that produced the
+            // `password authentication failed for user v-kubernet-n8n-...`
+            // incident.
+            .contains("kubernetes.io/hostname: frankfurt-contabo-1")
             .contains("kind: Service")
             .contains("name: n8n")
             .contains("port: 5678")

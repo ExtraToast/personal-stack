@@ -39,14 +39,23 @@ spec:
       enableServiceLinks: false
       securityContext:
         fsGroup: 1000
-      # Moved off Frankfurt (chronically 90% CPU requested) onto a Pi.
-      # n8n's image is published multi-arch on Docker Hub. The hot
-      # path is workflow execution, which mostly fans out to external
-      # HTTP endpoints — the cross-site Postgres calls (~30 ms each)
-      # add up only for write-heavy workflows; for typical webhook
-      # → API → response loops it's invisible.
+      # The `n8n-data` PVC uses the cluster's default local-path
+      # provisioner, so the underlying PV pins to whichever node first
+      # bound it (frankfurt-contabo-1 — see
+      # `kubectl get pv $(kubectl get pvc -n automation-system n8n-data \
+      #   -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.nodeAffinity}'`).
+      # Pinning the pod to that same node is what keeps RWO scheduling
+      # honest. An earlier attempt set `kubernetes.io/arch: arm64` to
+      # move n8n onto a Pi, but the PV stayed on Frankfurt; rolling
+      # updates then got stuck in Pending with
+      # "didn't match PersistentVolume's node affinity" while the
+      # previous pod kept running on stale dynamic DB credentials,
+      # producing `password authentication failed for user
+      # v-kubernet-n8n-...` on every Vault rotation. Cross-site Pi
+      # migration needs explicit PV data migration first; pin to the
+      # bound node until then.
       nodeSelector:
-        kubernetes.io/arch: arm64
+        kubernetes.io/hostname: frankfurt-contabo-1
       containers:
         - name: n8n
           image: n8nio/n8n:2.13.4
