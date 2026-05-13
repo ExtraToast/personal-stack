@@ -174,6 +174,10 @@ service_intent:
       # private knowledge-vault repo; the pod clones via a read-only deploy
       # key stored in Vault at secret/data/knowledge-system/vault-deploy-key.
       - obsidian
+      # CouchDB-backed Obsidian LiveSync server. Desktop/mobile Obsidian
+      # plugins sync directly via Basic Auth — intentionally NOT
+      # sso_protected (forward-auth would 302 the plugin's first request).
+      - obsidian-sync
     internal_platform:
       - postgres
       - rabbitmq
@@ -225,6 +229,7 @@ placement_intent:
     - vault
     - headlamp
     - obsidian
+    - obsidian-sync
 
   enschede_only:
     - downloads
@@ -265,6 +270,7 @@ exposure_intent:
     - wolf
     - faro
     - obsidian
+    - obsidian-sync
 
   public_and_lan:
     - bazarr
@@ -334,6 +340,7 @@ access_intent:
     # a SPA loaded; forward-auth would 302 those to the login page.
     faro: faro
     obsidian: obsidian
+    obsidian-sync: obsidian-sync
 
 ingress_intent:
   kubernetes_backends:
@@ -421,6 +428,13 @@ ingress_intent:
       namespace: knowledge-system
       service: obsidian
       port: 3000
+    obsidian-sync:
+      namespace: knowledge-system
+      service: obsidian-livesync
+      port: 5984
+      # CouchDB's /_up returns 200 unauthenticated, ideal for probes.
+      health:
+        path: /_up
     prowlarr:
       namespace: media-system
       service: prowlarr

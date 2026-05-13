@@ -213,6 +213,13 @@ data:
       conditions:
       - "[STATUS] == 200"
       - "[RESPONSE_TIME] < 1500"
+    - name: "obsidian-sync"
+      group: "public-apps"
+      url: "https://obsidian-sync.jorisjonkers.dev/_up"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
     - name: "stalwart"
       group: "public-apps"
       url: "http://stalwart.mail-system.svc.cluster.local:8080/"
