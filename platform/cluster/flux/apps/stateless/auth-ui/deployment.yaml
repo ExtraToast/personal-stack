@@ -9,7 +9,7 @@ metadata:
     keel.sh/trigger: poll
     keel.sh/pollSchedule: '@every 2m'
 spec:
-  replicas: 2
+  replicas: 1
   # nginx pods, ~10–20Mi RAM each — surge=1 maxUnavailable=0 gives
   # true zero-downtime rollouts. The new pod becomes Ready before the
   # old one terminates, so the Service load-balancer routes are never

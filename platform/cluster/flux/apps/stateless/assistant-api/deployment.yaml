@@ -21,7 +21,7 @@ spec:
   # the Deployment is Available with 1 of 2 (maxUnavailable=1) and
   # rollouts replace one at a time so a new image cutover never
   # leaves zero pods serving.
-  replicas: 2
+  replicas: 1
   progressDeadlineSeconds: 1800
   strategy:
     type: RollingUpdate
