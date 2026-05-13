@@ -172,12 +172,18 @@ spec:
               value: https://jorisjonkers.dev,https://auth.jorisjonkers.dev,https://assistant.jorisjonkers.dev,https://vault.jorisjonkers.dev,https://n8n.jorisjonkers.dev,https://grafana.jorisjonkers.dev,https://dashboard.jorisjonkers.dev,https://rabbitmq.jorisjonkers.dev,https://status.jorisjonkers.dev
             - name: DEPLOYMENT_ENVIRONMENT
               value: production
-            - name: SERVICE_VERSION
-              value: latest
+            # SERVICE_VERSION is baked into the image by the build pipeline
+            # (Dockerfile `ARG GIT_SHA` → `ENV SERVICE_VERSION`). Do not
+            # re-declare it here — a manifest env var overrides the image
+            # ENV, which would put `service.version=latest` back on every
+            # span and log line and hide build-to-build regressions.
             - name: OTEL_SERVICE_NAME
               value: auth-api
-            - name: OTEL_RESOURCE_ATTRIBUTES
-              value: deployment.environment=production,service.version=latest
+            # entrypoint.sh composes OTEL_RESOURCE_ATTRIBUTES from
+            # SERVICE_VERSION (image-baked) and DEPLOYMENT_ENVIRONMENT
+            # (above). Setting it here would shadow that — only set if
+            # you need to add extra ad-hoc attributes for the entrypoint
+            # to append to.
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://alloy.observability.svc.cluster.local:4318
             - name: OTEL_EXPORTER_OTLP_PROTOCOL

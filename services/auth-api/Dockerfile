@@ -64,7 +64,17 @@ ENTRYPOINT ["java", \
 
 FROM bellsoft/liberica-runtime-container:jdk-21-crac-slim-glibc
 WORKDIR /app
+# Build-time identity. Passed by the workflow as `--build-arg GIT_SHA=${{ github.sha }}`.
+# The resulting ENV is baked into the image and surfaces to:
+#   - logback-spring.xml's `serviceVersion` property (top-level
+#     `service.version` JSON field on every log line)
+#   - entrypoint.sh's OTEL_RESOURCE_ATTRIBUTES composition (the
+#     OTel agent's `service.version` resource attribute, which Tempo
+#     exposes as a span_metrics dimension)
+ARG GIT_SHA=unknown
+ENV SERVICE_VERSION=${GIT_SHA}
 COPY --from=build /app/services/auth-api/build/libs/*.jar app.jar
 COPY --from=otel /otel-javaagent.jar otel-javaagent.jar
+COPY services/auth-api/entrypoint.sh /app/entrypoint.sh
 EXPOSE 8081
-ENTRYPOINT ["java", "-javaagent:otel-javaagent.jar", "-jar", "app.jar"]
+ENTRYPOINT ["/app/entrypoint.sh", "-javaagent:otel-javaagent.jar", "-jar", "app.jar"]

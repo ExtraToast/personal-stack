@@ -112,12 +112,12 @@ spec:
               value: '5672'
             - name: DEPLOYMENT_ENVIRONMENT
               value: production
-            - name: SERVICE_VERSION
-              value: latest
+            # SERVICE_VERSION is baked into the image by the build pipeline.
+            # See auth-api deployment.yaml for the rationale.
             - name: OTEL_SERVICE_NAME
               value: assistant-api
-            - name: OTEL_RESOURCE_ATTRIBUTES
-              value: deployment.environment=production,service.version=latest
+            # entrypoint.sh composes OTEL_RESOURCE_ATTRIBUTES from
+            # SERVICE_VERSION + DEPLOYMENT_ENVIRONMENT at container start.
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://alloy.observability.svc.cluster.local:4318
             - name: OTEL_EXPORTER_OTLP_PROTOCOL
