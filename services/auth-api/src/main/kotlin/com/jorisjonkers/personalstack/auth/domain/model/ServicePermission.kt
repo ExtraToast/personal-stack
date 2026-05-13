@@ -49,6 +49,12 @@ enum class ServicePermission(
     // obsidian.jorisjonkers.dev. Edits the same knowledge-vault repo the
     // ingest worker writes canonical notes into.
     OBSIDIAN("obsidian"),
+
+    // knowledge-api Kotlin/Spring service at kb.jorisjonkers.dev. Phase 4a
+    // ships the actuator-only skeleton; the MCP transport + tools land in
+    // stacked follow-ups (4b adds /mcp + bearer-bypass middleware, 4c adds
+    // the actual recall/lesson/decision tools).
+    KNOWLEDGE_API("kb"),
     ;
 
     val subdomains: Set<String> = subdomains.toSet()
