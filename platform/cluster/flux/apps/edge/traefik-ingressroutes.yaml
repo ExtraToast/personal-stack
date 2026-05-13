@@ -363,10 +363,31 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: 'Host(`kb.jorisjonkers.dev`)'
+      match: 'Host(`kb.jorisjonkers.dev`) && !PathPrefix(`/mcp/`) && !Path(`/mcp`)'
       middlewares:
         - name: forward-auth
           namespace: edge-system
+      services:
+        - name: knowledge-api
+          namespace: knowledge-system
+          port: 8080
+  tls: {}
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: knowledge-api-mcp
+  namespace: edge-system
+  annotations:
+    external-dns.alpha.kubernetes.io/target: ingress.jorisjonkers.dev
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: 'true'
+    kubernetes.io/ingress.class: traefik-public
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: 'Host(`kb.jorisjonkers.dev`) && (PathPrefix(`/mcp/`) || Path(`/mcp`))'
       services:
         - name: knowledge-api
           namespace: knowledge-system

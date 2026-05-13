@@ -97,6 +97,18 @@ data:
       service: "knowledge-api"
       host: "kb.jorisjonkers.dev"
       access: "sso_protected"
+      excluded_path_prefixes:
+      - "/mcp/"
+      excluded_paths:
+      - "/mcp"
+    - name: "knowledge-api-mcp"
+      service: "knowledge-api"
+      host: "kb.jorisjonkers.dev"
+      access: "direct"
+      path_prefixes:
+      - "/mcp/"
+      exact_paths:
+      - "/mcp"
     - name: "n8n"
       service: "n8n"
       host: "n8n.jorisjonkers.dev"

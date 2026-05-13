@@ -262,6 +262,7 @@ private fun PlatformFleet.toEdgeRouteCatalog(): EdgeRouteCatalog {
             "auth-ui",
             "assistant-api",
             "assistant-ui",
+            "knowledge-api",
         )
 
     val routes =
@@ -311,6 +312,30 @@ private fun PlatformFleet.toEdgeRouteCatalog(): EdgeRouteCatalog {
                 add(
                     assistantUi.toRoute(
                         excludedPathPrefixes = listOf("/api/"),
+                    ),
+                )
+            }
+
+            externalServices["knowledge-api"]?.let { knowledgeApi ->
+                // `/mcp` and everything under `/mcp/` are reachable by
+                // bearer-token auth only — McpBearerFilter inside the
+                // service is the gate. Forward-auth would 401 every CLI
+                // / SDK request that doesn't carry an SSO cookie, so the
+                // route is rendered as `access = direct` (no
+                // middleware) and the rest of the host stays
+                // sso_protected for the browser surface.
+                add(
+                    knowledgeApi.toRoute(
+                        name = "knowledge-api-mcp",
+                        access = "direct",
+                        exactPaths = listOf("/mcp"),
+                        pathPrefixes = listOf("/mcp/"),
+                    ),
+                )
+                add(
+                    knowledgeApi.toRoute(
+                        excludedPaths = listOf("/mcp"),
+                        excludedPathPrefixes = listOf("/mcp/"),
                     ),
                 )
             }
