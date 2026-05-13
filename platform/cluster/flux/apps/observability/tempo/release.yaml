@@ -40,7 +40,18 @@ spec:
           local_blocks:
             flush_to_storage: true
           service_graphs: {}
-          span_metrics: {}
+          span_metrics:
+            # Extra dimensions on the generated `traces_spanmetrics_*`
+            # series. By default Tempo only emits per-(service, span_name)
+            # buckets; adding these makes every pipeline.* span sliceable
+            # by route/method/status in Grafana panels, which is the
+            # backbone of the per-endpoint dashboard.
+            dimensions:
+              - http.method
+              - http.route
+              - http.status_code
+              - k8s.pod.name
+              - service.version
         storage:
           path: /var/tempo/generator/wal
         traces_storage:

@@ -110,6 +110,48 @@ class RequestPipelineSpanFilterTest {
     }
 
     @Test
+    fun `every emitted span carries http_method http_route and http_status_code attributes`() {
+        val request =
+            MockHttpServletRequest("GET", "/api/v1/auth/me").apply {
+                setAttribute(
+                    "org.springframework.web.servlet.HandlerMapping.bestMatchingPattern",
+                    "/api/v1/auth/me",
+                )
+            }
+        val response = MockHttpServletResponse().apply { status = 200 }
+        val populatingChain =
+            FilterChain { req: ServletRequest, _: ServletResponse ->
+                val t = Instant.now()
+                req.setAttribute(RequestTimingAttributes.SECURITY_CHAIN_END_INSTANT, t.plusNanos(1_000))
+                req.setAttribute(RequestTimingAttributes.HANDLER_START_INSTANT, t.plusNanos(2_000))
+                req.setAttribute(RequestTimingAttributes.HANDLER_INVOKED_INSTANT, t.plusNanos(3_000))
+                req.setAttribute(RequestTimingAttributes.HANDLER_END_INSTANT, t.plusNanos(4_000))
+                Thread.sleep(5)
+            }
+
+        filter.doFilter(request, response, populatingChain)
+
+        // Tempo's metrics-generator can only slice by attributes present
+        // on the child span; if these aren't on every pipeline.* span,
+        // span-derived RED metrics per route are impossible.
+        assertThat(spans.finishedSpanItems).isNotEmpty()
+        val methodKey =
+            io.opentelemetry.api.common.AttributeKey
+                .stringKey("http.method")
+        val routeKey =
+            io.opentelemetry.api.common.AttributeKey
+                .stringKey("http.route")
+        val statusKey =
+            io.opentelemetry.api.common.AttributeKey
+                .longKey("http.status_code")
+        spans.finishedSpanItems.forEach { span ->
+            assertThat(span.attributes.asMap()).containsEntry(methodKey, "GET")
+            assertThat(span.attributes.asMap()).containsEntry(routeKey, "/api/v1/auth/me")
+            assertThat(span.attributes.asMap()).containsEntry(statusKey, 200L)
+        }
+    }
+
+    @Test
     fun `still emits spans when the chain throws`() {
         val request = MockHttpServletRequest("GET", "/api/v1/auth/me")
         val response = MockHttpServletResponse()
