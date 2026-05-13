@@ -25,6 +25,7 @@ resources:
   - slo-burn-rate.yaml
   - spring-boot-2.1.yaml
   - spring-boot-jvm.yaml
+  - spring-service-endpoints.yaml
   - stalwart.yaml
   - tempo-operational.yaml
   - tempo-traces.yaml
