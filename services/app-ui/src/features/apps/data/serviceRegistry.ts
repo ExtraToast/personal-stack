@@ -161,6 +161,13 @@ export const SERVICE_REGISTRY: ServiceEntry[] = [
     iconUrl: '/icons/wolf.svg',
     description: 'Game streaming control',
   },
+  {
+    permission: 'OBSIDIAN',
+    label: 'Obsidian',
+    url: buildServiceUrl('obsidian'),
+    iconUrl: '/icons/obsidian.svg',
+    description: 'Knowledge-base editor',
+  },
 ]
 
 export function getAccessibleServices(permissions: string[]): ServiceEntry[] {

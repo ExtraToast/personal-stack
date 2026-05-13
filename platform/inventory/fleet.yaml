@@ -170,6 +170,10 @@ service_intent:
       # existing Alloy DaemonSet — no separate workload, just an ingress
       # path so the SPAs can POST traces to faro.jorisjonkers.dev/v1/traces.
       - faro
+      # Browser-Obsidian (linuxserver/obsidian via Selkies). Edits the
+      # private knowledge-vault repo; the pod clones via a read-only deploy
+      # key stored in Vault at secret/data/knowledge-system/vault-deploy-key.
+      - obsidian
     internal_platform:
       - postgres
       - rabbitmq
@@ -220,6 +224,7 @@ placement_intent:
     - gatus
     - vault
     - headlamp
+    - obsidian
 
   enschede_only:
     - downloads
@@ -259,6 +264,7 @@ exposure_intent:
     - adguard
     - wolf
     - faro
+    - obsidian
 
   public_and_lan:
     - bazarr
@@ -297,6 +303,7 @@ access_intent:
     - headlamp
     - adguard
     - wolf
+    - obsidian
   host_labels:
     app-ui: root
     auth-ui: auth
@@ -326,6 +333,7 @@ access_intent:
     # browser fires `OPTIONS /v1/traces` pre-flights from any user with
     # a SPA loaded; forward-auth would 302 those to the login page.
     faro: faro
+    obsidian: obsidian
 
 ingress_intent:
   kubernetes_backends:
@@ -409,6 +417,10 @@ ingress_intent:
       namespace: automation-system
       service: n8n
       port: 5678
+    obsidian:
+      namespace: knowledge-system
+      service: obsidian
+      port: 3000
     prowlarr:
       namespace: media-system
       service: prowlarr

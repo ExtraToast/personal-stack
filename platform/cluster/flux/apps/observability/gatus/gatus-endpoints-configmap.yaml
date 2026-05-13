@@ -206,6 +206,13 @@ data:
       conditions:
       - "[STATUS] == 200"
       - "[RESPONSE_TIME] < 1500"
+    - name: "obsidian"
+      group: "public-apps"
+      url: "http://obsidian.knowledge-system.svc.cluster.local:3000/"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
     - name: "stalwart"
       group: "public-apps"
       url: "http://stalwart.mail-system.svc.cluster.local:8080/"
