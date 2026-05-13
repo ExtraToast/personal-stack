@@ -203,6 +203,14 @@ cat <<'EOF' >>/tmp/vso.hcl
 path "secret/data/knowledge-system/*" {
   capabilities = ["read"]
 }
+
+# media-system: immich projects its postgres password through a
+# VaultStaticSecret reading secret/data/platform/media/immich-postgres.
+# Wildcarded so future media leaf secrets (jellyfin, etc.) don't
+# require further policy edits.
+path "secret/data/platform/media/*" {
+  capabilities = ["read"]
+}
 EOF
 
 vault policy write auth-api /tmp/auth-api.hcl
@@ -266,7 +274,7 @@ vault write auth/kubernetes/role/stalwart-bootstrap \
 
 vault write auth/kubernetes/role/vso \
   bound_service_account_names="vault-secrets-operator" \
-  bound_service_account_namespaces="vso-system,cert-manager,external-dns,observability,automation-system,utility-system,knowledge-system" \
+  bound_service_account_namespaces="vso-system,cert-manager,external-dns,observability,automation-system,utility-system,knowledge-system,data-system,media-system" \
   policies="vso" \
   ttl="1h"
 
