@@ -166,7 +166,14 @@ jobs:
           file: ${{ matrix.service.dockerfile }}
           push: true
           platforms: ${{ matrix.service.platforms }}
-          build-args: ${{ matrix.service.build_arg }}
+          # `GIT_SHA` is always passed so the runtime image can bake
+          # it into `ENV SERVICE_VERSION`. Each service's per-matrix
+          # `build_arg` is appended on a second line so an entry that
+          # wants additional args still works (docker/build-push-action
+          # accepts newline-separated KEY=VALUE pairs).
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            ${{ matrix.service.build_arg }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:${{ github.sha }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:latest

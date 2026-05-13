@@ -53,7 +53,11 @@ ENTRYPOINT ["java", \
 
 FROM bellsoft/liberica-runtime-container:jdk-21-crac-slim-glibc
 WORKDIR /app
+# Build-time identity (see services/auth-api/Dockerfile for rationale).
+ARG GIT_SHA=unknown
+ENV SERVICE_VERSION=${GIT_SHA}
 COPY --from=build /app/services/assistant-api/build/libs/*.jar app.jar
 COPY --from=otel /otel-javaagent.jar otel-javaagent.jar
+COPY services/assistant-api/entrypoint.sh /app/entrypoint.sh
 EXPOSE 8082
-ENTRYPOINT ["java", "-javaagent:otel-javaagent.jar", "-jar", "app.jar"]
+ENTRYPOINT ["/app/entrypoint.sh", "-javaagent:otel-javaagent.jar", "-jar", "app.jar"]
