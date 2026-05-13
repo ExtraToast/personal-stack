@@ -7,5 +7,139 @@ spec:
   folder: 'JVM'
   resyncPeriod: 24h
   instanceSelector: { matchLabels: { dashboards: grafana } }
+  # JVM internals view for any Spring Boot service in the stack.
+  #
+  # Previously every panel filtered on `job=~"$job"`, but the actual
+  # series exposed by Spring Boot + Micrometer use the `application`
+  # tag (jvm_*, hikaricp_*, logback_events_*) — `job` only existed if
+  # someone configured Prometheus to relabel the scrape job. With the
+  # ServiceMonitor-based scrape we use, `job` is the K8s Service name
+  # (e.g. `auth-api-actuator`), not the application name. Every panel
+  # was returning empty. This dashboard now filters on `application`.
+  #
+  # Adds:
+  #   - service.version variable so each panel can be sliced by build,
+  #     not just by service name.
+  #   - GC pause histogram (was avg-only; long-tail pauses invisible).
+  #   - Per-pod splits via `instance` for the heap and pause panels —
+  #     two pods of one service can diverge wildly, the previous
+  #     dashboard averaged that away.
   json: |
-    {"uid":"spring-boot-jvm","title":"Spring Boot / JVM","tags":["spring-boot","jvm"],"timezone":"browser","editable":false,"refresh":"30s","time":{"from":"now-1h","to":"now"},"templating":{"list":[{"name":"job","type":"query","datasource":{"type":"prometheus","uid":"prometheus"},"query":"label_values(jvm_memory_used_bytes, job)","includeAll":true,"multi":true,"current":{"text":"All","value":"$__all"},"refresh":2}]},"panels":[{"id":1,"title":"Heap Used vs Max","type":"timeseries","gridPos":{"h":8,"w":12,"x":0,"y":0},"targets":[{"expr":"sum by(job)(jvm_memory_used_bytes{job=~\"$job\", area=\"heap\"})","legendFormat":"{{job}} used"},{"expr":"max by(job)(jvm_memory_max_bytes{job=~\"$job\", area=\"heap\"})","legendFormat":"{{job}} max"}],"fieldConfig":{"defaults":{"unit":"bytes","custom":{"drawStyle":"line","fillOpacity":10,"lineWidth":2}}},"datasource":{"type":"prometheus","uid":"prometheus"}},{"id":2,"title":"Non-Heap Used","type":"timeseries","gridPos":{"h":8,"w":12,"x":12,"y":0},"targets":[{"expr":"sum by(job, id)(jvm_memory_used_bytes{job=~\"$job\", area=\"nonheap\"})","legendFormat":"{{job}} - {{id}}"}],"fieldConfig":{"defaults":{"unit":"bytes","custom":{"drawStyle":"line","fillOpacity":10,"lineWidth":2}}},"datasource":{"type":"prometheus","uid":"prometheus"}},{"id":3,"title":"Memory by Pool","type":"timeseries","gridPos":{"h":8,"w":12,"x":0,"y":8},"targets":[{"expr":"sum by(job, area, id)(jvm_memory_used_bytes{job=~\"$job\"})","legendFormat":"{{job}} {{area}}/{{id}}"}],"fieldConfig":{"defaults":{"unit":"bytes","custom":{"drawStyle":"line","fillOpacity":20,"stacking":{"mode":"normal"}}}},"datasource":{"type":"prometheus","uid":"prometheus"}},{"id":4,"title":"Buffer Pool Memory","type":"timeseries","gridPos":{"h":8,"w":12,"x":12,"y":8},"targets":[{"expr":"sum by(job, id)(jvm_buffer_memory_used_bytes{job=~\"$job\"})","legendFormat":"{{job}} - {{id}}"}],"fieldConfig":{"defaults":{"unit":"bytes","custom":{"drawStyle":"line","fillOpacity":10,"lineWidth":2}}},"datasource":{"type":"prometheus","uid":"prometheus"}},{"id":5,"title":"GC Pause Duration (avg)","type":"timeseries","gridPos":{"h":8,"w":12,"x":0,"y":16},"targets":[{"expr":"sum by(job, action, cause)(rate(jvm_gc_pause_seconds_sum{job=~\"$job\"}[5m])) / sum by(job, action, cause)(rate(jvm_gc_pause_seconds_count{job=~\"$job\"}[5m]))","legendFormat":"{{job}} - {{action}} {{cause}}"}],"fieldConfig":{"defaults":{"unit":"s","custom":{"drawStyle":"line","fillOpacity":10,"lineWidth":2}}},"datasource":{"type":"prometheus","uid":"prometheus"}},{"id":6,"title":"GC Pause Rate","type":"timeseries","gridPos":{"h":8,"w":12,"x":12,"y":16},"targets":[{"expr":"sum by(job, action, cause)(rate(jvm_gc_pause_seconds_count{job=~\"$job\"}[5m]))","legendFormat":"{{job}} - {{action}} {{cause}}"}],"fieldConfig":{"defaults":{"unit":"ops","custom":{"drawStyle":"line","fillOpacity":10,"lineWidth":2}}},"datasource":{"type":"prometheus","uid":"prometheus"}},{"id":7,"title":"Live Threads","type":"timeseries","gridPos":{"h":8,"w":8,"x":0,"y":24},"targets":[{"expr":"sum by(job)(jvm_threads_live_threads{job=~\"$job\"})","legendFormat":"{{job}} live"},{"expr":"sum by(job)(jvm_threads_daemon_threads{job=~\"$job\"})","legendFormat":"{{job}} daemon"},{"expr":"sum by(job)(jvm_threads_peak_threads{job=~\"$job\"})","legendFormat":"{{job}} peak"}],"fieldConfig":{"defaults":{"custom":{"drawStyle":"line","fillOpacity":10,"lineWidth":2}}},"datasource":{"type":"prometheus","uid":"prometheus"}},{"id":8,"title":"Thread States","type":"timeseries","gridPos":{"h":8,"w":8,"x":8,"y":24},"targets":[{"expr":"sum by(job, state)(jvm_threads_states_threads{job=~\"$job\"})","legendFormat":"{{job}} - {{state}}"}],"fieldConfig":{"defaults":{"custom":{"drawStyle":"line","fillOpacity":20,"stacking":{"mode":"normal"}}}},"datasource":{"type":"prometheus","uid":"prometheus"}},{"id":9,"title":"CPU Usage","type":"timeseries","gridPos":{"h":8,"w":8,"x":16,"y":24},"targets":[{"expr":"sum by(job)(process_cpu_usage{job=~\"$job\"})","legendFormat":"{{job}} process"},{"expr":"sum by(job)(system_cpu_usage{job=~\"$job\"})","legendFormat":"{{job}} system"}],"fieldConfig":{"defaults":{"unit":"percentunit","min":0,"max":1,"custom":{"drawStyle":"line","fillOpacity":10,"lineWidth":2}}},"datasource":{"type":"prometheus","uid":"prometheus"}},{"id":10,"title":"HTTP Request Rate by URI","type":"timeseries","gridPos":{"h":8,"w":12,"x":0,"y":32},"targets":[{"expr":"sum by(uri)(rate(http_server_requests_seconds_count{job=~\"$job\"}[5m]))","legendFormat":"{{uri}}"}],"fieldConfig":{"defaults":{"unit":"reqps","custom":{"drawStyle":"line","fillOpacity":10,"lineWidth":2}}},"datasource":{"type":"prometheus","uid":"prometheus"}},{"id":11,"title":"HTTP Latency P95 by URI","type":"timeseries","gridPos":{"h":8,"w":12,"x":12,"y":32},"targets":[{"expr":"histogram_quantile(0.95, sum by(uri, le)(rate(http_server_requests_seconds_bucket{job=~\"$job\"}[5m])))","legendFormat":"{{uri}}"}],"fieldConfig":{"defaults":{"unit":"s","custom":{"drawStyle":"line","fillOpacity":10,"lineWidth":2}}},"datasource":{"type":"prometheus","uid":"prometheus"}},{"id":12,"title":"HTTP Error Rate by URI","type":"timeseries","gridPos":{"h":8,"w":12,"x":0,"y":40},"targets":[{"expr":"sum by(uri)(rate(http_server_requests_seconds_count{job=~\"$job\", status=~\"5..\"}[5m]))","legendFormat":"{{uri}}"}],"fieldConfig":{"defaults":{"unit":"reqps","custom":{"drawStyle":"line","fillOpacity":10,"lineWidth":2},"color":{"fixedColor":"red","mode":"fixed"}}},"datasource":{"type":"prometheus","uid":"prometheus"}},{"id":13,"title":"Log Events by Level","type":"timeseries","gridPos":{"h":8,"w":12,"x":12,"y":40},"targets":[{"expr":"sum by(job, level)(rate(logback_events_total{job=~\"$job\"}[5m]))","legendFormat":"{{job}} - {{level}}"}],"fieldConfig":{"defaults":{"unit":"ops","custom":{"drawStyle":"line","fillOpacity":20,"stacking":{"mode":"normal"}}},"overrides":[{"matcher":{"id":"byRegexp","options":".*ERROR.*"},"properties":[{"id":"color","value":{"fixedColor":"red","mode":"fixed"}}]},{"matcher":{"id":"byRegexp","options":".*WARN.*"},"properties":[{"id":"color","value":{"fixedColor":"yellow","mode":"fixed"}}]},{"matcher":{"id":"byRegexp","options":".*INFO.*"},"properties":[{"id":"color","value":{"fixedColor":"green","mode":"fixed"}}]}]},"datasource":{"type":"prometheus","uid":"prometheus"}},{"id":14,"title":"Loaded Classes","type":"timeseries","gridPos":{"h":8,"w":12,"x":0,"y":48},"targets":[{"expr":"sum by(job)(jvm_classes_loaded_classes{job=~\"$job\"})","legendFormat":"{{job}} loaded"}],"fieldConfig":{"defaults":{"custom":{"drawStyle":"line","fillOpacity":10,"lineWidth":2}}},"datasource":{"type":"prometheus","uid":"prometheus"}},{"id":15,"title":"Response Status Distribution","type":"piechart","gridPos":{"h":8,"w":12,"x":12,"y":48},"targets":[{"expr":"sum by(status)(rate(http_server_requests_seconds_count{job=~\"$job\"}[5m]))","legendFormat":"{{status}}"}],"fieldConfig":{"defaults":{"unit":"reqps"}},"datasource":{"type":"prometheus","uid":"prometheus"}}],"schemaVersion":39}
+    {
+      "uid": "spring-boot-jvm",
+      "title": "Spring Boot / JVM",
+      "tags": ["spring-boot", "jvm"],
+      "timezone": "browser",
+      "editable": false,
+      "refresh": "30s",
+      "time": { "from": "now-1h", "to": "now" },
+      "schemaVersion": 39,
+      "templating": {
+        "list": [
+          {
+            "name": "service",
+            "label": "Service",
+            "type": "query",
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "query": "label_values(jvm_memory_used_bytes, application)",
+            "includeAll": true,
+            "multi": true,
+            "current": { "text": "All", "value": "$__all" },
+            "refresh": 2
+          },
+          {
+            "name": "version",
+            "label": "service.version",
+            "type": "query",
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "query": "label_values(jvm_memory_used_bytes{application=~\"$service\"}, deployment_environment)",
+            "includeAll": true,
+            "multi": true,
+            "current": { "text": "All", "value": "$__all" },
+            "refresh": 2
+          }
+        ]
+      },
+      "panels": [
+        { "id": 1, "type": "row", "title": "Memory", "gridPos": {"h":1,"w":24,"x":0,"y":0}, "collapsed": false },
+        { "id": 2, "title": "Heap used vs max — per pod", "type": "timeseries",
+          "gridPos": {"h":8,"w":12,"x":0,"y":1},
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "sum by(application, instance)(jvm_memory_used_bytes{application=~\"$service\", area=\"heap\"})", "legendFormat": "{{application}} {{instance}} used" },
+            { "expr": "max by(application)(jvm_memory_max_bytes{application=~\"$service\", area=\"heap\"})", "legendFormat": "{{application}} max" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
+        },
+        { "id": 3, "title": "Non-heap usage", "type": "timeseries",
+          "gridPos": {"h":8,"w":12,"x":12,"y":1},
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [{ "expr": "sum by(application, id)(jvm_memory_used_bytes{application=~\"$service\", area=\"nonheap\"})", "legendFormat": "{{application}} / {{id}}" }],
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
+        },
+
+        { "id": 10, "type": "row", "title": "Garbage collection", "gridPos": {"h":1,"w":24,"x":0,"y":9}, "collapsed": false },
+        { "id": 11, "title": "GC pause p95 — per pod, by cause", "type": "timeseries",
+          "gridPos": {"h":8,"w":12,"x":0,"y":10},
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [{ "expr": "histogram_quantile(0.95, sum by(le, application, instance, cause)(rate(jvm_gc_pause_seconds_bucket{application=~\"$service\"}[5m])))", "legendFormat": "{{application}} {{instance}} / {{cause}}" }],
+          "fieldConfig": { "defaults": { "unit": "s", "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null}, {"color":"yellow","value":0.05}, {"color":"red","value":0.5}] } } }
+        },
+        { "id": 12, "title": "GC pause rate", "type": "timeseries",
+          "gridPos": {"h":8,"w":12,"x":12,"y":10},
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [{ "expr": "sum by(application, cause)(rate(jvm_gc_pause_seconds_count{application=~\"$service\"}[5m]))", "legendFormat": "{{application}} / {{cause}}" }],
+          "fieldConfig": { "defaults": { "unit": "ops" } }
+        },
+
+        { "id": 20, "type": "row", "title": "Threads + CPU", "gridPos": {"h":1,"w":24,"x":0,"y":18}, "collapsed": false },
+        { "id": 21, "title": "Live + daemon threads — per pod", "type": "timeseries",
+          "gridPos": {"h":8,"w":8,"x":0,"y":19},
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "sum by(application, instance)(jvm_threads_live_threads{application=~\"$service\"})", "legendFormat": "{{application}} {{instance}} live" },
+            { "expr": "sum by(application, instance)(jvm_threads_daemon_threads{application=~\"$service\"})", "legendFormat": "{{application}} {{instance}} daemon" }
+          ]
+        },
+        { "id": 22, "title": "Thread states", "type": "timeseries",
+          "gridPos": {"h":8,"w":8,"x":8,"y":19},
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [{ "expr": "sum by(application, state)(jvm_threads_states_threads{application=~\"$service\"})", "legendFormat": "{{application}} / {{state}}" }]
+        },
+        { "id": 23, "title": "CPU usage (process vs system)", "type": "timeseries",
+          "gridPos": {"h":8,"w":8,"x":16,"y":19},
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "avg by(application)(process_cpu_usage{application=~\"$service\"})", "legendFormat": "{{application}} process" },
+            { "expr": "avg by(application)(system_cpu_usage{application=~\"$service\"})", "legendFormat": "{{application}} system" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } }
+        },
+
+        { "id": 30, "type": "row", "title": "Endpoint traffic (use the Endpoint Investigation dashboard for drill-down)", "gridPos": {"h":1,"w":24,"x":0,"y":27}, "collapsed": false },
+        { "id": 31, "title": "HTTP request rate by URI", "type": "timeseries",
+          "gridPos": {"h":8,"w":12,"x":0,"y":28},
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [{ "expr": "sum by(uri)(rate(http_server_requests_seconds_count{application=~\"$service\"}[5m]))", "legendFormat": "{{uri}}" }],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        { "id": 32, "title": "HTTP p95 latency by URI", "type": "timeseries",
+          "gridPos": {"h":8,"w":12,"x":12,"y":28},
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [{ "expr": "histogram_quantile(0.95, sum by(uri, le)(rate(http_server_requests_seconds_bucket{application=~\"$service\"}[5m])))", "legendFormat": "{{uri}}" }],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        { "id": 33, "title": "Log events by level", "type": "timeseries",
+          "gridPos": {"h":8,"w":12,"x":0,"y":36},
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [{ "expr": "sum by(application, level)(rate(logback_events_total{application=~\"$service\"}[5m]))", "legendFormat": "{{application}} / {{level}}" }],
+          "fieldConfig": { "defaults": { "unit": "ops" } }
+        },
+        { "id": 34, "title": "Response status mix", "type": "piechart",
+          "gridPos": {"h":8,"w":12,"x":12,"y":36},
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [{ "expr": "sum by(status)(rate(http_server_requests_seconds_count{application=~\"$service\"}[5m]))", "legendFormat": "{{status}}" }],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        }
+      ]
+    }
