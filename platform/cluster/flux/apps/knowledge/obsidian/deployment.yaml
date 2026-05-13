@@ -86,7 +86,11 @@ spec:
               memory: 256Mi
       containers:
         - name: obsidian
-          image: lscr.io/linuxserver/obsidian:latest
+          # Docker Hub mirror — lscr.io's IPv6 path from the Frankfurt VPS
+          # is consistently "connection reset by peer" mid-blob, while
+          # docker.io (where alpine/git in the same pod pulls from cleanly)
+          # works fine. Linuxserver publishes the same image to both.
+          image: linuxserver/obsidian:latest
           imagePullPolicy: IfNotPresent
           env:
             - name: PUID
