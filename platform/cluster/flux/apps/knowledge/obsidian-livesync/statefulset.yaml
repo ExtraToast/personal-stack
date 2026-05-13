@@ -37,6 +37,13 @@ spec:
       # As with n8n/obsidian, suppress the auto-injected per-Service env
       # vars — they collide with CouchDB's own COUCHDB_* names.
       enableServiceLinks: false
+      # The official couchdb image runs as uid:gid 5984:5984. Without
+      # fsGroup the freshly-provisioned local-path PVC is owned by
+      # root:root, so the couchdb process can't write to /opt/couchdb/data
+      # and the container silently exits with code 1 before producing
+      # any log output.
+      securityContext:
+        fsGroup: 5984
       nodeSelector:
         personal-stack/site: frankfurt
       containers:
