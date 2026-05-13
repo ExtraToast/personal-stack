@@ -54,4 +54,33 @@ class PlatformObsidianLivesyncFluxTest {
             .contains("runAsUser: 5984")
             .contains("runAsGroup: 5984")
     }
+
+    @Test
+    fun `couchdb probes HTTP _up while require_valid_user_except_for_up keeps the endpoint anonymous-safe`() {
+        val manifest =
+            repositoryRoot
+                .resolve("platform/cluster/flux/apps/knowledge/obsidian-livesync/statefulset.yaml")
+                .toFile()
+                .readText()
+        val configMap =
+            repositoryRoot
+                .resolve("platform/cluster/flux/apps/knowledge/obsidian-livesync/config-configmap.yaml")
+                .toFile()
+                .readText()
+
+        // `/_up` is the real CouchDB health endpoint — it returns 200
+        // only after local init finishes, which a TCP probe on :5984
+        // misses (Mochiweb listens before CouchDB itself is ready).
+        // Keep `require_valid_user = true` so the LiveSync DBs stay
+        // behind admin auth, but pair it with
+        // `require_valid_user_except_for_up = true` so an
+        // unauthenticated kubelet probe doesn't 401 the pod into a
+        // crashloop while CouchDB is healthy.
+        assertThat(manifest)
+            .contains("path: /_up")
+            .doesNotContain("tcpSocket:")
+        assertThat(configMap)
+            .contains("require_valid_user = true")
+            .contains("require_valid_user_except_for_up = true")
+    }
 }

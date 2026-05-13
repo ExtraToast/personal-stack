@@ -22,9 +22,18 @@ data:
   # Single-node mode — CouchDB defaults to clustered mode and refuses
   # most operations until /_cluster_setup is finalised. This skips that
   # entirely; we never need clustering for a personal-stack LiveSync.
+  #
+  # `require_valid_user = true` blocks anonymous reads of the LiveSync
+  # databases. `require_valid_user_except_for_up = true` keeps that
+  # protection in place but excludes `/_up`, so unauthenticated kubelet
+  # probes succeed against the dedicated health endpoint instead of
+  # 401-ing CouchDB into a crashloop while it is otherwise healthy.
   single-node.ini: |
     [couchdb]
     single_node = true
 
     [chttpd]
     require_valid_user = true
+
+    [chttpd_auth]
+    require_valid_user_except_for_up = true

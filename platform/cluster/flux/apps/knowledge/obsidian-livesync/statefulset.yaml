@@ -90,6 +90,13 @@ spec:
               mountPath: /opt/couchdb/etc/local.d/single-node.ini
               subPath: single-node.ini
               readOnly: true
+          # `/_up` is CouchDB's real health endpoint — it returns 200
+          # only once the node has finished local initialisation and
+          # can serve requests, which TCP-readiness on :5984 misses
+          # (Mochiweb starts listening before CouchDB itself is
+          # ready). `[chttpd_auth] require_valid_user_except_for_up`
+          # in single-node.ini keeps the probe anonymous-safe while
+          # the rest of the database stays behind admin auth.
           startupProbe:
             httpGet:
               path: /_up
