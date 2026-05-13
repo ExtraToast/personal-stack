@@ -42,6 +42,18 @@ spec:
       # root:root, so the couchdb process can't write to /opt/couchdb/data
       # and the container silently exits with code 1 before producing
       # any log output.
+      #
+      # Starting the container as uid 0 (the image's default) makes
+      # `docker-entrypoint.sh` run a `find /opt/couchdb \! -user
+      # couchdb -group couchdb -exec chown -f couchdb:couchdb {} +`
+      # over the whole tree. The configmap snippets mounted via
+      # `subPath: cors.ini` / `single-node.ini` are bind-mounted from
+      # the kubelet's projected volume and cannot be chown'd; `chown -f`
+      # suppresses the error message but still exits 1, find aggregates
+      # that into a non-zero exit, the entrypoint's `set -e` trips, and
+      # the container dies with exit 1 *before* CouchDB writes a single
+      # log line. Running as uid 5984 skips the entire root-only chown
+      # block, so the entrypoint walks straight into `couchdb start`.
       securityContext:
         fsGroup: 5984
       nodeSelector:
@@ -50,6 +62,10 @@ spec:
         - name: couchdb
           image: couchdb:3.4
           imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 5984
+            runAsGroup: 5984
+            runAsNonRoot: true
           envFrom:
             # COUCHDB_USER + COUCHDB_PASSWORD projected by VSO from
             # secret/data/knowledge-system/obsidian-livesync.
