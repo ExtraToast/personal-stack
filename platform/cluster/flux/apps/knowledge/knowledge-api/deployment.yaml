@@ -63,6 +63,18 @@ spec:
                 -XX:MaxRAMPercentage=75 \
                 -javaagent:/app/otel-javaagent.jar \
                 -jar /app/app.jar
+          # VSO projects every field under
+          # `secret/data/knowledge-system/mcp-bearer` into the
+          # knowledge-api-mcp-tokens Secret. `KNOWLEDGE_MCP_TOKENS_`
+          # prefixes each key, so Spring's relaxed binding wires e.g.
+          # field `workstation` to `knowledge.mcp.tokens.workstation`
+          # without any per-device manifest edit. An empty Vault path
+          # produces an empty Secret which leaves the filter rejecting
+          # every /mcp request (the default-deny posture).
+          envFrom:
+            - secretRef:
+                name: knowledge-api-mcp-tokens
+              prefix: KNOWLEDGE_MCP_TOKENS_
           env:
             - name: SERVER_PORT
               value: '8080'
