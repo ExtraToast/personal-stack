@@ -9,6 +9,20 @@ name: Build & Publish
 on:
   push:
     branches: [main]
+  # Manual trigger for the cases where a push event never fires the
+  # workflow (rare GitHub oddity — observed once with the `#308`
+  # merge: workflow silently absent for that SHA) or where a merge
+  # only changed manifests and the per-service path filters skipped
+  # the matrix. `workflow_dispatch` runs the same paths-filter logic
+  # against `HEAD` vs the previous commit, so the same incremental
+  # rebuild behaviour applies; pass `force_all: true` to bypass the
+  # filter and rebuild every service.
+  workflow_dispatch:
+    inputs:
+      force_all:
+        description: 'Rebuild every service image regardless of filters'
+        type: boolean
+        default: false
 
 concurrency:
   group: build-and-publish
@@ -122,12 +136,16 @@ jobs:
             echo "::notice::Not on main push (ref=${{ github.ref }}, event=${{ github.event_name }}); UIs build amd64-only this run."
           fi
 
-          [[ "$(any "$KOTLIN_SHARED"   "$FILTER_AUTH_API")"      == "true" ]] && append auth-api      services/auth-api/Dockerfile      "$AMD64"
-          [[ "$(any "$KOTLIN_SHARED"   "$FILTER_ASSISTANT_API")" == "true" ]] && append assistant-api services/assistant-api/Dockerfile "$AMD64"
-          [[ "$(any "$KOTLIN_SHARED"   "$FILTER_KNOWLEDGE_API")" == "true" ]] && append knowledge-api services/knowledge-api/Dockerfile "$AMD64"
-          [[ "$(any "$FRONTEND_SHARED" "$FILTER_AUTH_UI")"       == "true" ]] && append auth-ui       services/auth-ui/Dockerfile       "$UI_PLATFORMS"
-          [[ "$(any "$FRONTEND_SHARED" "$FILTER_ASSISTANT_UI")"  == "true" ]] && append assistant-ui  services/assistant-ui/Dockerfile  "$UI_PLATFORMS"
-          [[ "$(any "$FRONTEND_SHARED" "$FILTER_APP_UI")"        == "true" ]] && append app-ui        services/app-ui/Dockerfile        "$UI_PLATFORMS"
+          # `force_all=true` on workflow_dispatch overrides every
+          # per-service filter so all images rebuild in one go.
+          FORCE_ALL="${{ github.event.inputs.force_all || 'false' }}"
+
+          [[ "$(any "$FORCE_ALL" "$KOTLIN_SHARED"   "$FILTER_AUTH_API")"      == "true" ]] && append auth-api      services/auth-api/Dockerfile      "$AMD64"
+          [[ "$(any "$FORCE_ALL" "$KOTLIN_SHARED"   "$FILTER_ASSISTANT_API")" == "true" ]] && append assistant-api services/assistant-api/Dockerfile "$AMD64"
+          [[ "$(any "$FORCE_ALL" "$KOTLIN_SHARED"   "$FILTER_KNOWLEDGE_API")" == "true" ]] && append knowledge-api services/knowledge-api/Dockerfile "$AMD64"
+          [[ "$(any "$FORCE_ALL" "$FRONTEND_SHARED" "$FILTER_AUTH_UI")"       == "true" ]] && append auth-ui       services/auth-ui/Dockerfile       "$UI_PLATFORMS"
+          [[ "$(any "$FORCE_ALL" "$FRONTEND_SHARED" "$FILTER_ASSISTANT_UI")"  == "true" ]] && append assistant-ui  services/assistant-ui/Dockerfile  "$UI_PLATFORMS"
+          [[ "$(any "$FORCE_ALL" "$FRONTEND_SHARED" "$FILTER_APP_UI")"        == "true" ]] && append app-ui        services/app-ui/Dockerfile        "$UI_PLATFORMS"
 
           echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
           if [[ "$MATRIX" == "[]" ]]; then
