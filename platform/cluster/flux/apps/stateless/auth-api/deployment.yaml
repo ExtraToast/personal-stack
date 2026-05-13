@@ -37,7 +37,7 @@ spec:
   # rollouts of new images replace one pod at a time and the surviving
   # OLD pod keeps serving until the NEW pod is Ready — true zero-
   # downtime even on a tight node.
-  replicas: 2
+  replicas: 1
   # Long deadline so a Pending second replica doesn't flip the
   # HelmRelease to Failed (chart default is 600s = 10 min).
   progressDeadlineSeconds: 1800
