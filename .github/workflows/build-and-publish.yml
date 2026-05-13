@@ -46,6 +46,8 @@ jobs:
               - 'services/auth-api/**'
             assistant-api:
               - 'services/assistant-api/**'
+            knowledge-api:
+              - 'services/knowledge-api/**'
             kotlin-common:
               - 'libs/kotlin-common/**'
             build-logic:
@@ -79,6 +81,7 @@ jobs:
           FILTER_GRADLE_CONFIG: ${{ steps.filter.outputs.gradle-config }}
           FILTER_AUTH_API: ${{ steps.filter.outputs.auth-api }}
           FILTER_ASSISTANT_API: ${{ steps.filter.outputs.assistant-api }}
+          FILTER_KNOWLEDGE_API: ${{ steps.filter.outputs.knowledge-api }}
           FILTER_VUE_COMMON: ${{ steps.filter.outputs.vue-common }}
           FILTER_FRONTEND_CONFIG: ${{ steps.filter.outputs.frontend-config }}
           FILTER_AUTH_UI: ${{ steps.filter.outputs.auth-ui }}
@@ -121,6 +124,7 @@ jobs:
 
           [[ "$(any "$KOTLIN_SHARED"   "$FILTER_AUTH_API")"      == "true" ]] && append auth-api      services/auth-api/Dockerfile      "$AMD64"
           [[ "$(any "$KOTLIN_SHARED"   "$FILTER_ASSISTANT_API")" == "true" ]] && append assistant-api services/assistant-api/Dockerfile "$AMD64"
+          [[ "$(any "$KOTLIN_SHARED"   "$FILTER_KNOWLEDGE_API")" == "true" ]] && append knowledge-api services/knowledge-api/Dockerfile "$AMD64"
           [[ "$(any "$FRONTEND_SHARED" "$FILTER_AUTH_UI")"       == "true" ]] && append auth-ui       services/auth-ui/Dockerfile       "$UI_PLATFORMS"
           [[ "$(any "$FRONTEND_SHARED" "$FILTER_ASSISTANT_UI")"  == "true" ]] && append assistant-ui  services/assistant-ui/Dockerfile  "$UI_PLATFORMS"
           [[ "$(any "$FRONTEND_SHARED" "$FILTER_APP_UI")"        == "true" ]] && append app-ui        services/app-ui/Dockerfile        "$UI_PLATFORMS"

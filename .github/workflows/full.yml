@@ -46,6 +46,8 @@ jobs:
               - 'services/auth-api/**'
             assistant-api:
               - 'services/assistant-api/**'
+            knowledge-api:
+              - 'services/knowledge-api/**'
             kotlin-common:
               - 'libs/kotlin-common/**'
             build-logic:
@@ -87,6 +89,7 @@ jobs:
           FILTER_GRADLE_CONFIG: ${{ steps.filter.outputs.gradle-config }}
           FILTER_AUTH_API: ${{ steps.filter.outputs.auth-api }}
           FILTER_ASSISTANT_API: ${{ steps.filter.outputs.assistant-api }}
+          FILTER_KNOWLEDGE_API: ${{ steps.filter.outputs.knowledge-api }}
           FILTER_VUE_COMMON: ${{ steps.filter.outputs.vue-common }}
           FILTER_FRONTEND_CONFIG: ${{ steps.filter.outputs.frontend-config }}
           FILTER_AUTH_UI: ${{ steps.filter.outputs.auth-ui }}
@@ -103,8 +106,9 @@ jobs:
 
           AUTH_API_KOTLIN=$(any "$KOTLIN_SHARED" "$FILTER_AUTH_API")
           ASSISTANT_API_KOTLIN=$(any "$KOTLIN_SHARED" "$FILTER_ASSISTANT_API")
+          KNOWLEDGE_API_KOTLIN=$(any "$KOTLIN_SHARED" "$FILTER_KNOWLEDGE_API")
           KOTLIN_COMMON_CHANGED="$KOTLIN_SHARED"
-          ANY_KOTLIN=$(any "$KOTLIN_SHARED" "$FILTER_AUTH_API" "$FILTER_ASSISTANT_API")
+          ANY_KOTLIN=$(any "$KOTLIN_SHARED" "$FILTER_AUTH_API" "$FILTER_ASSISTANT_API" "$FILTER_KNOWLEDGE_API")
           ANY_FRONTEND=$(any "$FRONTEND_SHARED" "$FILTER_AUTH_UI" "$FILTER_ASSISTANT_UI" "$FILTER_APP_UI")
           ANY_SERVICE=$(any "$ANY_KOTLIN" "$ANY_FRONTEND")
           RUN_SYSTEM_TESTS=$(any "$FILTER_WORKFLOW" "$FILTER_SYSTEM_TESTS" "$FILTER_INFRA" "$ANY_SERVICE")
@@ -125,6 +129,7 @@ jobs:
           CHANGED_SERVICES=""
           [[ "$AUTH_API_KOTLIN"      == "true" ]] && CHANGED_SERVICES+=" auth-api"
           [[ "$ASSISTANT_API_KOTLIN" == "true" ]] && CHANGED_SERVICES+=" assistant-api"
+          [[ "$KNOWLEDGE_API_KOTLIN" == "true" ]] && CHANGED_SERVICES+=" knowledge-api"
           CHANGED_SERVICES+=" auth-ui assistant-ui app-ui"
           CHANGED_SERVICES="${CHANGED_SERVICES# }"
 
@@ -134,6 +139,7 @@ jobs:
           echo "run-system-tests=$RUN_SYSTEM_TESTS" >> "$GITHUB_OUTPUT"
           echo "auth-api-kotlin=$AUTH_API_KOTLIN" >> "$GITHUB_OUTPUT"
           echo "assistant-api-kotlin=$ASSISTANT_API_KOTLIN" >> "$GITHUB_OUTPUT"
+          echo "knowledge-api-kotlin=$KNOWLEDGE_API_KOTLIN" >> "$GITHUB_OUTPUT"
           echo "kotlin-common-changed=$KOTLIN_COMMON_CHANGED" >> "$GITHUB_OUTPUT"
           echo "changed-services=$CHANGED_SERVICES" >> "$GITHUB_OUTPUT"
       - name: Build dynamic matrices
@@ -141,6 +147,7 @@ jobs:
         env:
           AUTH_API_KOTLIN: ${{ steps.compute.outputs.auth-api-kotlin }}
           ASSISTANT_API_KOTLIN: ${{ steps.compute.outputs.assistant-api-kotlin }}
+          KNOWLEDGE_API_KOTLIN: ${{ steps.compute.outputs.knowledge-api-kotlin }}
           KOTLIN_COMMON_CHANGED: ${{ steps.compute.outputs.kotlin-common-changed }}
         run: |
           KOTLIN_MATRIX="[]"
@@ -149,6 +156,9 @@ jobs:
           fi
           if [[ "$ASSISTANT_API_KOTLIN" == "true" ]]; then
             KOTLIN_MATRIX=$(echo "$KOTLIN_MATRIX" | jq -c '. + [{"module":"assistant-api","gradle-path":":services:assistant-api"}]')
+          fi
+          if [[ "$KNOWLEDGE_API_KOTLIN" == "true" ]]; then
+            KOTLIN_MATRIX=$(echo "$KOTLIN_MATRIX" | jq -c '. + [{"module":"knowledge-api","gradle-path":":services:knowledge-api"}]')
           fi
           if [[ "$KOTLIN_COMMON_CHANGED" == "true" ]]; then
             KOTLIN_MATRIX=$(echo "$KOTLIN_MATRIX" | jq -c '. + [{"module":"kotlin-common","gradle-path":":libs:kotlin-common"}]')
@@ -163,6 +173,9 @@ jobs:
           if [[ "$ASSISTANT_API_KOTLIN" == "true" ]]; then
             INT_MATRIX=$(echo "$INT_MATRIX" | jq -c '. + [{"module":"assistant-api","gradle-path":":services:assistant-api"}]')
           fi
+          if [[ "$KNOWLEDGE_API_KOTLIN" == "true" ]]; then
+            INT_MATRIX=$(echo "$INT_MATRIX" | jq -c '. + [{"module":"knowledge-api","gradle-path":":services:knowledge-api"}]')
+          fi
           echo "test-kotlin-integration=$INT_MATRIX" >> "$GITHUB_OUTPUT"
 
           COV_MATRIX="[]"
@@ -171,6 +184,9 @@ jobs:
           fi
           if [[ "$ASSISTANT_API_KOTLIN" == "true" ]]; then
             COV_MATRIX=$(echo "$COV_MATRIX" | jq -c '. + [{"module":"assistant-api","gradle-path":":services:assistant-api","has-integration":true}]')
+          fi
+          if [[ "$KNOWLEDGE_API_KOTLIN" == "true" ]]; then
+            COV_MATRIX=$(echo "$COV_MATRIX" | jq -c '. + [{"module":"knowledge-api","gradle-path":":services:knowledge-api","has-integration":true}]')
           fi
           if [[ "$KOTLIN_COMMON_CHANGED" == "true" ]]; then
             COV_MATRIX=$(echo "$COV_MATRIX" | jq -c '. + [{"module":"kotlin-common","gradle-path":":libs:kotlin-common","has-integration":false}]')

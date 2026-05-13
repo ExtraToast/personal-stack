@@ -21,7 +21,23 @@ tasks.jacocoTestReport {
     classDirectories.setFrom(
         classDirectories.files.map { dir ->
             fileTree(dir) {
-                exclude("**/jooq/**", "**/generated/**")
+                exclude(
+                    "**/jooq/**",
+                    "**/generated/**",
+                    // The Spring Boot main class is a `runApplication<X>()`
+                    // one-liner and a marker `@SpringBootApplication` class.
+                    // @SpringBootTest already boots it, but Kotlin compiles
+                    // the top-level `fun main` to a separate `*ApplicationKt`
+                    // class whose static `main` is never reached by tests
+                    // (the test runner calls `SpringApplication.run`
+                    // directly). Including it drags every service's
+                    // coverage down for ~5 untestable instructions; a
+                    // skeleton like knowledge-api Phase 4a sits at ~20 %
+                    // even with the integration test green. The exclusion
+                    // is the standard Spring Boot + Jacoco convention.
+                    "**/*Application.class",
+                    "**/*ApplicationKt.class",
+                )
             }
         },
     )
@@ -35,7 +51,23 @@ tasks.jacocoTestCoverageVerification {
     classDirectories.setFrom(
         classDirectories.files.map { dir ->
             fileTree(dir) {
-                exclude("**/jooq/**", "**/generated/**")
+                exclude(
+                    "**/jooq/**",
+                    "**/generated/**",
+                    // The Spring Boot main class is a `runApplication<X>()`
+                    // one-liner and a marker `@SpringBootApplication` class.
+                    // @SpringBootTest already boots it, but Kotlin compiles
+                    // the top-level `fun main` to a separate `*ApplicationKt`
+                    // class whose static `main` is never reached by tests
+                    // (the test runner calls `SpringApplication.run`
+                    // directly). Including it drags every service's
+                    // coverage down for ~5 untestable instructions; a
+                    // skeleton like knowledge-api Phase 4a sits at ~20 %
+                    // even with the integration test green. The exclusion
+                    // is the standard Spring Boot + Jacoco convention.
+                    "**/*Application.class",
+                    "**/*ApplicationKt.class",
+                )
             }
         },
     )
