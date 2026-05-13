@@ -49,10 +49,11 @@ class McpControllerIntegrationTest : IntegrationTestBase() {
     @Test
     fun `mcp without authorization header returns 401 with json-rpc error body`() {
         val result =
-            mockMvc.post("/mcp") {
-                contentType = MediaType.APPLICATION_JSON
-                content = """{"jsonrpc":"2.0","id":1,"method":"ping"}"""
-            }.andReturn()
+            mockMvc
+                .post("/mcp") {
+                    contentType = MediaType.APPLICATION_JSON
+                    content = """{"jsonrpc":"2.0","id":1,"method":"ping"}"""
+                }.andReturn()
 
         assertThat(result.response.status).isEqualTo(401)
         assertThat(result.response.getHeader("WWW-Authenticate")).contains("Bearer")
@@ -63,11 +64,12 @@ class McpControllerIntegrationTest : IntegrationTestBase() {
     @Test
     fun `mcp with wrong bearer token returns 401`() {
         val result =
-            mockMvc.post("/mcp") {
-                contentType = MediaType.APPLICATION_JSON
-                header("Authorization", "Bearer nope")
-                content = """{"jsonrpc":"2.0","id":1,"method":"ping"}"""
-            }.andReturn()
+            mockMvc
+                .post("/mcp") {
+                    contentType = MediaType.APPLICATION_JSON
+                    header("Authorization", "Bearer nope")
+                    content = """{"jsonrpc":"2.0","id":1,"method":"ping"}"""
+                }.andReturn()
 
         assertThat(result.response.status).isEqualTo(401)
     }
@@ -75,11 +77,12 @@ class McpControllerIntegrationTest : IntegrationTestBase() {
     @Test
     fun `mcp ping with valid bearer returns empty result and sets X-User-Id`() {
         val result =
-            mockMvc.post("/mcp") {
-                contentType = MediaType.APPLICATION_JSON
-                header("Authorization", "Bearer test-token-ws")
-                content = """{"jsonrpc":"2.0","id":42,"method":"ping"}"""
-            }.andReturn()
+            mockMvc
+                .post("/mcp") {
+                    contentType = MediaType.APPLICATION_JSON
+                    header("Authorization", "Bearer test-token-ws")
+                    content = """{"jsonrpc":"2.0","id":42,"method":"ping"}"""
+                }.andReturn()
 
         assertThat(result.response.status).isEqualTo(200)
         assertThat(result.response.getHeader("X-User-Id")).isEqualTo("mcp:workstation")
@@ -95,11 +98,12 @@ class McpControllerIntegrationTest : IntegrationTestBase() {
     @Test
     fun `mcp initialize advertises tools capability and the protocol version`() {
         val result =
-            mockMvc.post("/mcp") {
-                contentType = MediaType.APPLICATION_JSON
-                header("Authorization", "Bearer test-token-lap")
-                content = """{"jsonrpc":"2.0","id":1,"method":"initialize"}"""
-            }.andReturn()
+            mockMvc
+                .post("/mcp") {
+                    contentType = MediaType.APPLICATION_JSON
+                    header("Authorization", "Bearer test-token-lap")
+                    content = """{"jsonrpc":"2.0","id":1,"method":"initialize"}"""
+                }.andReturn()
 
         assertThat(result.response.status).isEqualTo(200)
         val result0 = objectMapper.readTree(result.response.contentAsString)["result"]
@@ -111,11 +115,12 @@ class McpControllerIntegrationTest : IntegrationTestBase() {
     @Test
     fun `mcp tools list returns an empty list in phase 4b`() {
         val result =
-            mockMvc.post("/mcp") {
-                contentType = MediaType.APPLICATION_JSON
-                header("Authorization", "Bearer test-token-ws")
-                content = """{"jsonrpc":"2.0","id":2,"method":"tools/list"}"""
-            }.andReturn()
+            mockMvc
+                .post("/mcp") {
+                    contentType = MediaType.APPLICATION_JSON
+                    header("Authorization", "Bearer test-token-ws")
+                    content = """{"jsonrpc":"2.0","id":2,"method":"tools/list"}"""
+                }.andReturn()
 
         assertThat(result.response.status).isEqualTo(200)
         val tools = objectMapper.readTree(result.response.contentAsString)["result"]["tools"]
@@ -126,11 +131,12 @@ class McpControllerIntegrationTest : IntegrationTestBase() {
     @Test
     fun `mcp unknown method returns method_not_found error`() {
         val result =
-            mockMvc.post("/mcp") {
-                contentType = MediaType.APPLICATION_JSON
-                header("Authorization", "Bearer test-token-ws")
-                content = """{"jsonrpc":"2.0","id":3,"method":"resources/list"}"""
-            }.andReturn()
+            mockMvc
+                .post("/mcp") {
+                    contentType = MediaType.APPLICATION_JSON
+                    header("Authorization", "Bearer test-token-ws")
+                    content = """{"jsonrpc":"2.0","id":3,"method":"resources/list"}"""
+                }.andReturn()
 
         assertThat(result.response.status).isEqualTo(200)
         val error = objectMapper.readTree(result.response.contentAsString)["error"]

@@ -54,16 +54,19 @@ class McpBearerFilter(
             log.debug("MCP bearer token list is empty — rejecting all /mcp requests")
             return null
         }
-        val header = authorization?.trim().orEmpty()
-        if (!header.startsWith(BEARER_PREFIX, ignoreCase = true)) return null
-        val presented = header.substring(BEARER_PREFIX.length).trim()
-        if (presented.isEmpty()) return null
+        val presented = extractBearerToken(authorization) ?: return null
         // Linear scan with constantTimeEquals — the token list is
         // device-scale (handfuls of entries), not user-scale, so
         // hashing-then-lookup buys nothing.
         return properties.tokens.firstNotNullOfOrNull { (name, expected) ->
             if (constantTimeEquals(presented, expected)) name else null
         }
+    }
+
+    private fun extractBearerToken(authorization: String?): String? {
+        val header = authorization?.trim().orEmpty()
+        if (!header.startsWith(BEARER_PREFIX, ignoreCase = true)) return null
+        return header.substring(BEARER_PREFIX.length).trim().ifEmpty { null }
     }
 
     private fun writeUnauthorized(response: HttpServletResponse) {
