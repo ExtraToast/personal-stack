@@ -113,7 +113,7 @@ class PlatformTraefikIngressRoutesCliTest {
                 .substringBefore("---\n")
 
         assertThat(jellyfinBlock)
-            .contains("external-dns.alpha.kubernetes.io/target: 130.89.169.227")
+            .contains("external-dns.alpha.kubernetes.io/target: 130.89.174.190")
             .contains("external-dns.alpha.kubernetes.io/cloudflare-proxied: 'false'")
             .contains("kubernetes.io/ingress.class: traefik-public")
 
