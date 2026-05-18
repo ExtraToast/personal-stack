@@ -95,6 +95,10 @@ data:
 
     # pgvector for knowledge_db only. CREATE EXTENSION needs superuser
     # for vector (it installs C functions); run as ${POSTGRES_USER}.
+    # Backs both the curator's nearest-neighbour recall and the
+    # LightRAG vector store (KV / vector via PGVectorStorage; the
+    # graph backend stays on-disk via NetworkXStorage so we don't
+    # need to bake Apache AGE into postgres:17-alpine).
     psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname knowledge_db <<-EOSQL
         CREATE EXTENSION IF NOT EXISTS vector;
     EOSQL

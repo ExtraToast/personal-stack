@@ -42,6 +42,14 @@ class CuratorStore(Protocol):
         props_json: str = "{}",
     ) -> None: ...
 
+    def conflict_edges(self) -> list[tuple[str, str, str]]:
+        """Return every `(subject_id, predicate, object_id)` row whose
+        predicate is in {`supersedes`, `contradicts`} for the
+        `_index/conflicts.md` MoC regeneration. Cheap query — total
+        conflict cardinality stays small in practice.
+        """
+        ...
+
 
 class PostgresCuratorStore:
     """Real Postgres-backed implementation.
@@ -137,6 +145,16 @@ class PostgresCuratorStore:
                 (subject_id, predicate, object_id, props_json),
             )
 
+    def conflict_edges(self) -> list[tuple[str, str, str]]:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                sql.SQL(
+                    "SELECT subject_id, predicate, object_id FROM kb_relations "
+                    "WHERE predicate IN ('supersedes', 'contradicts')"
+                ),
+            )
+            return [(row[0], row[1], row[2]) for row in cur.fetchall()]
+
 
 class InMemoryCuratorStore:
     """Test double used by unit tests and a local smoke loop."""
@@ -180,3 +198,10 @@ class InMemoryCuratorStore:
         props_json: str = "{}",
     ) -> None:
         self.relations.append((subject_id, predicate, object_id))
+
+    def conflict_edges(self) -> list[tuple[str, str, str]]:
+        return [
+            (s, p, o)
+            for (s, p, o) in self.relations
+            if p in ("supersedes", "contradicts")
+        ]

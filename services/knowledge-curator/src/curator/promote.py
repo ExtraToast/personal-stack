@@ -36,6 +36,7 @@ from curator.classify import (
     Neighbour,
     OllamaClassifier,
 )
+from curator.lightrag import LightRagClient, LightRagDocument
 from curator.recall import RecallClient, RecallHit
 from curator.store import CuratorStore
 from curator.topics import TopicVocabulary
@@ -73,6 +74,7 @@ class Promoter:
         clone_dir: Path,
         confidence_floor: float,
         recall_limit: int,
+        lightrag: LightRagClient | None = None,
     ) -> None:
         self._classifier = classifier
         self._recall = recall
@@ -82,6 +84,7 @@ class Promoter:
         self._clone_dir = clone_dir
         self._confidence_floor = confidence_floor
         self._recall_limit = recall_limit
+        self._lightrag = lightrag
 
     def promote_inbox_file(self, inbox_rel: str) -> PromoteOutcome:
         path = self._clone_dir / inbox_rel
@@ -167,6 +170,19 @@ class Promoter:
             )
         for target in classification.see_also:
             self._store.insert_relation(subject_id=front.id, predicate="see_also", object_id=target)
+        if self._lightrag is not None:
+            # Fire-and-forget: a slow / down LightRAG must not block
+            # the promotion's git + DB writes. The next pass that
+            # touches this id reconciles via LightRAG's doc-status.
+            self._lightrag.publish(
+                LightRagDocument(
+                    id=front.id,
+                    title=classification.title,
+                    body=front.body,
+                    scope=classification.scope,
+                    type=classification.type,
+                ),
+            )
         return PromoteOutcome(
             note_id=front.id,
             status="promoted",

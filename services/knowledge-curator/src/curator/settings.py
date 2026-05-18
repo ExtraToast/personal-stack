@@ -53,6 +53,13 @@ class Settings:
     # Topic vocabulary file (mounted from a ConfigMap in production).
     topics_yaml_path: Path
 
+    # LightRAG REST server. When `lightrag_base_url` is empty the
+    # curator runs without LightRAG publish (still promotes,
+    # still updates kb_notes / kb_relations) — useful for local
+    # dev or when LightRAG is intentionally offline.
+    lightrag_base_url: str
+    lightrag_request_timeout_seconds: float
+
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> Settings:
         e = os.environ if env is None else env
@@ -93,4 +100,11 @@ class Settings:
             classify_top_k_neighbours=int(e.get("CLASSIFY_TOP_K_NEIGHBOURS", "5")),
             classify_confidence_floor=float(e.get("CLASSIFY_CONFIDENCE_FLOOR", "0.55")),
             topics_yaml_path=Path(e.get("TOPICS_YAML_PATH", "/etc/curator/topics.yaml")),
+            lightrag_base_url=e.get(
+                "LIGHTRAG_BASE_URL",
+                "http://lightrag.knowledge-system.svc.cluster.local:9621",
+            ),
+            lightrag_request_timeout_seconds=float(
+                e.get("LIGHTRAG_REQUEST_TIMEOUT_SECONDS", "30"),
+            ),
         )

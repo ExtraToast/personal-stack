@@ -169,3 +169,32 @@ def test_curator_vault_move_to_needs_review(clone: Path) -> None:
     assert (clone / result.new_relative_path).exists()
     repo = Repo(clone)
     assert "review too-ambiguous" in repo.head.commit.message
+
+
+def test_curator_vault_commit_paths_no_op_when_clean(clone: Path) -> None:
+    vault = CuratorVault(
+        clone_dir=clone,
+        author=Actor("curator", "curator@test"),
+        ssh_key_path=None,
+        push=False,
+    )
+    result = vault.commit_paths(rels=[], subject="curator(index): regenerate")
+    assert result is None
+
+
+def test_curator_vault_commit_paths_writes_a_commit(clone: Path) -> None:
+    vault = CuratorVault(
+        clone_dir=clone,
+        author=Actor("curator", "curator@test"),
+        ssh_key_path=None,
+        push=False,
+    )
+    (clone / "_index").mkdir(parents=True, exist_ok=True)
+    (clone / "_index" / "recent.md").write_text("# recent\n", encoding="utf-8")
+    result = vault.commit_paths(
+        rels=["_index/recent.md"],
+        subject="curator(index): regenerate 1 index file(s)",
+    )
+    assert result is not None
+    repo = Repo(clone)
+    assert "curator(index): regenerate" in repo.head.commit.message
