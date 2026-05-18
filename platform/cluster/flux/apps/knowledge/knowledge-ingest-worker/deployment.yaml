@@ -4,6 +4,23 @@ metadata:
   name: knowledge-ingest-worker
   namespace: knowledge-system
 ---
+# RWO clone of the private knowledge-vault repo. The worker pulls
+# before each commit and pushes after; humans + LiveSync also write
+# the same git tree from their own clones, so the worker's writes
+# are scoped to `notes/<scope>/<type>/<id>.md` where its filename
+# scheme avoids collisions with hand-edited notes.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: knowledge-vault-clone
+  namespace: knowledge-system
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -20,9 +37,8 @@ spec:
   # round-robins across consumers on the same queue.
   replicas: 1
   progressDeadlineSeconds: 1800
-  # Phase 5-2 mounts an RWO PVC for the knowledge-vault clone — keep
-  # the rollout strategy Recreate-friendly from the start so the
-  # follow-up PR doesn't have to bounce the policy.
+  # Recreate-friendly: the worker mounts an RWO PVC for the vault
+  # clone so two pods can't bind simultaneously.
   strategy:
     type: Recreate
   selector:
@@ -33,11 +49,9 @@ spec:
       labels:
         app.kubernetes.io/name: knowledge-ingest-worker
       annotations:
-        # Vault Agent inject mirrors knowledge-api:
-        #   role `knowledge-ingest-worker` → policy with read on
-        #   `secret/data/platform/rabbitmq` (for the consumer creds).
-        # The bootstrap edit lands in this same PR so the manifest
-        # works on first reconcile.
+        # Vault Agent inject: RabbitMQ consumer creds + the
+        # knowledge-vault deploy key. Both land as files under
+        # /vault/secrets/ and are picked up by the worker.
         vault.hashicorp.com/agent-inject: 'true'
         vault.hashicorp.com/agent-inject-token: 'true'
         vault.hashicorp.com/agent-pre-populate-only: 'true'
@@ -46,16 +60,24 @@ spec:
         vault.hashicorp.com/agent-inject-template-rabbitmq.env: |
           RABBITMQ_USER={{ with secret "secret/data/platform/rabbitmq" }}{{ index .Data.data "rabbitmq.user" }}{{ end }}
           RABBITMQ_PASSWORD={{ with secret "secret/data/platform/rabbitmq" }}{{ index .Data.data "rabbitmq.password" }}{{ end }}
+        vault.hashicorp.com/agent-inject-secret-id_ed25519: secret/data/knowledge-system/vault-deploy-key
+        vault.hashicorp.com/agent-inject-template-id_ed25519: |
+          {{ with secret "secret/data/knowledge-system/vault-deploy-key" }}{{ index .Data.data "private_key" }}{{ end }}
+        vault.hashicorp.com/agent-inject-perms-id_ed25519: '0400'
     spec:
       serviceAccountName: knowledge-ingest-worker
       nodeSelector:
         personal-stack/site: frankfurt
+      volumes:
+        - name: vault-clone
+          persistentVolumeClaim:
+            claimName: knowledge-vault-clone
       containers:
         - name: knowledge-ingest-worker
           image: ghcr.io/extratoast/personal-stack/knowledge-ingest-worker:latest
           imagePullPolicy: Always
-          # Source the Vault-projected env file, then exec the OTel
-          # auto-instrumented entry point. The Dockerfile's
+          # Source the Vault-projected RabbitMQ env file, then exec
+          # the OTel auto-instrumented entry point. The Dockerfile's
           # ENTRYPOINT covers `opentelemetry-instrument python -m
           # knowledge_worker`; the shell wrapper here only exists to
           # ingest /vault/secrets/rabbitmq.env into the process env.
@@ -67,6 +89,9 @@ spec:
               . /vault/secrets/rabbitmq.env
               set +a
               exec opentelemetry-instrument python -m knowledge_worker
+          volumeMounts:
+            - name: vault-clone
+              mountPath: /var/lib/knowledge-vault
           env:
             - name: RABBITMQ_HOST
               value: rabbitmq.data-system.svc.cluster.local
@@ -94,6 +119,20 @@ spec:
               value: otlp
             - name: OTEL_PYTHON_LOG_CORRELATION
               value: 'true'
+            - name: VAULT_ENABLED
+              value: 'true'
+            - name: VAULT_CLONE_URL
+              value: git@github.com:ExtraToast/knowledge-vault.git
+            - name: VAULT_CLONE_DIR
+              value: /var/lib/knowledge-vault
+            - name: VAULT_BRANCH
+              value: main
+            - name: VAULT_SSH_KEY_PATH
+              value: /vault/secrets/id_ed25519
+            - name: VAULT_AUTHOR_NAME
+              value: knowledge-ingest-worker
+            - name: VAULT_AUTHOR_EMAIL
+              value: worker@knowledge.jorisjonkers.dev
           resources:
             requests:
               cpu: 100m
