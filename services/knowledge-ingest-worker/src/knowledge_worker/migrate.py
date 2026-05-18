@@ -188,8 +188,7 @@ def _git_env(ssh_key_path: str | None) -> dict[str, str]:
     env = dict(os.environ)
     if ssh_key_path:
         env["GIT_SSH_COMMAND"] = (
-            f"ssh -i {ssh_key_path} -o IdentitiesOnly=yes "
-            f"-o StrictHostKeyChecking=accept-new"
+            f"ssh -i {ssh_key_path} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
         )
     return env
 

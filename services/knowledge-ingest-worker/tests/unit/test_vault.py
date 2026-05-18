@@ -103,9 +103,7 @@ def test_open_attaches_existing_clone(tmp_path: Path, remote: Path) -> None:
 def test_write_creates_file_with_frontmatter(writer: VaultGitWriter, tmp_path: Path) -> None:
     result = writer.write(_note())
 
-    assert result.relative_path == (
-        "_inbox/2026-05-13/120000-render-scripts-must-run--01HXYZ00.md"
-    )
+    assert result.relative_path == ("_inbox/2026-05-13/120000-render-scripts-must-run--01HXYZ00.md")
     target = tmp_path / "clone" / result.relative_path
     content = target.read_text(encoding="utf-8")
     assert content.startswith("---\n")
@@ -150,9 +148,7 @@ def test_write_path_ignores_scope_until_curator_promotes(
     # The worker's path no longer depends on `scope` at all — the
     # curator decides scope (and the final folder) after triage.
     result = writer.write(_note(scope="agent:_shared/foo", id="01SCOPE0000000000000000000"))
-    assert result.relative_path == (
-        "_inbox/2026-05-13/120000-render-scripts-must-run--01SCOPE0.md"
-    )
+    assert result.relative_path == ("_inbox/2026-05-13/120000-render-scripts-must-run--01SCOPE0.md")
     assert (tmp_path / "clone" / result.relative_path).exists()
 
 

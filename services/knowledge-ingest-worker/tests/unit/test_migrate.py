@@ -34,14 +34,28 @@ def test_title_from_body_picks_the_first_h1() -> None:
 
 
 def test_new_path_uses_captured_at_plus_title_slug_plus_id_prefix() -> None:
-    body = "---\nid: 01HXYZ00000000000000000000\ncaptured_at: 2026-05-13T12:00:00+00:00\n---\n\n# Render scripts must run\n"
+    body = (
+        "---\n"
+        "id: 01HXYZ00000000000000000000\n"
+        "captured_at: 2026-05-13T12:00:00+00:00\n"
+        "---\n"
+        "\n"
+        "# Render scripts must run\n"
+    )
     meta = _parse_frontmatter(body)
     rel = _new_path(meta, body)
     assert rel == "_inbox/2026-05-13/120000-render-scripts-must-run--01HXYZ00.md"
 
 
 def test_new_path_falls_back_to_id_when_title_missing() -> None:
-    body = "---\nid: 01ABCDEF12345678901234567\ncaptured_at: 2026-05-13T12:00:00+00:00\n---\n\nno header here\n"
+    body = (
+        "---\n"
+        "id: 01ABCDEF12345678901234567\n"
+        "captured_at: 2026-05-13T12:00:00+00:00\n"
+        "---\n"
+        "\n"
+        "no header here\n"
+    )
     meta = _parse_frontmatter(body)
     rel = _new_path(meta, body)
     assert rel.endswith("--01ABCDEF.md")
