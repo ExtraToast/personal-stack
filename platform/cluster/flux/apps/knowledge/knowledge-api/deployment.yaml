@@ -43,6 +43,10 @@ spec:
         vault.hashicorp.com/agent-inject-template-knowledge-api.env: |
           DB_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "kb.user" }}{{ end }}
           DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "kb.password" }}{{ end }}
+        vault.hashicorp.com/agent-inject-secret-rabbitmq.env: secret/data/platform/rabbitmq
+        vault.hashicorp.com/agent-inject-template-rabbitmq.env: |
+          RABBITMQ_USER={{ with secret "secret/data/platform/rabbitmq" }}{{ index .Data.data "rabbitmq.user" }}{{ end }}
+          RABBITMQ_PASSWORD={{ with secret "secret/data/platform/rabbitmq" }}{{ index .Data.data "rabbitmq.password" }}{{ end }}
     spec:
       serviceAccountName: knowledge-api
       nodeSelector:
@@ -57,6 +61,7 @@ spec:
             - |
               set -a
               . /vault/secrets/knowledge-api.env
+              . /vault/secrets/rabbitmq.env
               set +a
               exec java \
                 -XX:+UseZGC \
@@ -86,6 +91,10 @@ spec:
               value: '5432'
             - name: DB_NAME
               value: knowledge_db
+            - name: RABBITMQ_HOST
+              value: rabbitmq.data-system.svc.cluster.local
+            - name: RABBITMQ_PORT
+              value: '5672'
             - name: DEPLOYMENT_ENVIRONMENT
               value: production
             - name: OTEL_SERVICE_NAME
