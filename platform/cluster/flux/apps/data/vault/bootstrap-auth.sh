@@ -187,6 +187,10 @@ path "secret/data/platform/postgres" {
   capabilities = ["read"]
 }
 
+path "secret/data/platform/rabbitmq" {
+  capabilities = ["read"]
+}
+
 path "secret/data/knowledge-api" {
   capabilities = ["read"]
 }
