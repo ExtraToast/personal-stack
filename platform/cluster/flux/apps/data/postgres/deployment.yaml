@@ -54,7 +54,13 @@ spec:
         personal-stack/site: frankfurt
       containers:
         - name: postgres
-          image: postgres:17-alpine
+          # pgvector/pgvector:pg17 = stock Postgres 17 + pgvector
+          # pre-installed. `postgres:17-alpine` doesn't carry the
+          # extension; LightRAG (and any future ANN consumer) fails
+          # with `extension "vector" is not available` until the
+          # binary is on the server. Same on-disk format as the
+          # alpine image — existing PGDATA is reused untouched.
+          image: pgvector/pgvector:pg17
           imagePullPolicy: IfNotPresent
           command:
             - /bin/sh
