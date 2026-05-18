@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
+  - vault-secrets-operator-sa.yaml
   - obsidian-livesync
   - knowledge-api
   - knowledge-ingest-worker
