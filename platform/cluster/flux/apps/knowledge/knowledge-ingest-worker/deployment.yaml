@@ -145,6 +145,22 @@ spec:
               value: knowledge-ingest-worker
             - name: VAULT_AUTHOR_EMAIL
               value: worker@knowledge.jorisjonkers.dev
+            # The PVC mount root /var/lib/knowledge-vault is created
+            # by kubelet as root:root while the contents land owned
+            # by the worker uid 1000. Git refuses to operate on a
+            # working tree whose root has a different owner than the
+            # running process ("detected dubious ownership"); the
+            # check fires before stdin is read, so GitPython sees an
+            # EPIPE on cat-file --batch and surfaces it as a
+            # confusing `BrokenPipeError` deep inside index.commit.
+            # GIT_CONFIG_COUNT/KEY/VALUE inject a safe.directory=*
+            # override that every git subprocess inherits.
+            - name: GIT_CONFIG_COUNT
+              value: '1'
+            - name: GIT_CONFIG_KEY_0
+              value: safe.directory
+            - name: GIT_CONFIG_VALUE_0
+              value: '*'
             - name: DB_HOST
               value: postgres.data-system.svc.cluster.local
             - name: DB_PORT
