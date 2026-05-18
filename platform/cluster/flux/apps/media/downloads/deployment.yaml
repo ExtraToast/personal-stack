@@ -256,15 +256,27 @@ spec:
               while :; do
                 resp=$(curl -fsS "$GLUETUN/v1/openvpn/portforwarded" 2>/dev/null || true)
                 port=$(printf '%s' "$resp" | sed -n 's/.*"port":[[:space:]]*\([0-9][0-9]*\).*/\1/p')
-                if [ -n "$port" ] && [ "$port" != "0" ] && [ "$port" != "$LAST_PORT" ]; then
-                  echo "[port-sync] forwarded port: ${LAST_PORT:-<none>} -> $port"
+                # Heartbeat every iteration so Loki sees liveness from
+                # this sidecar even when nothing changes (the previous
+                # version logged only on port transitions, leaving long
+                # silent stretches that looked indistinguishable from a
+                # wedged loop).
+                ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+                if [ -z "$resp" ]; then
+                  echo "[port-sync] $ts gluetun control-server unreachable"
+                elif [ -z "$port" ] || [ "$port" = "0" ]; then
+                  echo "[port-sync] $ts no forwarded port yet (gluetun reports: $resp)"
+                elif [ "$port" != "$LAST_PORT" ]; then
+                  echo "[port-sync] $ts forwarded port: ${LAST_PORT:-<none>} -> $port"
                   if curl -fsS -o /dev/null -X POST "$QBT/api/v2/app/setPreferences" \
                       --data-urlencode "json={\"listen_port\":$port}"; then
                     LAST_PORT="$port"
-                    echo "[port-sync] applied listen_port=$port"
+                    echo "[port-sync] $ts applied listen_port=$port"
                   else
-                    echo "[port-sync] WARN: failed to set listen_port=$port"
+                    echo "[port-sync] $ts WARN: failed to set listen_port=$port"
                   fi
+                else
+                  echo "[port-sync] $ts heartbeat listen_port=$port"
                 fi
                 sleep "$INTERVAL"
               done
@@ -275,6 +287,52 @@ spec:
             limits:
               cpu: 100m
               memory: 64Mi
+        - name: qbittorrent-log-tail
+          # qBittorrent (linuxserver image) writes its log to
+          # /config/qBittorrent/logs/qbittorrent.log instead of
+          # stdout, so `kubectl logs` and Alloy/Loki see only the s6
+          # init banner. This sidecar tails the log file to its own
+          # stdout, which Alloy then ships to Loki — surfacing the
+          # File error / IO error / tracker / save-path alerts that
+          # are otherwise invisible.
+          #
+          # `tail -F` keeps following across log rotation and waits
+          # for the file to appear, so the sidecar tolerates a fresh
+          # pod where qBittorrent hasn't created the file yet.
+          image: busybox:latest
+          imagePullPolicy: IfNotPresent
+          # UID/GID 1000 matches qBittorrent's PUID/PGID, so the log
+          # file (created by qbittorrent-nox as 1000:1000) is
+          # readable without escalation.
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              LOG=/config/qBittorrent/logs/qbittorrent.log
+              echo "[log-tail] waiting for $LOG"
+              # tail -F retries on ENOENT, so this just works once
+              # qBittorrent creates the file. No initial existence
+              # check required.
+              exec tail -n 0 -F "$LOG"
+          volumeMounts:
+            - name: qbittorrent-config
+              mountPath: /config
+              readOnly: true
+          resources:
+            requests:
+              cpu: 5m
+              memory: 8Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi
         - name: prowlarr
           image: linuxserver/prowlarr:latest
           imagePullPolicy: IfNotPresent
