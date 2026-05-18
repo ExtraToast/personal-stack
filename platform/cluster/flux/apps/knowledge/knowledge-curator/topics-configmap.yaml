@@ -99,7 +99,7 @@ data:
         description: Obsidian — desktop / LiveSync / Git plugin.
       - slug: gh-cli
         aliases: [gh, GitHub-CLI]
-        description: `gh` cli — pr create, run rerun, variadic flag traps.
+        description: "`gh` cli — pr create, run rerun, variadic flag traps."
       - slug: docker
         aliases: [Docker]
         description: Dockerfile patterns, multi-stage builds, slim-image surprises.
