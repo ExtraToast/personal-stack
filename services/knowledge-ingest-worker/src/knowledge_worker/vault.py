@@ -82,12 +82,17 @@ class VaultGitWriter:
             self._log.info("vault.attached", clone=str(self._clone_dir))
         else:
             self._clone_dir.parent.mkdir(parents=True, exist_ok=True)
+            # NOT a shallow clone: GitPython resolves parent objects via
+            # `git cat-file --batch` when committing on top of HEAD, and
+            # a `depth=1` store crashes that with a misleading
+            # `BrokenPipeError` because cat-file exits early when an
+            # ancestor object is missing. The knowledge-vault is small
+            # markdown anyway; a full clone is cheap.
             self._repo = Repo.clone_from(
                 self._clone_url,
                 self._clone_dir,
                 branch=self._branch,
                 env=self._git_env(),
-                depth=1,
             )
             self._log.info("vault.cloned", clone=str(self._clone_dir))
 
@@ -107,7 +112,19 @@ class VaultGitWriter:
         rel = target.relative_to(self._clone_dir).as_posix()
         repo.index.add([rel])
         message = self._commit_message(note)
-        commit = repo.index.commit(message, author=self._author, committer=self._author)
+        # GitPython's default `index.commit` auto-discovers the parent
+        # via `repo.head.commit`. On a freshly-initialised remote with
+        # no commits yet, HEAD is "unborn" and the lookup crashes deep
+        # inside `git cat-file` with a misleading `BrokenPipeError`.
+        # Detect that case explicitly and pass `parent_commits=[]` so
+        # the first worker write becomes the repo's initial commit.
+        parents = [repo.head.commit] if self._has_head_commit(repo) else []
+        commit = repo.index.commit(
+            message,
+            parent_commits=parents,
+            author=self._author,
+            committer=self._author,
+        )
 
         if self._push:
             try:
