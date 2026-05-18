@@ -60,6 +60,10 @@ spec:
         vault.hashicorp.com/agent-inject-template-rabbitmq.env: |
           RABBITMQ_USER={{ with secret "secret/data/platform/rabbitmq" }}{{ index .Data.data "rabbitmq.user" }}{{ end }}
           RABBITMQ_PASSWORD={{ with secret "secret/data/platform/rabbitmq" }}{{ index .Data.data "rabbitmq.password" }}{{ end }}
+        vault.hashicorp.com/agent-inject-secret-postgres.env: secret/data/platform/postgres
+        vault.hashicorp.com/agent-inject-template-postgres.env: |
+          DB_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "kb.user" }}{{ end }}
+          DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "kb.password" }}{{ end }}
         vault.hashicorp.com/agent-inject-secret-id_ed25519: secret/data/knowledge-system/vault-deploy-key
         vault.hashicorp.com/agent-inject-template-id_ed25519: |
           {{ with secret "secret/data/knowledge-system/vault-deploy-key" }}{{ index .Data.data "private_key" }}{{ end }}
@@ -87,6 +91,7 @@ spec:
             - |
               set -a
               . /vault/secrets/rabbitmq.env
+              . /vault/secrets/postgres.env
               set +a
               exec opentelemetry-instrument python -m knowledge_worker
           volumeMounts:
@@ -133,6 +138,14 @@ spec:
               value: knowledge-ingest-worker
             - name: VAULT_AUTHOR_EMAIL
               value: worker@knowledge.jorisjonkers.dev
+            - name: DB_HOST
+              value: postgres.data-system.svc.cluster.local
+            - name: DB_PORT
+              value: '5432'
+            - name: DB_NAME
+              value: knowledge_db
+            - name: KB_PERSIST_ENABLED
+              value: 'true'
           resources:
             requests:
               cpu: 100m

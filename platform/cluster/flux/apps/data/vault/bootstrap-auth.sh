@@ -284,18 +284,22 @@ vault write auth/kubernetes/role/knowledge-api \
   policies="knowledge-api" \
   ttl="1h"
 
-# Python ingest worker. Reads the shared RabbitMQ static creds plus
-# the knowledge-vault deploy key — the worker clones the private
-# knowledge-vault repo over SSH and commits each captured note. The
-# LightRAG pipeline will additionally need `secret/data/platform/
-# postgres` once the embedding/graph layer lands; extend the policy
-# then.
+# Python ingest worker. Reads the shared RabbitMQ static creds, the
+# knowledge-vault deploy key (clone + commit captured notes), and the
+# shared Postgres `kb_user/kb_password` so it can UPDATE `kb_notes`
+# with the canonical `vault_path` + `vault_commit` once the git commit
+# lands — same kb credentials knowledge-api uses, projected under
+# `secret/data/platform/postgres` keys `kb.user` / `kb.password`.
 cat <<'EOF' >/tmp/knowledge-ingest-worker.hcl
 path "secret/data/platform/rabbitmq" {
   capabilities = ["read"]
 }
 
 path "secret/data/knowledge-system/vault-deploy-key" {
+  capabilities = ["read"]
+}
+
+path "secret/data/platform/postgres" {
   capabilities = ["read"]
 }
 EOF
