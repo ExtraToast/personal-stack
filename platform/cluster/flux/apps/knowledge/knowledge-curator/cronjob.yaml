@@ -144,6 +144,10 @@ spec:
                   value: '0.55'
                 - name: TOPICS_YAML_PATH
                   value: /etc/curator/topics.yaml
+                - name: LIGHTRAG_BASE_URL
+                  value: http://lightrag.knowledge-system.svc.cluster.local:9621
+                - name: LIGHTRAG_REQUEST_TIMEOUT_SECONDS
+                  value: '30'
                 # Same safe.directory bypass the worker manifest
                 # carries: the PVC mount root is root-owned and git
                 # otherwise refuses to operate.

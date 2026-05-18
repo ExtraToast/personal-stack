@@ -158,19 +158,36 @@ committed tree, so rendering must happen locally before commit.
   k8s Deployment (nodeSelector + hostPort if it needs privileged host
   ports) rather than debugging host-iptables on Frankfurt.
 
-- **Knowledge-vault layout is changing across 3 PRs.** See
-  `docs/private/knowledge-vault-redesign.md` for the full plan.
-  Short version: worker captures land in `_inbox/<day>/<time>-<slug>--<id8>.md`
-  with the title as a kebab slug, NOT in `notes/<scope>/<type>/<ulid>.md`.
-  A separate `knowledge-curator` agent (PR 2, not landed yet)
-  classifies + promotes inbox notes into `topics/<topic-slug>/<slug>.md`
-  for general framework/language info or `projects/<github-repo-name>/<slug>.md`
-  for repo-specific lessons. LightRAG joins as the retrieval layer
-  in PR 3. Until the curator is live, captures pile up in `_inbox/`;
-  that is intentional, not a bug. The corresponding SCHEMA.md
-  rewrite for the `ExtraToast/knowledge-vault` repo lives at
-  `docs/private/knowledge-vault-SCHEMA-v2-draft.md` and gets copied
-  over once PR 1 merges.
+- **Knowledge-vault structure.** Captures land in
+  `_inbox/<day>/<time>-<slug>--<id8>.md` (worker). The
+  `knowledge-curator` CronJob runs every 5 minutes; it classifies
+  via Ollama `qwen2.5:14b-instruct` with JSON-schema-constrained
+  output, validates `topic:<slug>` against `topics.yaml`, and
+  `git mv`s the file to `topics/<topic-slug>/<type>/<slug>.md` or
+  `projects/<github-repo-name>/<type>/<slug>.md`. Unclassifiable
+  notes go to `_inbox/_needs-review/`. After any pass that promotes
+  at least one note the curator regenerates `_index/recent.md`,
+  per-topic MoCs at `_index/topics/<slug>.md`, and
+  `_index/conflicts.md`. Full design in
+  `docs/private/knowledge-vault-redesign.md`.
+- **LightRAG retrieval.** Deployed at
+  `lightrag.knowledge-system.svc.cluster.local:9621`. Backend:
+  pgvector KV/vector on the same `knowledge_db`, NetworkX disk-
+  backed graph in its own 2 GiB PVC. Pinned to
+  `ghcr.io/hkuds/lightrag:v1.4.16` — bump deliberately via a
+  PR; the v1.4.9 → next migration once cost a 17-hour downtime
+  (LightRAG issue #2255). Uses in-cluster Ollama via
+  `/v1/chat/completions` for extraction + mix-mode generation;
+  pin Ollama outside `0.13.0-0.13.2` (LightRAG #2495 broke the
+  embedding path on those versions). The curator publishes every
+  promoted note via `POST /documents/text` fire-and-forget — a
+  slow LightRAG never blocks git + DB writes.
+- **Topic vocabulary is closed.** Add a topic = edit
+  `platform/cluster/flux/apps/knowledge/knowledge-curator/topics-configmap.yaml`
+  in a deliberate PR. The classifier rejects `topic:<slug>` values
+  that aren't in the list and routes the note to
+  `_inbox/_needs-review/`. This prevents the LLM from forking
+  `kotlin` / `Kotlin` / `kt` into three folders.
 
 ## Quick test commands
 

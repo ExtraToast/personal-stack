@@ -28,6 +28,7 @@ from curator.indexes import (
     write_recent,
     write_topic_mocs,
 )
+from curator.lightrag import LightRagClient
 from curator.promote import Promoter
 from curator.recall import RecallClient
 from curator.settings import Settings
@@ -80,6 +81,12 @@ def main() -> int:
     )
     vault.sync()
 
+    lightrag = LightRagClient(
+        base_url=settings.lightrag_base_url,
+        timeout_seconds=settings.lightrag_request_timeout_seconds,
+        enabled=bool(settings.lightrag_base_url),
+    )
+
     promoter = Promoter(
         classifier=classifier,
         recall=recall,
@@ -89,6 +96,7 @@ def main() -> int:
         clone_dir=settings.vault_clone_dir,
         confidence_floor=settings.classify_confidence_floor,
         recall_limit=settings.classify_top_k_neighbours,
+        lightrag=lightrag,
     )
 
     inbox_root = settings.vault_clone_dir / "_inbox"
