@@ -1,0 +1,103 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: knowledge-ingest-worker
+  namespace: knowledge-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: knowledge-ingest-worker
+  namespace: knowledge-system
+  annotations:
+    keel.sh/policy: force
+    keel.sh/match-tag: 'true'
+    keel.sh/trigger: poll
+    keel.sh/pollSchedule: '@every 2m'
+spec:
+  # Single replica per the single-replica-on-frankfurt policy.
+  # AMQP makes scaling out trivial later: bump replicas, RabbitMQ
+  # round-robins across consumers on the same queue.
+  replicas: 1
+  progressDeadlineSeconds: 1800
+  # Phase 5-2 mounts an RWO PVC for the knowledge-vault clone — keep
+  # the rollout strategy Recreate-friendly from the start so the
+  # follow-up PR doesn't have to bounce the policy.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: knowledge-ingest-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: knowledge-ingest-worker
+      annotations:
+        # Vault Agent inject mirrors knowledge-api:
+        #   role `knowledge-ingest-worker` → policy with read on
+        #   `secret/data/platform/rabbitmq` (for the consumer creds).
+        # The bootstrap edit lands in this same PR so the manifest
+        # works on first reconcile.
+        vault.hashicorp.com/agent-inject: 'true'
+        vault.hashicorp.com/agent-inject-token: 'true'
+        vault.hashicorp.com/agent-pre-populate-only: 'true'
+        vault.hashicorp.com/role: knowledge-ingest-worker
+        vault.hashicorp.com/agent-inject-secret-rabbitmq.env: secret/data/platform/rabbitmq
+        vault.hashicorp.com/agent-inject-template-rabbitmq.env: |
+          RABBITMQ_USER={{ with secret "secret/data/platform/rabbitmq" }}{{ index .Data.data "rabbitmq.user" }}{{ end }}
+          RABBITMQ_PASSWORD={{ with secret "secret/data/platform/rabbitmq" }}{{ index .Data.data "rabbitmq.password" }}{{ end }}
+    spec:
+      serviceAccountName: knowledge-ingest-worker
+      nodeSelector:
+        personal-stack/site: frankfurt
+      containers:
+        - name: knowledge-ingest-worker
+          image: ghcr.io/extratoast/personal-stack/knowledge-ingest-worker:latest
+          imagePullPolicy: Always
+          # Source the Vault-projected env file, then exec the OTel
+          # auto-instrumented entry point. The Dockerfile's
+          # ENTRYPOINT covers `opentelemetry-instrument python -m
+          # knowledge_worker`; the shell wrapper here only exists to
+          # ingest /vault/secrets/rabbitmq.env into the process env.
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              set -a
+              . /vault/secrets/rabbitmq.env
+              set +a
+              exec opentelemetry-instrument python -m knowledge_worker
+          env:
+            - name: RABBITMQ_HOST
+              value: rabbitmq.data-system.svc.cluster.local
+            - name: RABBITMQ_PORT
+              value: '5672'
+            - name: INGEST_QUEUE
+              value: knowledge.ingest
+            - name: INGEST_PREFETCH
+              value: '4'
+            - name: LOG_LEVEL
+              value: INFO
+            - name: DEPLOYMENT_ENVIRONMENT
+              value: production
+            - name: OTEL_SERVICE_NAME
+              value: knowledge-ingest-worker
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://alloy.observability.svc.cluster.local:4318
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: http/protobuf
+            - name: OTEL_LOGS_EXPORTER
+              value: none
+            - name: OTEL_METRICS_EXPORTER
+              value: none
+            - name: OTEL_TRACES_EXPORTER
+              value: otlp
+            - name: OTEL_PYTHON_LOG_CORRELATION
+              value: 'true'
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 768Mi

@@ -6,3 +6,4 @@ resources:
   - obsidian
   - obsidian-livesync
   - knowledge-api
+  - knowledge-ingest-worker
