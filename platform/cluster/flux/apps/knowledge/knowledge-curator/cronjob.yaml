@@ -59,8 +59,13 @@ spec:
               {{ with secret "secret/data/knowledge-system/vault-deploy-key" }}{{ index .Data.data "private_key" }}{{ end }}
             vault.hashicorp.com/agent-inject-perms-id_ed25519: '0400'
             vault.hashicorp.com/agent-inject-secret-mcp.env: secret/data/knowledge-system/mcp-bearer
+            # Single-quote the token value so shell `source` tolerates
+            # any character a bearer token might contain (`$`, `&`,
+            # parens, etc.). Without the quotes, unquoted assignment
+            # fails at boot with `Syntax error: newline unexpected`
+            # and the curator can't even start.
             vault.hashicorp.com/agent-inject-template-mcp.env: |
-              KNOWLEDGE_API_BEARER_TOKEN={{ with secret "secret/data/knowledge-system/mcp-bearer" }}{{ index .Data.data "curator" }}{{ end }}
+              KNOWLEDGE_API_BEARER_TOKEN='{{ with secret "secret/data/knowledge-system/mcp-bearer" }}{{ index .Data.data "curator" }}{{ end }}'
         spec:
           serviceAccountName: knowledge-curator
           restartPolicy: OnFailure
