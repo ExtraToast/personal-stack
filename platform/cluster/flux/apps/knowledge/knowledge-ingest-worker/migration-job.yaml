@@ -1,0 +1,102 @@
+# One-shot migration Job: moves the legacy `notes/<scope>/<type>/<ulid>.md`
+# captures into the new `_inbox/<YYYY-MM-DD>/<HHMMSS>-<slug>--<id8>.md`
+# layout that the worker and curator both expect after the vault
+# restructure. Runs the `knowledge_worker.migrate` entry point with the
+# same Vault Agent + Postgres + RWO clone wiring the steady-state
+# worker uses, so the migration shares deploy-key auth, kb_notes
+# UPDATE access, and the existing clone PVC.
+#
+# Flux's prune behaviour leaves completed Jobs in place; delete by
+# hand once verified:
+#
+#     kubectl delete -n knowledge-system job/knowledge-vault-migrate-2026-05-18
+#
+# Idempotent: a second run finds no `notes/` directory and exits 0.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: knowledge-vault-migrate-2026-05-18
+  namespace: knowledge-system
+  annotations:
+    # Tell Flux to apply once and never reconcile back if completed.
+    kustomize.toolkit.fluxcd.io/prune: disabled
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 604800 # keep 7d for audit
+  template:
+    metadata:
+      annotations:
+        vault.hashicorp.com/agent-inject: 'true'
+        vault.hashicorp.com/agent-inject-token: 'true'
+        vault.hashicorp.com/agent-pre-populate-only: 'true'
+        vault.hashicorp.com/role: knowledge-ingest-worker
+        vault.hashicorp.com/agent-run-as-user: '1000'
+        vault.hashicorp.com/agent-run-as-group: '1000'
+        vault.hashicorp.com/agent-inject-secret-rabbitmq.env: secret/data/platform/rabbitmq
+        vault.hashicorp.com/agent-inject-template-rabbitmq.env: |
+          RABBITMQ_USER={{ with secret "secret/data/platform/rabbitmq" }}{{ index .Data.data "rabbitmq.user" }}{{ end }}
+          RABBITMQ_PASSWORD={{ with secret "secret/data/platform/rabbitmq" }}{{ index .Data.data "rabbitmq.password" }}{{ end }}
+        vault.hashicorp.com/agent-inject-secret-postgres.env: secret/data/platform/postgres
+        vault.hashicorp.com/agent-inject-template-postgres.env: |
+          DB_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "kb.user" }}{{ end }}
+          DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "kb.password" }}{{ end }}
+        vault.hashicorp.com/agent-inject-secret-id_ed25519: secret/data/knowledge-system/vault-deploy-key
+        vault.hashicorp.com/agent-inject-template-id_ed25519: |
+          {{ with secret "secret/data/knowledge-system/vault-deploy-key" }}{{ index .Data.data "private_key" }}{{ end }}
+        vault.hashicorp.com/agent-inject-perms-id_ed25519: '0400'
+    spec:
+      serviceAccountName: knowledge-ingest-worker
+      restartPolicy: OnFailure
+      nodeSelector:
+        personal-stack/site: frankfurt
+      volumes:
+        - name: vault-clone
+          persistentVolumeClaim:
+            claimName: knowledge-vault-clone
+      containers:
+        - name: migrate
+          image: ghcr.io/extratoast/personal-stack/knowledge-ingest-worker:latest
+          imagePullPolicy: Always
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              set -a
+              . /vault/secrets/rabbitmq.env
+              . /vault/secrets/postgres.env
+              set +a
+              exec python -m knowledge_worker.migrate
+          volumeMounts:
+            - name: vault-clone
+              mountPath: /var/lib/knowledge-vault
+          env:
+            - name: VAULT_ENABLED
+              value: 'true'
+            - name: VAULT_CLONE_URL
+              value: git@github.com:ExtraToast/knowledge-vault.git
+            - name: VAULT_CLONE_DIR
+              value: /var/lib/knowledge-vault
+            - name: VAULT_BRANCH
+              value: main
+            - name: VAULT_SSH_KEY_PATH
+              value: /vault/secrets/id_ed25519
+            - name: VAULT_AUTHOR_NAME
+              value: knowledge-ingest-worker
+            - name: VAULT_AUTHOR_EMAIL
+              value: worker@knowledge.jorisjonkers.dev
+            - name: KB_PERSIST_ENABLED
+              value: 'true'
+            - name: DB_HOST
+              value: postgres.data-system.svc.cluster.local
+            - name: DB_PORT
+              value: '5432'
+            - name: DB_NAME
+              value: knowledge_db
+            - name: LOG_LEVEL
+              value: INFO
+            - name: GIT_CONFIG_COUNT
+              value: '1'
+            - name: GIT_CONFIG_KEY_0
+              value: safe.directory
+            - name: GIT_CONFIG_VALUE_0
+              value: '*'
