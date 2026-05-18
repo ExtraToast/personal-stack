@@ -284,6 +284,24 @@ vault write auth/kubernetes/role/knowledge-api \
   policies="knowledge-api" \
   ttl="1h"
 
+# Python ingest worker. Reads the shared RabbitMQ static creds for
+# now (`secret/data/platform/rabbitmq`). Once Phase 5-3 lands the
+# LightRAG pipeline it'll also need `secret/data/platform/postgres`
+# for the knowledge_db connection — extend `knowledge-ingest-worker`
+# policy then.
+cat <<'EOF' >/tmp/knowledge-ingest-worker.hcl
+path "secret/data/platform/rabbitmq" {
+  capabilities = ["read"]
+}
+EOF
+vault policy write knowledge-ingest-worker /tmp/knowledge-ingest-worker.hcl
+
+vault write auth/kubernetes/role/knowledge-ingest-worker \
+  bound_service_account_names="knowledge-ingest-worker" \
+  bound_service_account_namespaces="knowledge-system" \
+  policies="knowledge-ingest-worker" \
+  ttl="1h"
+
 # RabbitMQ dynamic secrets engine. Reconfigure the connection on every
 # bootstrap so the URI + admin creds always match the current cluster;
 # without this, a raft-snapshot restore leaves the engine pointing at

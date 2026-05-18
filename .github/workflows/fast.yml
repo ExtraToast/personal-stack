@@ -37,6 +37,8 @@ jobs:
     outputs:
       any-kotlin: ${{ steps.compute.outputs.any-kotlin }}
       any-frontend: ${{ steps.compute.outputs.any-frontend }}
+      any-python: ${{ steps.compute.outputs.any-python }}
+      knowledge-ingest-worker: ${{ steps.compute.outputs.knowledge-ingest-worker }}
       lint-kotlin-matrix: ${{ steps.matrix.outputs.lint-kotlin }}
       test-kotlin-unit-matrix: ${{ steps.matrix.outputs.test-kotlin-unit }}
     steps:
@@ -55,6 +57,8 @@ jobs:
               - 'services/assistant-api/**'
             knowledge-api:
               - 'services/knowledge-api/**'
+            knowledge-ingest-worker:
+              - 'services/knowledge-ingest-worker/**'
             kotlin-common:
               - 'libs/kotlin-common/**'
             build-logic:
@@ -89,6 +93,7 @@ jobs:
           FILTER_AUTH_API: ${{ steps.filter.outputs.auth-api }}
           FILTER_ASSISTANT_API: ${{ steps.filter.outputs.assistant-api }}
           FILTER_KNOWLEDGE_API: ${{ steps.filter.outputs.knowledge-api }}
+          FILTER_KNOWLEDGE_INGEST_WORKER: ${{ steps.filter.outputs.knowledge-ingest-worker }}
           FILTER_VUE_COMMON: ${{ steps.filter.outputs.vue-common }}
           FILTER_FRONTEND_CONFIG: ${{ steps.filter.outputs.frontend-config }}
           FILTER_AUTH_UI: ${{ steps.filter.outputs.auth-ui }}
@@ -107,8 +112,13 @@ jobs:
           ANY_KOTLIN=$(any "$KOTLIN_SHARED" "$FILTER_AUTH_API" "$FILTER_ASSISTANT_API" "$FILTER_KNOWLEDGE_API")
           ANY_FRONTEND=$(any "$FRONTEND_SHARED" "$FILTER_AUTH_UI" "$FILTER_ASSISTANT_UI" "$FILTER_APP_UI")
 
+          KNOWLEDGE_INGEST_WORKER=$(any "$FILTER_WORKFLOW" "$FILTER_KNOWLEDGE_INGEST_WORKER")
+          ANY_PYTHON="$KNOWLEDGE_INGEST_WORKER"
+
           echo "any-kotlin=$ANY_KOTLIN" >> "$GITHUB_OUTPUT"
           echo "any-frontend=$ANY_FRONTEND" >> "$GITHUB_OUTPUT"
+          echo "any-python=$ANY_PYTHON" >> "$GITHUB_OUTPUT"
+          echo "knowledge-ingest-worker=$KNOWLEDGE_INGEST_WORKER" >> "$GITHUB_OUTPUT"
           echo "auth-api-kotlin=$AUTH_API_KOTLIN" >> "$GITHUB_OUTPUT"
           echo "assistant-api-kotlin=$ASSISTANT_API_KOTLIN" >> "$GITHUB_OUTPUT"
           echo "knowledge-api-kotlin=$KNOWLEDGE_API_KOTLIN" >> "$GITHUB_OUTPUT"
@@ -203,6 +213,40 @@ jobs:
         with:
           node-version: 24
       - run: pnpm -r test
+
+  lint-python:
+    name: Lint Python (knowledge-ingest-worker)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.knowledge-ingest-worker == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/knowledge-ingest-worker
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: '0.4.30'
+      - run: uv sync --python 3.12 --frozen
+      - run: uv run ruff check .
+      - run: uv run mypy
+
+  test-python-unit:
+    name: Python Unit Tests (knowledge-ingest-worker)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.knowledge-ingest-worker == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/knowledge-ingest-worker
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: '0.4.30'
+      - run: uv sync --python 3.12 --frozen
+      # `--cov` is the 80 % gate from feedback_service_test_policy.
+      - run: uv run pytest --cov
 
   build-verify:
     name: Build Verification
