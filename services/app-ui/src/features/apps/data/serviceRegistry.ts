@@ -162,13 +162,6 @@ export const SERVICE_REGISTRY: ServiceEntry[] = [
     description: 'Game streaming control',
   },
   {
-    permission: 'OBSIDIAN',
-    label: 'Obsidian',
-    url: buildServiceUrl('obsidian'),
-    iconUrl: '/icons/obsidian.svg',
-    description: 'Knowledge-base editor',
-  },
-  {
     permission: 'KNOWLEDGE_API',
     label: 'Knowledge API',
     url: buildServiceUrl('kb', '/api/actuator/health'),

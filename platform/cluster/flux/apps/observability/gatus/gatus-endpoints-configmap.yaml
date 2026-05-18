@@ -213,13 +213,6 @@ data:
       conditions:
       - "[STATUS] == 200"
       - "[RESPONSE_TIME] < 1500"
-    - name: "obsidian"
-      group: "public-apps"
-      url: "https://obsidian.jorisjonkers.dev/"
-      interval: "60s"
-      conditions:
-      - "[STATUS] == 401"
-      - "[RESPONSE_TIME] < 1500"
     - name: "obsidian-sync"
       group: "public-apps"
       url: "https://obsidian-sync.jorisjonkers.dev/_up"

@@ -170,13 +170,11 @@ service_intent:
       # existing Alloy DaemonSet — no separate workload, just an ingress
       # path so the SPAs can POST traces to faro.jorisjonkers.dev/v1/traces.
       - faro
-      # Browser-Obsidian (linuxserver/obsidian via Selkies). Edits the
-      # private knowledge-vault repo; the pod clones via a read-only deploy
-      # key stored in Vault at secret/data/knowledge-system/vault-deploy-key.
-      - obsidian
-      # CouchDB-backed Obsidian LiveSync server. Desktop/mobile Obsidian
-      # plugins sync directly via Basic Auth — intentionally NOT
-      # sso_protected (forward-auth would 302 the plugin's first request).
+      # CouchDB-backed Obsidian LiveSync server. Desktop and mobile
+      # Obsidian clients connect via the Self-hosted LiveSync community
+      # plugin — no in-cluster GUI surface, so the linuxserver/obsidian
+      # (Selkies) browser app is gone. Intentionally NOT sso_protected:
+      # forward-auth would 302 the plugin's first request.
       - obsidian-sync
       # Kotlin/Spring service that owns the provenance schema for the
       # knowledge base. Phase 4a ships the actuator-only skeleton; the
@@ -232,7 +230,6 @@ placement_intent:
     - gatus
     - vault
     - headlamp
-    - obsidian
     - obsidian-sync
     - knowledge-api
 
@@ -274,7 +271,6 @@ exposure_intent:
     - adguard
     - wolf
     - faro
-    - obsidian
     - obsidian-sync
     - knowledge-api
 
@@ -315,14 +311,6 @@ access_intent:
     - headlamp
     - adguard
     - wolf
-    # `obsidian` intentionally absent — the linuxserver/obsidian image
-    # streams the UI through Selkies (WebRTC over a `/ws` WebSocket).
-    # forward-auth 302s the WS upgrade to auth-ui and the browser
-    # cannot follow the redirect mid-handshake, so the session stalls
-    # at a blank screen. The pod runs Selkies in
-    # BASIC_AUTH_USER/PASSWORD mode (creds from the `obsidian-selkies`
-    # VSO Secret) instead — Basic Auth survives WS upgrades and is
-    # the only gate the public ingress applies.
     - knowledge-api
   host_labels:
     app-ui: root
@@ -353,7 +341,6 @@ access_intent:
     # browser fires `OPTIONS /v1/traces` pre-flights from any user with
     # a SPA loaded; forward-auth would 302 those to the login page.
     faro: faro
-    obsidian: obsidian
     obsidian-sync: obsidian-sync
     knowledge-api: kb
 
@@ -439,17 +426,6 @@ ingress_intent:
       namespace: automation-system
       service: n8n
       port: 5678
-    obsidian:
-      namespace: knowledge-system
-      service: obsidian
-      port: 3000
-      # Selkies fronts every endpoint with HTTP Basic Auth (creds from
-      # the `obsidian-selkies` VSO Secret). An unauthenticated probe is
-      # supposed to get 401 — that's the healthy signal here.
-      # `expected_status: 401` tells Gatus to flip green on 401 instead
-      # of treating it as a failure.
-      health:
-        expected_status: 401
     obsidian-sync:
       namespace: knowledge-system
       service: obsidian-livesync
