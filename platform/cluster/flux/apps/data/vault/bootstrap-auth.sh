@@ -341,6 +341,22 @@ vault write auth/kubernetes/role/knowledge-curator \
   policies="knowledge-curator" \
   ttl="1h"
 
+# LightRAG REST server. Reads the shared kb_user postgres creds —
+# the server owns the LightRAG-managed KV / vector / graph tables
+# inside `knowledge_db` and provisions them on first run.
+cat <<'EOF' >/tmp/lightrag.hcl
+path "secret/data/platform/postgres" {
+  capabilities = ["read"]
+}
+EOF
+vault policy write lightrag /tmp/lightrag.hcl
+
+vault write auth/kubernetes/role/lightrag \
+  bound_service_account_names="lightrag" \
+  bound_service_account_namespaces="knowledge-system" \
+  policies="lightrag" \
+  ttl="1h"
+
 # RabbitMQ dynamic secrets engine. Reconfigure the connection on every
 # bootstrap so the URI + admin creds always match the current cluster;
 # without this, a raft-snapshot restore leaves the engine pointing at

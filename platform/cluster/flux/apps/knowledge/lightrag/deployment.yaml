@@ -1,0 +1,183 @@
+# LightRAG REST server — graph-RAG retrieval layer over the
+# promoted knowledge-vault corpus. Talks to in-cluster Ollama for
+# both the LLM (entity / relation extraction during ingest, plus
+# generation during `mix`-mode queries) and the embedding model.
+#
+# Backend storage:
+#   - KV / vector  → Postgres + pgvector (same db the rest of the
+#                     stack uses; the existing `knowledge_db` gains
+#                     LightRAG-managed tables on first run).
+#   - Graph        → NetworkX, disk-backed JSON in the working_dir.
+#                     The maintainer-blessed graph backends (Apache
+#                     AGE on Postgres, Neo4j) require either a
+#                     custom Postgres image (postgres:17-alpine
+#                     here doesn't carry AGE) or a separate Neo4j
+#                     deployment. NetworkX is acceptable for the
+#                     ~10⁴ promoted notes this personal vault
+#                     targets; swap to AGE once the corpus
+#                     justifies the operational cost.
+#
+# Image: pin to a known-good version. The 1.4.9 → next upgrade
+# broke a 17-hour AGE migration once (#2255); don't move to
+# :latest blindly.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: lightrag
+  namespace: knowledge-system
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lightrag-workdir
+  namespace: knowledge-system
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      # LightRAG's working_dir holds extraction cache + chunk
+      # buffers. 2 GiB is generous for ~10⁴ short markdown notes.
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lightrag
+  namespace: knowledge-system
+  annotations:
+    # No Keel — this image is a published vendored release tag, not
+    # an in-house :latest. Bump the tag deliberately via a PR.
+    keel.sh/policy: never
+spec:
+  replicas: 1
+  progressDeadlineSeconds: 600
+  strategy:
+    type: Recreate # RWO PVC for the working dir
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lightrag
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lightrag
+      annotations:
+        vault.hashicorp.com/agent-inject: 'true'
+        vault.hashicorp.com/agent-inject-token: 'true'
+        vault.hashicorp.com/agent-pre-populate-only: 'true'
+        vault.hashicorp.com/role: lightrag
+        vault.hashicorp.com/agent-run-as-user: '1000'
+        vault.hashicorp.com/agent-run-as-group: '1000'
+        vault.hashicorp.com/agent-inject-secret-postgres.env: secret/data/platform/postgres
+        vault.hashicorp.com/agent-inject-template-postgres.env: |
+          POSTGRES_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "kb.user" }}{{ end }}
+          POSTGRES_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "kb.password" }}{{ end }}
+    spec:
+      serviceAccountName: lightrag
+      nodeSelector:
+        personal-stack/site: frankfurt
+      volumes:
+        - name: workdir
+          persistentVolumeClaim:
+            claimName: lightrag-workdir
+      containers:
+        - name: lightrag
+          # Pinned tag — see issue #2255 for the migration trap.
+          image: ghcr.io/hkuds/lightrag:v1.4.16
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              set -a
+              . /vault/secrets/postgres.env
+              set +a
+              exec lightrag-server
+          env:
+            - name: HOST
+              value: 0.0.0.0
+            - name: PORT
+              value: '9621'
+            - name: WORKING_DIR
+              value: /var/lib/lightrag
+            # LLM bindings — both LightRAG extraction and the
+            # generation step in `mix` mode hit Ollama via its
+            # OpenAI-compatible /v1/ surface.
+            - name: LLM_BINDING
+              value: openai
+            - name: LLM_BINDING_HOST
+              value: http://ollama.knowledge-system.svc.cluster.local:11434/v1/
+            - name: LLM_MODEL
+              value: qwen2.5:14b-instruct-q4_K_M
+            - name: EMBEDDING_BINDING
+              value: openai
+            - name: EMBEDDING_BINDING_HOST
+              value: http://ollama.knowledge-system.svc.cluster.local:11434/v1/
+            - name: EMBEDDING_MODEL
+              value: nomic-embed-text
+            - name: EMBEDDING_DIM
+              value: '768'
+            - name: OLLAMA_EMBEDDING_NUM_CTX
+              value: '8192'
+            # Cache the extraction LLM calls — issue #2495's
+            # recommendation, also keeps Ollama load tolerable
+            # while the curator + this server share the GPU.
+            - name: ENABLE_LLM_CACHE_FOR_EXTRACT
+              value: 'true'
+            # Storage backends. KV/vector live in pgvector;
+            # graph in AGE; doc-status keeps the ingestion
+            # ledger in Postgres too.
+            - name: LIGHTRAG_KV_STORAGE
+              value: PGKVStorage
+            - name: LIGHTRAG_VECTOR_STORAGE
+              value: PGVectorStorage
+            - name: LIGHTRAG_GRAPH_STORAGE
+              value: NetworkXStorage
+            - name: LIGHTRAG_DOC_STATUS_STORAGE
+              value: PGDocStatusStorage
+            - name: POSTGRES_HOST
+              value: postgres.data-system.svc.cluster.local
+            - name: POSTGRES_PORT
+              value: '5432'
+            - name: POSTGRES_DATABASE
+              value: knowledge_db
+            - name: DEPLOYMENT_ENVIRONMENT
+              value: production
+          volumeMounts:
+            - name: workdir
+              mountPath: /var/lib/lightrag
+          ports:
+            - containerPort: 9621
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 15
+            failureThreshold: 8
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 30
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lightrag
+  namespace: knowledge-system
+spec:
+  selector:
+    app.kubernetes.io/name: lightrag
+  ports:
+    - port: 9621
+      targetPort: http
+      name: http

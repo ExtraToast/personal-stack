@@ -8,3 +8,4 @@ resources:
   - knowledge-api
   - knowledge-ingest-worker
   - knowledge-curator
+  - lightrag
