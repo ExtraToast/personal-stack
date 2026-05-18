@@ -41,6 +41,17 @@ def test_in_memory_store_records_relations() -> None:
     assert store.relations == [("A", "supersedes", "B")]
 
 
+def test_in_memory_store_conflict_edges_filters_by_predicate() -> None:
+    store = InMemoryCuratorStore()
+    store.insert_relation(subject_id="A", predicate="supersedes", object_id="B")
+    store.insert_relation(subject_id="A", predicate="see_also", object_id="C")
+    store.insert_relation(subject_id="D", predicate="contradicts", object_id="E")
+    edges = store.conflict_edges()
+    assert ("A", "supersedes", "B") in edges
+    assert ("D", "contradicts", "E") in edges
+    assert ("A", "see_also", "C") not in edges
+
+
 def test_postgres_store_constructs_pool_without_opening() -> None:
     # Same pattern the worker tests use: the pool stays quiescent so
     # we can instantiate the store in CI without a live Postgres.

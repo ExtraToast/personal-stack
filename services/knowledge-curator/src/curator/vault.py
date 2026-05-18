@@ -299,6 +299,33 @@ class CuratorVault:
                 self._repo.remotes.origin.push()
         return PromotionResult(new_relative_path=review_rel, commit_sha=commit.hexsha)
 
+    def commit_paths(
+        self,
+        *,
+        rels: list[str],
+        subject: str,
+    ) -> PromotionResult | None:
+        """Stage `rels`, commit if anything changed, push.
+
+        Used by the curator after regenerating the index files —
+        the function is a no-op when none of the regenerated files
+        differ from what's already in the working tree (Obsidian
+        users hand-editing `_index/recent.md` is not a supported
+        flow). Returns `None` when there's nothing to commit so
+        callers can log accordingly.
+        """
+
+        if not rels:
+            return None
+        self._repo.index.add(rels)
+        if not self._repo.is_dirty(index=True, working_tree=False):
+            return None
+        commit = self._repo.index.commit(subject, author=self._author, committer=self._author)
+        if self._push:
+            with self._repo.git.custom_environment(**self._git_env()):
+                self._repo.remotes.origin.push()
+        return PromotionResult(new_relative_path="_index/", commit_sha=commit.hexsha)
+
     def _git_env(self) -> dict[str, str]:
         env = dict(os.environ)
         if self._ssh_key_path:

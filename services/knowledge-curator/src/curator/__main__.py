@@ -21,6 +21,13 @@ from git import Actor
 
 from curator.classify import OllamaClassifier
 from curator.embed import OllamaEmbedder
+from curator.indexes import (
+    ConflictEdge,
+    load_promoted_notes,
+    write_conflicts,
+    write_recent,
+    write_topic_mocs,
+)
 from curator.promote import Promoter
 from curator.recall import RecallClient
 from curator.settings import Settings
@@ -88,6 +95,7 @@ def main() -> int:
     candidates = _list_inbox(inbox_root)
     log.info("curator.pass_start", candidates=len(candidates))
 
+    promoted_count = 0
     for rel in candidates:
         outcome = promoter.promote_inbox_file(rel)
         log.info(
@@ -97,13 +105,48 @@ def main() -> int:
             destination=outcome.destination_rel,
             reason=outcome.reason,
         )
+        if outcome.status == "promoted":
+            promoted_count += 1
         # Reserve the embedder reference until the pgvector ANN leg
         # consumes it — silences the unused-import warning without
         # pulling the module out of the wiring (PR 3 lands the call
         # path).
         _ = embedder
 
+    if promoted_count > 0:
+        _regenerate_indexes(settings.vault_clone_dir, store, vault, log)
+
     return 0
+
+
+def _regenerate_indexes(
+    clone_dir: Path,
+    store: PostgresCuratorStore,
+    vault: CuratorVault,
+    log: structlog.BoundLogger,
+) -> None:
+    """Refresh `_index/recent.md`, the per-topic MoCs, and
+    `_index/conflicts.md` after a successful promote-pass.
+
+    Each file is regenerated from disk + DB state so hand edits in
+    `_index/` are intentionally overwritten. The `.gitattributes`
+    `merge=union` rule on `_index/**` means concurrent regenerations
+    from a future scale-out converge rather than fight.
+    """
+
+    notes = load_promoted_notes(clone_dir)
+    edges = [ConflictEdge(s, p, o) for (s, p, o) in store.conflict_edges()]
+    paths = [
+        write_recent(clone_dir, notes),
+        *write_topic_mocs(clone_dir, notes),
+        write_conflicts(clone_dir, edges, notes),
+    ]
+    rels = [p.relative_to(clone_dir).as_posix() for p in paths]
+    vault.commit_paths(
+        rels=rels,
+        subject=f"curator(index): regenerate {len(rels)} index file(s)",
+    )
+    log.info("curator.indexes_regenerated", files=len(rels))
 
 
 def _list_inbox(inbox_root: Path) -> list[str]:
