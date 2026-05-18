@@ -1,0 +1,169 @@
+# Ollama — in-cluster LLM + embedding runtime. Backs both the
+# knowledge-curator's qwen2.5:14b classification calls and
+# LightRAG's extraction + mix-mode generation, plus the curator's
+# nomic-embed-text similarity-recall path.
+#
+# Schedules on an enschede node carrying `capability-nvidia: true`
+# (the GTX-960M / T1000 boxes). Uses the `nvidia-cdi` RuntimeClass
+# documented in CLAUDE.md — the only NVIDIA path that actually
+# works on this stack today.
+#
+# Models are pulled lazily on first request and persisted to the
+# RWO `ollama-models` PVC (~16 GiB to fit qwen2.5:14b ≈ 9 GiB +
+# nomic-embed-text ≈ 274 MiB + headroom). Init container pre-pulls
+# the standard model set so the first curator request after a
+# fresh deploy doesn't 60-second-block on a model load + download.
+#
+# `OLLAMA_MAX_LOADED_MODELS=1` keeps memory in check on the 4 GiB
+# VRAM cards: only one model is hot at a time, swapping on demand.
+# The reranker we may add later is already accounted for by the
+# `min_size` / `max_size` pool buffers.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ollama
+  namespace: knowledge-system
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-models
+  namespace: knowledge-system
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: knowledge-system
+  annotations:
+    # Vendored upstream image — bump deliberately via PR. Avoid
+    # 0.13.0-0.13.2 (LightRAG #2495 embedding regression).
+    keel.sh/policy: never
+spec:
+  replicas: 1
+  progressDeadlineSeconds: 1800
+  strategy:
+    # RWO model PVC; old pod must release before new pod can mount.
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ollama
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ollama
+    spec:
+      serviceAccountName: ollama
+      runtimeClassName: nvidia-cdi
+      nodeSelector:
+        personal-stack/capability-nvidia: 'true'
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: ollama-models
+      # Init container pre-pulls the model set so the curator's
+      # first /v1/chat/completions call doesn't pay the 9 GiB
+      # download latency. Idempotent — `ollama pull` is a no-op
+      # when the model is already in the cache.
+      initContainers:
+        - name: warm-models
+          image: ollama/ollama:0.12.11
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              ollama serve &
+              SERVE_PID=$!
+              until ollama list >/dev/null 2>&1; do sleep 2; done
+              ollama pull qwen2.5:14b-instruct-q4_K_M
+              ollama pull nomic-embed-text
+              kill $SERVE_PID
+              wait $SERVE_PID 2>/dev/null || true
+          env:
+            - name: OLLAMA_HOST
+              value: 127.0.0.1:11434
+            - name: OLLAMA_MODELS
+              value: /var/lib/ollama
+          volumeMounts:
+            - name: models
+              mountPath: /var/lib/ollama
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+              nvidia.com/gpu: 1
+            limits:
+              # Pull dominates network not GPU; cap memory.
+              cpu: 2000m
+              memory: 4Gi
+              nvidia.com/gpu: 1
+      containers:
+        - name: ollama
+          # Pinned away from 0.13.0-0.13.2 — those releases broke
+          # embedding-endpoint compatibility for LightRAG and any
+          # nomic-embed-text consumer (#2495).
+          image: ollama/ollama:0.12.11
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: OLLAMA_HOST
+              value: 0.0.0.0:11434
+            - name: OLLAMA_MODELS
+              value: /var/lib/ollama
+            # Only one model loaded at a time on the small VRAM
+            # card. The runtime swaps to load qwen2.5 then back to
+            # nomic-embed-text on demand; first-request latency
+            # rises, peak VRAM stays under 4 GiB.
+            - name: OLLAMA_MAX_LOADED_MODELS
+              value: '1'
+            # Keep an idle model loaded for the duration of a
+            # curator pass (5 min cadence) so back-to-back calls
+            # within a pass don't reload the weights.
+            - name: OLLAMA_KEEP_ALIVE
+              value: '5m'
+          volumeMounts:
+            - name: models
+              mountPath: /var/lib/ollama
+          ports:
+            - containerPort: 11434
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 30
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 1Gi
+              nvidia.com/gpu: 1
+            limits:
+              cpu: 4000m
+              memory: 8Gi
+              nvidia.com/gpu: 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: knowledge-system
+spec:
+  selector:
+    app.kubernetes.io/name: ollama
+  ports:
+    - name: http
+      port: 11434
+      targetPort: http
