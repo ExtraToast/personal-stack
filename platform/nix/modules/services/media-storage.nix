@@ -34,18 +34,28 @@
     "d /srv/media/Photos 0775 deploy deploy - -"
     "z /srv/media/Photos 0775 deploy deploy - -"
     "d /srv/media-views 0755 root root - -"
+    # Parent dirs are regular directories on the rootfs — keep them
+    # owned by root:root 0755. The /<leaf> entries below are the bind
+    # mount *targets* for /srv/media/<Name>, so a `d` rule that sets
+    # ownership on the leaf path writes through the bind into the
+    # source inode under /srv/media. Match the source's intended
+    # 0775 deploy:deploy here so each activation re-aligns the source
+    # (alongside the existing `z` rules above) instead of resetting
+    # /srv/media/{Downloading,Completed,Films,Series} back to
+    # root:root 0755 — which silently breaks qBittorrent / *arr
+    # (UID 1000) creating new files in /srv/media/Downloading.
     "d /srv/media-views/media-downloads 0755 root root - -"
-    "d /srv/media-views/media-downloads/Downloading 0755 root root - -"
-    "d /srv/media-views/media-downloads/Completed 0755 root root - -"
+    "d /srv/media-views/media-downloads/Downloading 0775 deploy deploy - -"
+    "d /srv/media-views/media-downloads/Completed 0775 deploy deploy - -"
     "d /srv/media-views/media-series 0755 root root - -"
-    "d /srv/media-views/media-series/Completed 0755 root root - -"
-    "d /srv/media-views/media-series/Series 0755 root root - -"
+    "d /srv/media-views/media-series/Completed 0775 deploy deploy - -"
+    "d /srv/media-views/media-series/Series 0775 deploy deploy - -"
     "d /srv/media-views/media-movies 0755 root root - -"
-    "d /srv/media-views/media-movies/Completed 0755 root root - -"
-    "d /srv/media-views/media-movies/Films 0755 root root - -"
+    "d /srv/media-views/media-movies/Completed 0775 deploy deploy - -"
+    "d /srv/media-views/media-movies/Films 0775 deploy deploy - -"
     "d /srv/media-views/media-library 0755 root root - -"
-    "d /srv/media-views/media-library/Series 0755 root root - -"
-    "d /srv/media-views/media-library/Films 0755 root root - -"
+    "d /srv/media-views/media-library/Series 0775 deploy deploy - -"
+    "d /srv/media-views/media-library/Films 0775 deploy deploy - -"
     "d /var/lib/personal-stack 0755 deploy deploy - -"
     "d /var/lib/personal-stack/media 0755 deploy deploy - -"
     "d /var/lib/personal-stack/media/qbittorrent 0755 deploy deploy - -"
