@@ -313,7 +313,7 @@ metadata:
   name: jellyfin
   namespace: edge-system
   annotations:
-    external-dns.alpha.kubernetes.io/target: 130.89.169.227
+    external-dns.alpha.kubernetes.io/target: 130.89.174.190
     external-dns.alpha.kubernetes.io/cloudflare-proxied: 'false'
     kubernetes.io/ingress.class: traefik-public
 spec:

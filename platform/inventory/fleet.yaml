@@ -18,11 +18,13 @@ sites:
     purpose: home_lan_and_media_site
     networking:
       lan_ingress_ip: 192.168.0.99
-      # Static IPv4 the ISP hands out on the home WAN. Feeds
+      # IPv4 the ISP hands out on the home WAN. Feeds
       # `ingress_intent.wan_origin_overrides: home_direct` services so
       # Cloudflare DNS points them straight at the home router (grey
-      # cloud), not at the Frankfurt VPS.
-      wan_public_ip: 130.89.169.227
+      # cloud), not at the Frankfurt VPS. NOT actually static — the
+      # ISP rotates it on lease renewal, so a follow-up will hand this
+      # off to a Cloudflare DDNS daemon. Until then, bump by hand.
+      wan_public_ip: 130.89.174.190
 
 nodes:
   frankfurt-contabo-1:
