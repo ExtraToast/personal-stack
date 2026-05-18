@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflare-ddns
+  namespace: utility-system
+  labels:
+    app.kubernetes.io/name: cloudflare-ddns
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudflare-ddns
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cloudflare-ddns
+    spec:
+      # Pinned to the Enschede site so the public IP the daemon reads
+      # via cloudflare.trace is the home WAN — not the Frankfurt VPS,
+      # which would defeat the entire point.
+      nodeSelector:
+        personal-stack/site: enschede
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: cloudflare-ddns
+          image: favonia/cloudflare-ddns:1.18.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: CF_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: cloudflare-api-token
+                  key: api-token
+            # Only the home_direct hostname is owned here. IngressRoute
+            # for jellyfin carries the matching external-dns opt-out
+            # annotation so external-dns leaves the record alone.
+            - name: IP4_DOMAINS
+              value: jellyfin.jorisjonkers.dev
+            - name: IP6_PROVIDER
+              value: none
+            - name: PROXIED
+              value: 'false'
+            - name: TTL
+              value: '60'
+            - name: UPDATE_CRON
+              value: '@every 5m'
+            - name: TZ
+              value: Europe/Amsterdam
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 5m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi

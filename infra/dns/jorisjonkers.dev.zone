@@ -8,7 +8,7 @@
 ;;   A/AAAA  jorisjonkers.dev         → Contabo VPS (167.86.79.203 / 2a02:c207:2318:569::1), proxied
 ;;   CNAME   *.jorisjonkers.dev       → jorisjonkers.dev, proxied
 ;;   A/AAAA  mail.jorisjonkers.dev    → Contabo VPS, NOT proxied (mail needs direct IP)
-;;   A       jellyfin.jorisjonkers.dev → home WAN IP (130.89.174.190), NOT proxied
+;;   A       jellyfin.jorisjonkers.dev → home WAN IP (managed by cloudflare-ddns at runtime), NOT proxied
 ;;   MX      jorisjonkers.dev         → mail.jorisjonkers.dev
 ;;
 ;; Subdomains in use (all resolved via wildcard CNAME unless listed as an exception):
@@ -43,11 +43,14 @@ mail.jorisjonkers.dev.    1    IN    A       167.86.79.203 ; cf_tags=cf-proxied:
 ;; ── Home-Direct Services ────────────────────────────────────────────────────
 ;; Specific records here override the wildcard CNAME. Used for workloads where
 ;; the VPS hop or CF proxying is counterproductive (bulk video streaming).
-;; The home WAN IP is static per the ISP. Router forwards :443 to
-;; traefik-lan on 192.168.0.99. Must NOT be proxied: CF edge can't reach
-;; 130.89.174.190 as an origin, and CF's self-serve §2.8 forbids streaming
-;; video through their proxy anyway.
-jellyfin.jorisjonkers.dev.    1    IN    A       130.89.174.190 ; cf_tags=cf-proxied:false
+;; The home WAN IPv4 rotates on each ISP lease renewal, so the A record is
+;; *not* declared in this file. The favonia/cloudflare-ddns daemon running
+;; in utility-system creates and refreshes it at runtime, and the matching
+;; jellyfin IngressRoute carries an `external-dns.alpha.kubernetes.io/
+;; controller: cloudflare-ddns` annotation so external-dns leaves it alone.
+;; Router forwards :443 to traefik-lan on 192.168.0.99. Must NOT be proxied:
+;; CF edge can't reach the home WAN IP as an origin, and CF's self-serve
+;; §2.8 forbids streaming video through their proxy anyway.
 
 ;; MX Record
 jorisjonkers.dev.    1    IN    MX    10 mail.jorisjoMnkers.dev.

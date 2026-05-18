@@ -18,13 +18,13 @@ sites:
     purpose: home_lan_and_media_site
     networking:
       lan_ingress_ip: 192.168.0.99
-      # IPv4 the ISP hands out on the home WAN. Feeds
-      # `ingress_intent.wan_origin_overrides: home_direct` services so
-      # Cloudflare DNS points them straight at the home router (grey
-      # cloud), not at the Frankfurt VPS. NOT actually static — the
-      # ISP rotates it on lease renewal, so a follow-up will hand this
-      # off to a Cloudflare DDNS daemon. Until then, bump by hand.
-      wan_public_ip: 130.89.174.190
+      # The home WAN IPv4 is *not* declared here. It rotates on every
+      # ISP lease renewal, so it would be a constant source of drift.
+      # `ingress_intent.wan_origin_overrides: home_direct` services
+      # instead opt out of external-dns at the IngressRoute level
+      # (annotation `external-dns.alpha.kubernetes.io/controller:
+      # cloudflare-ddns`) and have their A record managed at runtime
+      # by the favonia/cloudflare-ddns daemon running in utility-system.
 
 nodes:
   frankfurt-contabo-1:

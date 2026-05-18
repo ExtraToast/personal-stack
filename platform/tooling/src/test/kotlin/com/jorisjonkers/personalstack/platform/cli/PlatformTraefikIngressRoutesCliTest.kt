@@ -113,8 +113,9 @@ class PlatformTraefikIngressRoutesCliTest {
                 .substringBefore("---\n")
 
         assertThat(jellyfinBlock)
-            .contains("external-dns.alpha.kubernetes.io/target: 130.89.174.190")
-            .contains("external-dns.alpha.kubernetes.io/cloudflare-proxied: 'false'")
+            .contains("external-dns.alpha.kubernetes.io/controller: cloudflare-ddns")
+            .doesNotContain("external-dns.alpha.kubernetes.io/target:")
+            .doesNotContain("external-dns.alpha.kubernetes.io/cloudflare-proxied:")
             .contains("kubernetes.io/ingress.class: traefik-public")
 
         val defaultProxiedServices = listOf("assistant-api", "auth-api", "vault", "bazarr", "jellyseerr")
