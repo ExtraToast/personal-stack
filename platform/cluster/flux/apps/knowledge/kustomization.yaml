@@ -9,3 +9,4 @@ resources:
   - knowledge-ingest-worker
   - knowledge-curator
   - lightrag
+  - ollama
