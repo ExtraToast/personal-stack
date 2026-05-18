@@ -107,7 +107,12 @@ class ReadMcpTools(
                     "scope" to
                         mapOf(
                             "type" to "string",
-                            "description" to "Restrict to a single scope; omit for cross-scope recall.",
+                            "description" to
+                                "Restrict to a single scope (`topic:<slug>` / `project:<repo>` / " +
+                                "`agent:<name>`). Pass `all` to include every scope including " +
+                                "untriaged `_inbox`. Omit for the curated default — every " +
+                                "scope except `_inbox` and assistant-private agent scopes " +
+                                "(`agent:_shared` stays visible).",
                         ),
                     "limit" to
                         mapOf(
@@ -211,6 +216,7 @@ class ReadMcpTools(
         private const val DEFAULT_RECENT_LIMIT = 20
         private const val MAX_LIMIT = 100
         private const val DEFAULT_RELATION_DEPTH = 1
+
         // Hard ceiling for the agent-facing depth; the repo enforces
         // its own (private) ceiling underneath, so this just keeps the
         // tool's input shape honest.
