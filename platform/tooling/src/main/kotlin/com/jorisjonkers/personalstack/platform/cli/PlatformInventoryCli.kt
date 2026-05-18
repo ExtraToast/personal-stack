@@ -365,23 +365,27 @@ private fun PlatformFleet.toEdgeRouteConfigMapYaml(yamlMapper: ObjectMapper): St
 
 private fun PlatformFleet.toTraefikIngressRoutesYaml(): String {
     val publicServices = exposureIntent.public.toSet() + exposureIntent.publicAndLan.toSet()
-    val wanPublicIp = sites.values.firstNotNullOfOrNull { it.networking?.wanPublicIp }
-    val targetOverrides =
+    val dnsManagementOverrides =
         ingressIntent.wanOriginOverrides
             .mapNotNull { (service, origin) ->
                 when (origin) {
-                    "home_direct" ->
-                        wanPublicIp?.let {
-                            service to IngressDnsTarget(target = it, cloudflareProxied = false)
-                        }
+                    // home_direct services keep their public hostname but the A record
+                    // is owned by the in-cluster cloudflare-ddns daemon (utility-system),
+                    // not external-dns. The controller annotation opts the IngressRoute
+                    // out of external-dns so the two controllers don't fight.
+                    "home_direct" -> service to IngressDnsManagement.ExternalDnsSkip("cloudflare-ddns")
                     else -> null
                 }
             }.toMap()
     return toTraefikIngressRoutesYaml(
         serviceNames = publicServices,
         ingressClassName = "traefik-public",
-        ingressDnsTarget = IngressDnsTarget(target = "ingress.${cluster.publicDomain}", cloudflareProxied = true),
-        ingressDnsTargetOverrides = targetOverrides,
+        ingressDnsManagement =
+            IngressDnsManagement.ExternalDnsTarget(
+                target = "ingress.${cluster.publicDomain}",
+                cloudflareProxied = true,
+            ),
+        ingressDnsManagementOverrides = dnsManagementOverrides,
     )
 }
 
@@ -398,8 +402,8 @@ private fun PlatformFleet.toTraefikLanIngressRoutesYaml(): String {
 private fun PlatformFleet.toTraefikIngressRoutesYaml(
     serviceNames: Set<String>,
     ingressClassName: String,
-    ingressDnsTarget: IngressDnsTarget? = null,
-    ingressDnsTargetOverrides: Map<String, IngressDnsTarget> = emptyMap(),
+    ingressDnsManagement: IngressDnsManagement? = null,
+    ingressDnsManagementOverrides: Map<String, IngressDnsManagement> = emptyMap(),
     nameSuffix: String = "",
     accessOverride: String? = null,
 ): String {
@@ -414,7 +418,7 @@ private fun PlatformFleet.toTraefikIngressRoutesYaml(
                     ).toIngressRouteYaml(
                         backend = backend,
                         ingressClassName = ingressClassName,
-                        ingressDnsTarget = ingressDnsTargetOverrides[route.service] ?: ingressDnsTarget,
+                        ingressDnsManagement = ingressDnsManagementOverrides[route.service] ?: ingressDnsManagement,
                     )
                 }
             }
@@ -422,10 +426,16 @@ private fun PlatformFleet.toTraefikIngressRoutesYaml(
     return routes.joinToString(separator = "\n---\n")
 }
 
-private data class IngressDnsTarget(
-    val target: String,
-    val cloudflareProxied: Boolean,
-)
+private sealed interface IngressDnsManagement {
+    data class ExternalDnsTarget(
+        val target: String,
+        val cloudflareProxied: Boolean,
+    ) : IngressDnsManagement
+
+    data class ExternalDnsSkip(
+        val controller: String,
+    ) : IngressDnsManagement
+}
 
 private fun MutableList<EdgeRouteCatalogEntry>.addDefaultRoute(service: EdgeServiceCatalogEntry) {
     add(service.toRoute())
@@ -493,7 +503,7 @@ private fun String.toConfigMapYaml(
 private fun EdgeRouteCatalogEntry.toIngressRouteYaml(
     backend: KubernetesIngressBackend,
     ingressClassName: String,
-    ingressDnsTarget: IngressDnsTarget? = null,
+    ingressDnsManagement: IngressDnsManagement? = null,
 ): String =
     buildString {
         appendLine("apiVersion: traefik.io/v1alpha1")
@@ -502,9 +512,15 @@ private fun EdgeRouteCatalogEntry.toIngressRouteYaml(
         appendLine("  name: ${name}")
         appendLine("  namespace: edge-system")
         appendLine("  annotations:")
-        ingressDnsTarget?.let {
-            appendLine("    external-dns.alpha.kubernetes.io/target: ${it.target}")
-            appendLine("    external-dns.alpha.kubernetes.io/cloudflare-proxied: '${it.cloudflareProxied}'")
+        when (ingressDnsManagement) {
+            is IngressDnsManagement.ExternalDnsTarget -> {
+                appendLine("    external-dns.alpha.kubernetes.io/target: ${ingressDnsManagement.target}")
+                appendLine("    external-dns.alpha.kubernetes.io/cloudflare-proxied: '${ingressDnsManagement.cloudflareProxied}'")
+            }
+            is IngressDnsManagement.ExternalDnsSkip -> {
+                appendLine("    external-dns.alpha.kubernetes.io/controller: ${ingressDnsManagement.controller}")
+            }
+            null -> {}
         }
         appendLine("    kubernetes.io/ingress.class: ${ingressClassName}")
         appendLine("spec:")

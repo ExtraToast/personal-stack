@@ -48,8 +48,6 @@ data class SiteInfo(
 data class SiteNetworking(
     @param:JsonProperty("lan_ingress_ip")
     val lanIngressIp: String? = null,
-    @param:JsonProperty("wan_public_ip")
-    val wanPublicIp: String? = null,
 )
 
 data class NodeInfo(
