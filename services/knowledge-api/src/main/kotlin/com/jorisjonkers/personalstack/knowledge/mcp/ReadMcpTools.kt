@@ -20,7 +20,8 @@ import tools.jackson.databind.JsonNode
 class ReadMcpTools(
     private val recallService: RecallService,
 ) {
-    fun tools(): List<McpTool> = listOf(recallTool(), getNoteTool(), listRecentTool(), findConflictsTool())
+    fun tools(): List<McpTool> =
+        listOf(recallTool(), getNoteTool(), listRecentTool(), findConflictsTool(), relationsTool())
 
     private fun recallTool() = McpTool(recallDescriptor(), ::recallHandler)
 
@@ -58,6 +59,38 @@ class ReadMcpTools(
                     "relations" to
                         recallService.findConflicts(JsonArguments.requireString(args, "id")).map(::projectRelation),
                 )
+            },
+        )
+
+    private fun relationsTool() =
+        McpTool(
+            descriptor =
+                toolDescriptor(
+                    name = "knowledge.relations",
+                    description =
+                        "Walk the kb_relations graph rooted at the given note id. Returns every edge " +
+                            "(subject_id, predicate, object_id, props) within `depth` hops in either " +
+                            "direction — undirected for `see_also` / `contradicts`, directed for " +
+                            "`supersedes` / `derived_from` / `refines`. Use this to expand the context " +
+                            "around a recall hit before deciding what to read in full.",
+                    required = listOf("id"),
+                    properties =
+                        mapOf(
+                            "id" to mapOf("type" to "string"),
+                            "depth" to
+                                mapOf(
+                                    "type" to "integer",
+                                    "minimum" to 1,
+                                    "maximum" to MAX_RELATION_DEPTH,
+                                    "default" to DEFAULT_RELATION_DEPTH,
+                                ),
+                        ),
+                ),
+            handler = { args ->
+                val id = JsonArguments.requireString(args, "id")
+                val depth =
+                    JsonArguments.optionalInt(args, "depth") ?: DEFAULT_RELATION_DEPTH
+                mapOf("relations" to recallService.walkRelations(id, depth).map(::projectRelation))
             },
         )
 
@@ -177,5 +210,10 @@ class ReadMcpTools(
         private const val DEFAULT_RECALL_LIMIT = 10
         private const val DEFAULT_RECENT_LIMIT = 20
         private const val MAX_LIMIT = 100
+        private const val DEFAULT_RELATION_DEPTH = 1
+        // Hard ceiling for the agent-facing depth; the repo enforces
+        // its own (private) ceiling underneath, so this just keeps the
+        // tool's input shape honest.
+        private const val MAX_RELATION_DEPTH = 4
     }
 }
