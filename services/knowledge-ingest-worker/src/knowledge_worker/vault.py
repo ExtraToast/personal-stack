@@ -112,19 +112,7 @@ class VaultGitWriter:
         rel = target.relative_to(self._clone_dir).as_posix()
         repo.index.add([rel])
         message = self._commit_message(note)
-        # GitPython's default `index.commit` auto-discovers the parent
-        # via `repo.head.commit`. On a freshly-initialised remote with
-        # no commits yet, HEAD is "unborn" and the lookup crashes deep
-        # inside `git cat-file` with a misleading `BrokenPipeError`.
-        # Detect that case explicitly and pass `parent_commits=[]` so
-        # the first worker write becomes the repo's initial commit.
-        parents = [repo.head.commit] if self._has_head_commit(repo) else []
-        commit = repo.index.commit(
-            message,
-            parent_commits=parents,
-            author=self._author,
-            committer=self._author,
-        )
+        commit = repo.index.commit(message, author=self._author, committer=self._author)
 
         if self._push:
             try:
