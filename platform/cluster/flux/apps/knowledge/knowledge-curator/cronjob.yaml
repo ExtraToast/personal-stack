@@ -1,0 +1,162 @@
+# knowledge-curator runs as a CronJob, not a Deployment: each pass
+# is a one-shot classify-and-promote over `_inbox/*.md`. The 5-min
+# cadence keeps inbox latency tolerable while leaving headroom for
+# Ollama to handle the qwen2.5:14b classification calls without
+# overlapping runs.
+#
+# `concurrencyPolicy: Forbid` is critical: the curator shares the
+# vault clone PVC with the worker, and two concurrent `git mv`
+# passes on the same working tree would race. Forbid means a
+# slow pass blocks the next start rather than running in parallel.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: knowledge-curator
+  namespace: knowledge-system
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: knowledge-curator
+  namespace: knowledge-system
+  annotations:
+    # Keel rolls each CronJob's pod template the same way it rolls
+    # a Deployment when a new :latest image lands. Without
+    # `match-tag: 'true'` Keel would pin to the first SHA it ever
+    # saw (per CLAUDE.md "Keel image automation").
+    keel.sh/policy: force
+    keel.sh/match-tag: 'true'
+    keel.sh/trigger: poll
+    keel.sh/pollSchedule: '@every 2m'
+spec:
+  schedule: '*/5 * * * *'
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 240
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          annotations:
+            vault.hashicorp.com/agent-inject: 'true'
+            vault.hashicorp.com/agent-inject-token: 'true'
+            vault.hashicorp.com/agent-pre-populate-only: 'true'
+            vault.hashicorp.com/role: knowledge-curator
+            # Same uid-alignment trick the worker uses so the Vault-
+            # projected files in /vault/secrets land readable by the
+            # curator container.
+            vault.hashicorp.com/agent-run-as-user: '1000'
+            vault.hashicorp.com/agent-run-as-group: '1000'
+            vault.hashicorp.com/agent-inject-secret-postgres.env: secret/data/platform/postgres
+            vault.hashicorp.com/agent-inject-template-postgres.env: |
+              DB_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "kb.user" }}{{ end }}
+              DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "kb.password" }}{{ end }}
+            vault.hashicorp.com/agent-inject-secret-id_ed25519: secret/data/knowledge-system/vault-deploy-key
+            vault.hashicorp.com/agent-inject-template-id_ed25519: |
+              {{ with secret "secret/data/knowledge-system/vault-deploy-key" }}{{ index .Data.data "private_key" }}{{ end }}
+            vault.hashicorp.com/agent-inject-perms-id_ed25519: '0400'
+            vault.hashicorp.com/agent-inject-secret-mcp.env: secret/data/knowledge-system/mcp-bearer
+            vault.hashicorp.com/agent-inject-template-mcp.env: |
+              KNOWLEDGE_API_BEARER_TOKEN={{ with secret "secret/data/knowledge-system/mcp-bearer" }}{{ index .Data.data "curator" }}{{ end }}
+        spec:
+          serviceAccountName: knowledge-curator
+          restartPolicy: OnFailure
+          nodeSelector:
+            personal-stack/site: frankfurt
+          volumes:
+            - name: vault-clone
+              persistentVolumeClaim:
+                claimName: knowledge-vault-clone
+            - name: topics
+              configMap:
+                name: knowledge-curator-topics
+          containers:
+            - name: curator
+              image: ghcr.io/extratoast/personal-stack/knowledge-curator:latest
+              imagePullPolicy: Always
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  set -a
+                  . /vault/secrets/postgres.env
+                  . /vault/secrets/mcp.env
+                  set +a
+                  exec opentelemetry-instrument python -m curator
+              volumeMounts:
+                - name: vault-clone
+                  mountPath: /var/lib/knowledge-vault
+                - name: topics
+                  mountPath: /etc/curator
+              env:
+                - name: LOG_LEVEL
+                  value: INFO
+                - name: DEPLOYMENT_ENVIRONMENT
+                  value: production
+                - name: OTEL_SERVICE_NAME
+                  value: knowledge-curator
+                - name: OTEL_EXPORTER_OTLP_ENDPOINT
+                  value: http://alloy.observability.svc.cluster.local:4318
+                - name: OTEL_EXPORTER_OTLP_PROTOCOL
+                  value: http/protobuf
+                - name: OTEL_LOGS_EXPORTER
+                  value: none
+                - name: OTEL_METRICS_EXPORTER
+                  value: none
+                - name: OTEL_TRACES_EXPORTER
+                  value: otlp
+                - name: OTEL_PYTHON_LOG_CORRELATION
+                  value: 'true'
+                - name: VAULT_CLONE_URL
+                  value: git@github.com:ExtraToast/knowledge-vault.git
+                - name: VAULT_CLONE_DIR
+                  value: /var/lib/knowledge-vault
+                - name: VAULT_BRANCH
+                  value: main
+                - name: VAULT_SSH_KEY_PATH
+                  value: /vault/secrets/id_ed25519
+                - name: CURATOR_AUTHOR_NAME
+                  value: knowledge-curator
+                - name: CURATOR_AUTHOR_EMAIL
+                  value: curator@knowledge.jorisjonkers.dev
+                - name: DB_HOST
+                  value: postgres.data-system.svc.cluster.local
+                - name: DB_PORT
+                  value: '5432'
+                - name: DB_NAME
+                  value: knowledge_db
+                - name: OLLAMA_BASE_URL
+                  value: http://ollama.knowledge-system.svc.cluster.local:11434/v1
+                - name: OLLAMA_CHAT_MODEL
+                  value: qwen2.5:14b-instruct-q4_K_M
+                - name: OLLAMA_EMBEDDING_MODEL
+                  value: nomic-embed-text
+                - name: OLLAMA_REQUEST_TIMEOUT_SECONDS
+                  value: '180'
+                - name: KNOWLEDGE_API_BASE_URL
+                  value: http://knowledge-api.knowledge-system.svc.cluster.local:8080
+                - name: CLASSIFY_TOP_K_NEIGHBOURS
+                  value: '5'
+                - name: CLASSIFY_CONFIDENCE_FLOOR
+                  value: '0.55'
+                - name: TOPICS_YAML_PATH
+                  value: /etc/curator/topics.yaml
+                # Same safe.directory bypass the worker manifest
+                # carries: the PVC mount root is root-owned and git
+                # otherwise refuses to operate.
+                - name: GIT_CONFIG_COUNT
+                  value: '1'
+                - name: GIT_CONFIG_KEY_0
+                  value: safe.directory
+                - name: GIT_CONFIG_VALUE_0
+                  value: '*'
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 1000m
+                  memory: 1Gi
