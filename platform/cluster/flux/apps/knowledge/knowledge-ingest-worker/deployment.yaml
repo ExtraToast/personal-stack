@@ -56,6 +56,13 @@ spec:
         vault.hashicorp.com/agent-inject-token: 'true'
         vault.hashicorp.com/agent-pre-populate-only: 'true'
         vault.hashicorp.com/role: knowledge-ingest-worker
+        # Vault Agent defaults to running as `nobody` (uid 100) and
+        # writes /vault/secrets/* with that uid. Files with mode 0400
+        # (the id_ed25519 deploy key) are then unreadable to the worker
+        # container which runs as uid 1000. Align both sides so the
+        # key file is owned by the same user that loads it.
+        vault.hashicorp.com/agent-run-as-user: '1000'
+        vault.hashicorp.com/agent-run-as-group: '1000'
         vault.hashicorp.com/agent-inject-secret-rabbitmq.env: secret/data/platform/rabbitmq
         vault.hashicorp.com/agent-inject-template-rabbitmq.env: |
           RABBITMQ_USER={{ with secret "secret/data/platform/rabbitmq" }}{{ index .Data.data "rabbitmq.user" }}{{ end }}
