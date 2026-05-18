@@ -1,0 +1,105 @@
+# Closed topic vocabulary for the knowledge-curator classifier.
+#
+# Adding a new topic = a deliberate PR. The classifier sees the slug
+# list at boot and only emits `topic:<slug>` for an entry that exists
+# here; LLM-emitted topics that don't match get routed to
+# `_inbox/_needs-review/` rather than inventing new on-disk folders.
+#
+# Aliases are accepted on input and normalised to the canonical slug
+# before the topic folder is chosen — keeps `kotlin`/`Kotlin`/`kt`
+# from forking the vault into three directories.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: knowledge-curator-topics
+  namespace: knowledge-system
+data:
+  topics.yaml: |
+    topics:
+      # --- languages ---
+      - slug: python
+        aliases: [Python, py]
+        description: Python ecosystem — packaging, uv, pytest, asyncio, type hints.
+      - slug: kotlin
+        aliases: [Kotlin, kt]
+        description: Kotlin ecosystem — Spring, jOOQ, Gradle, coroutines.
+      - slug: typescript
+        aliases: [TypeScript, ts]
+        description: TypeScript + browser/node ecosystem.
+      - slug: bash
+        aliases: [Bash, shell, sh]
+        description: POSIX shell scripts, bash quirks, command pipelines.
+      - slug: sql
+        aliases: [SQL, postgres-sql]
+        description: SQL — query plans, DDL, DML, dialect differences.
+
+      # --- frameworks / runtimes ---
+      - slug: spring-boot
+        aliases: [Spring, spring]
+        description: Spring Boot, Spring AMQP, Spring Web MVC, autoconfiguration.
+      - slug: vue
+        aliases: [Vue, vue3]
+        description: Vue 3 + Composition API + Pinia.
+      - slug: gradle
+        aliases: [Gradle]
+        description: Gradle build conventions, multi-module setups, plugins.
+
+      # --- infrastructure / cluster ---
+      - slug: kubernetes
+        aliases: [k8s, K8s, k3s]
+        description: Kubernetes objects, controllers, resource patterns.
+      - slug: flux-cd
+        aliases: [flux, FluxCD]
+        description: Flux CD reconciliation, Kustomizations, HelmReleases.
+      - slug: traefik
+        aliases: [Traefik]
+        description: Traefik IngressRoutes, Middlewares, EntryPoints.
+      - slug: vault
+        aliases: [Vault, HashiCorp-Vault, vault-agent, hashicorp-vault]
+        description: HashiCorp Vault — KV-v2, agent inject, dynamic secrets, policies.
+      - slug: vault-secrets-operator
+        aliases: [vso, VSO]
+        description: VaultStaticSecret / VaultDynamicSecret reconciliation.
+      - slug: postgres
+        aliases: [Postgres, PostgreSQL, pg]
+        description: PostgreSQL ops — extensions, replication, performance.
+      - slug: pgvector
+        aliases: [pgvector]
+        description: pgvector — ANN indexes, HALFVEC, ivfflat/hnsw.
+      - slug: rabbitmq
+        aliases: [RabbitMQ, AMQP]
+        description: RabbitMQ exchanges, queues, bindings, federation.
+      - slug: nixos
+        aliases: [NixOS, nix]
+        description: NixOS modules, flakes, hosts, deploy-host.sh.
+      - slug: tailscale
+        aliases: [Tailscale]
+        description: Tailscale subnets, advertise-routes, MagicDNS.
+
+      # --- AI / agents ---
+      - slug: ollama
+        aliases: [Ollama]
+        description: Ollama runtime — model pulls, /v1/* compatibility, quantization.
+      - slug: lightrag
+        aliases: [LightRAG, lightrag-hku]
+        description: LightRAG retrieval, AGE backend, mix-mode queries.
+      - slug: mcp
+        aliases: [Model-Context-Protocol]
+        description: Model Context Protocol — tools/list, tools/call, content envelope.
+      - slug: claude-code
+        aliases: [Claude-Code, claude]
+        description: Claude Code CLI — settings, hooks, skills, MCP setup.
+
+      # --- tooling ---
+      - slug: git
+        aliases: [Git]
+        description: git plumbing, safe.directory, gitpython quirks.
+      - slug: obsidian
+        aliases: [Obsidian, livesync]
+        description: Obsidian — desktop / LiveSync / Git plugin.
+      - slug: gh-cli
+        aliases: [gh, GitHub-CLI]
+        description: `gh` cli — pr create, run rerun, variadic flag traps.
+      - slug: docker
+        aliases: [Docker]
+        description: Dockerfile patterns, multi-stage builds, slim-image surprises.

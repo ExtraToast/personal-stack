@@ -24,6 +24,7 @@ jobs:
       any-frontend: ${{ steps.compute.outputs.any-frontend }}
       any-python: ${{ steps.compute.outputs.any-python }}
       knowledge-ingest-worker: ${{ steps.compute.outputs.knowledge-ingest-worker }}
+      knowledge-curator: ${{ steps.compute.outputs.knowledge-curator }}
       any-platform: ${{ steps.compute.outputs.any-platform }}
       run-system-tests: ${{ steps.compute.outputs.run-system-tests }}
       # Space-separated list of service names whose images need rebuilding
@@ -52,6 +53,8 @@ jobs:
               - 'services/knowledge-api/**'
             knowledge-ingest-worker:
               - 'services/knowledge-ingest-worker/**'
+            knowledge-curator:
+              - 'services/knowledge-curator/**'
             kotlin-common:
               - 'libs/kotlin-common/**'
             build-logic:
@@ -95,6 +98,7 @@ jobs:
           FILTER_ASSISTANT_API: ${{ steps.filter.outputs.assistant-api }}
           FILTER_KNOWLEDGE_API: ${{ steps.filter.outputs.knowledge-api }}
           FILTER_KNOWLEDGE_INGEST_WORKER: ${{ steps.filter.outputs.knowledge-ingest-worker }}
+          FILTER_KNOWLEDGE_CURATOR: ${{ steps.filter.outputs.knowledge-curator }}
           FILTER_VUE_COMMON: ${{ steps.filter.outputs.vue-common }}
           FILTER_FRONTEND_CONFIG: ${{ steps.filter.outputs.frontend-config }}
           FILTER_AUTH_UI: ${{ steps.filter.outputs.auth-ui }}
@@ -120,7 +124,8 @@ jobs:
           ANY_PLATFORM=$(any "$FILTER_PLATFORM")
 
           KNOWLEDGE_INGEST_WORKER=$(any "$FILTER_WORKFLOW" "$FILTER_KNOWLEDGE_INGEST_WORKER")
-          ANY_PYTHON="$KNOWLEDGE_INGEST_WORKER"
+          KNOWLEDGE_CURATOR=$(any "$FILTER_WORKFLOW" "$FILTER_KNOWLEDGE_CURATOR")
+          ANY_PYTHON=$(any "$KNOWLEDGE_INGEST_WORKER" "$KNOWLEDGE_CURATOR")
 
           # Per-service rebuild flags for the reusable system-tests
           # workflow. Backend images are rebuilt from the PR source
@@ -145,6 +150,7 @@ jobs:
           echo "any-frontend=$ANY_FRONTEND" >> "$GITHUB_OUTPUT"
           echo "any-python=$ANY_PYTHON" >> "$GITHUB_OUTPUT"
           echo "knowledge-ingest-worker=$KNOWLEDGE_INGEST_WORKER" >> "$GITHUB_OUTPUT"
+          echo "knowledge-curator=$KNOWLEDGE_CURATOR" >> "$GITHUB_OUTPUT"
           echo "any-platform=$ANY_PLATFORM" >> "$GITHUB_OUTPUT"
           echo "run-system-tests=$RUN_SYSTEM_TESTS" >> "$GITHUB_OUTPUT"
           echo "auth-api-kotlin=$AUTH_API_KOTLIN" >> "$GITHUB_OUTPUT"
@@ -308,6 +314,64 @@ jobs:
       # Testcontainers spins up a real RabbitMQ — Docker on the runner
       # is sufficient (ubuntu-latest ships with Docker).
       - run: uv run pytest -m integration
+
+  lint-python-curator:
+    name: Lint Python (knowledge-curator)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.knowledge-curator == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/knowledge-curator
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: '0.4.30'
+      - run: uv sync --python 3.12 --frozen
+      - run: uv run ruff check .
+      - run: uv run mypy
+
+  test-python-unit-curator:
+    name: Python Unit Tests (knowledge-curator)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.knowledge-curator == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/knowledge-curator
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: '0.4.30'
+      - run: uv sync --python 3.12 --frozen
+      - run: uv run pytest --cov
+
+  test-python-integration-curator:
+    name: Python Integration Tests (knowledge-curator)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.knowledge-curator == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/knowledge-curator
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: '0.4.30'
+      - run: uv sync --python 3.12 --frozen
+      # No integration tests yet; the marker selects zero tests and
+      # pytest exits 5 ("no tests collected"). `--exitcode-noqa`
+      # is rejected by pytest, so we trap exit code 5 explicitly and
+      # treat it as success — anything else (1, 2, …) still fails CI.
+      - run: |
+          set +e
+          uv run pytest -m integration --no-cov
+          code=$?
+          set -e
+          if [[ $code -ne 0 && $code -ne 5 ]]; then exit $code; fi
 
   test-kotlin-integration:
     name: Kotlin Integration Tests (${{ matrix.module }})
