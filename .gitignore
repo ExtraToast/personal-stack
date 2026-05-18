@@ -79,3 +79,16 @@ tmp/
 tmp.txt
 *.bak
 /infra/n8n/worfklows/.rental-scraper.env
+# Python build + cache artefacts (knowledge-ingest-worker and any
+# future Python services). Each service may also keep a narrower
+# local .gitignore; these top-level rules keep junk out of commits
+# staged from elsewhere in the tree.
+__pycache__/
+*.pyc
+*.pyo
+.coverage
+.coverage.*
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.venv/

@@ -31,8 +31,6 @@ class ServicePermissionTest {
         "adguard.jorisjonkers.dev, ADGUARD",
         "wolf.jorisjonkers.dev, WOLF",
         "wolf.jorisjonkers.test, WOLF",
-        "obsidian.jorisjonkers.dev, OBSIDIAN",
-        "obsidian.jorisjonkers.test, OBSIDIAN",
         "kb.jorisjonkers.dev, KNOWLEDGE_API",
         "kb.jorisjonkers.test, KNOWLEDGE_API",
     )

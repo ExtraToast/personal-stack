@@ -45,11 +45,6 @@ enum class ServicePermission(
     // Moonlight gameplay traffic connects directly to the GTX node.
     WOLF("wolf"),
 
-    // Browser-Obsidian (linuxserver/obsidian via Selkies) at
-    // obsidian.jorisjonkers.dev. Edits the same knowledge-vault repo the
-    // ingest worker writes canonical notes into.
-    OBSIDIAN("obsidian"),
-
     // knowledge-api Kotlin/Spring service at kb.jorisjonkers.dev. Phase 4a
     // ships the actuator-only skeleton; the MCP transport + tools land in
     // stacked follow-ups (4b adds /mcp + bearer-bypass middleware, 4c adds
