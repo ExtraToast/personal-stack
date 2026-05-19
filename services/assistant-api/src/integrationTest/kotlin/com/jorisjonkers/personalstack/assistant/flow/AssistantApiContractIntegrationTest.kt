@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
@@ -136,6 +137,7 @@ class AssistantApiContractIntegrationTest : IntegrationTestBase() {
                         mapOf(
                             "name" to "list-$unique",
                             "repoUrl" to "git@github.com:o/list-$unique.git",
+                            "defaultBranch" to "main",
                         ),
                     ),
                 ),
@@ -160,6 +162,7 @@ class AssistantApiContractIntegrationTest : IntegrationTestBase() {
                                 mapOf(
                                     "name" to "detail-$unique",
                                     "repoUrl" to "git@github.com:o/detail-$unique.git",
+                                    "defaultBranch" to "main",
                                 ),
                             ),
                         ),
@@ -200,6 +203,7 @@ class AssistantApiContractIntegrationTest : IntegrationTestBase() {
                                 mapOf(
                                     "name" to "link-$unique",
                                     "repoUrl" to "git@github.com:o/link-$unique.git",
+                                    "defaultBranch" to "main",
                                 ),
                             ),
                         ),
@@ -226,7 +230,7 @@ class AssistantApiContractIntegrationTest : IntegrationTestBase() {
             .andExpect(jsonPath("$.attachedProjects[0].id").value(projectId))
 
         mockMvc
-            .perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/v1/projects/$projectId/repositories/$repoId"))
+            .perform(delete("/api/v1/projects/$projectId/repositories/$repoId"))
             .andExpect(status().isNoContent)
     }
 

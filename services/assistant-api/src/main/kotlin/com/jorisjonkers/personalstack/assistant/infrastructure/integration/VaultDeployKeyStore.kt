@@ -39,7 +39,8 @@ open class VaultDeployKeyStore(
         privateKeyOpenssh: String,
         publicKeyOpenssh: String,
         knownHosts: String,
-    ): DeployKeyStore.StoredKey = writeKey(legacyPath(projectId, linkId), privateKeyOpenssh, publicKeyOpenssh, knownHosts)
+    ): DeployKeyStore.StoredKey =
+        writeKey(legacyPath(projectId, linkId), privateKeyOpenssh, publicKeyOpenssh, knownHosts)
 
     override fun remove(
         projectId: ProjectId,
@@ -63,7 +64,8 @@ open class VaultDeployKeyStore(
         privateKeyOpenssh: String,
         publicKeyOpenssh: String,
         knownHosts: String,
-    ): DeployKeyStore.StoredKey = writeKey(repositoryPath(repositoryId), privateKeyOpenssh, publicKeyOpenssh, knownHosts)
+    ): DeployKeyStore.StoredKey =
+        writeKey(repositoryPath(repositoryId), privateKeyOpenssh, publicKeyOpenssh, knownHosts)
 
     override fun remove(repositoryId: RepositoryId) {
         writer.deleteSecret(repositoryPath(repositoryId))
@@ -85,7 +87,8 @@ open class VaultDeployKeyStore(
         return null
     }
 
-    override fun loadKey(repositoryId: RepositoryId): DeployKeyStore.KeyMaterial? = readKey(repositoryPath(repositoryId))
+    override fun loadKey(repositoryId: RepositoryId): DeployKeyStore.KeyMaterial? =
+        readKey(repositoryPath(repositoryId))
 
     private fun writeKey(
         path: String,

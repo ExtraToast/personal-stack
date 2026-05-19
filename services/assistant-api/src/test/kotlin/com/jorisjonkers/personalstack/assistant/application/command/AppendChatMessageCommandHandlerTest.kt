@@ -62,7 +62,14 @@ class AppendChatMessageCommandHandlerTest {
     fun `handle throws NotFound for an unknown session`() {
         every { sessions.findById(any()) } returns null
         assertThrows<NotFoundException> {
-            handler.handle(AppendChatMessageCommand(ChatMessageId.random(), ChatSessionId.random(), ChatMessageRole.USER, "hey"))
+            handler.handle(
+                AppendChatMessageCommand(
+                    messageId = ChatMessageId.random(),
+                    sessionId = ChatSessionId.random(),
+                    role = ChatMessageRole.USER,
+                    body = "hey",
+                ),
+            )
         }
     }
 }

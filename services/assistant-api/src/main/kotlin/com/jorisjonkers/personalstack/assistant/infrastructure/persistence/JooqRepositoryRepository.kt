@@ -7,10 +7,10 @@ import com.jorisjonkers.personalstack.assistant.domain.port.RepositoryRepository
 import org.jooq.DSLContext
 import org.jooq.Record
 import org.jooq.impl.DSL
-import org.springframework.stereotype.Repository as SpringRepository
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.util.UUID
+import org.springframework.stereotype.Repository as SpringRepository
 
 @SpringRepository
 class JooqRepositoryRepository(

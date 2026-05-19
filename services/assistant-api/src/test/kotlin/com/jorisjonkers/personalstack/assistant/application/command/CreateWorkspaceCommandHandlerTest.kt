@@ -8,7 +8,6 @@ import com.jorisjonkers.personalstack.assistant.domain.model.RepositoryId
 import com.jorisjonkers.personalstack.assistant.domain.model.Workspace
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceKind
-import org.junit.jupiter.api.assertThrows
 import com.jorisjonkers.personalstack.assistant.domain.port.AgentGatewayClient
 import com.jorisjonkers.personalstack.assistant.domain.port.AgentRunnerOrchestrator
 import com.jorisjonkers.personalstack.assistant.domain.port.GithubLinkRepository
@@ -20,6 +19,7 @@ import io.mockk.slot
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.ObjectProvider
 import java.time.Instant
 

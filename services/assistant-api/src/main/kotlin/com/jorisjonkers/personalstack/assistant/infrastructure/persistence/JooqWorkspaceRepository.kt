@@ -30,6 +30,7 @@ import java.util.UUID
 class JooqWorkspaceRepository(
     private val dsl: DSLContext,
 ) : WorkspaceRepository {
+    @Suppress("LongMethod")
     override fun save(workspace: Workspace): Workspace {
         val createdAt = workspace.createdAt.atOffset(ZoneOffset.UTC)
         val updatedAt = workspace.updatedAt.atOffset(ZoneOffset.UTC)

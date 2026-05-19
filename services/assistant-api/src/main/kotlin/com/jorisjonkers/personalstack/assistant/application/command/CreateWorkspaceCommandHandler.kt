@@ -80,23 +80,23 @@ class CreateWorkspaceCommandHandler(
 
     private fun persistInitial(command: CreateWorkspaceCommand): Workspace {
         val now = Instant.now()
-        val (repoUrl, branch, repositoryId, legacyLinkId) = resolveRepo(command)
+        val resolved = resolveRepo(command)
         val workspace =
             Workspace(
                 id = command.workspaceId,
                 name = command.name,
-                repoUrl = repoUrl,
-                branch = branch,
+                repoUrl = resolved.repoUrl,
+                branch = resolved.branch,
                 podName = null,
                 pvcName = null,
                 gatewayEndpoint = null,
                 status = WorkspaceStatus.PENDING,
                 createdAt = now,
                 updatedAt = now,
-                repositoryId = repositoryId,
+                repositoryId = resolved.repositoryId,
                 projectId = command.projectId,
                 kind = command.kind,
-                githubLinkId = legacyLinkId,
+                githubLinkId = resolved.legacyLinkId,
             )
         workspaces.save(workspace)
         return workspace
@@ -121,47 +121,48 @@ class CreateWorkspaceCommandHandler(
         val legacyLinkId: GithubLinkId?,
     )
 
-    private fun resolveRepo(command: CreateWorkspaceCommand): ResolvedRepo {
-        if (command.kind == WorkspaceKind.SCRATCH) {
-            // Scratch workspaces ignore repo metadata even if the
-            // caller supplied a URL — the orchestrator must not
-            // clone anything for this flavour.
-            return ResolvedRepo(repoUrl = null, branch = null, repositoryId = null, legacyLinkId = null)
+    private fun resolveRepo(command: CreateWorkspaceCommand): ResolvedRepo =
+        when {
+            command.kind == WorkspaceKind.SCRATCH -> ResolvedRepo(null, null, null, null)
+            command.repositoryId != null -> resolveFromRepository(command, command.repositoryId)
+            command.githubLinkId != null -> resolveFromLegacyLink(command, command.githubLinkId)
+            else -> ResolvedRepo(command.repoUrl, command.branch, null, null)
         }
-        command.repositoryId?.let { repoId ->
-            val repo =
-                repositories.ifAvailable?.findById(repoId)
-                    ?: error("repository requested but Repository feature not wired (Vault disabled?)")
-            val branch = command.branch?.takeIf { it.isNotBlank() } ?: repo.defaultBranch
-            // legacyLinkId mirrors repositoryId during the V9 window
-            // so the orchestrator's deploy-key lookup keeps working
-            // against the legacy per-link Vault path; once the
-            // orchestrator is migrated this assignment goes away.
-            return ResolvedRepo(
-                repoUrl = repo.repoUrl,
-                branch = branch,
-                repositoryId = repoId,
-                legacyLinkId = GithubLinkId(repoId.value),
-            )
-        }
-        command.githubLinkId?.let { linkId ->
-            val links =
-                githubLinks.ifAvailable
-                    ?: error("github link requested but Projects feature not wired (Vault disabled?)")
-            val link = links.findById(linkId) ?: error("github link not found: $linkId")
-            val branch = command.branch?.takeIf { it.isNotBlank() } ?: link.defaultBranch
-            return ResolvedRepo(
-                repoUrl = link.repoUrl,
-                branch = branch,
-                repositoryId = RepositoryId(linkId.value),
-                legacyLinkId = linkId,
-            )
-        }
+
+    private fun resolveFromRepository(
+        command: CreateWorkspaceCommand,
+        repoId: RepositoryId,
+    ): ResolvedRepo {
+        val repo =
+            repositories.ifAvailable?.findById(repoId)
+                ?: error("repository requested but Repository feature not wired (Vault disabled?)")
+        val branch = command.branch?.takeIf { it.isNotBlank() } ?: repo.defaultBranch
+        // legacyLinkId mirrors repositoryId during the V9 window so
+        // the orchestrator's deploy-key lookup keeps working against
+        // the legacy per-link Vault path; once the orchestrator is
+        // migrated this assignment goes away.
         return ResolvedRepo(
-            repoUrl = command.repoUrl,
-            branch = command.branch,
-            repositoryId = null,
-            legacyLinkId = null,
+            repoUrl = repo.repoUrl,
+            branch = branch,
+            repositoryId = repoId,
+            legacyLinkId = GithubLinkId(repoId.value),
+        )
+    }
+
+    private fun resolveFromLegacyLink(
+        command: CreateWorkspaceCommand,
+        linkId: GithubLinkId,
+    ): ResolvedRepo {
+        val links =
+            githubLinks.ifAvailable
+                ?: error("github link requested but Projects feature not wired (Vault disabled?)")
+        val link = links.findById(linkId) ?: error("github link not found: $linkId")
+        val branch = command.branch?.takeIf { it.isNotBlank() } ?: link.defaultBranch
+        return ResolvedRepo(
+            repoUrl = link.repoUrl,
+            branch = branch,
+            repositoryId = RepositoryId(linkId.value),
+            legacyLinkId = linkId,
         )
     }
 }

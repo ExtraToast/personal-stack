@@ -6,8 +6,8 @@ import com.jorisjonkers.personalstack.assistant.domain.port.ProjectRepositoryRep
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
+import org.junit.jupiter.api.Test
 
 class UnlinkRepositoryFromProjectCommandHandlerTest {
     private val junction = mockk<ProjectRepositoryRepository>()
