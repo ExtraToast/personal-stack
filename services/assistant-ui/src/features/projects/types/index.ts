@@ -1,3 +1,5 @@
+import type { Repository } from '@/features/repositories'
+
 export interface Project {
   id: string
   name: string
@@ -7,6 +9,11 @@ export interface Project {
   updatedAt: string
 }
 
+/**
+ * Legacy per-link record. Kept around for backwards compatibility
+ * during the Repository-M:N rollout. Use `Repository` going forward —
+ * the project pool is now the authoritative list.
+ */
 export interface GithubLink {
   id: string
   projectId: string
@@ -22,5 +29,16 @@ export interface GithubLink {
 
 export interface ProjectDetail {
   project: Project
+  /**
+   * Deprecated — the legacy per-project link rows. Still emitted by
+   * the API for backwards compatibility, but the redesigned UI
+   * consumes `repositories` below.
+   */
   links: GithubLink[]
+  /**
+   * The repository pool linked to this project. Many-to-many: a
+   * repository can appear under multiple projects without
+   * duplicating its deploy key.
+   */
+  repositories: Repository[]
 }

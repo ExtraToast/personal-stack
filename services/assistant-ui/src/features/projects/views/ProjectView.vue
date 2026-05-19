@@ -1,125 +1,124 @@
 <script setup lang="ts">
-import type { GithubLink } from '../types'
+import { Card, Modal, SubmitButton, useMutationState, useToast } from '@personal-stack/vue-common'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import AddLinkForm from '../components/AddLinkForm.vue'
-import AttachKeyWizard from '../components/AttachKeyWizard.vue'
+import ProjectRepositoryPicker from '../components/ProjectRepositoryPicker.vue'
 import { useProjectsStore } from '../stores/projects'
 
 const route = useRoute()
 const router = useRouter()
 const store = useProjectsStore()
+const toast = useToast()
 
 const projectId = computed(() => String(route.params.id))
-const showAdd = ref(false)
-const wizardLink = ref<GithubLink | null>(null)
-const wizardError = ref<string | null>(null)
+const showPicker = ref(false)
+const unlink = useMutationState<void>()
 
 onMounted(async () => {
-  await store.open(projectId.value)
+  try {
+    await store.open(projectId.value)
+  } catch (e) {
+    toast.error('Could not load the project', e instanceof Error ? e.message : String(e))
+  }
 })
 
-async function onAdd(input: { name: string; repoUrl: string; defaultBranch: string }): Promise<void> {
-  const link = await store.addNewLink(input)
-  showAdd.value = false
-  if (link) wizardLink.value = link
-}
-
-async function onAttach(
-  link: GithubLink,
-  body: { privateKeyOpenssh: string; publicKeyOpenssh: string; knownHosts: string },
-): Promise<void> {
-  wizardError.value = null
+async function onPickRepo(repositoryId: string): Promise<void> {
   try {
-    await store.attach(link.id, body)
-    wizardLink.value = null
-  } catch (e: unknown) {
-    wizardError.value = e instanceof Error ? e.message : 'attach failed'
+    await store.linkRepo(repositoryId)
+    showPicker.value = false
+    toast.success('Repository linked')
+  } catch (e) {
+    toast.error('Could not link the repository', e instanceof Error ? e.message : String(e))
   }
 }
 
-async function onRemove(linkId: string): Promise<void> {
+async function onUnlink(repositoryId: string, repositoryName: string): Promise<void> {
   // Browser confirm() is the simplest accept/cancel surface for a
   // destructive action; a future ConfirmDialog can swap in here
   // without changing call sites.
   // eslint-disable-next-line no-alert
-  if (!window.confirm('Remove this GitHub link? The Vault key will be deleted.')) return
-  await store.dropLink(linkId)
+  if (!window.confirm(`Unlink ${repositoryName} from this project? The repository itself stays.`)) return
+  try {
+    await unlink.run(async () => {
+      await store.unlinkRepo(repositoryId)
+    })
+    toast.success(`Unlinked ${repositoryName}`)
+  } catch (e) {
+    toast.error('Could not unlink the repository', e instanceof Error ? e.message : String(e))
+  }
 }
 </script>
 
 <template>
   <div class="max-w-5xl mx-auto p-6">
-    <button class="text-sm text-gray-400 hover:text-gray-200 mb-3" @click="router.push('/projects')">← Projects</button>
+    <button class="mb-3 text-sm text-gray-400 hover:text-gray-200" @click="router.push('/projects')">← Projects</button>
 
     <header class="mb-6">
       <h1 class="text-2xl font-bold">{{ store.activeProject?.name ?? 'Loading…' }}</h1>
-      <p v-if="store.activeProject" class="text-xs text-gray-500 font-mono mt-1">
+      <p v-if="store.activeProject" class="mt-1 font-mono text-xs text-gray-500">
         project:{{ store.activeProject.slug }}
       </p>
-      <p v-if="store.activeProject?.description" class="text-sm text-gray-400 mt-2">
+      <p v-if="store.activeProject?.description" class="mt-2 text-sm text-gray-400">
         {{ store.activeProject.description }}
       </p>
     </header>
 
     <section class="mb-6">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="text-lg font-semibold">GitHub repositories</h2>
-        <button
+      <div class="mb-3 flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-semibold">Repositories</h2>
+          <p class="mt-1 text-sm text-gray-400">
+            The pool of GitHub repos this project's workspaces can clone. Reuse repositories across projects — the
+            deploy key lives on the repository.
+          </p>
+        </div>
+        <SubmitButton
           type="button"
-          class="rounded bg-blue-600 hover:bg-blue-700 px-3 py-1.5 text-sm text-white"
-          @click="showAdd = !showAdd"
-        >
-          {{ showAdd ? 'Cancel' : 'Add repo' }}
-        </button>
+          label="Link repository"
+          data-testid="project-link-repo-button"
+          @click="showPicker = true"
+        />
       </div>
-      <section v-if="showAdd" class="mb-4 rounded-lg border border-gray-700 bg-surface-darker p-4">
-        <AddLinkForm @submit="onAdd" @cancel="showAdd = false" />
-      </section>
 
-      <p v-if="store.links.length === 0 && !showAdd" class="text-gray-500 italic">No repositories linked yet.</p>
+      <p v-if="store.repositories.length === 0" class="text-sm text-gray-500 italic">
+        No repositories linked to this project yet.
+        <RouterLink to="/repositories" class="text-[var(--color-accent-light)] underline">Add one</RouterLink>
+        then come back.
+      </p>
 
-      <ul v-else class="space-y-3">
-        <li v-for="link in store.links" :key="link.id" class="rounded-lg border border-gray-700 bg-surface-darker p-4">
-          <div class="flex items-baseline justify-between mb-1">
-            <div>
-              <span class="font-semibold">{{ link.name }}</span>
-              <span class="text-xs text-gray-500 font-mono ml-2">{{ link.repoUrl }}@{{ link.defaultBranch }}</span>
-            </div>
-            <div class="flex gap-2">
-              <button
-                v-if="!link.deployKeyFingerprint"
-                class="rounded bg-emerald-600 hover:bg-emerald-700 px-3 py-1 text-xs text-white"
-                @click="wizardLink = link"
-              >
-                Attach key
-              </button>
-              <button
-                v-else
-                class="rounded bg-emerald-600/60 hover:bg-emerald-700 px-3 py-1 text-xs text-white"
-                @click="wizardLink = link"
-              >
-                Rotate key
-              </button>
-              <button class="rounded text-xs text-red-400 hover:bg-red-500/10 px-3 py-1" @click="onRemove(link.id)">
-                Remove
-              </button>
-            </div>
-          </div>
-          <div v-if="link.deployKeyFingerprint" class="text-xs text-gray-400 font-mono mt-1">
-            Fingerprint: {{ link.deployKeyFingerprint }}
-            <span class="text-gray-500 ml-2"> attached {{ link.deployKeyAddedAt }} </span>
-          </div>
-          <div v-else class="text-xs text-yellow-400 mt-1">
-            No deploy key attached yet — click "Attach key" to follow the setup guide.
-          </div>
-
-          <div v-if="wizardLink?.id === link.id" class="mt-4">
-            <AttachKeyWizard :link="link" @submit="(v) => onAttach(link, v)" @cancel="wizardLink = null" />
-            <p v-if="wizardError" class="text-red-400 text-sm mt-2">{{ wizardError }}</p>
-          </div>
+      <ul v-else class="space-y-3" data-testid="project-repositories-list">
+        <li v-for="r in store.repositories" :key="r.id">
+          <Card :data-testid="`project-repository-${r.id}`">
+            <template #header>
+              <div class="flex items-baseline justify-between">
+                <RouterLink :to="`/repositories/${r.id}`" class="font-semibold hover:underline">
+                  {{ r.name }}
+                </RouterLink>
+                <span v-if="!r.deployKeyFingerprint" class="text-xs text-amber-400">no key yet</span>
+                <span v-else class="text-xs text-emerald-400">key attached</span>
+              </div>
+            </template>
+            <p class="font-mono text-xs text-gray-400">{{ r.repoUrl }}</p>
+            <p class="mt-1 text-xs text-gray-500">default: {{ r.defaultBranch }}</p>
+            <template #footer>
+              <div class="flex justify-end">
+                <SubmitButton
+                  type="button"
+                  variant="danger"
+                  label="Unlink"
+                  :status="unlink.status.value"
+                  :data-testid="`project-unlink-${r.id}`"
+                  @click="onUnlink(r.id, r.name)"
+                />
+              </div>
+            </template>
+          </Card>
         </li>
       </ul>
     </section>
+
+    <Modal :open="showPicker" title="Link a repository" @close="showPicker = false">
+      <ProjectRepositoryPicker :already-linked="store.repositories" @pick="onPickRepo" @cancel="showPicker = false" />
+    </Modal>
   </div>
 </template>

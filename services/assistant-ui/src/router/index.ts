@@ -43,6 +43,18 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/features/projects/views/ProjectView.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/repositories',
+    name: 'repositories',
+    component: () => import('@/features/repositories/views/RepositoriesView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/repositories/:id',
+    name: 'repository',
+    component: () => import('@/features/repositories/views/RepositoryView.vue'),
+    meta: { requiresAuth: true },
+  },
 ]
 
 export const router = createRouter({

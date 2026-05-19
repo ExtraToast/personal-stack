@@ -13,12 +13,40 @@ export async function getWorkspace(id: string): Promise<WorkspaceDetail> {
   return getApi().get<WorkspaceDetail>(`/workspaces/${id}`)
 }
 
-export async function createWorkspace(input: {
+export type WorkspaceKind = 'REPO_BACKED' | 'SCRATCH' | 'CHAT'
+
+export interface CreateWorkspaceInput {
   name: string
-  repoUrl?: string | null
+  /**
+   * Workspace flavour. `REPO_BACKED` clones a repo (needs
+   * `repositoryId` or the legacy `repoUrl`). `SCRATCH` spins up a
+   * Pod with no clone — useful for ad-hoc shell work.
+   */
+  kind?: WorkspaceKind
+  /**
+   * The preferred way to bind a workspace to a repo + its deploy key.
+   * When set, the API derives `repoUrl` and `branch` from the
+   * repository row.
+   */
+  repositoryId?: string | null
+  /**
+   * Optional project context. Set when the workspace was opened from
+   * a project's UI; null for ad-hoc / scratch work.
+   */
+  projectId?: string | null
+  /** Override of the repository's default branch. */
   branch?: string | null
+  /** Ad-hoc workspaces still take a raw URL. */
+  repoUrl?: string | null
+  /**
+   * @deprecated — prefer `repositoryId`. The server accepts both for
+   * the migration window; PR H will drop this once the OpenAPI gate
+   * lands.
+   */
   githubLinkId?: string | null
-}): Promise<Workspace> {
+}
+
+export async function createWorkspace(input: CreateWorkspaceInput): Promise<Workspace> {
   return getApi().post<Workspace>('/workspaces', input)
 }
 
