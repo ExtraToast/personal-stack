@@ -327,9 +327,23 @@ class OllamaClassifier:
 
     def _chat(self, payload: dict[str, Any]) -> str:
         url = f"{self._base_url}/chat/completions"
-        response = self._client.post(url, json=payload)
-        response.raise_for_status()
-        data = response.json()
+        # All httpx transport errors (timeouts, connection failures,
+        # 5xx via raise_for_status) get re-raised as ClassificationError
+        # so the caller — `Promoter.promote_inbox_file` — can route the
+        # note to `_inbox/_needs-review/` and keep walking. The pass
+        # would otherwise crash on the first slow Ollama call and leave
+        # the rest of the candidates untouched (saw this draining 84
+        # `relation-target-missing` items on 2026-05-19: classify on
+        # the first review file timed out at 180 s, exception bubbled
+        # all the way to `sys.exit(main())`, the other 83 never ran).
+        try:
+            response = self._client.post(url, json=payload)
+            response.raise_for_status()
+            data = response.json()
+        except (httpx.TimeoutException, httpx.HTTPError) as exc:
+            raise ClassificationError(
+                f"Ollama transport error on {url}: {type(exc).__name__}: {exc}"
+            ) from exc
         try:
             return str(data["choices"][0]["message"]["content"])
         except (KeyError, IndexError, TypeError) as exc:

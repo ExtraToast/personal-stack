@@ -136,3 +136,44 @@ def test_classify_raises_after_two_invalid_responses() -> None:
     )
     with pytest.raises(ClassificationError):
         classifier.classify(title="t", body="b", neighbours=[])
+
+
+@respx.mock
+def test_classify_raises_classification_error_on_timeout() -> None:
+    # A slow Ollama (180s timeout in prod) used to bubble httpx.TimeoutException
+    # through promote_inbox_file and crash the whole curator pass — leaving
+    # the rest of the inbox untouched. classify() now wraps transport errors
+    # in ClassificationError so promote.py's existing handler routes the note
+    # to needs-review and the loop keeps walking.
+    respx.post("http://ollama/v1/chat/completions").mock(
+        side_effect=httpx.ReadTimeout("simulated slow ollama"),
+    )
+    classifier = OllamaClassifier(
+        base_url="http://ollama/v1", model="qwen2.5:14b", topic_slugs=("vault",)
+    )
+    with pytest.raises(ClassificationError, match="Ollama transport error"):
+        classifier.classify(title="t", body="b", neighbours=[])
+
+
+@respx.mock
+def test_classify_raises_classification_error_on_5xx() -> None:
+    respx.post("http://ollama/v1/chat/completions").mock(
+        return_value=httpx.Response(503, text="upstream"),
+    )
+    classifier = OllamaClassifier(
+        base_url="http://ollama/v1", model="qwen2.5:14b", topic_slugs=("vault",)
+    )
+    with pytest.raises(ClassificationError, match="Ollama transport error"):
+        classifier.classify(title="t", body="b", neighbours=[])
+
+
+@respx.mock
+def test_classify_raises_classification_error_on_connect_failure() -> None:
+    respx.post("http://ollama/v1/chat/completions").mock(
+        side_effect=httpx.ConnectError("connection refused"),
+    )
+    classifier = OllamaClassifier(
+        base_url="http://ollama/v1", model="qwen2.5:14b", topic_slugs=("vault",)
+    )
+    with pytest.raises(ClassificationError, match="Ollama transport error"):
+        classifier.classify(title="t", body="b", neighbours=[])
