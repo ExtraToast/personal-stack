@@ -14,6 +14,7 @@ jooqCodegen {
 
 dependencies {
     implementation(project(":libs:kotlin-common"))
+    implementation("org.springframework.boot:spring-boot-starter-websocket")
     // See auth-api build.gradle.kts — needed for the
     // ApplicationTracingAspect in kotlin-common to take effect.
     // Spring Boot 4 doesn't ship a starter-aop shortcut.
@@ -52,6 +53,7 @@ val agentRuntimeIoExclusions =
     listOf(
         "**/infrastructure/k8s/**",
         "**/infrastructure/integration/HttpAgentGatewayClient.class",
+        "**/infrastructure/ws/**",
     )
 
 tasks.jacocoTestCoverageVerification {
