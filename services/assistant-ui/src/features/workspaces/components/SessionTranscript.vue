@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import type { Turn } from '../types'
 import { nextTick, ref, watch } from 'vue'
+import BlockTurn from './BlockTurn.vue'
 
 const props = defineProps<{ turns: Turn[] }>()
+const emit = defineEmits<{
+  pick: [value: { sessionId: string; optionId: string }]
+  decide: [value: { sessionId: string; approved: boolean }]
+}>()
 const container = ref<HTMLDivElement | null>(null)
 
 // Auto-scroll to bottom on new turn.
@@ -26,7 +31,6 @@ watch(
     <div
       v-for="turn in turns"
       :key="turn.id"
-      class="whitespace-pre-wrap"
       :class="{
         'text-blue-300': turn.role === 'USER',
         'text-gray-100': turn.role === 'AGENT',
@@ -34,7 +38,13 @@ watch(
       }"
     >
       <span class="text-xs uppercase tracking-wider opacity-50 mr-2">{{ turn.role }}</span>
-      {{ turn.body }}
+      <BlockTurn
+        v-if="turn.role === 'AGENT'"
+        :body="turn.body"
+        @pick="(id: string) => emit('pick', { sessionId: turn.sessionId, optionId: id })"
+        @decide="(v: { approved: boolean }) => emit('decide', { sessionId: turn.sessionId, ...v })"
+      />
+      <span v-else class="whitespace-pre-wrap">{{ turn.body }}</span>
     </div>
     <div v-if="turns.length === 0" class="text-gray-500 italic">
       No transcript yet — type below to start the conversation.
