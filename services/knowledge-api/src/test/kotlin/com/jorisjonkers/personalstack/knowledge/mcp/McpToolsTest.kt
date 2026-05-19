@@ -2,6 +2,7 @@
 
 package com.jorisjonkers.personalstack.knowledge.mcp
 
+import com.jorisjonkers.personalstack.knowledge.auth.AdminAuthorization
 import com.jorisjonkers.personalstack.knowledge.capture.CaptureRequest
 import com.jorisjonkers.personalstack.knowledge.capture.CaptureService
 import com.jorisjonkers.personalstack.knowledge.digest.DigestService
@@ -17,6 +18,7 @@ import com.jorisjonkers.personalstack.knowledge.domain.TagSummary
 import com.jorisjonkers.personalstack.knowledge.domain.TopicStats
 import com.jorisjonkers.personalstack.knowledge.domain.TopicSummary
 import com.jorisjonkers.personalstack.knowledge.recall.RecallService
+import com.jorisjonkers.personalstack.knowledge.repo.TopicRepository
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -32,16 +34,19 @@ class McpToolsTest {
     private val recallService = mockk<RecallService>(relaxed = true)
     private val discoveryService = mockk<DiscoveryService>(relaxed = true)
     private val digestService = mockk<DigestService>(relaxed = true)
+    private val topicRepository = mockk<TopicRepository>(relaxed = true)
+    private val adminAuthorization = mockk<AdminAuthorization>(relaxed = true)
 
-    // Wire real Capture/Read/Discovery/DigestMcpTools around the
-    // mocked services — that's what Spring does in production and
-    // what gives us coverage of the descriptor builders + handler
+    // Wire real Capture/Read/Discovery/Admin/DigestMcpTools around
+    // the mocked services — that's what Spring does in production
+    // and what gives us coverage of the descriptor builders + handler
     // argument parsing.
     private val tools =
         McpTools(
             CaptureMcpTools(captureService),
             ReadMcpTools(recallService),
             DiscoveryMcpTools(discoveryService),
+            AdminMcpTools(topicRepository, adminAuthorization),
             DigestMcpTools(digestService),
         )
     private val mapper: JsonMapper = JsonMapper.builder().addModule(KotlinModule.Builder().build()).build()
@@ -62,7 +67,7 @@ class McpToolsTest {
         )
 
     @Test
-    fun `describe advertises capture, read, discovery, and digest tools by name`() {
+    fun `describe advertises capture, read, discovery, admin, and digest tools by name`() {
         val names = tools.describe().map { it["name"] as String }
         assertThat(names).containsExactlyInAnyOrder(
             "knowledge.capture_lesson",
@@ -79,6 +84,10 @@ class McpToolsTest {
             "knowledge.list_sources",
             "knowledge.topic_stats",
             "knowledge.list_inbox",
+            "knowledge.add_topic",
+            "knowledge.update_topic",
+            "knowledge.merge_topics",
+            "knowledge.rename_tag",
             "knowledge.digest_transcript",
         )
     }

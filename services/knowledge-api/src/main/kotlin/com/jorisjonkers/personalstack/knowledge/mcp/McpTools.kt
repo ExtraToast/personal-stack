@@ -6,7 +6,7 @@ import tools.jackson.databind.json.JsonMapper
 
 /**
  * MCP `tools/list` + `tools/call` registry. The actual tool sets
- * live in `CaptureMcpTools` and `ReadMcpTools`; this class only
+ * live in the per-domain `*McpTools` components; this class only
  * composes them and routes by tool name.
  */
 @Component
@@ -14,11 +14,17 @@ class McpTools(
     captureTools: CaptureMcpTools,
     readTools: ReadMcpTools,
     discoveryTools: DiscoveryMcpTools,
+    adminTools: AdminMcpTools,
     digestTools: DigestMcpTools,
 ) {
     private val tools: Map<String, McpTool> =
-        (captureTools.tools() + readTools.tools() + discoveryTools.tools() + digestTools.tools())
-            .associateBy { it.name }
+        (
+            captureTools.tools() +
+                readTools.tools() +
+                discoveryTools.tools() +
+                adminTools.tools() +
+                digestTools.tools()
+        ).associateBy { it.name }
 
     fun describe(): List<Map<String, Any?>> = tools.values.map { it.descriptor }
 
