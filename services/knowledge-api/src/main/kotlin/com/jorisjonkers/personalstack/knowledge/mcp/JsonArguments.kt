@@ -1,5 +1,3 @@
-@file:Suppress("DEPRECATION") // Jackson 3 deprecated asText()/isTextual.
-
 package com.jorisjonkers.personalstack.knowledge.mcp
 
 import tools.jackson.databind.JsonNode
@@ -26,8 +24,8 @@ internal object JsonArguments {
         node
             .get(field)
             ?.takeUnless { it.isNull }
-            ?.takeIf { it.isTextual }
-            ?.asText()
+            ?.takeIf { it.isString }
+            ?.asString()
             ?.takeIf { it.isNotBlank() }
 
     fun rawText(
@@ -37,8 +35,8 @@ internal object JsonArguments {
         node
             .get(field)
             ?.takeUnless { it.isNull }
-            ?.takeIf { it.isTextual }
-            ?.asText()
+            ?.takeIf { it.isString }
+            ?.asString()
 
     fun optionalDouble(
         node: JsonNode,
@@ -66,6 +64,6 @@ internal object JsonArguments {
     ): List<String> {
         val arr = node.get(field) ?: return emptyList()
         if (!arr.isArray) return emptyList()
-        return arr.mapNotNull { if (it.isTextual) it.asText() else null }
+        return arr.mapNotNull { if (it.isString) it.asString() else null }
     }
 }

@@ -1,5 +1,3 @@
-@file:Suppress("DEPRECATION") // Jackson 3 asText() — see McpTools file header.
-
 package com.jorisjonkers.personalstack.knowledge.recall
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper

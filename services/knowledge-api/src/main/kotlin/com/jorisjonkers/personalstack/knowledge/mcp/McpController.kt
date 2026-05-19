@@ -1,6 +1,3 @@
-@file:Suppress("DEPRECATION") // Jackson 3 deprecated JsonNode.asText() in favour of asString();
-// keeping the JsonNode shape across the codebase until a coordinated migration lands.
-
 package com.jorisjonkers.personalstack.knowledge.mcp
 
 import org.springframework.http.MediaType
@@ -49,7 +46,7 @@ class McpController(
         val name =
             request.params
                 ?.get("name")
-                ?.asText()
+                ?.asString()
                 .orEmpty()
         if (name.isBlank()) {
             return JsonRpcResponse(
