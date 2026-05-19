@@ -6,11 +6,15 @@ without ever shipping API keys.
 
 ## Topology
 
-- `agents-system` — long-lived support workloads (auth-bootstrap Pod,
-  refresh-ping CronJob, credential PVCs, Vault-projected deploy key).
-- `agent-runners` — per-workspace Pods created at runtime by
-  `assistant-api`. Has its own NetworkPolicy with a tight egress allow
-  list (DNS, knowledge stack, outbound 443).
+All workloads live in a single `agents-system` namespace because the
+credential PVCs (`claude-credentials`, `codex-credentials`) are
+namespace-scoped and both the auth-bootstrap Pod that populates them
+and the per-workspace runner Pods that consume them must share that
+namespace. The NetworkPolicy uses the
+`app.kubernetes.io/part-of: agent-runner` label to apply a tight
+egress allow list (DNS, in-cluster knowledge stack, outbound 443) to
+just the runner Pods; the bootstrap Pod stays permissive so the
+interactive OAuth flows can reach the upstream IdPs.
 
 ## First-time auth bootstrap
 

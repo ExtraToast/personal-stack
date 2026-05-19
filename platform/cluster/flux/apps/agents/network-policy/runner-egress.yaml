@@ -16,7 +16,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: runner-default
-  namespace: agent-runners
+  namespace: agents-system
 spec:
   podSelector:
     matchLabels:

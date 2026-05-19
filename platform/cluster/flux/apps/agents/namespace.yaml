@@ -1,3 +1,11 @@
+# All agent workloads (auth-bootstrap, refresh-ping, every
+# per-workspace runner Pod) share this namespace because the
+# credential PVCs (claude-credentials / codex-credentials) must be
+# mountable by both the bootstrap Pod that populates them and the
+# runner Pods that consume them, and PVCs are namespace-scoped. The
+# NetworkPolicy uses the `app.kubernetes.io/part-of: agent-runner`
+# label to segregate runner egress from the bootstrap Pod's broader
+# allowance.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -5,14 +13,3 @@ metadata:
   labels:
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/audit: restricted
----
-# Per-workspace agent-runner Pods live in their own namespace so a
-# NetworkPolicy can clamp egress without affecting the rest of the
-# cluster, and so the auth-bootstrap Pod's credential PVCs stay
-# segregated from every other workload's PVC.
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: agent-runners
-  labels:
-    pod-security.kubernetes.io/enforce: baseline

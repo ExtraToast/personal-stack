@@ -1,0 +1,84 @@
+package com.jorisjonkers.personalstack.assistant.application.command
+
+import com.jorisjonkers.personalstack.assistant.domain.model.Turn
+import com.jorisjonkers.personalstack.assistant.domain.model.TurnRole
+import com.jorisjonkers.personalstack.assistant.domain.model.Workspace
+import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentKind
+import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSession
+import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSessionId
+import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSessionStatus
+import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId
+import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceStatus
+import com.jorisjonkers.personalstack.assistant.domain.port.AgentGatewayClient
+import com.jorisjonkers.personalstack.assistant.domain.port.TurnRepository
+import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceAgentSessionRepository
+import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepository
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.slot
+import io.mockk.verify
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
+import java.time.Instant
+
+class SendUserInputCommandHandlerTest {
+    private val sessions = mockk<WorkspaceAgentSessionRepository>()
+    private val workspaces = mockk<WorkspaceRepository>()
+    private val turns = mockk<TurnRepository>(relaxed = true)
+    private val gateway = mockk<AgentGatewayClient>(relaxed = true)
+    private val handler = SendUserInputCommandHandler(sessions, workspaces, turns, gateway)
+
+    @Test
+    fun `handle persists user turn and forwards input to the gateway`() {
+        val ws = workspace()
+        val session = session(ws.id, gatewayAgentId = "abc12345")
+        every { sessions.findById(session.id) } returns session
+        every { workspaces.findById(ws.id) } returns ws
+        val savedTurn = slot<Turn>()
+        every { turns.save(capture(savedTurn)) } answers { savedTurn.captured }
+
+        handler.handle(SendUserInputCommand(sessionId = session.id, text = "hello", enter = true))
+
+        assertThat(savedTurn.captured.role).isEqualTo(TurnRole.USER)
+        assertThat(savedTurn.captured.body).isEqualTo("hello")
+        verify { gateway.sendInput(ws, "abc12345", "hello", true) }
+    }
+
+    @Test
+    fun `handle throws when the session has not bound a gateway agent yet`() {
+        val ws = workspace()
+        val session = session(ws.id, gatewayAgentId = null)
+        every { sessions.findById(session.id) } returns session
+        every { workspaces.findById(ws.id) } returns ws
+
+        org.junit.jupiter.api.assertThrows<IllegalStateException> {
+            handler.handle(SendUserInputCommand(sessionId = session.id, text = "x"))
+        }
+    }
+
+    private fun workspace() =
+        Workspace(
+            id = WorkspaceId.random(),
+            name = "demo",
+            repoUrl = null,
+            branch = null,
+            podName = null,
+            pvcName = null,
+            gatewayEndpoint = "http://x:8090",
+            status = WorkspaceStatus.READY,
+            createdAt = Instant.now(),
+            updatedAt = Instant.now(),
+        )
+
+    private fun session(workspaceId: WorkspaceId, gatewayAgentId: String?) =
+        WorkspaceAgentSession(
+            id = WorkspaceAgentSessionId.random(),
+            workspaceId = workspaceId,
+            kind = WorkspaceAgentKind.CLAUDE,
+            gatewayAgentId = gatewayAgentId,
+            status =
+                if (gatewayAgentId != null) WorkspaceAgentSessionStatus.RUNNING else WorkspaceAgentSessionStatus.STARTING,
+            createdAt = Instant.now(),
+            updatedAt = Instant.now(),
+        )
+}

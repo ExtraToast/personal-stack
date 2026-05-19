@@ -98,3 +98,17 @@ springdoc:
     path: /api/v1/api-docs
   swagger-ui:
     path: /api/v1/swagger-ui
+
+agent-runtime:
+  namespace: ${AGENT_RUNTIME_NAMESPACE:agents-system}
+  image: ${AGENT_RUNTIME_IMAGE:ghcr.io/extratoast/personal-stack/agent-runner:latest}
+  image-pull-policy: ${AGENT_RUNTIME_IMAGE_PULL_POLICY:Always}
+  service-account: ${AGENT_RUNTIME_SERVICE_ACCOUNT:agent-runner}
+  workspace-storage-class: ${AGENT_RUNTIME_WORKSPACE_STORAGE_CLASS:longhorn}
+  workspace-storage-size: ${AGENT_RUNTIME_WORKSPACE_STORAGE_SIZE:8Gi}
+  gateway-port: ${AGENT_RUNTIME_GATEWAY_PORT:8090}
+  claude-credentials-pvc: ${AGENT_RUNTIME_CLAUDE_PVC:claude-credentials}
+  codex-credentials-pvc: ${AGENT_RUNTIME_CODEX_PVC:codex-credentials}
+  github-deploy-key-secret: ${AGENT_RUNTIME_GH_KEY_SECRET:agents-github-deploy-key}
+  node-selector:
+    personal-stack/site: ${AGENT_RUNTIME_SITE:enschede}

@@ -154,6 +154,16 @@ spec:
               value: 10ms
             - name: PYROSCOPE_LABELS
               value: service.name=assistant-api,deployment.environment=production
+            # Agent runtime — per-workspace runner Pod orchestration.
+            # All values live in application.yml's defaults; overrides
+            # here cover environment specifics (site selector, image
+            # tag pinning if needed).
+            - name: AGENT_RUNTIME_NAMESPACE
+              value: agents-system
+            - name: AGENT_RUNTIME_IMAGE
+              value: ghcr.io/extratoast/personal-stack/agent-runner:latest
+            - name: AGENT_RUNTIME_SITE
+              value: enschede
           ports:
             - containerPort: 8082
               name: http
