@@ -25,6 +25,8 @@ INSERT INTO kb_projects (slug, description, github_org) VALUES
 
 INSERT INTO kb_project_aliases (alias_lower, slug) VALUES
     ('extratoast/personal-stack',            'extratoast/personal-stack'),
+    ('extratoast.personal-stack',            'extratoast/personal-stack'),
+    ('extratoast-personal-stack',            'extratoast/personal-stack'),
     ('personal-stack',                       'extratoast/personal-stack'),
     ('personal-stack-2',                     'extratoast/personal-stack'),
     ('personal-stack.',                      'extratoast/personal-stack'),
@@ -32,7 +34,7 @@ INSERT INTO kb_project_aliases (alias_lower, slug) VALUES
     ('home-direct',                          'extratoast/personal-stack'),
     ('homelab',                              'extratoast/personal-stack'),
     ('esa-blueshell/website',                'esa-blueshell/website'),
-    ('website',                              'esa-blueshell/website'),
-    ('esa-blueshell-website',                'esa-blueshell/website'),
     ('esa-blueshell.website',                'esa-blueshell/website'),
+    ('esa-blueshell-website',                'esa-blueshell/website'),
+    ('website',                              'esa-blueshell/website'),
     ('blueshell-website',                    'esa-blueshell/website');
