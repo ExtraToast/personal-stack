@@ -64,23 +64,25 @@ describe('useProjectsStore', () => {
     expect(store.error).toBeNull()
   })
 
-  it('loadAll surfaces an error message on failure', async () => {
+  it('loadAll surfaces the Error message and re-throws on failure', async () => {
     mocked.listProjects.mockRejectedValue(new Error('boom'))
     const store = useProjectsStore()
-    await store.loadAll()
-    expect(store.error).toBe('Failed to load projects')
+    await expect(store.loadAll()).rejects.toThrow('boom')
+    expect(store.error).toBe('boom')
   })
 
-  it('open loads detail + links', async () => {
+  it('open loads detail + links + repositories', async () => {
     const detail: ProjectDetail = {
       project: fakeProject(),
       links: [fakeLink()],
+      repositories: [],
     }
     mocked.getProject.mockResolvedValue(detail)
     const store = useProjectsStore()
     await store.open('11111111-1111-1111-1111-111111111111')
     expect(store.activeProject?.id).toBe(detail.project.id)
     expect(store.links).toHaveLength(1)
+    expect(store.repositories).toHaveLength(0)
   })
 
   it('create unshifts the new project', async () => {
@@ -121,7 +123,7 @@ describe('useProjectsStore', () => {
 
   it('attach delegates and refreshes the project', async () => {
     mocked.attachKey.mockResolvedValue()
-    mocked.getProject.mockResolvedValue({ project: fakeProject(), links: [] })
+    mocked.getProject.mockResolvedValue({ project: fakeProject(), links: [], repositories: [] })
     const store = useProjectsStore()
     store.activeProject = fakeProject()
     await store.attach('link-id', {

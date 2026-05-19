@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { FormField, SubmitButton, useMutationState, useToast } from '@personal-stack/vue-common'
 import { computed, ref, watch } from 'vue'
 
 const emit = defineEmits<{
@@ -27,57 +28,85 @@ function onSlugInput(): void {
   slugManuallyEdited.value = slug.value !== autoSlug.value
 }
 
-function onSubmit(): void {
-  if (!name.value.trim() || !slug.value) return
-  emit('submit', { name: name.value.trim(), slug: slug.value, description: description.value.trim() })
+const submit = useMutationState<void>()
+const toast = useToast()
+const canSubmit = computed(() => name.value.trim().length > 0 && slug.value.length > 0)
+
+async function onSubmit(): Promise<void> {
+  if (!canSubmit.value) return
+  try {
+    await submit.run(async () => {
+      emit('submit', { name: name.value.trim(), slug: slug.value, description: description.value.trim() })
+    })
+  } catch (e) {
+    toast.error('Could not create the project', e instanceof Error ? e.message : String(e))
+  }
 }
 </script>
 
 <template>
-  <form class="space-y-3" data-testid="create-project-form" @submit.prevent="onSubmit">
-    <div>
-      <label class="block text-sm font-medium mb-1" for="proj-name">Name</label>
-      <input
-        id="proj-name"
-        v-model="name"
-        type="text"
-        required
-        maxlength="80"
-        class="w-full rounded border border-gray-700 bg-surface-darker px-3 py-2"
-        placeholder="Personal Stack"
-      />
-    </div>
-    <div>
-      <label class="block text-sm font-medium mb-1" for="proj-slug">Slug</label>
-      <input
-        id="proj-slug"
-        v-model="slug"
-        type="text"
-        required
-        pattern="^[a-z0-9][a-z0-9-]{0,62}$"
-        class="w-full rounded border border-gray-700 bg-surface-darker px-3 py-2 font-mono"
-        placeholder="personal-stack"
-        @input="onSlugInput"
-      />
-      <p class="text-xs text-gray-500 mt-1">Lowercase, hyphens only — used in KB scope `project:&lt;slug&gt;`.</p>
-    </div>
-    <div>
-      <label class="block text-sm font-medium mb-1" for="proj-desc">Description (optional)</label>
-      <textarea
-        id="proj-desc"
-        v-model="description"
-        rows="2"
-        maxlength="1000"
-        class="w-full rounded border border-gray-700 bg-surface-darker px-3 py-2"
-      />
-    </div>
+  <form class="space-y-4" data-testid="create-project-form" @submit.prevent="onSubmit">
+    <FormField label="Name" required>
+      <template #default="{ id, invalid }">
+        <input
+          :id="id"
+          v-model="name"
+          type="text"
+          required
+          maxlength="80"
+          :aria-invalid="invalid"
+          class="w-full rounded border border-[var(--color-surface-border)] bg-[var(--color-surface-card)] px-3 py-2 text-sm"
+          placeholder="Personal Stack"
+          data-testid="proj-name"
+        />
+      </template>
+    </FormField>
+
+    <FormField label="Slug" required hint="Lowercase, hyphens only — used in KB scope project:&lt;slug&gt;.">
+      <template #default="{ id, invalid }">
+        <input
+          :id="id"
+          v-model="slug"
+          type="text"
+          required
+          pattern="^[a-z0-9][a-z0-9-]{0,62}$"
+          :aria-invalid="invalid"
+          class="w-full rounded border border-[var(--color-surface-border)] bg-[var(--color-surface-card)] px-3 py-2 font-mono text-xs"
+          placeholder="personal-stack"
+          data-testid="proj-slug"
+          @input="onSlugInput"
+        />
+      </template>
+    </FormField>
+
+    <FormField label="Description" hint="Shown on the project's detail page. Optional.">
+      <template #default="{ id }">
+        <textarea
+          :id="id"
+          v-model="description"
+          rows="2"
+          maxlength="1000"
+          class="w-full rounded border border-[var(--color-surface-border)] bg-[var(--color-surface-card)] px-3 py-2 text-sm"
+          placeholder="What this project's about."
+          data-testid="proj-desc"
+        />
+      </template>
+    </FormField>
+
     <div class="flex justify-end gap-2">
-      <button type="button" class="rounded px-4 py-2 text-sm text-gray-300 hover:bg-gray-800" @click="emit('cancel')">
-        Cancel
-      </button>
-      <button type="submit" class="rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm text-white">
-        Create project
-      </button>
+      <SubmitButton
+        type="button"
+        variant="secondary"
+        label="Cancel"
+        :disabled="submit.pending.value"
+        @click="emit('cancel')"
+      />
+      <SubmitButton
+        label="Create project"
+        :status="submit.status.value"
+        :disabled="!canSubmit"
+        data-testid="proj-create-submit"
+      />
     </div>
   </form>
 </template>

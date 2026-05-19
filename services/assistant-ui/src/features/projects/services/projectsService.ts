@@ -1,3 +1,4 @@
+import type { Repository } from '../../repositories/types'
 import type { GithubLink, Project, ProjectDetail } from '../types'
 import { useApiWithAuth } from '@personal-stack/vue-common'
 
@@ -42,6 +43,19 @@ export async function attachKey(
   },
 ): Promise<void> {
   return getApi().post(`/projects/${projectId}/links/${linkId}/key`, input)
+}
+
+/**
+ * Link an existing Repository to a Project. The Project's repository
+ * pool is the source of truth for which repos the operator can pick
+ * when opening a workspace under that project.
+ */
+export async function linkRepository(projectId: string, repositoryId: string): Promise<Repository[]> {
+  return getApi().post<Repository[]>(`/projects/${projectId}/repositories`, { repositoryId })
+}
+
+export async function unlinkRepository(projectId: string, repositoryId: string): Promise<void> {
+  await getApi().del(`/projects/${projectId}/repositories/${repositoryId}`)
 }
 
 /**

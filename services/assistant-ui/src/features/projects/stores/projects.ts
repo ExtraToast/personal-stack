@@ -1,12 +1,32 @@
+import type { Repository } from '../../repositories/types'
 import type { GithubLink, Project } from '../types'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { addLink, attachKey, createProject, getProject, listProjects, removeLink } from '../services/projectsService'
+import {
+  addLink,
+  attachKey,
+  createProject,
+  getProject,
+  linkRepository,
+  listProjects,
+  removeLink,
+  unlinkRepository,
+} from '../services/projectsService'
 
 export const useProjectsStore = defineStore('projects', () => {
   const projects = ref<Project[]>([])
   const activeProject = ref<Project | null>(null)
+  /**
+   * Deprecated legacy per-project link rows. Drains as the API stops
+   * emitting them, but kept on the store so existing components don't
+   * break mid-rollout.
+   */
   const links = ref<GithubLink[]>([])
+  /**
+   * The repository pool currently linked to the active project. The
+   * Repository feature owns the rows; this is just the per-project view.
+   */
+  const repositories = ref<Repository[]>([])
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
@@ -15,8 +35,9 @@ export const useProjectsStore = defineStore('projects', () => {
     error.value = null
     try {
       projects.value = await listProjects()
-    } catch {
-      error.value = 'Failed to load projects'
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to load projects'
+      throw e
     } finally {
       isLoading.value = false
     }
@@ -29,8 +50,10 @@ export const useProjectsStore = defineStore('projects', () => {
       const detail = await getProject(id)
       activeProject.value = detail.project
       links.value = detail.links
-    } catch {
-      error.value = 'Failed to load project'
+      repositories.value = detail.repositories
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to load project'
+      throw e
     } finally {
       isLoading.value = false
     }
@@ -41,6 +64,24 @@ export const useProjectsStore = defineStore('projects', () => {
     projects.value.unshift(p)
     return p
   }
+
+  async function linkRepo(repositoryId: string): Promise<void> {
+    const project = activeProject.value
+    if (!project) return
+    repositories.value = await linkRepository(project.id, repositoryId)
+  }
+
+  async function unlinkRepo(repositoryId: string): Promise<void> {
+    const project = activeProject.value
+    if (!project) return
+    await unlinkRepository(project.id, repositoryId)
+    repositories.value = repositories.value.filter((r) => r.id !== repositoryId)
+  }
+
+  // ─────── Legacy GithubLink flow ──────────────────────────────────
+  // Kept so existing components don't break before the full UI
+  // migration lands. Net-new code should reach for linkRepo /
+  // unlinkRepo above instead.
 
   async function addNewLink(input: {
     name: string
@@ -75,11 +116,14 @@ export const useProjectsStore = defineStore('projects', () => {
     projects,
     activeProject,
     links,
+    repositories,
     isLoading,
     error,
     loadAll,
     open,
     create,
+    linkRepo,
+    unlinkRepo,
     addNewLink,
     dropLink,
     attach,
