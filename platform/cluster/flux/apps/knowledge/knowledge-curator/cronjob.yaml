@@ -143,8 +143,14 @@ spec:
                   value: qwen2.5:7b-instruct
                 - name: OLLAMA_EMBEDDING_MODEL
                   value: nomic-embed-text
+                # 5 minutes. Big enough that even a worst-case
+                # cold load (4.7 GB qwen2.5:7b paged in from disk on
+                # CPU with a hot page-cache miss) completes inside
+                # the budget. Pair: `OLLAMA_KEEP_ALIVE=60m` on the
+                # Ollama deployment normally keeps the model warm,
+                # but this is the belt for the braces.
                 - name: OLLAMA_REQUEST_TIMEOUT_SECONDS
-                  value: '180'
+                  value: '300'
                 - name: KNOWLEDGE_API_BASE_URL
                   value: http://knowledge-api.knowledge-system.svc.cluster.local:8080
                 - name: CLASSIFY_TOP_K_NEIGHBOURS
