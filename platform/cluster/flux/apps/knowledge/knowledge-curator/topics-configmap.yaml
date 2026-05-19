@@ -103,3 +103,44 @@ data:
       - slug: docker
         aliases: [Docker]
         description: Dockerfile patterns, multi-stage builds, slim-image surprises.
+
+      # --- software engineering fundamentals ---
+      - slug: design-patterns
+        aliases: [GoF, gang-of-four, design-pattern]
+        description: Reusable object-oriented design patterns — creational, structural, behavioural; intent + applicability + trade-offs.
+      - slug: oop
+        aliases: [object-oriented, OOP, object-oriented-programming]
+        description: Object-oriented programming — encapsulation, inheritance, polymorphism, composition over inheritance.
+      - slug: functional-programming
+        aliases: [FP, functional, fp]
+        description: Functional programming — immutability, pure functions, higher-order functions, algebraic data types.
+      - slug: paradigms
+        aliases: [programming-paradigms, paradigm]
+        description: Cross-cutting programming paradigms — imperative, declarative, reactive, dataflow, logic.
+      - slug: algorithms
+        aliases: [algorithm, algos]
+        description: Algorithms — sorting, searching, graph traversal, dynamic programming, complexity analysis.
+      - slug: data-structures
+        aliases: [data-structure, ds]
+        description: Data structures — arrays, lists, trees, heaps, hash tables, graphs and their performance trade-offs.
+      - slug: software-architecture
+        aliases: [architecture, arch]
+        description: Software architecture — layering, hexagonal, ports-and-adapters, event-driven, microservices, monolith trade-offs.
+      - slug: concurrency
+        aliases: [concurrent, parallelism, parallel]
+        description: Concurrency primitives — threads, coroutines, locks, channels, actors, memory models, race conditions.
+      - slug: distributed-systems
+        aliases: [distributed, dist-sys]
+        description: Distributed systems — consensus, replication, CAP, idempotency, retries, sagas, sharding.
+      - slug: testing
+        aliases: [tests, qa, test-strategy]
+        description: Testing strategy — unit, integration, end-to-end, property-based, contract, flaky-test triage.
+      - slug: refactoring
+        aliases: [refactor, refactor-patterns]
+        description: Refactoring — code smells, extract-method, replace-conditional-with-polymorphism, safe transformation sequences.
+      - slug: solid
+        aliases: [SOLID, solid-principles]
+        description: SOLID principles — SRP, OCP, LSP, ISP, DIP; how they shape OO design.
+      - slug: security
+        aliases: [appsec, infosec]
+        description: Application & infrastructure security — authn, authz, secrets handling, supply chain, OWASP top 10.
