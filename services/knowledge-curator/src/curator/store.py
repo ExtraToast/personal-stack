@@ -89,6 +89,15 @@ class PostgresCuratorStore:
     def close(self) -> None:
         self._pool.close()
 
+    def connection(self):  # noqa: ANN201 — psycopg pool context manager
+        """Lend out a pooled connection to callers that need to run
+        ad-hoc reads (e.g. the topic-vocabulary loader). Wraps the
+        pool's connection context manager so the caller doesn't have
+        to know about the pool's internals.
+        """
+
+        return self._pool.connection()
+
     def existing_ids(self, ids: Iterable[str]) -> set[str]:
         wanted = list({i for i in ids if i})
         if not wanted:
@@ -200,8 +209,4 @@ class InMemoryCuratorStore:
         self.relations.append((subject_id, predicate, object_id))
 
     def conflict_edges(self) -> list[tuple[str, str, str]]:
-        return [
-            (s, p, o)
-            for (s, p, o) in self.relations
-            if p in ("supersedes", "contradicts")
-        ]
+        return [(s, p, o) for (s, p, o) in self.relations if p in ("supersedes", "contradicts")]
