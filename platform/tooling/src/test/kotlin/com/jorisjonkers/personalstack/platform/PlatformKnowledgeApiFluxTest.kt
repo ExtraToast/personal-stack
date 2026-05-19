@@ -69,7 +69,8 @@ class PlatformKnowledgeApiFluxTest {
                 .toFile()
                 .readText()
 
-        // Default route: the host minus /mcp + /mcp/*, with forward-auth.
+        // Default route: the host minus /mcp + /mcp/* + /install.sh,
+        // with forward-auth.
         val defaultRoute =
             Regex(
                 """name: knowledge-api\n.*?(?=\n---|\z)""",
@@ -77,12 +78,17 @@ class PlatformKnowledgeApiFluxTest {
             ).find(ingressRoutes)?.value
                 ?: error("no IngressRoute named 'knowledge-api' rendered")
         assertThat(defaultRoute)
-            .describedAs("kb.* host (minus /mcp) must be SSO-protected")
+            .describedAs("kb.* host (minus /mcp + /install.sh) must be SSO-protected")
             .contains("name: forward-auth")
             .contains("!PathPrefix(`/mcp/`)")
             .contains("!Path(`/mcp`)")
+            .contains("!Path(`/install.sh`)")
 
-        // Bearer-only route: /mcp and /mcp/* with no middleware.
+        // Bearer-only route: /mcp, /mcp/*, and /install.sh with no
+        // middleware. Forward-auth would 302 every bearer-only CLI /
+        // installer request that doesn't carry an SSO cookie (and a
+        // `curl … | bash` of the installer route would then execute
+        // the auth-ui HTML).
         val mcpRoute =
             Regex(
                 """name: knowledge-api-mcp\n.*?(?=\n---|\z)""",
@@ -91,10 +97,13 @@ class PlatformKnowledgeApiFluxTest {
                 ?: error("no IngressRoute named 'knowledge-api-mcp' rendered")
         assertThat(mcpRoute)
             .describedAs(
-                "kb.*/mcp must NOT be SSO-protected — forward-auth 401s every bearer-only CLI " +
-                    "request. McpBearerFilter inside the Spring service is the gate.",
+                "kb.*/mcp and kb.*/install.sh must NOT be SSO-protected — McpBearerFilter " +
+                    "inside the Spring service is the gate for /mcp, and /install.sh ships a " +
+                    "secret-free templated bash script the operator reads KB_BEARER_TOKEN from " +
+                    "their own shell at install time.",
             ).doesNotContain("name: forward-auth")
             .contains("PathPrefix(`/mcp/`)")
             .contains("Path(`/mcp`)")
+            .contains("Path(`/install.sh`)")
     }
 }

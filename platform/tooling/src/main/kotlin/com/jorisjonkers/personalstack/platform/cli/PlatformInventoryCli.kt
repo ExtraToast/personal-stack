@@ -317,24 +317,25 @@ private fun PlatformFleet.toEdgeRouteCatalog(): EdgeRouteCatalog {
             }
 
             externalServices["knowledge-api"]?.let { knowledgeApi ->
-                // `/mcp` and everything under `/mcp/` are reachable by
+                // `/mcp` + `/mcp/*` and `/install.sh` are reachable by
                 // bearer-token auth only — McpBearerFilter inside the
-                // service is the gate. Forward-auth would 401 every CLI
-                // / SDK request that doesn't carry an SSO cookie, so the
-                // route is rendered as `access = direct` (no
-                // middleware) and the rest of the host stays
-                // sso_protected for the browser surface.
+                // service is the gate. Forward-auth would 302 every CLI
+                // / SDK / installer request that doesn't carry an SSO
+                // cookie (and curl-pipe-to-bash would then run the
+                // auth-ui HTML), so the route is rendered as
+                // `access = direct` (no middleware) and the rest of
+                // the host stays sso_protected for the browser surface.
                 add(
                     knowledgeApi.toRoute(
                         name = "knowledge-api-mcp",
                         access = "direct",
-                        exactPaths = listOf("/mcp"),
+                        exactPaths = listOf("/mcp", "/install.sh"),
                         pathPrefixes = listOf("/mcp/"),
                     ),
                 )
                 add(
                     knowledgeApi.toRoute(
-                        excludedPaths = listOf("/mcp"),
+                        excludedPaths = listOf("/mcp", "/install.sh"),
                         excludedPathPrefixes = listOf("/mcp/"),
                     ),
                 )
