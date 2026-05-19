@@ -13,8 +13,10 @@ relation rows hit the DB.
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import Protocol
+from contextlib import AbstractContextManager
+from typing import Any, Protocol
 
+import psycopg
 import structlog
 from psycopg import sql
 from psycopg_pool import ConnectionPool
@@ -89,7 +91,7 @@ class PostgresCuratorStore:
     def close(self) -> None:
         self._pool.close()
 
-    def connection(self):  # noqa: ANN201 — psycopg pool context manager
+    def connection(self) -> AbstractContextManager[psycopg.Connection[Any]]:
         """Lend out a pooled connection to callers that need to run
         ad-hoc reads (e.g. the topic-vocabulary loader). Wraps the
         pool's connection context manager so the caller doesn't have
