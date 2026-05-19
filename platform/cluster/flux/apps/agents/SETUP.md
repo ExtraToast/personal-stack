@@ -222,7 +222,7 @@ Verify:
 
 ```sh
 ls -la ~/.codex/auth.json             # should exist, non-empty
-codex exec --no-stream 'reply with the single word pong'
+codex exec 'reply with the single word pong'
 ```
 
 If both succeed, Codex is wired.
