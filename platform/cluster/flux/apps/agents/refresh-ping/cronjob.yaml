@@ -26,7 +26,7 @@ spec:
             runAsGroup: 1000
             fsGroup: 1000
           nodeSelector:
-            personal-stack/site: enschede
+            personal-stack/node: enschede-gtx-960m-1
           containers:
             - name: ping
               image: ghcr.io/extratoast/personal-stack/agent-runner:latest

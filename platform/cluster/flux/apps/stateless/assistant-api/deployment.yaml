@@ -162,8 +162,9 @@ spec:
               value: agents-system
             - name: AGENT_RUNTIME_IMAGE
               value: ghcr.io/extratoast/personal-stack/agent-runner:latest
-            - name: AGENT_RUNTIME_SITE
-              value: enschede
+            # Runner Pods must co-locate with the credential PVCs.
+            - name: AGENT_RUNTIME_NODE
+              value: enschede-gtx-960m-1
           ports:
             - containerPort: 8082
               name: http
