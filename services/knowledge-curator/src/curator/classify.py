@@ -49,7 +49,13 @@ logger = logging.getLogger(__name__)
 # stay in lock-step.
 _SCOPE_PATTERN = (
     r"^(topic:[a-z0-9][a-z0-9_-]*"
-    r"|project:[a-z0-9._-]+"
+    # Projects are `org/repo` (lowercase). The bare-repo form
+    # (`project:website`) is accepted too — `ProjectVocabulary`
+    # aliases it back to the canonical `org/repo` slug — but the
+    # classifier prompt steers the model toward the `org/repo`
+    # shape so promotions land at `projects/<org>/<repo>/` and
+    # every repo from the same org groups under one folder.
+    r"|project:[a-z0-9._-]+(/[a-z0-9._-]+)?"
     r"|agent:[a-z0-9_-]+"
     r"|agent:_shared)$"
 )
@@ -125,15 +131,20 @@ def response_format() -> dict[str, Any]:
     return {"type": "json_schema", "json_schema": _RESPONSE_SCHEMA}
 
 
-def system_prompt(topic_slugs: tuple[str, ...]) -> str:
+def system_prompt(
+    topic_slugs: tuple[str, ...],
+    project_slugs: tuple[str, ...] = (),
+) -> str:
     """Static system message describing the role + the schema.
 
-    Includes the closed topic vocabulary inline so the model knows
-    which `topic:<slug>` values are legal. Aliases are NOT included
-    — alias resolution happens server-side in `TopicVocabulary`.
+    Includes the closed topic + project vocabularies inline so the
+    model knows which `topic:<slug>` and `project:<slug>` values
+    are legal. Aliases are NOT included — alias resolution happens
+    server-side in `TopicVocabulary` / `ProjectVocabulary`.
     """
 
     topic_list = ", ".join(topic_slugs) if topic_slugs else "(none)"
+    project_list = ", ".join(project_slugs) if project_slugs else "(none)"
     return (
         "You classify short markdown notes for a personal knowledge base. "
         "Output ONLY a single JSON object that matches the schema below. "
@@ -148,8 +159,22 @@ def system_prompt(topic_slugs: tuple[str, ...]) -> str:
         'Shamir keys". Bad: "How does Vault Raft unseal work?". '
         "Use `topic:<slug>` only "
         "with one of these slugs: " + topic_list + ". "
-        "Use `project:<github-repo-name>` when the note is repo-specific "
-        "and an existing project folder already exists for it. Use "
+        # Project vocabulary is closed. The classifier used to
+        # invent shapes (`personal-stack-2`, `github-actions`,
+        # `home-direct`, `esa-blueshell-website`,
+        # `esa-blueshell.website`,
+        # `my-kubernetes-observability-stack`) which forked the
+        # vault into bogus `projects/<hallucination>/` folders.
+        # Canonical slug is `<org>/<repo>` (lowercase).
+        "Use `project:<org>/<repo>` only with one of these slugs: "
+        + project_list
+        + ". The slug is the GitHub `org/repo` path, lowercase. "
+        "Never invent a slug; never append a version suffix "
+        "(no `personal-stack-2`); never mash org and repo with "
+        "a dash or dot. When the note is not specific to one of "
+        "these repos, prefer `topic:<slug>` or `agent:_shared` "
+        "instead. "
+        "Use "
         "`agent:_shared` for process / methodology guidance aimed at "
         "any assistant. `agent:<name>` is reserved for assistant-"
         "specific guidance — almost never the right choice. Pick "
@@ -246,12 +271,14 @@ class OllamaClassifier:
         base_url: str,
         model: str,
         topic_slugs: tuple[str, ...],
+        project_slugs: tuple[str, ...] = (),
         timeout_seconds: float = 120.0,
         client: httpx.Client | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._model = model
         self._topic_slugs = topic_slugs
+        self._project_slugs = project_slugs
         self._timeout = timeout_seconds
         self._client = client or httpx.Client(timeout=timeout_seconds)
         self._owns_client = client is None
@@ -271,7 +298,10 @@ class OllamaClassifier:
         """Single classification call, with one retry on validation failure."""
 
         messages = [
-            {"role": "system", "content": system_prompt(self._topic_slugs)},
+            {
+                "role": "system",
+                "content": system_prompt(self._topic_slugs, self._project_slugs),
+            },
             {
                 "role": "user",
                 "content": user_prompt(

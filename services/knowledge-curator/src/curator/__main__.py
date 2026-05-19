@@ -30,6 +30,7 @@ from curator.indexes import (
     write_topic_mocs,
 )
 from curator.lightrag import LightRagClient
+from curator.projects import ProjectVocabulary
 from curator.promote import Promoter
 from curator.recall import RecallClient
 from curator.settings import Settings
@@ -60,12 +61,14 @@ def main() -> int:
     # production the YAML fallback is dead code and the next PR drops
     # the topics_yaml_path setting entirely.
     topics = _load_topics(store, settings, log)
+    projects = _load_projects(store, log)
 
     shared_http = httpx.Client(timeout=settings.ollama_request_timeout_seconds)
     classifier = OllamaClassifier(
         base_url=settings.ollama_base_url,
         model=settings.ollama_chat_model,
         topic_slugs=topics.slugs,
+        project_slugs=projects.slugs,
         timeout_seconds=settings.ollama_request_timeout_seconds,
         client=shared_http,
     )
@@ -120,6 +123,7 @@ def main() -> int:
         store=store,
         vault=vault,
         topics=topics,
+        projects=projects,
         clone_dir=settings.vault_clone_dir,
         confidence_floor=settings.classify_confidence_floor,
         recall_limit=settings.classify_top_k_neighbours,
@@ -204,6 +208,38 @@ def _load_topics(
         count=len(yaml_topics.slugs),
     )
     return yaml_topics
+
+
+def _load_projects(
+    store: PostgresCuratorStore,
+    log: structlog.BoundLogger,
+) -> ProjectVocabulary:
+    """Prefer the DB-backed project vocabulary; fall back to an empty
+    one when the table is empty or unreachable.
+
+    Unlike topics, projects do not have a YAML fallback in the
+    image (the seed migration is the source of truth). An empty
+    vocabulary routes every `project:<...>` emission to needs-
+    review with reason `unknown-project-slug:<emitted>` — the
+    correct posture for a pre-V8-seed deploy, since we'd rather
+    flag the row than silently scatter it into a hallucinated
+    `projects/<bogus>/` folder.
+    """
+
+    try:
+        with store.connection() as conn:
+            db_projects = ProjectVocabulary.from_db(conn)
+        if db_projects.slugs:
+            log.info(
+                "curator.projects_loaded",
+                source="kb_projects",
+                count=len(db_projects.slugs),
+            )
+            return db_projects
+        log.warning("curator.projects_db_empty")
+    except Exception as exc:  # pragma: no cover — accept the empty vocab
+        log.warning("curator.projects_db_unreachable", error=str(exc))
+    return ProjectVocabulary([])
 
 
 def _regenerate_indexes(

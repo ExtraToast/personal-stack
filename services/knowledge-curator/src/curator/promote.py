@@ -37,6 +37,7 @@ from curator.classify import (
     OllamaClassifier,
 )
 from curator.lightrag import LightRagClient, LightRagDocument
+from curator.projects import ProjectVocabulary
 from curator.recall import RecallClient, RecallHit
 from curator.relations import RelationResolver
 from curator.store import CuratorStore
@@ -61,6 +62,20 @@ class PromoteOutcome:
     reason: str = ""
 
 
+@dataclass(frozen=True, slots=True)
+class ScopeOutcome:
+    """Result of validating + canonicalising the classifier-emitted
+    scope against the closed topic / project vocabularies.
+
+    `scope` carries the canonical form on success (e.g. an alias
+    has been folded into the canonical slug); `error` carries the
+    needs-review reason on failure. Exactly one is set per call.
+    """
+
+    scope: str = ""
+    error: str | None = None
+
+
 class Promoter:
     """Glue object: holds the four collaborators + the policy knobs."""
 
@@ -73,6 +88,7 @@ class Promoter:
         vault: CuratorVault,
         topics: TopicVocabulary,
         clone_dir: Path,
+        projects: ProjectVocabulary | None = None,
         confidence_floor: float,
         recall_limit: int,
         lightrag: LightRagClient | None = None,
@@ -83,6 +99,11 @@ class Promoter:
         self._store = store
         self._vault = vault
         self._topics = topics
+        # An empty `ProjectVocabulary` routes every `project:<...>`
+        # emission to needs-review — exactly the right default
+        # before the V8 seed migration runs (or in tests that
+        # don't care about projects).
+        self._projects = projects or ProjectVocabulary([])
         self._clone_dir = clone_dir
         self._confidence_floor = confidence_floor
         self._recall_limit = recall_limit
@@ -128,9 +149,21 @@ class Promoter:
                 inbox_rel,
                 reason=f"low-confidence:{classification.confidence:.2f}<{self._confidence_floor}",
             )
-        topic_check = self._validate_topic(classification)
-        if topic_check is not None:
-            return self._send_to_review(inbox_rel, reason=topic_check)
+        scope_outcome = self._canonicalise_scope(classification)
+        if scope_outcome.error is not None:
+            return self._send_to_review(inbox_rel, reason=scope_outcome.error)
+        canonical_scope = scope_outcome.scope
+        if canonical_scope != classification.scope:
+            # An alias matched — `personal-stack-2 -> personal-stack`,
+            # `esa-blueshell-website -> website`, etc. Log so an
+            # operator can later audit how often the classifier
+            # needed rescue.
+            log.info(
+                "curator.scope_canonicalised",
+                note_id=front.id,
+                from_scope=classification.scope,
+                to_scope=canonical_scope,
+            )
         # Resolve relation targets gracefully — substitute via FTS
         # recall when the classifier emits a phrase-shaped pseudo-id,
         # drop the dead edge otherwise. Note still promotes either
@@ -150,7 +183,7 @@ class Promoter:
 
         dest_abs = resolve_destination(
             clone_dir=self._clone_dir,
-            folder=folder_for_scope(classification.scope),
+            folder=folder_for_scope(canonical_scope),
             note_type=classification.type,
             title=classification.title,
             note_id=front.id,
@@ -160,7 +193,7 @@ class Promoter:
         new_body = render_note_file(
             front=front,
             new_title=classification.title,
-            new_scope=classification.scope,
+            new_scope=canonical_scope,
             new_type=classification.type,
             new_tags=tuple(classification.tags),
             new_confidence=classification.confidence,
@@ -168,7 +201,7 @@ class Promoter:
             see_also=resolution.see_also,
         )
         slug = dest_abs.stem
-        commit_subject = f"curator({classification.scope}): promote {slug}"
+        commit_subject = f"curator({canonical_scope}): promote {slug}"
         result = self._vault.promote(
             source_rel=inbox_rel,
             destination_rel=dest_rel,
@@ -178,7 +211,7 @@ class Promoter:
 
         rows = self._store.promote_note(
             note_id=front.id,
-            scope=classification.scope,
+            scope=canonical_scope,
             vault_path=result.new_relative_path,
             vault_commit=result.commit_sha,
             confidence=classification.confidence,
@@ -200,7 +233,7 @@ class Promoter:
                     id=front.id,
                     title=classification.title,
                     body=front.body,
-                    scope=classification.scope,
+                    scope=canonical_scope,
                     type=classification.type,
                 ),
             )
@@ -222,16 +255,44 @@ class Promoter:
             log.warning("curator.recall_failed", error=str(exc))
             return []
 
-    def _validate_topic(self, classification: Classification) -> str | None:
-        if not classification.is_topic_scope():
-            return None
-        # The scope is `topic:<slug>` — verify the slug is in the
-        # closed vocabulary. The classifier already pattern-matches
-        # the shape, but the actual vocabulary is policy.
-        slug = classification.scope.split(":", 1)[1]
-        if self._topics.slug_for(slug) is None:
-            return f"unknown-topic-slug:{slug}"
-        return None
+    def _canonicalise_scope(self, classification: Classification) -> ScopeOutcome:
+        """Validate the emitted scope against the closed vocabularies
+        and return the canonical form.
+
+        - `topic:<slug>` — look up `slug` in `TopicVocabulary`.
+          When the slug is an alias the result is the canonical
+          slug; the scope rewrites to `topic:<canonical>` so the
+          vault folder is consistent.
+        - `project:<slug>` — same shape against
+          `ProjectVocabulary`. Catches the common classifier
+          hallucinations (`personal-stack-2`,
+          `esa-blueshell/website`, `esa-blueshell-website`,
+          `esa-blueshell.website`, `github-actions`,
+          `home-direct`, `my-kubernetes-observability-stack`).
+          Unknown slugs route to needs-review with reason
+          `unknown-project-slug:<emitted>`.
+        - `agent:<name>` — accepted as-is (no closed vocabulary
+          yet; the inbox-side regex on `_SCOPE_PATTERN` is the
+          only gate).
+        """
+
+        scope = classification.scope
+        if classification.is_topic_scope():
+            slug = scope.split(":", 1)[1]
+            canonical = self._topics.slug_for(slug)
+            if canonical is None:
+                return ScopeOutcome(error=f"unknown-topic-slug:{slug}")
+            return ScopeOutcome(scope=f"topic:{canonical}")
+        if scope.startswith("project:"):
+            slug = scope.split(":", 1)[1]
+            canonical = self._projects.slug_for(slug)
+            if canonical is None:
+                return ScopeOutcome(error=f"unknown-project-slug:{slug}")
+            return ScopeOutcome(scope=f"project:{canonical}")
+        # agent:* and any other shape the classifier might emit
+        # passes through unchanged. `_SCOPE_PATTERN` in classify.py
+        # is the gate on the shape itself.
+        return ScopeOutcome(scope=scope)
 
     def _send_to_review(self, inbox_rel: str, reason: str) -> PromoteOutcome:
         result = self._vault.move_to_needs_review(source_rel=inbox_rel, reason=reason)
