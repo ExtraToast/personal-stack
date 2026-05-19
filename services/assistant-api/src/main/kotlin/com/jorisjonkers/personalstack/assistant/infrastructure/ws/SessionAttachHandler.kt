@@ -5,6 +5,7 @@ import com.jorisjonkers.personalstack.assistant.domain.model.Turn
 import com.jorisjonkers.personalstack.assistant.domain.model.TurnId
 import com.jorisjonkers.personalstack.assistant.domain.model.TurnRole
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSessionId
+import com.jorisjonkers.personalstack.assistant.application.rag.LessonAutoCapture
 import com.jorisjonkers.personalstack.assistant.domain.port.TurnRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceAgentSessionRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepository
@@ -47,6 +48,7 @@ class SessionAttachHandler(
     private val workspaces: WorkspaceRepository,
     private val turns: TurnRepository,
     private val mapper: ObjectMapper,
+    private val autoCapture: LessonAutoCapture,
 ) : TextWebSocketHandler() {
     private val log = LoggerFactory.getLogger(SessionAttachHandler::class.java)
 
@@ -125,6 +127,11 @@ class SessionAttachHandler(
         bridge.flushTask.cancel(false)
         flush(bridge.sessionId, bridge.buffer)
         runCatching { bridge.upstream.close(status) }
+        // End-of-attach is the natural "session paused" boundary —
+        // hand the transcript to the auto-capture pipeline so any
+        // marker-flagged or question-shaped pair lands in the KB.
+        // Async; the bucket caps total ingest volume per session.
+        runCatching { autoCapture.capture(bridge.sessionId) }
     }
 
     private fun flush(sessionId: WorkspaceAgentSessionId, buffer: StringBuilder) {

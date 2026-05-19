@@ -7,6 +7,7 @@ import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSessi
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSessionStatus
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceStatus
+import com.jorisjonkers.personalstack.assistant.application.rag.LessonAutoCapture
 import com.jorisjonkers.personalstack.assistant.domain.port.AgentGatewayClient
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceAgentSessionRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepository
@@ -22,7 +23,8 @@ class StopAgentSessionCommandHandlerTest {
     private val workspaces = mockk<WorkspaceRepository>()
     private val sessions = mockk<WorkspaceAgentSessionRepository>()
     private val gateway = mockk<AgentGatewayClient>(relaxed = true)
-    private val handler = StopAgentSessionCommandHandler(workspaces, sessions, gateway)
+    private val autoCapture = mockk<LessonAutoCapture>(relaxed = true)
+    private val handler = StopAgentSessionCommandHandler(workspaces, sessions, gateway, autoCapture)
 
     @Test
     fun `handle stops gateway agent and persists stopped state`() {
@@ -36,6 +38,7 @@ class StopAgentSessionCommandHandlerTest {
         handler.handle(StopAgentSessionCommand(session.id))
 
         verify { gateway.stopAgent(ws, "abc12345") }
+        verify { autoCapture.capture(session.id) }
         assertThat(saved.captured.status).isEqualTo(WorkspaceAgentSessionStatus.STOPPED)
     }
 
