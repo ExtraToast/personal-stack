@@ -5,6 +5,8 @@ import com.jorisjonkers.personalstack.assistant.application.command.DestroyWorks
 import com.jorisjonkers.personalstack.assistant.application.query.GetWorkspaceQueryService
 import com.jorisjonkers.personalstack.assistant.application.query.ListWorkspacesQueryService
 import com.jorisjonkers.personalstack.assistant.domain.model.GithubLinkId
+import com.jorisjonkers.personalstack.assistant.domain.model.ProjectId
+import com.jorisjonkers.personalstack.assistant.domain.model.RepositoryId
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.CreateWorkspaceRequest
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.WorkspaceAgentSessionResponse
@@ -29,6 +31,7 @@ class WorkspaceController(
     private val listQuery: ListWorkspacesQueryService,
     private val getQuery: GetWorkspaceQueryService,
 ) {
+    @Suppress("DEPRECATION")
     @PostMapping
     fun create(
         @Valid @RequestBody req: CreateWorkspaceRequest,
@@ -40,6 +43,9 @@ class WorkspaceController(
                 name = req.name,
                 repoUrl = req.repoUrl,
                 branch = req.branch,
+                kind = req.kind,
+                projectId = req.projectId?.let { ProjectId(it) },
+                repositoryId = req.repositoryId?.let { RepositoryId(it) },
                 githubLinkId = req.githubLinkId?.let { GithubLinkId(it) },
             ),
         )

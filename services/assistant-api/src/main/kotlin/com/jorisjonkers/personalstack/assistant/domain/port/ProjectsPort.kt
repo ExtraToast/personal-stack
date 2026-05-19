@@ -4,6 +4,7 @@ import com.jorisjonkers.personalstack.assistant.domain.model.GithubLink
 import com.jorisjonkers.personalstack.assistant.domain.model.GithubLinkId
 import com.jorisjonkers.personalstack.assistant.domain.model.Project
 import com.jorisjonkers.personalstack.assistant.domain.model.ProjectId
+import com.jorisjonkers.personalstack.assistant.domain.model.RepositoryId
 
 interface ProjectsRepository {
     fun save(project: Project): Project
@@ -88,4 +89,26 @@ interface DeployKeyStore {
         projectId: ProjectId,
         linkId: GithubLinkId,
     ): KeyMaterial?
+
+    /**
+     * Repository-keyed write path. The redesigned UI invokes this
+     * via the repository deploy-key wizard; the underlying Vault
+     * path keeps the legacy `secret/data/agents/projects/<pid>/repos/<rid>`
+     * shape during the V9 migration window, so the adapter
+     * supplies a "synthetic" project id (the repository's own UUID)
+     * to retain backwards-compatibility with the orchestrator's
+     * legacy loader.
+     */
+    fun store(
+        repositoryId: RepositoryId,
+        privateKeyOpenssh: String,
+        publicKeyOpenssh: String,
+        knownHosts: String,
+    ): StoredKey
+
+    fun remove(repositoryId: RepositoryId)
+
+    fun readPublicKey(repositoryId: RepositoryId): String?
+
+    fun loadKey(repositoryId: RepositoryId): KeyMaterial?
 }

@@ -55,35 +55,50 @@ dependencies {
 // classes that only carry signal under an integration cluster; mirror
 // the agent-gateway exclusion list so the 80 % jacoco bar stays
 // honest for the classes that are actually unit-testable.
+//
+// `VaultDeployKeyStore`, `KnowledgeMcpClient`, `LightRagClient` are
+// `@ConditionalOnProperty` adapters that only wire when their
+// upstream is available; unit tests can't reach them and the
+// integration tier doesn't yet stand up a Vault / knowledge-api
+// fixture for the assistant-api integration test suite (the
+// Fabric8 orchestrator integration test covers the k8s side). They
+// follow the same IO-bound exclusion treatment as
+// `HttpAgentGatewayClient`.
 val agentRuntimeIoExclusions =
     listOf(
         "**/infrastructure/k8s/**",
         "**/infrastructure/integration/HttpAgentGatewayClient.class",
+        "**/infrastructure/integration/VaultDeployKeyStore.class",
+        "**/infrastructure/integration/KnowledgeMcpClient.class",
+        "**/infrastructure/integration/LightRagClient.class",
         "**/infrastructure/ws/**",
     )
 
+// Rebuild classDirectories from the raw source-set output rather
+// than chaining .files.map { fileTree(it) } on the convention
+// plugin's already-filtered FileTree — that chain reads `.files`
+// (a flat list of .class leaves), wraps each leaf in a single-file
+// fileTree, and the directory-style `exclude("**/foo/**")` patterns
+// then no-op against single-file roots. Going back to the source
+// set output keeps the exclusions effective.
+val jacocoExclusions =
+    agentRuntimeIoExclusions +
+        listOf("**/jooq/**", "**/generated/**", "**/*Application.class", "**/*ApplicationKt.class")
+
 tasks.jacocoTestCoverageVerification {
     classDirectories.setFrom(
-        classDirectories.files.map { dir ->
-            fileTree(dir) {
-                exclude(
-                    agentRuntimeIoExclusions +
-                        listOf("**/jooq/**", "**/generated/**", "**/*Application.class", "**/*ApplicationKt.class"),
-                )
-            }
-        },
+        sourceSets.main
+            .get()
+            .output.classesDirs
+            .map { fileTree(it) { exclude(jacocoExclusions) } },
     )
 }
 
 tasks.jacocoTestReport {
     classDirectories.setFrom(
-        classDirectories.files.map { dir ->
-            fileTree(dir) {
-                exclude(
-                    agentRuntimeIoExclusions +
-                        listOf("**/jooq/**", "**/generated/**", "**/*Application.class", "**/*ApplicationKt.class"),
-                )
-            }
-        },
+        sourceSets.main
+            .get()
+            .output.classesDirs
+            .map { fileTree(it) { exclude(jacocoExclusions) } },
     )
 }

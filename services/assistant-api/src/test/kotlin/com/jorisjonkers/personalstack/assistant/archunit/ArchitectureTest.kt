@@ -4,6 +4,7 @@ import com.jorisjonkers.personalstack.common.archunit.HexagonalArchitectureRules
 import com.tngtech.archunit.core.importer.ClassFileImporter
 import com.tngtech.archunit.core.importer.ImportOption
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes
+import com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 
@@ -83,6 +84,38 @@ class ArchitectureTest {
             .haveSimpleNameEndingWith("CommandHandler")
             .because("command handlers must follow *CommandHandler naming convention")
             .check(importedClasses)
+    }
+
+    @Test
+    fun `new redesign entities stay free of Spring`() {
+        val redesignDomainTypes =
+            com.tngtech.archunit.base.DescribedPredicate
+                .describe<com.tngtech.archunit.core.domain.JavaClass>(
+                    "redesign domain types (Repository*, ChatSession*, ChatMessage*, WorkspaceKind)",
+                ) { javaClass ->
+                    val inDomainModel = javaClass.packageName.endsWith(".domain.model")
+                    val simpleName = javaClass.simpleName
+                    inDomainModel &&
+                        (
+                            simpleName.startsWith("Repository") ||
+                                simpleName.startsWith("ChatSession") ||
+                                simpleName.startsWith("ChatMessage") ||
+                                simpleName == "WorkspaceKind"
+                        )
+                }
+        noClasses()
+            .that(redesignDomainTypes)
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage(
+                "org.springframework..",
+                "jakarta..",
+                "org.jooq..",
+                "com.fasterxml.jackson..",
+            ).because(
+                "redesign domain entities (Repository / ChatSession / ChatMessage / " +
+                    "WorkspaceKind) must remain framework-free (ADR-006)",
+            ).check(importedClasses)
     }
 
     @Test

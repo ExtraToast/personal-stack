@@ -26,4 +26,5 @@ regexes = [
 # — they're in Vault at `secret/data/agents/projects/<pid>/repos/<lid>`.
 paths = [
   '''services/assistant-api/src/main/kotlin/com/jorisjonkers/personalstack/assistant/application/command/AttachDeployKeyCommandHandler\.kt''',
+  '''services/assistant-api/src/main/kotlin/com/jorisjonkers/personalstack/assistant/application/command/AttachRepositoryDeployKeyCommandHandler\.kt''',
 ]

@@ -3,15 +3,21 @@ package com.jorisjonkers.personalstack.assistant.infrastructure.web
 import com.jorisjonkers.personalstack.assistant.application.command.AddGithubLinkCommand
 import com.jorisjonkers.personalstack.assistant.application.command.AttachDeployKeyCommand
 import com.jorisjonkers.personalstack.assistant.application.command.CreateProjectCommand
+import com.jorisjonkers.personalstack.assistant.application.command.LinkRepositoryToProjectCommand
 import com.jorisjonkers.personalstack.assistant.application.command.RemoveGithubLinkCommand
+import com.jorisjonkers.personalstack.assistant.application.command.UnlinkRepositoryFromProjectCommand
 import com.jorisjonkers.personalstack.assistant.application.query.ProjectQueryService
+import com.jorisjonkers.personalstack.assistant.application.query.RepositoryQueryService
 import com.jorisjonkers.personalstack.assistant.domain.model.GithubLinkId
 import com.jorisjonkers.personalstack.assistant.domain.model.ProjectId
+import com.jorisjonkers.personalstack.assistant.domain.model.RepositoryId
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.AddGithubLinkRequest
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.AttachDeployKeyRequest
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.CreateProjectRequest
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.GithubLinkResponse
+import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.LinkRepositoryRequest
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.ProjectResponse
+import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.RepositoryResponse
 import com.jorisjonkers.personalstack.common.command.CommandBus
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -30,6 +36,7 @@ import java.util.UUID
 class ProjectController(
     private val commandBus: CommandBus,
     private val projectQuery: ProjectQueryService,
+    private val repositoryQuery: RepositoryQueryService,
 ) {
     @PostMapping
     fun create(
@@ -56,15 +63,50 @@ class ProjectController(
         @PathVariable id: UUID,
     ): ResponseEntity<Map<String, Any>> {
         val view = projectQuery.get(ProjectId(id)) ?: return ResponseEntity.notFound().build()
+        val repos = repositoryQuery.listByProject(ProjectId(id))
         return ResponseEntity.ok(
             mapOf(
                 "project" to ProjectResponse.of(view.project),
                 "links" to view.links.map(GithubLinkResponse::of),
+                "repositories" to repos.map(RepositoryResponse::of),
             ),
         )
     }
 
+    @PostMapping("/{id}/repositories")
+    fun linkRepository(
+        @PathVariable id: UUID,
+        @Valid @RequestBody req: LinkRepositoryRequest,
+    ): ResponseEntity<List<RepositoryResponse>> {
+        commandBus.dispatch(
+            LinkRepositoryToProjectCommand(
+                projectId = ProjectId(id),
+                repositoryId = RepositoryId(req.repositoryId),
+            ),
+        )
+        val repos = repositoryQuery.listByProject(ProjectId(id))
+        return ResponseEntity.status(HttpStatus.CREATED).body(repos.map(RepositoryResponse::of))
+    }
+
+    @DeleteMapping("/{id}/repositories/{repoId}")
+    fun unlinkRepository(
+        @PathVariable id: UUID,
+        @PathVariable repoId: UUID,
+    ): ResponseEntity<Void> {
+        commandBus.dispatch(
+            UnlinkRepositoryFromProjectCommand(
+                projectId = ProjectId(id),
+                repositoryId = RepositoryId(repoId),
+            ),
+        )
+        return ResponseEntity.noContent().build()
+    }
+
     @PostMapping("/{id}/links")
+    @Deprecated(
+        "Use POST /api/v1/repositories and POST /api/v1/projects/{id}/repositories. " +
+            "Kept until PR F migrates the assistant-ui.",
+    )
     fun addLink(
         @PathVariable id: UUID,
         @Valid @RequestBody req: AddGithubLinkRequest,
