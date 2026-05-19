@@ -3,13 +3,13 @@ export interface ChoiceOption {
   label: string
 }
 
-export type Block =
-  | { kind: 'text'; md: string }
-  | { kind: 'choice'; prompt: string; options: ChoiceOption[] }
-  | { kind: 'form'; schema: Record<string, unknown>; submitLabel?: string }
-  | { kind: 'diff'; path: string; patch: string }
-  | { kind: 'tool-call'; name: string; args: Record<string, unknown>; result?: unknown }
-  | { kind: 'approval'; action: string; payload: Record<string, unknown> }
+export type Block
+  = | { kind: 'text'; md: string }
+    | { kind: 'choice'; prompt: string; options: ChoiceOption[] }
+    | { kind: 'form'; schema: Record<string, unknown>; submitLabel?: string }
+    | { kind: 'diff'; path: string; patch: string }
+    | { kind: 'tool-call'; name: string; args: Record<string, unknown>; result?: unknown }
+    | { kind: 'approval'; action: string; payload: Record<string, unknown> }
 
 /**
  * Mirror of libs/kotlin-common BlockParser. Used when an agent's
