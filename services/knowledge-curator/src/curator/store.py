@@ -13,8 +13,10 @@ relation rows hit the DB.
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import Protocol
+from contextlib import AbstractContextManager
+from typing import Any, Protocol
 
+import psycopg
 import structlog
 from psycopg import sql
 from psycopg_pool import ConnectionPool
@@ -88,6 +90,15 @@ class PostgresCuratorStore:
 
     def close(self) -> None:
         self._pool.close()
+
+    def connection(self) -> AbstractContextManager[psycopg.Connection[Any]]:
+        """Lend out a pooled connection to callers that need to run
+        ad-hoc reads (e.g. the topic-vocabulary loader). Wraps the
+        pool's connection context manager so the caller doesn't have
+        to know about the pool's internals.
+        """
+
+        return self._pool.connection()
 
     def existing_ids(self, ids: Iterable[str]) -> set[str]:
         wanted = list({i for i in ids if i})
@@ -200,8 +211,4 @@ class InMemoryCuratorStore:
         self.relations.append((subject_id, predicate, object_id))
 
     def conflict_edges(self) -> list[tuple[str, str, str]]:
-        return [
-            (s, p, o)
-            for (s, p, o) in self.relations
-            if p in ("supersedes", "contradicts")
-        ]
+        return [(s, p, o) for (s, p, o) in self.relations if p in ("supersedes", "contradicts")]
