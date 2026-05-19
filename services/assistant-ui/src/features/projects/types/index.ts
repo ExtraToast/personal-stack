@@ -1,4 +1,4 @@
-import type { Repository } from '../../repositories/types'
+import type { Repository } from '@/features/repositories'
 
 export interface Project {
   id: string

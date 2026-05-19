@@ -1,5 +1,5 @@
-import type { Repository } from '../../repositories/types'
 import type { GithubLink, Project } from '../types'
+import type { Repository } from '@/features/repositories'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import {

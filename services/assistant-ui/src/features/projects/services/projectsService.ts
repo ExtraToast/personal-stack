@@ -1,5 +1,5 @@
-import type { Repository } from '../../repositories/types'
 import type { GithubLink, Project, ProjectDetail } from '../types'
+import type { Repository } from '@/features/repositories'
 import { useApiWithAuth } from '@personal-stack/vue-common'
 
 function getApi(): ReturnType<typeof useApiWithAuth> {

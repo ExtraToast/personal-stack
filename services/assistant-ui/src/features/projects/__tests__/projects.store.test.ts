@@ -1,5 +1,5 @@
-import type { Repository } from '../../repositories/types'
 import type { GithubLink, Project, ProjectDetail } from '../types'
+import type { Repository } from '@/features/repositories'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
