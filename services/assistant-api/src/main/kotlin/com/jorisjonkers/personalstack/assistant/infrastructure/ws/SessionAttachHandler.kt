@@ -5,6 +5,7 @@ import com.jorisjonkers.personalstack.assistant.domain.model.Turn
 import com.jorisjonkers.personalstack.assistant.domain.model.TurnId
 import com.jorisjonkers.personalstack.assistant.domain.model.TurnRole
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSessionId
+import com.jorisjonkers.personalstack.assistant.application.idle.WorkspaceActivityTracker
 import com.jorisjonkers.personalstack.assistant.application.rag.LessonAutoCapture
 import com.jorisjonkers.personalstack.assistant.domain.port.TurnRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceAgentSessionRepository
@@ -49,6 +50,7 @@ class SessionAttachHandler(
     private val turns: TurnRepository,
     private val mapper: ObjectMapper,
     private val autoCapture: LessonAutoCapture,
+    private val activity: WorkspaceActivityTracker,
 ) : TextWebSocketHandler() {
     private val log = LoggerFactory.getLogger(SessionAttachHandler::class.java)
 
@@ -100,6 +102,7 @@ class SessionAttachHandler(
                 TimeUnit.SECONDS,
             )
         bridges[clientSession.id] = Bridge(sessionId, upstream, buffer, flushTask)
+        activity.touch(workspace.id)
         log.info("attached client {} to session {} via {}", clientSession.id, sessionId, upstreamUri)
     }
 
@@ -120,6 +123,7 @@ class SessionAttachHandler(
                 createdAt = Instant.now(),
             ),
         )
+        sessions.findById(bridge.sessionId)?.workspaceId?.let { activity.touch(it) }
     }
 
     override fun afterConnectionClosed(clientSession: WebSocketSession, status: CloseStatus) {
