@@ -54,7 +54,7 @@ dependencies {
     // the agent's bundled SDK so signatures line up at runtime.
     compileOnly("org.springframework:spring-aop:7.0.7")
     compileOnly("org.aspectj:aspectjweaver:1.9.25.1")
-    compileOnly("io.opentelemetry:opentelemetry-api:1.60.1")
+    compileOnly("io.opentelemetry:opentelemetry-api:1.61.0")
     compileOnly("org.springframework.boot:spring-boot-starter-validation:4.0.6")
     compileOnly("org.springframework.vault:spring-vault-core:4.0.2")
     compileOnly("org.springframework.boot:spring-boot-starter-mail:4.0.6")
@@ -68,7 +68,7 @@ dependencies {
     // jOOQ — needed by the timing ExecuteListener; runtime jar is pulled in
     // by every Spring service that applies `spring-boot-starter-jooq`, so
     // compile-only here keeps kotlin-common consumers without jOOQ unaffected.
-    compileOnly("org.jooq:jooq:3.21.2")
+    compileOnly("org.jooq:jooq:3.21.3")
 
     testImplementation("org.junit.jupiter:junit-jupiter:6.0.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -78,15 +78,15 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-web:4.0.6")
     testImplementation("org.springframework:spring-aop:7.0.7")
     testImplementation("org.aspectj:aspectjweaver:1.9.25.1")
-    testImplementation("io.opentelemetry:opentelemetry-api:1.60.1")
-    testImplementation("io.opentelemetry:opentelemetry-sdk-testing:1.60.1")
+    testImplementation("io.opentelemetry:opentelemetry-api:1.61.0")
+    testImplementation("io.opentelemetry:opentelemetry-sdk-testing:1.61.0")
     testImplementation("org.springframework.boot:spring-boot-starter-mail:4.0.6")
     testImplementation("org.springframework.vault:spring-vault-core:4.0.2")
     testImplementation("org.springframework:spring-context:7.0.7")
     testImplementation("org.springframework.security:spring-security-oauth2-jose:7.0.5")
     testImplementation("org.crac:crac:1.5.0")
     testImplementation("org.springframework.boot:spring-boot-autoconfigure:4.0.6")
-    testImplementation("org.jooq:jooq:3.21.2")
+    testImplementation("org.jooq:jooq:3.21.3")
     testImplementation("org.springframework:spring-test:7.0.7")
     implementation("com.tngtech.archunit:archunit-junit5:1.4.2")
 }
