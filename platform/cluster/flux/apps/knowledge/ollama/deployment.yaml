@@ -3,13 +3,13 @@
 # LightRAG's extraction + mix-mode generation, plus the curator's
 # nomic-embed-text similarity-recall path.
 #
-# Schedules on an enschede node carrying `capability-nvidia: true`
-# — either GTX 960M or T1000, both with 4 GiB VRAM. No node
-# preference: T1000 is already shared with other GPU workloads,
-# so the scheduler picks whichever is least loaded.
-#
-# Uses the `nvidia-cdi` RuntimeClass documented in CLAUDE.md — the
-# only NVIDIA path that actually works on this stack today.
+# CPU-only deployment. The cluster's available GPU (GTX 960M)
+# reports 2 GiB VRAM via SMI — that's the 2 GiB SKU of the card,
+# not the 4 GiB variant. qwen2.5:7b-instruct (~4.5 GiB) doesn't
+# fit, and Ollama's CPU offload then OOM-kills under the curator's
+# classification load. Until a bigger GPU lands in the cluster we
+# run on CPU only. Scheduler picks whichever enschede / frankfurt
+# node has the most free memory; no node selector needed.
 #
 # Models are pulled lazily on first request and persisted to the
 # RWO `ollama-models` PVC. Init container pre-pulls
@@ -67,9 +67,8 @@ spec:
         app.kubernetes.io/name: ollama
     spec:
       serviceAccountName: ollama
-      runtimeClassName: nvidia-cdi
-      nodeSelector:
-        personal-stack/capability-nvidia: 'true'
+      # No runtimeClassName / no GPU node selector — CPU-only.
+      # Land where the scheduler finds memory headroom.
       volumes:
         - name: models
           persistentVolumeClaim:
@@ -105,12 +104,10 @@ spec:
             requests:
               cpu: 100m
               memory: 512Mi
-              nvidia.com/gpu: 1
             limits:
-              # Pull dominates network not GPU; cap memory.
+              # Pull dominates network not CPU/memory.
               cpu: 2000m
-              memory: 4Gi
-              nvidia.com/gpu: 1
+              memory: 2Gi
       containers:
         - name: ollama
           # Pinned away from 0.13.0-0.13.2 — those releases broke
@@ -123,10 +120,11 @@ spec:
               value: 0.0.0.0:11434
             - name: OLLAMA_MODELS
               value: /var/lib/ollama
-            # Only one model loaded at a time on the small VRAM
-            # card. The runtime swaps to load qwen2.5 then back to
-            # nomic-embed-text on demand; first-request latency
-            # rises, peak VRAM stays under 4 GiB.
+            # Only one model loaded at a time. On CPU the model
+            # lives in `OLLAMA_MAX_LOADED_MODELS` pages of RAM; with
+            # qwen2.5:7b that's ~4.5 GiB, plus nomic-embed-text
+            # ~300 MiB. Single-model swap-on-demand keeps the
+            # resident set inside the container memory limit.
             - name: OLLAMA_MAX_LOADED_MODELS
               value: '1'
             # Keep an idle model loaded for the duration of a
@@ -134,6 +132,17 @@ spec:
             # within a pass don't reload the weights.
             - name: OLLAMA_KEEP_ALIVE
               value: '5m'
+            # No GPU. Force CPU-only inference so Ollama doesn't
+            # try to discover and partially-offload onto a card
+            # we deliberately don't request.
+            - name: CUDA_VISIBLE_DEVICES
+              value: ''
+            - name: OLLAMA_LLM_LIBRARY
+              value: cpu_avx2
+            # Cap the worker thread pool so we don't peg every
+            # core on the host while other workloads run alongside.
+            - name: OLLAMA_NUM_PARALLEL
+              value: '1'
           volumeMounts:
             - name: models
               mountPath: /var/lib/ollama
@@ -153,14 +162,20 @@ spec:
             periodSeconds: 30
             failureThreshold: 5
           resources:
+            # Memory budget for the CPU path:
+            #   qwen2.5:7b weights (~4.5 GiB, mmapped) + kv cache
+            #   (~700 MiB) + working buffers (~1 GiB) + overhead
+            #   = ~6-7 GiB realistic peak.
+            # 10 GiB limit gives a safety margin without exceeding
+            # the ~13 GiB free that the enschede nodes currently
+            # report. Request stays modest so the scheduler can
+            # still pack the pod alongside other workloads.
             requests:
-              cpu: 250m
-              memory: 1Gi
-              nvidia.com/gpu: 1
+              cpu: 500m
+              memory: 4Gi
             limits:
               cpu: 4000m
-              memory: 8Gi
-              nvidia.com/gpu: 1
+              memory: 10Gi
 ---
 apiVersion: v1
 kind: Service
