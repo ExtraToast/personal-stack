@@ -112,3 +112,10 @@ agent-runtime:
   github-deploy-key-secret: ${AGENT_RUNTIME_GH_KEY_SECRET:agents-github-deploy-key}
   node-selector:
     personal-stack/site: ${AGENT_RUNTIME_SITE:enschede}
+  # Idle scale-down. A workspace whose last observed activity is
+  # older than `idle-after-seconds` gets its Pod + Service + per-
+  # workspace Secret deleted; the workspace PVC survives so a
+  # future wake-up can re-mount the same disk. The sweep runs at
+  # `idle-sweep-period-ms` intervals.
+  idle-after-seconds: ${AGENT_RUNTIME_IDLE_AFTER_SECONDS:1800}
+  idle-sweep-period-ms: ${AGENT_RUNTIME_IDLE_SWEEP_PERIOD_MS:300000}
