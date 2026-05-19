@@ -60,7 +60,10 @@ spec:
                   echo "[ping] codex --version"
                   codex --version || fail=1
                   echo "[ping] codex exec (one-shot)"
-                  codex exec --no-stream 'reply with the single word: pong' || fail=1
+                  # `--no-stream` was removed in Codex CLI 0.131.0;
+                  # `codex exec` without a TTY already prints the final
+                  # answer instead of streaming token-by-token.
+                  codex exec 'reply with the single word: pong' || fail=1
                   if [ "$fail" -ne 0 ]; then
                     echo "[ping] one or more CLIs failed — credentials may need refresh via auth-bootstrap"
                     exit 1
