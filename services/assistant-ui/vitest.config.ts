@@ -25,6 +25,11 @@ export default defineConfig({
         'src/**/types/**',
         'src/main.ts',
         'src/router/**',
+        // Layout shells are e2e territory — they render
+        // RouterLinks and pass through slots; the testable bits
+        // (route guards, nav active state) are exercised by
+        // Playwright in services/system-tests.
+        'src/layouts/**',
         'src/features/**/views/**',
         'src/features/**/components/**',
         'src/features/**/index.ts',

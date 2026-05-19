@@ -1,7 +1,17 @@
+import type { Repository } from '../../repositories/types'
 import type { GithubLink, Project, ProjectDetail } from '../types'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { addLink, attachKey, createProject, getProject, listProjects, removeLink } from '../services/projectsService'
+import {
+  addLink,
+  attachKey,
+  createProject,
+  getProject,
+  linkRepository,
+  listProjects,
+  removeLink,
+  unlinkRepository,
+} from '../services/projectsService'
 import { useProjectsStore } from '../stores/projects'
 
 vi.mock('../services/projectsService', () => ({
@@ -11,6 +21,8 @@ vi.mock('../services/projectsService', () => ({
   addLink: vi.fn(),
   removeLink: vi.fn(),
   attachKey: vi.fn(),
+  linkRepository: vi.fn(),
+  unlinkRepository: vi.fn(),
 }))
 
 const mocked = {
@@ -20,6 +32,23 @@ const mocked = {
   addLink: vi.mocked(addLink),
   removeLink: vi.mocked(removeLink),
   attachKey: vi.mocked(attachKey),
+  linkRepository: vi.mocked(linkRepository),
+  unlinkRepository: vi.mocked(unlinkRepository),
+}
+
+function fakeRepo(over: Partial<Repository> = {}): Repository {
+  return {
+    id: 'rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr',
+    name: 'demo-repo',
+    repoUrl: 'git@github.com:owner/demo.git',
+    defaultBranch: 'main',
+    vaultKeyPath: 'secret/data/agents/repositories/rrrrrrrr...',
+    deployKeyFingerprint: null,
+    deployKeyAddedAt: null,
+    createdAt: '2026-05-20T10:00:00Z',
+    updatedAt: '2026-05-20T10:00:00Z',
+    ...over,
+  }
 }
 
 function fakeProject(over: Partial<Project> = {}): Project {
@@ -132,5 +161,40 @@ describe('useProjectsStore', () => {
     })
     expect(mocked.attachKey).toHaveBeenCalled()
     expect(mocked.getProject).toHaveBeenCalled()
+  })
+
+  it('linkRepo no-ops when no project is open', async () => {
+    const store = useProjectsStore()
+    await store.linkRepo('any-repo-id')
+    expect(mocked.linkRepository).not.toHaveBeenCalled()
+  })
+
+  it('linkRepo replaces the repositories array with the API response', async () => {
+    const repo = fakeRepo({ id: 'new-repo' })
+    mocked.linkRepository.mockResolvedValue([repo])
+    const store = useProjectsStore()
+    store.activeProject = fakeProject()
+    store.repositories = []
+    await store.linkRepo('new-repo')
+    expect(mocked.linkRepository).toHaveBeenCalledWith(store.activeProject!.id, 'new-repo')
+    expect(store.repositories.map((r) => r.id)).toEqual(['new-repo'])
+  })
+
+  it('unlinkRepo drops the row from the active project list', async () => {
+    mocked.unlinkRepository.mockResolvedValue()
+    const a = fakeRepo({ id: 'a' })
+    const b = fakeRepo({ id: 'b' })
+    const store = useProjectsStore()
+    store.activeProject = fakeProject()
+    store.repositories = [a, b]
+    await store.unlinkRepo('a')
+    expect(mocked.unlinkRepository).toHaveBeenCalledWith(store.activeProject!.id, 'a')
+    expect(store.repositories.map((r) => r.id)).toEqual(['b'])
+  })
+
+  it('unlinkRepo no-ops when no project is open', async () => {
+    const store = useProjectsStore()
+    await store.unlinkRepo('any')
+    expect(mocked.unlinkRepository).not.toHaveBeenCalled()
   })
 })
