@@ -49,7 +49,7 @@ codex login --device
 
 # Sanity:
 claude -p 'say hi' --output-format text
-codex exec 'say hi'
+codex exec --skip-git-repo-check 'say hi' </dev/null
 ls -la ~/.claude/.credentials.json ~/.codex/auth.json
 ```
 
