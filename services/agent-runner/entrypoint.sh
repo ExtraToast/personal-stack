@@ -16,6 +16,25 @@ git config --global user.name  "${GIT_AUTHOR_NAME:-Personal Stack Agent}"
 git config --global user.email "${GIT_AUTHOR_EMAIL:-agents@jorisjonkers.dev}"
 git config --global init.defaultBranch main
 
+# Restore ~/.claude.json from the latest PVC-backed backup if the
+# runtime file is missing. Claude Code keeps OAuth tokens in
+# ~/.claude/.credentials.json (lives on claude-credentials PVC, so
+# survives Pod restarts) but its user config — including the
+# org/project bindings without which `claude -p` refuses to run —
+# sits at ~/.claude.json (sibling of ~/.claude/, in the container's
+# writable layer, lost on every restart). Claude itself writes a
+# rolling backup to ~/.claude/backups/.claude.json.backup.<ts> on
+# every config write, which DOES land on the PVC, so the post-
+# bootstrap behaviour is "every fresh Pod has a backup it can
+# restore from". This snippet performs that restore. The latest
+# backup wins so token-refresh updates propagate forward.
+if [ ! -f "$HOME/.claude.json" ] && [ -d "$HOME/.claude/backups" ]; then
+  latest=$(ls -1t "$HOME/.claude/backups"/.claude.json.backup.* 2>/dev/null | head -n1 || true)
+  if [ -n "$latest" ]; then
+    cp "$latest" "$HOME/.claude.json"
+  fi
+fi
+
 # Stage the deploy key into /tmp with restrictive perms. The gateway
 # does the same dance defensively, but doing it once at boot makes
 # manual debugging from the shell less surprising.
