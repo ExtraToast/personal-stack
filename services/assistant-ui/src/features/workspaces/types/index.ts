@@ -14,6 +14,7 @@ export interface Workspace {
   podName: string | null
   gatewayEndpoint: string | null
   status: WorkspaceStatus
+  githubLinkId: string | null
   createdAt: string
   updatedAt: string
 }

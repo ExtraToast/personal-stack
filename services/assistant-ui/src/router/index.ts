@@ -31,6 +31,18 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/features/workspaces/views/WorkspaceView.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/projects',
+    name: 'projects',
+    component: () => import('@/features/projects/views/ProjectsView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/projects/:id',
+    name: 'project',
+    component: () => import('@/features/projects/views/ProjectView.vue'),
+    meta: { requiresAuth: true },
+  },
 ]
 
 export const router = createRouter({

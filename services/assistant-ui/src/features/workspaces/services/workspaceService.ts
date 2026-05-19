@@ -23,6 +23,7 @@ export async function createWorkspace(input: {
   name: string
   repoUrl?: string | null
   branch?: string | null
+  githubLinkId?: string | null
 }): Promise<Workspace> {
   return getApi().post<Workspace>('/workspaces', input)
 }

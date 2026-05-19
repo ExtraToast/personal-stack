@@ -13,7 +13,7 @@ onMounted(() => {
   void store.loadAll()
 })
 
-async function onCreate(input: { name: string; repoUrl: string | null; branch: string | null }): Promise<void> {
+async function onCreate(input: { name: string; repoUrl: string | null; branch: string | null; githubLinkId: string | null }): Promise<void> {
   const ws = await store.create(input)
   showCreate.value = false
   void router.push(`/workspaces/${ws.id}`)
