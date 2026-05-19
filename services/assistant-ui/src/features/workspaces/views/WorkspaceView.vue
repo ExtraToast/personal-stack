@@ -70,6 +70,25 @@ async function onSend(text: string): Promise<void> {
 async function onStopSession(id: string): Promise<void> {
   await store.endSession(id)
 }
+
+/**
+ * Synthesise a user input from a Block interaction. The agent
+ * receives the same text it would if the operator had typed the
+ * reply by hand — keeping the gateway / CLI side stateless about
+ * blocks. Each kind has its own deterministic wire form so the
+ * agent's parser can pattern-match on it.
+ */
+async function onBlockPick(value: { sessionId: string; optionId: string }): Promise<void> {
+  await onSend(`/choose ${value.optionId}`)
+}
+
+async function onBlockDecide(value: { sessionId: string; approved: boolean }): Promise<void> {
+  await onSend(value.approved ? '/approve' : '/reject')
+}
+
+async function onBlockFormSubmit(value: { sessionId: string; data: Record<string, unknown> }): Promise<void> {
+  await onSend(`/form ${JSON.stringify(value.data)}`)
+}
 </script>
 
 <template>
@@ -106,7 +125,12 @@ async function onStopSession(id: string): Promise<void> {
     />
 
     <main class="flex flex-col flex-1 overflow-hidden p-4 gap-3">
-      <SessionTranscript :turns="store.turns" />
+      <SessionTranscript
+        :turns="store.turns"
+        @pick="onBlockPick"
+        @decide="onBlockDecide"
+        @form-submit="onBlockFormSubmit"
+      />
       <SessionInput v-if="store.activeSessionId" @submit="onSend" />
       <div v-else class="text-center text-gray-500 italic py-4">
         Pick an agent kind above and click "New agent" to start.

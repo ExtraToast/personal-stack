@@ -7,6 +7,7 @@ const props = defineProps<{ turns: Turn[] }>()
 const emit = defineEmits<{
   pick: [value: { sessionId: string; optionId: string }]
   decide: [value: { sessionId: string; approved: boolean }]
+  formSubmit: [value: { sessionId: string; data: Record<string, unknown> }]
 }>()
 const container = ref<HTMLDivElement | null>(null)
 
@@ -43,6 +44,7 @@ watch(
         :body="turn.body"
         @pick="(id: string) => emit('pick', { sessionId: turn.sessionId, optionId: id })"
         @decide="(v: { approved: boolean }) => emit('decide', { sessionId: turn.sessionId, ...v })"
+        @form-submit="(v: Record<string, unknown>) => emit('formSubmit', { sessionId: turn.sessionId, data: v })"
       />
       <span v-else class="whitespace-pre-wrap">{{ turn.body }}</span>
     </div>
