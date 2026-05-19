@@ -67,7 +67,7 @@ class Classification(BaseModel):
     knowledge-api, not here.
     """
 
-    title: str = Field(..., min_length=4, max_length=200)
+    title: str = Field(..., min_length=4, max_length=80)
     scope: str = Field(..., pattern=_SCOPE_PATTERN)
     topic: str | None = None
     type: str = Field(..., pattern=r"^(lesson|decision|note|fact)$")
@@ -98,7 +98,7 @@ _RESPONSE_SCHEMA: dict[str, Any] = {
         "additionalProperties": False,
         "required": ["title", "scope", "type", "tags", "supersedes", "see_also", "confidence"],
         "properties": {
-            "title": {"type": "string", "minLength": 4, "maxLength": 200},
+            "title": {"type": "string", "minLength": 4, "maxLength": 80},
             "scope": {"type": "string", "pattern": _SCOPE_PATTERN},
             "topic": {"type": ["string", "null"]},
             "type": {"type": "string", "enum": ["lesson", "decision", "note", "fact"]},
@@ -137,7 +137,16 @@ def system_prompt(topic_slugs: tuple[str, ...]) -> str:
     return (
         "You classify short markdown notes for a personal knowledge base. "
         "Output ONLY a single JSON object that matches the schema below. "
-        "No prose, no markdown, no commentary. Use `topic:<slug>` only "
+        "No prose, no markdown, no commentary. "
+        # Title contract: short, declarative, claim-shaped. The 80-char
+        # ceiling is enforced by the JSON schema; this prose is what
+        # nudges the model toward a *useful* title within that budget.
+        "Title contract: 3-8 words, declarative present-tense, no "
+        'trailing punctuation. Skip framing words like "How to", '
+        '"On", "About", "Notes on", "Introduction to" — the '
+        'title IS the claim. Good: "Vault Raft unseal requires '
+        'Shamir keys". Bad: "How does Vault Raft unseal work?". '
+        "Use `topic:<slug>` only "
         "with one of these slugs: " + topic_list + ". "
         "Use `project:<github-repo-name>` when the note is repo-specific "
         "and an existing project folder already exists for it. Use "
