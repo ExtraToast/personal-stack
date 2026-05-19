@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { Project } from '@/features/projects/types'
+import type { Project } from '@/features/projects'
 import { onMounted, ref, watch } from 'vue'
-import { getProject, listProjects } from '@/features/projects/services/projectsService'
+import { getProject, listProjects } from '@/features/projects'
 
 const emit = defineEmits<{
   submit: [value: { name: string; repoUrl: string | null; branch: string | null; githubLinkId: string | null }]
