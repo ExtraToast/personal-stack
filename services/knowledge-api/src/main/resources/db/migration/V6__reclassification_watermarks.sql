@@ -21,21 +21,21 @@
 -- Backfill both columns to `captured_at` so the very first
 -- reclassifier pass treats every existing row as fair game —
 -- exactly what we want for the one-shot historical cleanup.
-ALTER TABLE kb_notes
-    ADD COLUMN topic_classified_at TIMESTAMPTZ,
-    ADD COLUMN tag_classified_at TIMESTAMPTZ;
+--
+-- DDL is split into single-action ALTER TABLE statements so the
+-- jOOQ codegen's H2-flavoured DDL simulator can parse it. Postgres
+-- merges them at apply time either way.
+ALTER TABLE kb_notes ADD COLUMN topic_classified_at TIMESTAMPTZ;
+ALTER TABLE kb_notes ADD COLUMN tag_classified_at TIMESTAMPTZ;
 
-UPDATE kb_notes
-SET topic_classified_at = captured_at,
-    tag_classified_at = captured_at;
+UPDATE kb_notes SET topic_classified_at = captured_at;
+UPDATE kb_notes SET tag_classified_at = captured_at;
 
-ALTER TABLE kb_notes
-    ALTER COLUMN topic_classified_at SET NOT NULL,
-    ALTER COLUMN tag_classified_at SET NOT NULL;
+ALTER TABLE kb_notes ALTER COLUMN topic_classified_at SET NOT NULL;
+ALTER TABLE kb_notes ALTER COLUMN tag_classified_at SET NOT NULL;
 
-ALTER TABLE kb_notes
-    ALTER COLUMN topic_classified_at SET DEFAULT NOW(),
-    ALTER COLUMN tag_classified_at SET DEFAULT NOW();
+ALTER TABLE kb_notes ALTER COLUMN topic_classified_at SET DEFAULT NOW();
+ALTER TABLE kb_notes ALTER COLUMN tag_classified_at SET DEFAULT NOW();
 
 CREATE INDEX idx_kb_notes_topic_classified_at
     ON kb_notes (topic_classified_at);
