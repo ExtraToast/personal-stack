@@ -8,15 +8,28 @@ metadata:
   name: assistant-api-runner-controller
   namespace: agents-system
 rules:
+  # `patch` is required on every resource the orchestrator mutates
+  # because Fabric8AgentRunnerOrchestrator uses `serverSideApply()`,
+  # which Kubernetes implements as PATCH with content-type
+  # application/apply-patch+yaml. Without it the very first
+  # workspace creation fails at the PVC step:
+  #   persistentvolumeclaims "workspace-<id>" is forbidden:
+  #   User "system:serviceaccount:assistant-system:assistant-api"
+  #   cannot patch resource "persistentvolumeclaims".
+  # Per-workspace deploy-key Secrets are stamped via server-side
+  # apply when the workspace is project-backed, so the secrets
+  # verb set needs create/patch/delete on top of the original
+  # read-only access used to read the shared cluster-wide
+  # deploy-key + credential Secrets.
   - apiGroups: ['']
     resources: [pods, pods/log, services]
     verbs: [get, list, watch, create, delete, patch]
   - apiGroups: ['']
     resources: [persistentvolumeclaims]
-    verbs: [get, list, watch, create, delete]
+    verbs: [get, list, watch, create, delete, patch]
   - apiGroups: ['']
     resources: [secrets]
-    verbs: [get, list, watch]
+    verbs: [get, list, watch, create, delete, patch]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
