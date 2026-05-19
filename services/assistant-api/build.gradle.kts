@@ -36,6 +36,12 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testImplementation("org.testcontainers:testcontainers-rabbitmq")
+    // k3s lets Fabric8AgentRunnerOrchestratorIntegrationTest exercise
+    // the orchestrator through a real Kubernetes API — the seam where
+    // PR #372 (PVC patch-verb missing on the production Role) failed
+    // in production despite green unit tests. The negative case in
+    // that test locks the RBAC contract in.
+    testImplementation("org.testcontainers:testcontainers-k3s")
     // fabric8 KubernetesClient — drives the per-workspace runner Pod
     // lifecycle. Server-side apply, no informer cache (one-shot CRUD
     // is enough), pulled in with the kubernetes-client-bom to keep
