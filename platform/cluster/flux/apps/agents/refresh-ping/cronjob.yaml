@@ -41,6 +41,17 @@ spec:
                 - -ec
                 - |
                   set -u
+                  # Restore ~/.claude.json from the latest PVC-backed
+                  # backup if the runtime file is missing. See the
+                  # rationale in services/agent-runner/entrypoint.sh —
+                  # this CronJob bypasses that entrypoint with its own
+                  # command, so the same restore step has to live here.
+                  if [ ! -f "$HOME/.claude.json" ] && [ -d "$HOME/.claude/backups" ]; then
+                    latest=$(ls -1t "$HOME/.claude/backups"/.claude.json.backup.* 2>/dev/null | head -n1 || true)
+                    if [ -n "$latest" ]; then
+                      cp "$latest" "$HOME/.claude.json"
+                    fi
+                  fi
                   fail=0
                   echo "[ping] claude --version"
                   claude --version || fail=1
