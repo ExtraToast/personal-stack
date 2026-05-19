@@ -43,8 +43,22 @@ def main() -> int:
     configure_telemetry(level=settings.log_level, service_version=settings.service_version)
     log = structlog.get_logger(__name__)
 
-    topics = TopicVocabulary.from_yaml(settings.topics_yaml_path)
-    log.info("curator.topics_loaded", count=len(topics.slugs), slugs=list(topics.slugs))
+    store = PostgresCuratorStore(
+        host=settings.db_host,
+        port=settings.db_port,
+        database=settings.db_name,
+        user=settings.db_user,
+        password=settings.db_password,
+    )
+    store.open()
+
+    # Topic vocabulary moves from a static ConfigMap to the kb_topics
+    # table in V2 of the schema. Load from DB first; fall back to YAML
+    # when the table is empty so a deploy that has not yet run the V3
+    # seed migration still classifies. Once the table is populated in
+    # production the YAML fallback is dead code and the next PR drops
+    # the topics_yaml_path setting entirely.
+    topics = _load_topics(store, settings, log)
 
     shared_http = httpx.Client(timeout=settings.ollama_request_timeout_seconds)
     classifier = OllamaClassifier(
@@ -65,14 +79,6 @@ def main() -> int:
         bearer_token=settings.knowledge_api_bearer_token,
         timeout_seconds=15.0,
     )
-    store = PostgresCuratorStore(
-        host=settings.db_host,
-        port=settings.db_port,
-        database=settings.db_name,
-        user=settings.db_user,
-        password=settings.db_password,
-    )
-    store.open()
     vault = CuratorVault(
         clone_dir=settings.vault_clone_dir,
         author=Actor(settings.curator_author_name, settings.curator_author_email),
@@ -125,6 +131,46 @@ def main() -> int:
         _regenerate_indexes(settings.vault_clone_dir, store, vault, log)
 
     return 0
+
+
+def _load_topics(
+    store: PostgresCuratorStore,
+    settings: Settings,
+    log: structlog.BoundLogger,
+) -> TopicVocabulary:
+    """Prefer the DB-backed vocabulary; fall back to the bundled YAML
+    when the table is empty (pre-V3-seed deploys) or unreachable.
+
+    A YAML fallback that *also* raises would crash the curator on
+    every cycle until the seed runs; a silent empty vocabulary would
+    let every capture route to `_inbox/_needs-review/`. Logging the
+    chosen source keeps the operator honest about which path is live.
+    """
+
+    try:
+        with store.connection() as conn:
+            db_topics = TopicVocabulary.from_db(conn)
+        if db_topics.slugs:
+            log.info(
+                "curator.topics_loaded",
+                source="kb_topics",
+                count=len(db_topics.slugs),
+            )
+            return db_topics
+        log.warning("curator.topics_db_empty", path=str(settings.topics_yaml_path))
+    except Exception as exc:  # pragma: no cover — falls through to YAML
+        log.warning(
+            "curator.topics_db_unreachable",
+            error=str(exc),
+            fallback=str(settings.topics_yaml_path),
+        )
+    yaml_topics = TopicVocabulary.from_yaml(settings.topics_yaml_path)
+    log.info(
+        "curator.topics_loaded",
+        source="yaml",
+        count=len(yaml_topics.slugs),
+    )
+    return yaml_topics
 
 
 def _regenerate_indexes(

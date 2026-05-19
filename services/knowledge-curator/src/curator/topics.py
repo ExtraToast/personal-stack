@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import psycopg
 import yaml
 
 
@@ -76,6 +77,45 @@ class TopicVocabulary:
         if not isinstance(raw_topics, list):
             raise ValueError(f"{path}: 'topics' must be a list")
         parsed = [cls._parse_topic(entry) for entry in raw_topics]
+        return cls(parsed)
+
+    @classmethod
+    def from_db(cls, conn: psycopg.Connection[Any]) -> TopicVocabulary:
+        """Load the active topic vocabulary from ``kb_topics`` /
+        ``kb_topic_aliases``.
+
+        Each curator pass is a fresh process (CronJob), so loading
+        once at boot is enough — no caching layer. If the table is
+        empty (pre-seed) the caller should fall back to the YAML
+        loader; this method just returns an empty vocabulary rather
+        than raising, so the fallback is plain control flow.
+        """
+
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT slug, description FROM kb_topics WHERE is_active = TRUE ORDER BY slug",
+            )
+            rows = cur.fetchall()
+            if not rows:
+                return cls([])
+            slugs = [str(row[0]) for row in rows]
+            cur.execute(
+                "SELECT slug, alias_lower FROM kb_topic_aliases WHERE slug = ANY(%s)",
+                (slugs,),
+            )
+            alias_rows = cur.fetchall()
+        aliases_by_slug: dict[str, list[str]] = {slug: [] for slug in slugs}
+        for slug, alias in alias_rows:
+            if slug in aliases_by_slug and alias and alias != slug:
+                aliases_by_slug[slug].append(str(alias))
+        parsed = [
+            Topic(
+                slug=str(row[0]),
+                aliases=tuple(aliases_by_slug.get(str(row[0]), ())),
+                description=str(row[1] or ""),
+            )
+            for row in rows
+        ]
         return cls(parsed)
 
     @staticmethod

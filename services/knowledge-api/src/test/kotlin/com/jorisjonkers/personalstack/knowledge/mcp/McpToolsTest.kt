@@ -2,13 +2,23 @@
 
 package com.jorisjonkers.personalstack.knowledge.mcp
 
+import com.jorisjonkers.personalstack.knowledge.auth.AdminAuthorization
 import com.jorisjonkers.personalstack.knowledge.capture.CaptureRequest
 import com.jorisjonkers.personalstack.knowledge.capture.CaptureService
+import com.jorisjonkers.personalstack.knowledge.digest.DigestService
+import com.jorisjonkers.personalstack.knowledge.discovery.DiscoveryService
+import com.jorisjonkers.personalstack.knowledge.domain.DigestCandidate
 import com.jorisjonkers.personalstack.knowledge.domain.KbNote
 import com.jorisjonkers.personalstack.knowledge.domain.KbNoteType
 import com.jorisjonkers.personalstack.knowledge.domain.KbRelation
 import com.jorisjonkers.personalstack.knowledge.domain.RecallHit
+import com.jorisjonkers.personalstack.knowledge.domain.ScopeSummary
+import com.jorisjonkers.personalstack.knowledge.domain.SourceSummary
+import com.jorisjonkers.personalstack.knowledge.domain.TagSummary
+import com.jorisjonkers.personalstack.knowledge.domain.TopicStats
+import com.jorisjonkers.personalstack.knowledge.domain.TopicSummary
 import com.jorisjonkers.personalstack.knowledge.recall.RecallService
+import com.jorisjonkers.personalstack.knowledge.repo.TopicRepository
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -22,11 +32,23 @@ import java.time.Instant
 class McpToolsTest {
     private val captureService = mockk<CaptureService>()
     private val recallService = mockk<RecallService>(relaxed = true)
+    private val discoveryService = mockk<DiscoveryService>(relaxed = true)
+    private val digestService = mockk<DigestService>(relaxed = true)
+    private val topicRepository = mockk<TopicRepository>(relaxed = true)
+    private val adminAuthorization = mockk<AdminAuthorization>(relaxed = true)
 
-    // Wire real CaptureMcpTools/ReadMcpTools around the mocked services
-    // — that's what Spring does in production and what gives us coverage
-    // of the descriptor builders + handler argument parsing.
-    private val tools = McpTools(CaptureMcpTools(captureService), ReadMcpTools(recallService))
+    // Wire real Capture/Read/Discovery/Admin/DigestMcpTools around
+    // the mocked services — that's what Spring does in production
+    // and what gives us coverage of the descriptor builders + handler
+    // argument parsing.
+    private val tools =
+        McpTools(
+            CaptureMcpTools(captureService),
+            ReadMcpTools(recallService),
+            DiscoveryMcpTools(discoveryService),
+            AdminMcpTools(topicRepository, adminAuthorization),
+            DigestMcpTools(digestService),
+        )
     private val mapper: JsonMapper = JsonMapper.builder().addModule(KotlinModule.Builder().build()).build()
 
     private val stubNote =
@@ -45,7 +67,7 @@ class McpToolsTest {
         )
 
     @Test
-    fun `describe advertises capture and read tools by name`() {
+    fun `describe advertises capture, read, discovery, admin, and digest tools by name`() {
         val names = tools.describe().map { it["name"] as String }
         assertThat(names).containsExactlyInAnyOrder(
             "knowledge.capture_lesson",
@@ -56,7 +78,49 @@ class McpToolsTest {
             "knowledge.list_recent",
             "knowledge.find_conflicts",
             "knowledge.relations",
+            "knowledge.list_topics",
+            "knowledge.list_tags",
+            "knowledge.list_scopes",
+            "knowledge.list_sources",
+            "knowledge.topic_stats",
+            "knowledge.list_inbox",
+            "knowledge.add_topic",
+            "knowledge.update_topic",
+            "knowledge.merge_topics",
+            "knowledge.rename_tag",
+            "knowledge.digest_transcript",
         )
+    }
+
+    @Test
+    fun `digest_transcript projects the service's candidates verbatim`() {
+        every { digestService.digest(any(), any(), any()) } returns
+            listOf(
+                DigestCandidate(
+                    kind = "lesson",
+                    title = "auto-mcp hooks need a panic switch",
+                    body =
+                        "When auto-capture runs in a runaway loop, an env var that short-circuits " +
+                            "every hook is the only sane recovery path.",
+                    suggestedTopic = "claude-code",
+                    suggestedTags = listOf("hooks", "safety"),
+                    confidence = 0.82,
+                    relevantExcerpts = listOf("KB_AUTO_MCP_DISABLED=1 short-circuits the hook"),
+                ),
+            )
+
+        val out =
+            tools.call(
+                "knowledge.digest_transcript",
+                mapper.readTree("""{"transcript":"... session text ...","max_candidates":3,"min_confidence":0.5}"""),
+            )!!
+
+        @Suppress("UNCHECKED_CAST")
+        val candidates = out["candidates"] as List<Map<String, Any?>>
+        assertThat(candidates).hasSize(1)
+        assertThat(candidates[0]["kind"]).isEqualTo("lesson")
+        assertThat(candidates[0]["confidence"]).isEqualTo(0.82)
+        assertThat(candidates[0]["suggested_topic"]).isEqualTo("claude-code")
     }
 
     @Test
@@ -301,5 +365,127 @@ class McpToolsTest {
             mapper.readTree("""{"scope":"p","title":"t","body":"b","confidence":0.85}"""),
         )
         assertThat(captured.captured.confidence).isEqualTo(0.85)
+    }
+
+    // -------- discovery tools --------
+
+    @Test
+    fun `list_topics projects each summary with the bare slug`() {
+        every { discoveryService.listTopics(5) } returns
+            listOf(
+                TopicSummary(
+                    slug = "kotlin",
+                    noteCount = 12,
+                    lastCapturedAt = Instant.parse("2026-05-13T12:00:00Z"),
+                ),
+                TopicSummary(slug = "postgres", noteCount = 3, lastCapturedAt = null),
+            )
+
+        val out = tools.call("knowledge.list_topics", mapper.readTree("""{"limit":5}"""))!!
+
+        @Suppress("UNCHECKED_CAST")
+        val rows = out["topics"] as List<Map<String, Any?>>
+        assertThat(rows).hasSize(2)
+        assertThat(rows[0]["slug"]).isEqualTo("kotlin")
+        assertThat(rows[0]["note_count"]).isEqualTo(12)
+        assertThat(rows[0]["last_captured_at"]).isEqualTo("2026-05-13T12:00:00Z")
+        assertThat(rows[1]["last_captured_at"]).isNull()
+    }
+
+    @Test
+    fun `list_tags forwards the optional scope filter`() {
+        every { discoveryService.listTags("project:personal-stack", 50) } returns
+            listOf(
+                TagSummary(
+                    tag = "kotlin",
+                    count = 7,
+                    lastUsedAt = Instant.parse("2026-05-13T12:00:00Z"),
+                ),
+            )
+        tools.call(
+            "knowledge.list_tags",
+            mapper.readTree("""{"scope":"project:personal-stack","limit":50}"""),
+        )
+        verify(exactly = 1) { discoveryService.listTags("project:personal-stack", 50) }
+    }
+
+    @Test
+    fun `list_scopes returns counts ordered by note_count desc`() {
+        every { discoveryService.listScopes(any()) } returns
+            listOf(
+                ScopeSummary(scope = "project:a", noteCount = 5, lastCapturedAt = null),
+                ScopeSummary(scope = "personal", noteCount = 1, lastCapturedAt = null),
+            )
+        val out = tools.call("knowledge.list_scopes", mapper.readTree("""{}"""))!!
+
+        @Suppress("UNCHECKED_CAST")
+        val rows = out["scopes"] as List<Map<String, Any?>>
+        assertThat(rows.map { it["scope"] }).containsExactly("project:a", "personal")
+    }
+
+    @Test
+    fun `list_sources projects the source frequency`() {
+        every { discoveryService.listSources(any()) } returns
+            listOf(SourceSummary(source = "claude-code", count = 42))
+        val out = tools.call("knowledge.list_sources", mapper.readTree("""{}"""))!!
+
+        @Suppress("UNCHECKED_CAST")
+        val rows = out["sources"] as List<Map<String, Any?>>
+        assertThat(rows).hasSize(1)
+        assertThat(rows[0]["source"]).isEqualTo("claude-code")
+        assertThat(rows[0]["count"]).isEqualTo(42)
+    }
+
+    @Test
+    fun `topic_stats returns null when the slug has no notes`() {
+        every { discoveryService.topicStats("nonexistent", any()) } returns null
+        val out = tools.call("knowledge.topic_stats", mapper.readTree("""{"slug":"nonexistent"}"""))!!
+        assertThat(out["stats"]).isNull()
+    }
+
+    @Test
+    fun `topic_stats projects the breakdowns when the slug has notes`() {
+        every { discoveryService.topicStats("kotlin", 10) } returns
+            TopicStats(
+                slug = "kotlin",
+                noteCount = 12,
+                firstCapturedAt = Instant.parse("2026-05-10T12:00:00Z"),
+                lastCapturedAt = Instant.parse("2026-05-13T12:00:00Z"),
+                typeBreakdown = mapOf("lesson" to 8, "decision" to 4),
+                topTags =
+                    listOf(
+                        TagSummary(
+                            tag = "spring",
+                            count = 5,
+                            lastUsedAt = Instant.parse("2026-05-13T12:00:00Z"),
+                        ),
+                    ),
+            )
+
+        val out = tools.call("knowledge.topic_stats", mapper.readTree("""{"slug":"kotlin"}"""))!!
+
+        @Suppress("UNCHECKED_CAST")
+        val stats = out["stats"] as Map<String, Any?>
+        assertThat(stats["slug"]).isEqualTo("kotlin")
+        assertThat(stats["note_count"]).isEqualTo(12)
+        assertThat((stats["type_breakdown"] as Map<*, *>)["lesson"]).isEqualTo(8)
+
+        @Suppress("UNCHECKED_CAST")
+        val topTags = stats["top_tags"] as List<Map<String, Any?>>
+        assertThat(topTags).hasSize(1)
+        assertThat(topTags[0]["tag"]).isEqualTo("spring")
+    }
+
+    @Test
+    fun `list_inbox surfaces vault_path so the operator can find the file`() {
+        every { discoveryService.listInbox(20) } returns
+            listOf(stubNote.copy(vaultPath = "_inbox/2026-05-13/hello.md", scope = "_inbox"))
+        val out = tools.call("knowledge.list_inbox", mapper.readTree("""{}"""))!!
+
+        @Suppress("UNCHECKED_CAST")
+        val notes = out["notes"] as List<Map<String, Any?>>
+        assertThat(notes).hasSize(1)
+        assertThat(notes[0]["vault_path"]).isEqualTo("_inbox/2026-05-13/hello.md")
+        assertThat(notes[0]["scope"]).isEqualTo("_inbox")
     }
 }
