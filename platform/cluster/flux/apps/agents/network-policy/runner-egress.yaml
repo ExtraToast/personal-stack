@@ -1,0 +1,76 @@
+# Default-deny + targeted allow for the agent-runners namespace.
+# Adversarial use is on the roadmap; nothing in this namespace
+# should reach internal services it has no business with. The
+# allow-set mirrors what each CLI + git workflow actually needs:
+#
+# - DNS (kube-dns)
+# - cluster-internal: knowledge-api, lightrag, assistant-api
+# - external: api.anthropic.com, api.openai.com, github.com, ghcr.io
+#
+# External egress is enforced by IP egress in a follow-up once we
+# add a per-runner egress-gateway. For now Kubernetes NetworkPolicy
+# can only express L3/L4 with optional namespace+pod selectors; the
+# external destinations are intentionally left as "all egress to
+# tcp/443" because the cluster does not yet have an L7 policy engine.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: runner-default
+  namespace: agents-system
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: agent-runner
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Only assistant-api may reach the runner's agent-gateway sidecar.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: assistant-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: assistant-api
+      ports:
+        - protocol: TCP
+          port: 8090
+  egress:
+    # DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Knowledge stack (recall + LightRAG)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: knowledge-system
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 9621
+        - protocol: TCP
+          port: 11434
+    # Outbound HTTPS — needed for Anthropic, OpenAI, GitHub. Re-tighten
+    # once an L7 gateway lands.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 22

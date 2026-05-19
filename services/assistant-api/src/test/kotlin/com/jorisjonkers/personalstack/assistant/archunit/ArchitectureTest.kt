@@ -51,11 +51,21 @@ class ArchitectureTest {
 
     @Test
     fun `DTOs are in dto package`() {
+        // The rule scopes to TOP-LEVEL classes only. Adapter-internal
+        // `private data class` declarations nested inside an integration
+        // class (e.g. `HttpAgentGatewayClient.CloneRequest`) live
+        // alongside their adapter on purpose — promoting them to a
+        // top-level `dto` package would force them public and split
+        // the adapter's wire shape from its caller. ADR-013's intent
+        // is about top-level DTOs the rest of the codebase consumes,
+        // not file-local helpers.
         classes()
             .that()
             .haveSimpleNameEndingWith("Request")
             .or()
             .haveSimpleNameEndingWith("Response")
+            .and()
+            .areTopLevelClasses()
             .should()
             .resideInAPackage("..dto..")
             .because("DTOs (Request/Response) must reside in a dto package (ADR-013)")

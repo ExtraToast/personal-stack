@@ -1,0 +1,76 @@
+# Refresh-token early-warning system. Every 6h, run a no-op prompt
+# against each CLI so a refresh-token failure surfaces here instead
+# of inside a user-facing workspace turn. Both CLIs treat a success
+# response as evidence that the on-disk credential file is valid;
+# failure logs end up in this Job's stdout where prometheus log
+# scrape can alert on them.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: agents-refresh-ping
+  namespace: agents-system
+spec:
+  schedule: '17 */6 * * *' # offset minute to avoid every-other-cron-on-the-hour pile-up
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+          nodeSelector:
+            personal-stack/site: enschede
+          containers:
+            - name: ping
+              image: ghcr.io/extratoast/personal-stack/agent-runner:latest
+              imagePullPolicy: Always
+              env:
+                - name: HOME
+                  value: /home/agent
+                - name: CODEX_HOME
+                  value: /home/agent/.codex
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  set -u
+                  fail=0
+                  echo "[ping] claude --version"
+                  claude --version || fail=1
+                  echo "[ping] claude -p (one-shot)"
+                  claude -p 'reply with the single word: pong' --output-format text || fail=1
+                  echo "[ping] codex --version"
+                  codex --version || fail=1
+                  echo "[ping] codex exec (one-shot)"
+                  codex exec --no-stream 'reply with the single word: pong' || fail=1
+                  if [ "$fail" -ne 0 ]; then
+                    echo "[ping] one or more CLIs failed — credentials may need refresh via auth-bootstrap"
+                    exit 1
+                  fi
+                  echo "[ping] both CLIs answered"
+              volumeMounts:
+                - name: claude-credentials
+                  mountPath: /home/agent/.claude
+                - name: codex-credentials
+                  mountPath: /home/agent/.codex
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 1000m
+                  memory: 1Gi
+          volumes:
+            - name: claude-credentials
+              persistentVolumeClaim:
+                claimName: claude-credentials
+            - name: codex-credentials
+              persistentVolumeClaim:
+                claimName: codex-credentials

@@ -1,0 +1,91 @@
+# One-shot installer for the knowledge-system Claude Code hooks +
+# skills. `knowledge-api` serves a curl-pipe-bash installer at
+# /install.sh (see `services/knowledge-api/.../InstallerController`);
+# the script writes hook scripts + skill descriptors into
+# `$CLAUDE_HOME` so every Claude Code invocation auto-calls the MCP
+# recall + capture tools.
+#
+# Why a CronJob: the script is idempotent (re-running picks up new
+# versions). Running it weekly keeps the install fresh without an
+# operator having to remember. To run it on demand:
+#
+#     kubectl -n agents-system create job \
+#       --from=cronjob/agents-kb-install kb-install-now
+#
+# A single Job suffices to populate the shared `claude-credentials`
+# PVC — every runner Pod that mounts the PVC inherits the hooks.
+# Concurrency is therefore safe but pointless.
+#
+# In-cluster URL: hits `knowledge-api.knowledge-system.svc.cluster
+# .local:8080/install.sh` directly so the install doesn't depend
+# on edge / forward-auth / external DNS being healthy. The script
+# itself bakes the public KB_URL into the runtime hooks via the
+# `@KB_URL@` placeholder, so the hooks still reach the published
+# endpoint when they run from inside the agent.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: agents-kb-install
+  namespace: agents-system
+spec:
+  schedule: '37 6 * * 0' # Sunday 06:37 UTC, offset from refresh-ping
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: Never
+          nodeSelector:
+            personal-stack/site: enschede
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+          containers:
+            - name: install
+              image: ghcr.io/extratoast/personal-stack/agent-runner:latest
+              imagePullPolicy: Always
+              env:
+                - name: HOME
+                  value: /home/agent
+                - name: CLAUDE_CONFIG_DIR
+                  value: /home/agent/.claude
+                - name: KB_BEARER_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: agents-kb-bearer
+                      key: bearer
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  set -u
+                  if [ -z "${KB_BEARER_TOKEN}" ]; then
+                    echo "[kb-install] KB_BEARER_TOKEN is empty — populate Vault secret/agents/kb-bearer first" >&2
+                    exit 1
+                  fi
+                  echo "[kb-install] fetching installer from in-cluster knowledge-api"
+                  curl -fsSL \
+                    -H "Authorization: Bearer ${KB_BEARER_TOKEN}" \
+                    http://knowledge-api.knowledge-system.svc.cluster.local:8080/install.sh \
+                    | bash
+                  echo "[kb-install] done"
+                  ls -la "${CLAUDE_CONFIG_DIR}/hooks" "${CLAUDE_CONFIG_DIR}/skills" 2>/dev/null || true
+              volumeMounts:
+                - name: claude-credentials
+                  mountPath: /home/agent/.claude
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+          volumes:
+            - name: claude-credentials
+              persistentVolumeClaim:
+                claimName: claude-credentials

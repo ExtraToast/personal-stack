@@ -1,0 +1,77 @@
+# One-time interactive Pod that mounts both credential PVCs so a
+# human operator can run `claude /login` and `codex login --device`
+# against the headless server once. After both auth.json /
+# .credentials.json files are written, this Pod can stay around
+# (cheap, sleeps) or be deleted — the PVCs preserve the tokens.
+#
+# Operator workflow (documented in ../README.md):
+#
+#   kubectl -n agents-system exec -it auth-bootstrap -- bash
+#   # inside the pod:
+#   claude /login          # paste the OAuth URL into a laptop browser
+#   codex login --device   # device-code flow, complete on laptop
+#   ls -la ~/.claude/ ~/.codex/
+#
+# The image bundled here is the same `agent-runner` image that
+# powers every per-workspace Pod (Step 2 in this PR series). Sharing
+# the image guarantees the CLI versions match between auth and run
+# time, so a refresh-token format change can't silently break runtime
+# while bootstrap still appears healthy.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: auth-bootstrap
+  namespace: agents-system
+  labels:
+    app.kubernetes.io/name: auth-bootstrap
+    app.kubernetes.io/part-of: agents
+spec:
+  # Pin to home nodes — Frankfurt VPS is on a tight budget envelope
+  # and this Pod sits idle most of the time.
+  nodeSelector:
+    personal-stack/site: enschede
+  restartPolicy: Always
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+  containers:
+    - name: shell
+      image: ghcr.io/extratoast/personal-stack/agent-runner:latest
+      imagePullPolicy: Always
+      command:
+        - /bin/sh
+        - -ec
+        - |
+          # The agent-gateway is the runtime entrypoint for workspace
+          # Pods. For auth bootstrap we just need a long-lived shell
+          # with both CLIs on PATH and the credential volumes mounted.
+          exec sleep infinity
+      env:
+        - name: HOME
+          value: /home/agent
+        - name: CODEX_HOME
+          value: /home/agent/.codex
+      volumeMounts:
+        - name: claude-credentials
+          mountPath: /home/agent/.claude
+        - name: codex-credentials
+          mountPath: /home/agent/.codex
+        - name: tmp
+          mountPath: /tmp
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+  volumes:
+    - name: claude-credentials
+      persistentVolumeClaim:
+        claimName: claude-credentials
+    - name: codex-credentials
+      persistentVolumeClaim:
+        claimName: codex-credentials
+    - name: tmp
+      emptyDir: {}

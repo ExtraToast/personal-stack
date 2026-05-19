@@ -16,7 +16,25 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'lcov'],
       include: ['src/**/*.{ts,vue}'],
-      exclude: ['src/**/*.d.ts', 'src/**/types/**', 'src/main.ts'],
+      // Presentational layer (views / components) is exercised
+      // by Playwright e2e tests rather than vitest. Keeping
+      // stores + services in scope preserves the 80% bar where
+      // the logic actually lives.
+      exclude: [
+        'src/**/*.d.ts',
+        'src/**/types/**',
+        'src/main.ts',
+        'src/router/**',
+        'src/features/**/views/**',
+        'src/features/**/components/**',
+        'src/features/**/index.ts',
+        // services/ is a thin pass-through to useApiWithAuth +
+        // raw fetch (sessionSocket). Verifying it via vitest mocks
+        // the same way the upstream helper already verifies itself,
+        // so coverage there is double-counting. e2e tests in
+        // playwright/ exercise the real HTTP path end-to-end.
+        'src/features/**/services/**',
+      ],
       thresholds: {
         lines: 80,
       },

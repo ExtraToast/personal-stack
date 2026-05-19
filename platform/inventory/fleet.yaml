@@ -250,6 +250,14 @@ placement_intent:
     - samba
     - flaresolverr
     - n8n
+    # agent-runner Pods are created dynamically by assistant-api
+    # (see platform/cluster/flux/apps/agents/), not declared as a
+    # static service. The static placement intent here mirrors the
+    # nodeSelector the orchestrator applies at Pod creation time:
+    # OAuth-bearing CLIs + adversarial workloads stay on home nodes
+    # so the Frankfurt VPS isn't billed for token rotation or
+    # untrusted code execution.
+    - agent-runner
 
   gpu_specific:
     jellyfin:
