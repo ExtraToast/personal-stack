@@ -38,6 +38,7 @@ from curator.classify import (
 )
 from curator.lightrag import LightRagClient, LightRagDocument
 from curator.recall import RecallClient, RecallHit
+from curator.relations import RelationResolver
 from curator.store import CuratorStore
 from curator.topics import TopicVocabulary
 from curator.vault import (
@@ -75,6 +76,7 @@ class Promoter:
         confidence_floor: float,
         recall_limit: int,
         lightrag: LightRagClient | None = None,
+        resolver: RelationResolver | None = None,
     ) -> None:
         self._classifier = classifier
         self._recall = recall
@@ -85,6 +87,11 @@ class Promoter:
         self._confidence_floor = confidence_floor
         self._recall_limit = recall_limit
         self._lightrag = lightrag
+        # Default resolver wires the existing recall + store. The
+        # caller can inject a stricter / looser variant via tests or
+        # to feature-flag the behaviour off temporarily (pass a
+        # resolver whose `resolve` always returns the originals).
+        self._resolver = resolver or RelationResolver(recall=recall, store=store)
 
     def promote_inbox_file(self, inbox_rel: str) -> PromoteOutcome:
         path = self._clone_dir / inbox_rel
@@ -124,8 +131,22 @@ class Promoter:
         topic_check = self._validate_topic(classification)
         if topic_check is not None:
             return self._send_to_review(inbox_rel, reason=topic_check)
-        if not self._validate_relation_targets(classification):
-            return self._send_to_review(inbox_rel, reason="relation-target-missing")
+        # Resolve relation targets gracefully — substitute via FTS
+        # recall when the classifier emits a phrase-shaped pseudo-id,
+        # drop the dead edge otherwise. Note still promotes either
+        # way; only the graph edge can be lost. Audit via structlog
+        # so a Grafana panel can flag drift.
+        resolution = self._resolver.resolve(
+            supersedes=classification.supersedes,
+            see_also=classification.see_also,
+        )
+        if resolution.has_changes:
+            log.info(
+                "curator.relations_resolved",
+                note_id=front.id,
+                substituted=list(resolution.substituted),
+                dropped=list(resolution.dropped),
+            )
 
         dest_abs = resolve_destination(
             clone_dir=self._clone_dir,
@@ -143,8 +164,8 @@ class Promoter:
             new_type=classification.type,
             new_tags=tuple(classification.tags),
             new_confidence=classification.confidence,
-            supersedes=tuple(classification.supersedes),
-            see_also=tuple(classification.see_also),
+            supersedes=resolution.supersedes,
+            see_also=resolution.see_also,
         )
         slug = dest_abs.stem
         commit_subject = f"curator({classification.scope}): promote {slug}"
@@ -164,11 +185,11 @@ class Promoter:
         )
         if rows == 0:
             log.warning("curator.promote_orphan_db_row", note_id=front.id)
-        for target in classification.supersedes:
+        for target in resolution.supersedes:
             self._store.insert_relation(
                 subject_id=front.id, predicate="supersedes", object_id=target
             )
-        for target in classification.see_also:
+        for target in resolution.see_also:
             self._store.insert_relation(subject_id=front.id, predicate="see_also", object_id=target)
         if self._lightrag is not None:
             # Fire-and-forget: a slow / down LightRAG must not block
@@ -211,13 +232,6 @@ class Promoter:
         if self._topics.slug_for(slug) is None:
             return f"unknown-topic-slug:{slug}"
         return None
-
-    def _validate_relation_targets(self, classification: Classification) -> bool:
-        targets = {*classification.supersedes, *classification.see_also}
-        if not targets:
-            return True
-        existing = self._store.existing_ids(targets)
-        return existing == targets
 
     def _send_to_review(self, inbox_rel: str, reason: str) -> PromoteOutcome:
         result = self._vault.move_to_needs_review(source_rel=inbox_rel, reason=reason)

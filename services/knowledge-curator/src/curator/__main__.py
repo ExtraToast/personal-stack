@@ -12,6 +12,7 @@ Run via `python -m curator` from a k8s CronJob. Each invocation:
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -107,6 +108,18 @@ def main() -> int:
 
     inbox_root = settings.vault_clone_dir / "_inbox"
     candidates = _list_inbox(inbox_root)
+    # Opt-in backfill: when the env is set, also walk the existing
+    # `_inbox/_needs-review/` tree and re-run each file through the
+    # pipeline. The relation resolver now treats most relation
+    # mismatches as soft drops rather than hard rejections, so notes
+    # previously rejected for `relation-target-missing` typically
+    # promote on the second pass. Single-pass — the operator unsets
+    # the env when the queue is drained.
+    if os.environ.get("CURATOR_DRAIN_NEEDS_REVIEW", "").lower() in {"1", "true", "yes"}:
+        review_root = inbox_root / "_needs-review"
+        review_candidates = _list_needs_review(review_root)
+        log.info("curator.drain_needs_review", candidates=len(review_candidates))
+        candidates = candidates + review_candidates
     log.info("curator.pass_start", candidates=len(candidates))
 
     promoted_count = 0
@@ -214,6 +227,23 @@ def _list_inbox(inbox_root: Path) -> list[str]:
         # and require a human edit before the next pass picks them up.
         if rel.startswith("_inbox/_needs-review/"):
             continue
+        out.append(rel)
+    return out
+
+
+def _list_needs_review(review_root: Path) -> list[str]:
+    """Walk every `.md` file directly under `_inbox/_needs-review/`.
+    Used only by the opt-in `CURATOR_DRAIN_NEEDS_REVIEW` backfill —
+    the regular pass skips the directory via [_list_inbox]'s prefix
+    filter. Returns paths relative to the vault root so the promoter
+    sees the same shape it gets for fresh inbox files.
+    """
+
+    if not review_root.exists():
+        return []
+    out: list[str] = []
+    for path in sorted(review_root.glob("*.md")):
+        rel = path.relative_to(review_root.parent.parent).as_posix()
         out.append(rel)
     return out
 

@@ -178,14 +178,27 @@ def test_promote_flags_review_on_unknown_topic_slug(clone: Path) -> None:
     assert "unknown-topic-slug" in outcome.reason
 
 
-def test_promote_flags_review_when_supersedes_target_missing(clone: Path) -> None:
+def test_promote_drops_missing_relation_target_but_still_promotes(clone: Path) -> None:
+    """The classifier emits a `supersedes` id that doesn't exist in
+    `kb_notes`. Plan C of the curator quality plan replaces the
+    pre-existing binary `relation-target-missing` reject with a
+    graceful drop: the dead edge is recorded in the structured log,
+    the note still promotes, and the persisted `kb_relations` row
+    for that edge is never inserted. Keeps the inbox flowing
+    instead of silently routing valuable captures to
+    `_inbox/_needs-review/`.
+    """
+
     rel = _seed_inbox_note(clone)
+    # Recall returns no hits — the resolver has nowhere to
+    # substitute, so the only escape hatch is to drop.
     classification = _classification(supersedes=["01MISSING0000000000000000"])
     vault = _StubVault()
+    store = InMemoryCuratorStore(existing=["01HXYZ00000000000000000000"])
     promoter = Promoter(
         classifier=_StubClassifier(response=classification),  # type: ignore[arg-type]
         recall=_StubRecall(hits=[]),  # type: ignore[arg-type]
-        store=InMemoryCuratorStore(existing=["01HXYZ00000000000000000000"]),
+        store=store,
         vault=vault,  # type: ignore[arg-type]
         topics=_topics(),
         clone_dir=clone,
@@ -193,8 +206,11 @@ def test_promote_flags_review_when_supersedes_target_missing(clone: Path) -> Non
         recall_limit=3,
     )
     outcome = promoter.promote_inbox_file(rel)
-    assert outcome.status == "needs_review"
-    assert "relation-target-missing" in outcome.reason
+    assert outcome.status == "promoted"
+    # The dropped edge MUST NOT show up in the persisted relations
+    # list — otherwise the graph carries dangling pointers the
+    # `find_conflicts` tool would surface later.
+    assert all(predicate != "supersedes" for (_, predicate, _) in store.relations)
 
 
 def test_promote_flags_review_on_classifier_error(clone: Path) -> None:
