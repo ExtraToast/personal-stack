@@ -26,10 +26,12 @@ metadata:
     app.kubernetes.io/name: auth-bootstrap
     app.kubernetes.io/part-of: agents
 spec:
-  # Pin to home nodes — Frankfurt VPS is on a tight budget envelope
-  # and this Pod sits idle most of the time.
+  # Pin to a single Enschede node. The two credential PVCs are
+  # backed by local-path (RWO), so every Pod that mounts them must
+  # land on the same node. enschede-gtx-960m-1 is the lightest-loaded
+  # amd64 worker (enschede-t1000-1 hosts AdGuard, Samba, backup-store).
   nodeSelector:
-    personal-stack/site: enschede
+    personal-stack/node: enschede-gtx-960m-1
   restartPolicy: Always
   securityContext:
     runAsUser: 1000

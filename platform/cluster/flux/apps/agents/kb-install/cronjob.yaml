@@ -40,7 +40,7 @@ spec:
         spec:
           restartPolicy: Never
           nodeSelector:
-            personal-stack/site: enschede
+            personal-stack/node: enschede-gtx-960m-1
           securityContext:
             runAsUser: 1000
             runAsGroup: 1000

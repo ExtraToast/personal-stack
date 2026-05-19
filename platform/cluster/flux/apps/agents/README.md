@@ -16,6 +16,20 @@ egress allow list (DNS, in-cluster knowledge stack, outbound 443) to
 just the runner Pods; the bootstrap Pod stays permissive so the
 interactive OAuth flows can reach the upstream IdPs.
 
+The credential PVCs are backed by the cluster-default `local-path`
+StorageClass (RWO) — Longhorn is not installed here. Every Pod that
+mounts the credentials therefore pins to **`enschede-gtx-960m-1`**
+via `nodeSelector: personal-stack/node: enschede-gtx-960m-1`. RWO
+permits multiple Pods on that single node to mount the volume
+simultaneously, so concurrent per-workspace runners + the long-lived
+bootstrap Pod + the refresh-ping CronJob still work, as long as they
+all land on the same node. The orchestrator default and every
+manifest in this directory hard-codes that node; moving the agent
+host means flipping the selector in five places (the credential
+PVCs, the auth-bootstrap Pod, the refresh-ping and kb-install
+CronJobs, and the `AGENT_RUNTIME_NODE` env on the assistant-api
+Deployment).
+
 ## First-time auth bootstrap
 
 The credential PVCs (`claude-credentials`, `codex-credentials`) start

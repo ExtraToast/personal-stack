@@ -104,14 +104,19 @@ agent-runtime:
   image: ${AGENT_RUNTIME_IMAGE:ghcr.io/extratoast/personal-stack/agent-runner:latest}
   image-pull-policy: ${AGENT_RUNTIME_IMAGE_PULL_POLICY:Always}
   service-account: ${AGENT_RUNTIME_SERVICE_ACCOUNT:agent-runner}
-  workspace-storage-class: ${AGENT_RUNTIME_WORKSPACE_STORAGE_CLASS:longhorn}
+  workspace-storage-class: ${AGENT_RUNTIME_WORKSPACE_STORAGE_CLASS:local-path}
   workspace-storage-size: ${AGENT_RUNTIME_WORKSPACE_STORAGE_SIZE:8Gi}
   gateway-port: ${AGENT_RUNTIME_GATEWAY_PORT:8090}
   claude-credentials-pvc: ${AGENT_RUNTIME_CLAUDE_PVC:claude-credentials}
   codex-credentials-pvc: ${AGENT_RUNTIME_CODEX_PVC:codex-credentials}
   github-deploy-key-secret: ${AGENT_RUNTIME_GH_KEY_SECRET:agents-github-deploy-key}
+  # Pinning to a single node is mandatory because the shared
+  # credential PVCs (claude-credentials / codex-credentials) are
+  # backed by local-path RWO — every runner Pod must land on the
+  # node that owns the PV. See platform/cluster/flux/apps/agents/
+  # credentials/claude-credentials-pvc.yaml for the rationale.
   node-selector:
-    personal-stack/site: ${AGENT_RUNTIME_SITE:enschede}
+    personal-stack/node: ${AGENT_RUNTIME_NODE:enschede-gtx-960m-1}
   # Idle scale-down. A workspace whose last observed activity is
   # older than `idle-after-seconds` gets its Pod + Service + per-
   # workspace Secret deleted; the workspace PVC survives so a
