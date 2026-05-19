@@ -26,6 +26,7 @@ import tools.jackson.databind.json.JsonMapper
 @RequestMapping("/mcp", produces = [MediaType.APPLICATION_JSON_VALUE])
 class McpController(
     private val tools: McpTools,
+    private val prompts: McpPrompts,
 ) {
     @PostMapping(consumes = [MediaType.APPLICATION_JSON_VALUE])
     fun rpc(
@@ -43,8 +44,36 @@ class McpController(
             "ping" -> JsonRpcResponse(id = request.id, result = emptyMap<String, Any>())
             "tools/list" -> JsonRpcResponse(id = request.id, result = mapOf("tools" to tools.describe()))
             "tools/call" -> handleToolsCall(request)
+            "prompts/list" -> JsonRpcResponse(id = request.id, result = mapOf("prompts" to prompts.list()))
+            "prompts/get" -> handlePromptsGet(request)
             else -> methodNotFoundResponse(request.id, request.method)
         }
+
+    private fun handlePromptsGet(request: JsonRpcRequest): JsonRpcResponse {
+        val name =
+            request.params
+                ?.get("name")
+                ?.asText()
+                .orEmpty()
+        if (name.isBlank()) return invalidParamsResponse(request.id, "prompts/get: missing required string 'name'")
+        val arguments = request.params?.get("arguments")
+        val resolved =
+            prompts.get(name, arguments)
+                ?: return methodNotFoundResponse(request.id, "prompts/get:$name")
+        return JsonRpcResponse(id = request.id, result = projectPromptResult(resolved))
+    }
+
+    private fun projectPromptResult(resolved: PromptResult): Map<String, Any?> =
+        mapOf(
+            "description" to resolved.description,
+            "messages" to
+                resolved.messages.map { msg ->
+                    mapOf(
+                        "role" to msg.role,
+                        "content" to mapOf("type" to "text", "text" to msg.text),
+                    )
+                },
+        )
 
     // ReturnCount(4): each return signals a distinct failure mode of
     // the JSON-RPC dispatch (blank name, unauthorized, unknown tool,
@@ -130,6 +159,7 @@ class McpController(
             "capabilities" to
                 mapOf(
                     "tools" to mapOf("listChanged" to false),
+                    "prompts" to mapOf("listChanged" to false),
                 ),
         )
 
