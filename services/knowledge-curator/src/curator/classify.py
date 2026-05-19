@@ -147,6 +147,25 @@ def system_prompt(topic_slugs: tuple[str, ...]) -> str:
         "`needs_review_reason` non-null only when the body genuinely "
         "could fit multiple scopes or types and no single answer "
         "dominates. "
+        # Strongly bias toward populating `see_also` so the resulting
+        # kb_relations graph is dense enough to be useful for recall.
+        "Linking rules — follow these aggressively: "
+        "(1) Populate `see_also` with the id of every neighbour whose "
+        "subject area overlaps thematically with the candidate. "
+        "Frameworks, languages, programming paradigms, algorithms, "
+        "data structures and design patterns are exactly the kind of "
+        "cross-cutting topics that benefit from being linked — when in "
+        "doubt, link. An empty `see_also` is only correct when the "
+        "candidate is genuinely standalone. "
+        "(2) Strongly prefer non-empty `see_also` when the candidate "
+        "and a neighbour share a language, framework, paradigm, "
+        "pattern family (creational/structural/behavioural), "
+        "algorithmic category, or architectural style. "
+        "(3) Use `supersedes` only when the candidate explicitly "
+        "replaces or corrects a neighbour's claim; otherwise prefer "
+        "`see_also`. "
+        "(4) Up to 10 ids each. Prefer linking 3-5 closely-related "
+        "neighbours over forcing all 10. "
         "Output schema:\n" + json.dumps(_RESPONSE_SCHEMA["schema"], indent=2)
     )
 
