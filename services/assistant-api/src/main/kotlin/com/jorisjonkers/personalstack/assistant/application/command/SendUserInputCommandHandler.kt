@@ -1,5 +1,6 @@
 package com.jorisjonkers.personalstack.assistant.application.command
 
+import com.jorisjonkers.personalstack.assistant.application.rag.ContextBuilder
 import com.jorisjonkers.personalstack.assistant.domain.model.Turn
 import com.jorisjonkers.personalstack.assistant.domain.model.TurnId
 import com.jorisjonkers.personalstack.assistant.domain.model.TurnRole
@@ -18,13 +19,18 @@ class SendUserInputCommandHandler(
     private val workspaces: WorkspaceRepository,
     private val turns: TurnRepository,
     private val gateway: AgentGatewayClient,
-) : CommandHandler<SendUserInputCommand, Unit> {
+    private val contextBuilder: ContextBuilder,
+) : CommandHandler<SendUserInputCommand> {
     @Transactional
     override fun handle(command: SendUserInputCommand) {
         val session = sessions.findById(command.sessionId) ?: error("session not found: ${command.sessionId}")
         val workspace = workspaces.findById(session.workspaceId) ?: error("workspace missing for session")
         val gatewayAgentId = session.gatewayAgentId ?: error("session not bound to a gateway agent yet")
 
+        // Persist the raw user prompt for transcript fidelity; the
+        // RAG augmentation only travels to the agent, not to the
+        // stored history (otherwise replays would double-inject
+        // outdated context).
         turns.save(
             Turn(
                 id = TurnId.random(),
@@ -34,6 +40,8 @@ class SendUserInputCommandHandler(
                 createdAt = Instant.now(),
             ),
         )
-        gateway.sendInput(workspace, gatewayAgentId, command.text, command.enter)
+
+        val augmented = contextBuilder.augment(command.text)
+        gateway.sendInput(workspace, gatewayAgentId, augmented, command.enter)
     }
 }

@@ -7,4 +7,4 @@ data class SendUserInputCommand(
     val sessionId: WorkspaceAgentSessionId,
     val text: String,
     val enter: Boolean = true,
-) : Command<Unit>
+) : Command

@@ -9,6 +9,7 @@ import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSessi
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSessionStatus
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceStatus
+import com.jorisjonkers.personalstack.assistant.application.rag.ContextBuilder
 import com.jorisjonkers.personalstack.assistant.domain.port.AgentGatewayClient
 import com.jorisjonkers.personalstack.assistant.domain.port.TurnRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceAgentSessionRepository
@@ -26,7 +27,11 @@ class SendUserInputCommandHandlerTest {
     private val workspaces = mockk<WorkspaceRepository>()
     private val turns = mockk<TurnRepository>(relaxed = true)
     private val gateway = mockk<AgentGatewayClient>(relaxed = true)
-    private val handler = SendUserInputCommandHandler(sessions, workspaces, turns, gateway)
+    private val contextBuilder =
+        mockk<ContextBuilder> {
+            every { augment(any()) } answers { firstArg() }
+        }
+    private val handler = SendUserInputCommandHandler(sessions, workspaces, turns, gateway, contextBuilder)
 
     @Test
     fun `handle persists user turn and forwards input to the gateway`() {
@@ -42,6 +47,24 @@ class SendUserInputCommandHandlerTest {
         assertThat(savedTurn.captured.role).isEqualTo(TurnRole.USER)
         assertThat(savedTurn.captured.body).isEqualTo("hello")
         verify { gateway.sendInput(ws, "abc12345", "hello", true) }
+    }
+
+    @Test
+    fun `handle forwards the augmented prompt while persisting the raw user text`() {
+        val ws = workspace()
+        val session = session(ws.id, gatewayAgentId = "abc12345")
+        every { sessions.findById(session.id) } returns session
+        every { workspaces.findById(ws.id) } returns ws
+        val savedTurn = slot<Turn>()
+        every { turns.save(capture(savedTurn)) } answers { savedTurn.captured }
+        every { contextBuilder.augment("hello") } returns "<context>kb hit</context>\n\nhello"
+
+        handler.handle(SendUserInputCommand(sessionId = session.id, text = "hello"))
+
+        // Stored turn is the original user text (no RAG bleed-through into history)
+        assertThat(savedTurn.captured.body).isEqualTo("hello")
+        // Gateway gets the augmented form
+        verify { gateway.sendInput(ws, "abc12345", "<context>kb hit</context>\n\nhello", true) }
     }
 
     @Test

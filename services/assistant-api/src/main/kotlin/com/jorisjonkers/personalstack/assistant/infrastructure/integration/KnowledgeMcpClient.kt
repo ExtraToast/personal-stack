@@ -1,0 +1,102 @@
+package com.jorisjonkers.personalstack.assistant.infrastructure.integration
+
+import com.fasterxml.jackson.databind.JsonNode
+import com.jorisjonkers.personalstack.assistant.config.RagProperties
+import com.jorisjonkers.personalstack.assistant.domain.port.KnowledgeWritePort
+import com.jorisjonkers.personalstack.assistant.domain.port.RetrievalPort
+import org.slf4j.LoggerFactory
+import org.springframework.http.HttpHeaders
+import org.springframework.stereotype.Component
+import org.springframework.web.client.RestClient
+import java.util.concurrent.atomic.AtomicLong
+
+/**
+ * JSON-RPC over HTTP against knowledge-api's /mcp endpoint. The
+ * server speaks the MCP 2024-11 dialect; we only need two tools
+ * (`knowledge_recall` and `knowledge_capture_lesson`) so the client
+ * is one-call-per-method rather than a full session manager.
+ *
+ * Auth: bearer-token allow-list (see knowledge-api/vault-secrets);
+ * each calling service has its own token, scoped by Vault path.
+ */
+@Component
+class KnowledgeMcpClient(
+    private val restClient: RestClient,
+    private val props: RagProperties,
+) : RetrievalPort, KnowledgeWritePort {
+    private val log = LoggerFactory.getLogger(KnowledgeMcpClient::class.java)
+    private val seq = AtomicLong(0)
+
+    override fun retrieve(query: String, limit: Int): List<RetrievalPort.Snippet> {
+        if (!props.enabled) return emptyList()
+        val arguments = mapOf("query" to query, "limit" to limit)
+        return runCatching {
+            val resp = callTool("knowledge_recall", arguments) ?: return emptyList()
+            // CallToolResult.content is an array of TextContent { type, text }.
+            val text =
+                resp["result"]?.get("content")?.firstOrNull()?.get("text")?.asText()
+                    ?: return emptyList()
+            val hits = parseRecallHits(text)
+            hits.take(limit)
+        }.getOrElse {
+            log.warn("knowledge.recall failed: {}", it.message)
+            emptyList()
+        }
+    }
+
+    override fun ingestNote(title: String, body: String, scope: String, tags: List<String>) {
+        if (!props.enabled) return
+        runCatching {
+            callTool(
+                "knowledge_capture_lesson",
+                mapOf(
+                    "title" to title,
+                    "body" to body,
+                    "scope" to scope,
+                    "tags" to tags,
+                ),
+            )
+        }.onFailure { log.warn("knowledge.capture failed: {}", it.message) }
+    }
+
+    private fun callTool(name: String, arguments: Map<String, Any?>): JsonNode? {
+        val payload =
+            mapOf(
+                "jsonrpc" to "2.0",
+                "id" to seq.incrementAndGet(),
+                "method" to "tools/call",
+                "params" to mapOf("name" to name, "arguments" to arguments),
+            )
+        return restClient
+            .post()
+            .uri("${props.knowledgeMcpUrl}/mcp")
+            .headers { h ->
+                h[HttpHeaders.CONTENT_TYPE] = "application/json"
+                if (props.knowledgeMcpToken.isNotBlank()) {
+                    h[HttpHeaders.AUTHORIZATION] = "Bearer ${props.knowledgeMcpToken}"
+                }
+            }
+            .body(payload)
+            .retrieve()
+            .body(JsonNode::class.java)
+    }
+
+    private fun parseRecallHits(text: String): List<RetrievalPort.Snippet> {
+        // The recall tool's text form is one hit per blank-line-separated block:
+        // "title\nsnippet\n(score=0.42)". Keep parsing tolerant — server
+        // formatting churn shouldn't break agent context.
+        return text.split(Regex("\\n\\n+")).mapNotNull { chunk ->
+            val lines = chunk.lines().filter { it.isNotBlank() }
+            if (lines.isEmpty()) return@mapNotNull null
+            val score = scoreFromTrailer(lines.last())
+            val title = lines.first()
+            val body = lines.drop(1).filterNot { it.startsWith("(score=") }.joinToString("\n")
+            RetrievalPort.Snippet(source = "kb:$title", text = body.ifEmpty { title }, score = score)
+        }
+    }
+
+    private fun scoreFromTrailer(line: String): Double {
+        val m = Regex("score=([0-9.]+)").find(line) ?: return 0.0
+        return m.groupValues[1].toDoubleOrNull() ?: 0.0
+    }
+}
