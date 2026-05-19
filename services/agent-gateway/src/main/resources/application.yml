@@ -1,0 +1,57 @@
+spring:
+  application:
+    name: agent-gateway
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: 8090
+
+agent-gateway:
+  # Per-workspace runner Pods mount one PVC at /workspace. The
+  # gateway holds the canonical view of that mount; everything below
+  # is keyed off the same directory.
+  workspace-root: /workspace
+  # tmux state — sessions, logs, the fifo per pane the WS handler
+  # tails for streaming output. Kept under /tmp so a Pod restart
+  # is unambiguous (the log is gone, the agent is gone) instead of
+  # leaving half-attached panes behind on a volume.
+  tmux:
+    socket-name: agent-gw
+    state-dir: /tmp/agent-gateway
+  cli:
+    claude: ${CLAUDE_BIN:claude}
+    codex: ${CODEX_BIN:codex}
+  git:
+    # The deploy-key Secret is mounted into the Pod at this path by
+    # assistant-api when it creates the runner Pod (Step 3).
+    deploy-key-dir: /var/run/secrets/agents/github-deploy-key
+
+management:
+  endpoints:
+    web:
+      base-path: /api/actuator
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+      group:
+        liveness:
+          include: ping
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_PROBABILITY:1.0}
+    propagation:
+      type: w3c
+  otlp:
+    tracing:
+      endpoint: ${OTLP_TRACING_ENDPOINT:http://alloy.observability.svc.cluster.local:4318/v1/traces}
+  observations:
+    key-values:
+      service.name: ${spring.application.name}
+      deployment.environment: ${DEPLOYMENT_ENVIRONMENT:unknown}

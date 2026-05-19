@@ -32,4 +32,5 @@ if (file("platform/tooling").isDirectory || System.getenv("PLATFORM_TOOLING") ==
 include(":services:auth-api")
 include(":services:assistant-api")
 include(":services:knowledge-api")
+include(":services:agent-gateway")
 include(":services:system-tests")
