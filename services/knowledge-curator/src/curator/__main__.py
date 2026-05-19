@@ -75,6 +75,26 @@ def main() -> int:
         timeout_seconds=settings.ollama_request_timeout_seconds,
         client=shared_http,
     )
+    if not settings.knowledge_api_bearer_token:
+        # Missing-field-in-Vault is the typical cause: the
+        # `curator` field on `secret/knowledge-system/mcp-bearer`
+        # has to be patched in by hand alongside the per-device
+        # tokens. When it isn't, the Vault Agent template renders
+        # an empty string, the recall calls go out as
+        # `Authorization: Bearer ` (empty), and the API returns
+        # 401. The relation resolver swallows that as a generic
+        # recall failure and falls back to dropping dead edges —
+        # so the symptom is silent unless someone reads the warn
+        # logs. Surface it loudly on boot.
+        log.warning(
+            "curator.bearer_empty",
+            hint=(
+                "KNOWLEDGE_API_BEARER_TOKEN is empty. Recall calls "
+                "will return 401 and the relation resolver will "
+                "fall back to dropping dead edges. Add a `curator` "
+                "field to secret/knowledge-system/mcp-bearer."
+            ),
+        )
     recall = RecallClient(
         base_url=settings.knowledge_api_base_url,
         bearer_token=settings.knowledge_api_bearer_token,
