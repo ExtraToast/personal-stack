@@ -62,6 +62,9 @@ jobs:
               - 'services/assistant-api/**'
             knowledge-api:
               - 'services/knowledge-api/**'
+            agent-runner:
+              - 'services/agent-runner/**'
+              - 'services/agent-gateway/**'
             knowledge-ingest-worker:
               - 'services/knowledge-ingest-worker/**'
             knowledge-curator:
@@ -100,6 +103,7 @@ jobs:
           FILTER_AUTH_API: ${{ steps.filter.outputs.auth-api }}
           FILTER_ASSISTANT_API: ${{ steps.filter.outputs.assistant-api }}
           FILTER_KNOWLEDGE_API: ${{ steps.filter.outputs.knowledge-api }}
+          FILTER_AGENT_RUNNER: ${{ steps.filter.outputs.agent-runner }}
           FILTER_KNOWLEDGE_INGEST_WORKER: ${{ steps.filter.outputs.knowledge-ingest-worker }}
           FILTER_KNOWLEDGE_CURATOR: ${{ steps.filter.outputs.knowledge-curator }}
           FILTER_VUE_COMMON: ${{ steps.filter.outputs.vue-common }}
@@ -149,6 +153,12 @@ jobs:
           [[ "$(any "$FORCE_ALL" "$KOTLIN_SHARED"   "$FILTER_AUTH_API")"      == "true" ]] && append auth-api      services/auth-api/Dockerfile      "$AMD64"
           [[ "$(any "$FORCE_ALL" "$KOTLIN_SHARED"   "$FILTER_ASSISTANT_API")" == "true" ]] && append assistant-api services/assistant-api/Dockerfile "$AMD64"
           [[ "$(any "$FORCE_ALL" "$KOTLIN_SHARED"   "$FILTER_KNOWLEDGE_API")" == "true" ]] && append knowledge-api services/knowledge-api/Dockerfile "$AMD64"
+          # agent-runner bundles the agent-gateway jar (built from the
+          # same Gradle settings), so a single image rebuild covers both
+          # the per-workspace tmux/runner shell and the gateway HTTP
+          # sidecar. amd64-only — the credential PVCs pin every
+          # consumer to a single amd64 Enschede worker anyway.
+          [[ "$(any "$FORCE_ALL" "$KOTLIN_SHARED"   "$FILTER_AGENT_RUNNER")" == "true" ]] && append agent-runner services/agent-runner/Dockerfile "$AMD64"
           # Python services — only depend on their own dir; no shared
           # Kotlin or frontend trigger keys.
           [[ "$(any "$FORCE_ALL" "$FILTER_WORKFLOW" "$FILTER_KNOWLEDGE_INGEST_WORKER")" == "true" ]] && append knowledge-ingest-worker services/knowledge-ingest-worker/Dockerfile "$AMD64"
