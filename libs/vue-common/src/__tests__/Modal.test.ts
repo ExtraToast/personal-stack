@@ -34,7 +34,7 @@ describe('modal', () => {
       props: { open: true, title: 'Confirm' },
       attachTo: document.body,
     })
-    const closeBtn = document.body.querySelector('[data-testid="modal-close"]') as HTMLElement
+    const closeBtn = document.body.querySelector<HTMLElement>('[data-testid="modal-close"]')!
     closeBtn.click()
     expect(wrapper.emitted('close')).toBeTruthy()
     wrapper.unmount()
@@ -45,7 +45,7 @@ describe('modal', () => {
       props: { open: true, title: 'Confirm' },
       attachTo: document.body,
     })
-    const backdrop = document.body.querySelector('[data-testid="modal-backdrop"]') as HTMLElement
+    const backdrop = document.body.querySelector<HTMLElement>('[data-testid="modal-backdrop"]')!
     backdrop.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     // jsdom's .click() on backdrop is intercepted by @click.self only when
     // event.target === currentTarget; ensure the synthetic event satisfies this.
@@ -58,7 +58,7 @@ describe('modal', () => {
       props: { open: true, title: 'Confirm', dismissOnBackdrop: false },
       attachTo: document.body,
     })
-    const backdrop = document.body.querySelector('[data-testid="modal-backdrop"]') as HTMLElement
+    const backdrop = document.body.querySelector<HTMLElement>('[data-testid="modal-backdrop"]')!
     backdrop.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     expect(wrapper.emitted('close')).toBeUndefined()
     wrapper.unmount()

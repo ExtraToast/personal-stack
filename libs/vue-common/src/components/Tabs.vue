@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import type { Ref } from 'vue'
-import { computed, provide, readonly, ref } from 'vue'
+import { computed, provide, ref } from 'vue'
 import { tabsInjectionKey } from './tabsContext'
 
 interface Props {
@@ -29,7 +28,7 @@ const active = computed<string>({
 })
 
 provide(tabsInjectionKey, {
-  active: readonly(active) as Readonly<Ref<string>>,
+  active,
   register(value: string) {
     if (!known.value.includes(value)) {
       known.value.push(value)
