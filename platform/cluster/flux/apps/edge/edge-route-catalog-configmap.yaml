@@ -101,6 +101,7 @@ data:
       - "/mcp/"
       excluded_paths:
       - "/mcp"
+      - "/install.sh"
     - name: "knowledge-api-mcp"
       service: "knowledge-api"
       host: "kb.jorisjonkers.dev"
@@ -109,6 +110,7 @@ data:
       - "/mcp/"
       exact_paths:
       - "/mcp"
+      - "/install.sh"
     - name: "n8n"
       service: "n8n"
       host: "n8n.jorisjonkers.dev"

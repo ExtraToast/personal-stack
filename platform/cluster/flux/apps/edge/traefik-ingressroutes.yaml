@@ -363,7 +363,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: 'Host(`kb.jorisjonkers.dev`) && !PathPrefix(`/mcp/`) && !Path(`/mcp`)'
+      match: 'Host(`kb.jorisjonkers.dev`) && !PathPrefix(`/mcp/`) && !Path(`/mcp`) && !Path(`/install.sh`)'
       middlewares:
         - name: forward-auth
           namespace: edge-system
@@ -387,7 +387,7 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: 'Host(`kb.jorisjonkers.dev`) && (PathPrefix(`/mcp/`) || Path(`/mcp`))'
+      match: 'Host(`kb.jorisjonkers.dev`) && (PathPrefix(`/mcp/`) || Path(`/mcp`) || Path(`/install.sh`))'
       services:
         - name: knowledge-api
           namespace: knowledge-system
