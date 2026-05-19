@@ -10,7 +10,9 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
  * into Text blocks. Anything that doesn't parse cleanly is
  * preserved as Text so we never silently drop output.
  */
-class BlockParser(private val mapper: ObjectMapper = jacksonObjectMapper()) {
+class BlockParser(
+    private val mapper: ObjectMapper = jacksonObjectMapper(),
+) {
     private val fence = Regex("```block\\s*\\n([\\s\\S]*?)```", RegexOption.MULTILINE)
 
     fun parse(stream: String): List<Block> {

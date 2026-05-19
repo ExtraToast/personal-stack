@@ -19,7 +19,10 @@ import org.springframework.vault.core.VaultTemplate
 open class SpringVaultKeyValueWriter(
     private val vaultTemplate: VaultTemplate,
 ) : VaultKeyValueWriter {
-    override fun writeSecret(path: String, data: Map<String, String>) {
+    override fun writeSecret(
+        path: String,
+        data: Map<String, String>,
+    ) {
         vaultTemplate.write(path, mapOf("data" to data))
     }
 

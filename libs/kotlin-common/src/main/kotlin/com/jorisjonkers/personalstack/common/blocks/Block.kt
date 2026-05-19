@@ -30,17 +30,38 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
     JsonSubTypes.Type(value = Block.Approval::class, name = "approval"),
 )
 sealed interface Block {
-    data class Text(val md: String) : Block
+    data class Text(
+        val md: String,
+    ) : Block
 
-    data class ChoiceOption(val id: String, val label: String)
+    data class ChoiceOption(
+        val id: String,
+        val label: String,
+    )
 
-    data class Choice(val prompt: String, val options: List<ChoiceOption>) : Block
+    data class Choice(
+        val prompt: String,
+        val options: List<ChoiceOption>,
+    ) : Block
 
-    data class Form(val schema: Map<String, Any>, val submitLabel: String = "Submit") : Block
+    data class Form(
+        val schema: Map<String, Any>,
+        val submitLabel: String = "Submit",
+    ) : Block
 
-    data class Diff(val path: String, val patch: String) : Block
+    data class Diff(
+        val path: String,
+        val patch: String,
+    ) : Block
 
-    data class ToolCall(val name: String, val args: Map<String, Any>, val result: Any? = null) : Block
+    data class ToolCall(
+        val name: String,
+        val args: Map<String, Any>,
+        val result: Any? = null,
+    ) : Block
 
-    data class Approval(val action: String, val payload: Map<String, Any>) : Block
+    data class Approval(
+        val action: String,
+        val payload: Map<String, Any>,
+    ) : Block
 }

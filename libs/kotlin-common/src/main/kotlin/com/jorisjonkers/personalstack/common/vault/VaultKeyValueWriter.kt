@@ -8,7 +8,10 @@ package com.jorisjonkers.personalstack.common.vault
  * adapter is responsible for any backend-specific wrapping.
  */
 interface VaultKeyValueWriter {
-    fun writeSecret(path: String, data: Map<String, String>)
+    fun writeSecret(
+        path: String,
+        data: Map<String, String>,
+    )
 
     fun deleteSecret(path: String)
 }
