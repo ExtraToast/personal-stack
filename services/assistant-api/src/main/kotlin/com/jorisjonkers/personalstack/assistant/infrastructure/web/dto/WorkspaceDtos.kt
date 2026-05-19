@@ -15,6 +15,13 @@ data class CreateWorkspaceRequest(
     val name: String,
     val repoUrl: String? = null,
     val branch: String? = null,
+    /**
+     * Optional. When set, repoUrl + branch are derived from the
+     * GithubLink (any values supplied alongside are ignored on the
+     * server) and the workspace will get the per-link deploy key
+     * mounted instead of the shared one.
+     */
+    val githubLinkId: UUID? = null,
 )
 
 data class WorkspaceResponse(
@@ -25,6 +32,7 @@ data class WorkspaceResponse(
     val podName: String?,
     val gatewayEndpoint: String?,
     val status: String,
+    val githubLinkId: UUID?,
     val createdAt: Instant,
     val updatedAt: Instant,
 ) {
@@ -38,6 +46,7 @@ data class WorkspaceResponse(
                 podName = w.podName,
                 gatewayEndpoint = w.gatewayEndpoint,
                 status = w.status.name,
+                githubLinkId = w.githubLinkId?.value,
                 createdAt = w.createdAt,
                 updatedAt = w.updatedAt,
             )

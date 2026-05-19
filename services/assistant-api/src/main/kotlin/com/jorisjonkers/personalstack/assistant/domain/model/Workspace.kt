@@ -21,6 +21,14 @@ data class Workspace(
     val status: WorkspaceStatus,
     val createdAt: Instant,
     val updatedAt: Instant,
+    /**
+     * Optional link to a GithubLink under a Project. When set, the
+     * orchestrator stamps the link's per-repo deploy key into a
+     * workspace-scoped k8s Secret and mounts that instead of the
+     * cluster-wide default. Ad-hoc workspaces (no Project) leave
+     * this null and fall back to the shared `agents-github-deploy-key`.
+     */
+    val githubLinkId: GithubLinkId? = null,
 ) {
     val isRepoBacked: Boolean get() = repoUrl != null
 

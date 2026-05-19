@@ -1,5 +1,6 @@
 package com.jorisjonkers.personalstack.assistant.infrastructure.persistence
 
+import com.jorisjonkers.personalstack.assistant.domain.model.GithubLinkId
 import com.jorisjonkers.personalstack.assistant.domain.model.Workspace
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceStatus
@@ -36,6 +37,7 @@ class JooqWorkspaceRepository(private val dsl: DSLContext) : WorkspaceRepository
             .set(PVC_NAME, workspace.pvcName)
             .set(GATEWAY_ENDPOINT, workspace.gatewayEndpoint)
             .set(STATUS, workspace.status.name)
+            .set(GITHUB_LINK_ID, workspace.githubLinkId?.value)
             .set(CREATED_AT, createdAt)
             .set(UPDATED_AT, updatedAt)
             .onConflict(ID)
@@ -47,6 +49,7 @@ class JooqWorkspaceRepository(private val dsl: DSLContext) : WorkspaceRepository
             .set(PVC_NAME, workspace.pvcName)
             .set(GATEWAY_ENDPOINT, workspace.gatewayEndpoint)
             .set(STATUS, workspace.status.name)
+            .set(GITHUB_LINK_ID, workspace.githubLinkId?.value)
             .set(UPDATED_AT, updatedAt)
             .execute()
         return workspace
@@ -77,6 +80,7 @@ class JooqWorkspaceRepository(private val dsl: DSLContext) : WorkspaceRepository
             pvcName = this[PVC_NAME] as String?,
             gatewayEndpoint = this[GATEWAY_ENDPOINT] as String?,
             status = WorkspaceStatus.valueOf(this[STATUS] as String),
+            githubLinkId = (this[GITHUB_LINK_ID] as UUID?)?.let { GithubLinkId(it) },
             createdAt = (this[CREATED_AT] as OffsetDateTime).toInstant(),
             updatedAt = (this[UPDATED_AT] as OffsetDateTime).toInstant(),
         )
@@ -99,6 +103,8 @@ class JooqWorkspaceRepository(private val dsl: DSLContext) : WorkspaceRepository
         @JvmStatic val GATEWAY_ENDPOINT = DSL.field("gateway_endpoint", String::class.java)
 
         @JvmStatic val STATUS = DSL.field("status", String::class.java)
+
+        @JvmStatic val GITHUB_LINK_ID = DSL.field("github_link_id", UUID::class.java)
 
         @JvmStatic val CREATED_AT = DSL.field("created_at", OffsetDateTime::class.java)
 

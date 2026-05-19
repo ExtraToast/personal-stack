@@ -4,6 +4,7 @@ import com.jorisjonkers.personalstack.assistant.application.command.CreateWorksp
 import com.jorisjonkers.personalstack.assistant.application.command.DestroyWorkspaceCommand
 import com.jorisjonkers.personalstack.assistant.application.query.GetWorkspaceQueryService
 import com.jorisjonkers.personalstack.assistant.application.query.ListWorkspacesQueryService
+import com.jorisjonkers.personalstack.assistant.domain.model.GithubLinkId
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.CreateWorkspaceRequest
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.WorkspaceAgentSessionResponse
@@ -34,7 +35,13 @@ class WorkspaceController(
     ): ResponseEntity<WorkspaceResponse> {
         val id = WorkspaceId.random()
         commandBus.dispatch(
-            CreateWorkspaceCommand(workspaceId = id, name = req.name, repoUrl = req.repoUrl, branch = req.branch),
+            CreateWorkspaceCommand(
+                workspaceId = id,
+                name = req.name,
+                repoUrl = req.repoUrl,
+                branch = req.branch,
+                githubLinkId = req.githubLinkId?.let { GithubLinkId(it) },
+            ),
         )
         val view = getQuery.get(id) ?: error("created workspace not visible immediately — repository sync bug")
         return ResponseEntity.status(HttpStatus.CREATED).body(WorkspaceResponse.of(view.workspace))

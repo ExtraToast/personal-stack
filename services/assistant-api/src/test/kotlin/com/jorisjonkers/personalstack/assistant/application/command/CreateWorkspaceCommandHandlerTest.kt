@@ -1,24 +1,33 @@
 package com.jorisjonkers.personalstack.assistant.application.command
 
+import com.jorisjonkers.personalstack.assistant.domain.model.GithubLink
+import com.jorisjonkers.personalstack.assistant.domain.model.GithubLinkId
+import com.jorisjonkers.personalstack.assistant.domain.model.ProjectId
 import com.jorisjonkers.personalstack.assistant.domain.model.Workspace
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId
 import com.jorisjonkers.personalstack.assistant.domain.port.AgentGatewayClient
 import com.jorisjonkers.personalstack.assistant.domain.port.AgentRunnerOrchestrator
+import com.jorisjonkers.personalstack.assistant.domain.port.GithubLinkRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepository
-import io.mockk.Runs
 import io.mockk.every
-import io.mockk.just
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.ObjectProvider
+import java.time.Instant
 
 class CreateWorkspaceCommandHandlerTest {
     private val workspaces = mockk<WorkspaceRepository>()
     private val orchestrator = mockk<AgentRunnerOrchestrator>()
     private val gateway = mockk<AgentGatewayClient>()
-    private val handler = CreateWorkspaceCommandHandler(workspaces, orchestrator, gateway)
+    private val githubLinks = mockk<GithubLinkRepository>()
+    private val provider =
+        mockk<ObjectProvider<GithubLinkRepository>> {
+            every { ifAvailable } returns githubLinks
+        }
+    private val handler = CreateWorkspaceCommandHandler(workspaces, orchestrator, gateway, provider)
 
     @Test
     fun `handle persists workspace, provisions Pod, and clones when repo is provided`() {
@@ -44,7 +53,6 @@ class CreateWorkspaceCommandHandlerTest {
 
         verify { orchestrator.provision(any()) }
         verify { gateway.clone(any(), "git@github.com:owner/repo.git", null) }
-        // save called twice: once with PENDING, once with STARTING after provisioning.
         verify(exactly = 2) { workspaces.save(any()) }
     }
 
@@ -85,6 +93,44 @@ class CreateWorkspaceCommandHandlerTest {
                 branch = null,
             ),
         )
-        // No throw — clone failure is best-effort
+    }
+
+    @Test
+    fun `handle resolves repoUrl + branch from a GithubLink when linkId is set`() {
+        val linkId = GithubLinkId.random()
+        val link =
+            GithubLink(
+                id = linkId,
+                projectId = ProjectId.random(),
+                name = "personal-stack",
+                repoUrl = "git@github.com:ExtraToast/personal-stack.git",
+                defaultBranch = "main",
+                vaultKeyPath = "secret/data/agents/projects/x/repos/y",
+                deployKeyFingerprint = "SHA256:abcd",
+                deployKeyAddedAt = Instant.now(),
+                createdAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
+        every { githubLinks.findById(linkId) } returns link
+        val saved = mutableListOf<Workspace>()
+        every { workspaces.save(capture(saved)) } answers { firstArg() }
+        every { orchestrator.provision(any()) } returns
+            AgentRunnerOrchestrator.RunnerHandle("p", "v", "http://p.svc:8090")
+        every { gateway.clone(any(), any(), any()) } returns "/workspace/personal-stack"
+
+        handler.handle(
+            CreateWorkspaceCommand(
+                workspaceId = WorkspaceId.random(),
+                name = "demo",
+                repoUrl = null,
+                branch = null,
+                githubLinkId = linkId,
+            ),
+        )
+
+        assertThat(saved.first().repoUrl).isEqualTo("git@github.com:ExtraToast/personal-stack.git")
+        assertThat(saved.first().branch).isEqualTo("main")
+        assertThat(saved.first().githubLinkId).isEqualTo(linkId)
+        verify { gateway.clone(any(), "git@github.com:ExtraToast/personal-stack.git", "main") }
     }
 }
