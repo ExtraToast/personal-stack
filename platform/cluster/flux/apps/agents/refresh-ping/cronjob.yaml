@@ -63,7 +63,19 @@ spec:
                   # `--no-stream` was removed in Codex CLI 0.131.0;
                   # `codex exec` without a TTY already prints the final
                   # answer instead of streaming token-by-token.
-                  codex exec 'reply with the single word: pong' || fail=1
+                  #
+                  # `--skip-git-repo-check`: Codex 0.131.0 refuses to
+                  # run outside a git repo unless this flag is set.
+                  # The ping Pod has no working directory — it just
+                  # runs in /home/agent — so we always pass it. Per-
+                  # workspace runner Pods do their work from inside a
+                  # cloned git repo and don't need this.
+                  #
+                  # `</dev/null`: Codex keeps stdin open and prints
+                  # "Reading additional input from stdin..." even when
+                  # the prompt is supplied positionally. Closing stdin
+                  # makes the CLI proceed without waiting.
+                  codex exec --skip-git-repo-check 'reply with the single word: pong' </dev/null || fail=1
                   if [ "$fail" -ne 0 ]; then
                     echo "[ping] one or more CLIs failed — credentials may need refresh via auth-bootstrap"
                     exit 1
