@@ -101,6 +101,204 @@ class AssistantApiContractIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
+    fun `repository creation response matches expected schema`() {
+        val unique = UUID.randomUUID().toString().take(8)
+        mockMvc
+            .perform(
+                post("/api/v1/repositories")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        objectMapper.writeValueAsString(
+                            mapOf(
+                                "name" to "repo-$unique",
+                                "repoUrl" to "git@github.com:owner/repo-$unique.git",
+                                "defaultBranch" to "main",
+                            ),
+                        ),
+                    ),
+            ).andExpect(status().isCreated)
+            .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(jsonPath("$.id").exists())
+            .andExpect(jsonPath("$.name").value("repo-$unique"))
+            .andExpect(jsonPath("$.repoUrl").value("git@github.com:owner/repo-$unique.git"))
+            .andExpect(jsonPath("$.defaultBranch").value("main"))
+            .andExpect(jsonPath("$.deployKeyFingerprint").isEmpty)
+    }
+
+    @Test
+    fun `repository list response is a JSON array`() {
+        val unique = UUID.randomUUID().toString().take(8)
+        mockMvc.perform(
+            post("/api/v1/repositories")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        mapOf(
+                            "name" to "list-$unique",
+                            "repoUrl" to "git@github.com:o/list-$unique.git",
+                        ),
+                    ),
+                ),
+        )
+
+        mockMvc
+            .perform(get("/api/v1/repositories"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$").isArray)
+    }
+
+    @Test
+    fun `repository detail returns attached projects array`() {
+        val unique = UUID.randomUUID().toString().take(8)
+        val createResult =
+            mockMvc
+                .perform(
+                    post("/api/v1/repositories")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            objectMapper.writeValueAsString(
+                                mapOf(
+                                    "name" to "detail-$unique",
+                                    "repoUrl" to "git@github.com:o/detail-$unique.git",
+                                ),
+                            ),
+                        ),
+                ).andExpect(status().isCreated)
+                .andReturn()
+        val repoId = objectMapper.readTree(createResult.response.contentAsString)["id"].asText()
+        mockMvc
+            .perform(get("/api/v1/repositories/$repoId"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.repository.id").value(repoId))
+            .andExpect(jsonPath("$.attachedProjects").isArray)
+    }
+
+    @Test
+    fun `linking and unlinking a repository to a project surfaces in detail responses`() {
+        val unique = UUID.randomUUID().toString().take(8)
+        val projectResult =
+            mockMvc
+                .perform(
+                    post("/api/v1/projects")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            objectMapper.writeValueAsString(
+                                mapOf("name" to "Project $unique", "slug" to "project-$unique"),
+                            ),
+                        ),
+                ).andExpect(status().isCreated)
+                .andReturn()
+        val projectId = objectMapper.readTree(projectResult.response.contentAsString)["id"].asText()
+
+        val repoResult =
+            mockMvc
+                .perform(
+                    post("/api/v1/repositories")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            objectMapper.writeValueAsString(
+                                mapOf(
+                                    "name" to "link-$unique",
+                                    "repoUrl" to "git@github.com:o/link-$unique.git",
+                                ),
+                            ),
+                        ),
+                ).andExpect(status().isCreated)
+                .andReturn()
+        val repoId = objectMapper.readTree(repoResult.response.contentAsString)["id"].asText()
+
+        mockMvc
+            .perform(
+                post("/api/v1/projects/$projectId/repositories")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(mapOf("repositoryId" to repoId))),
+            ).andExpect(status().isCreated)
+            .andExpect(jsonPath("$[0].id").value(repoId))
+
+        mockMvc
+            .perform(get("/api/v1/projects/$projectId"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.repositories[0].id").value(repoId))
+
+        mockMvc
+            .perform(get("/api/v1/repositories/$repoId"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.attachedProjects[0].id").value(projectId))
+
+        mockMvc
+            .perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/v1/projects/$projectId/repositories/$repoId"))
+            .andExpect(status().isNoContent)
+    }
+
+    @Test
+    fun `chat session creation response matches expected schema`() {
+        val userId = UUID.randomUUID().toString()
+        mockMvc
+            .perform(
+                post("/api/v1/chat-sessions")
+                    .header("X-User-Id", userId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(mapOf("title" to "Demo chat"))),
+            ).andExpect(status().isCreated)
+            .andExpect(jsonPath("$.id").exists())
+            .andExpect(jsonPath("$.userId").value(userId))
+            .andExpect(jsonPath("$.title").value("Demo chat"))
+            .andExpect(jsonPath("$.status").value("ACTIVE"))
+    }
+
+    @Test
+    fun `chat session list endpoint returns array for user`() {
+        val userId = UUID.randomUUID().toString()
+        mockMvc.perform(
+            post("/api/v1/chat-sessions")
+                .header("X-User-Id", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(mapOf("title" to "List me"))),
+        )
+        mockMvc
+            .perform(get("/api/v1/chat-sessions").header("X-User-Id", userId))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$").isArray)
+            .andExpect(jsonPath("$[0].id").exists())
+            .andExpect(jsonPath("$[0].status").exists())
+    }
+
+    @Test
+    fun `appending a chat message returns the message envelope and surfaces in detail`() {
+        val userId = UUID.randomUUID().toString()
+        val createResult =
+            mockMvc
+                .perform(
+                    post("/api/v1/chat-sessions")
+                        .header("X-User-Id", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(mapOf("title" to "msg-test"))),
+                ).andExpect(status().isCreated)
+                .andReturn()
+        val sessionId = objectMapper.readTree(createResult.response.contentAsString)["id"].asText()
+
+        mockMvc
+            .perform(
+                post("/api/v1/chat-sessions/$sessionId/messages")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        objectMapper.writeValueAsString(
+                            mapOf("body" to "hello world", "role" to "USER"),
+                        ),
+                    ),
+            ).andExpect(status().isCreated)
+            .andExpect(jsonPath("$.body").value("hello world"))
+            .andExpect(jsonPath("$.role").value("USER"))
+            .andExpect(jsonPath("$.sessionId").value(sessionId))
+
+        mockMvc
+            .perform(get("/api/v1/chat-sessions/$sessionId"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.session.id").value(sessionId))
+            .andExpect(jsonPath("$.messages[0].body").value("hello world"))
+    }
+
+    @Test
     fun `conversation list response is valid JSON array`() {
         val userId = UUID.randomUUID().toString()
 

@@ -3,12 +3,25 @@ package com.jorisjonkers.personalstack.assistant.domain.model
 import java.time.Instant
 
 /**
- * A Workspace is a long-lived "place where agents work". Either a
- * GitHub repo clone or a repo-less Q&A environment.
+ * A Workspace is a long-lived "place where agents work". Three
+ * flavours discriminated by [kind]:
  *
- * `repoUrl` is null for the Q&A flavour — the runner Pod still mounts
- * an empty workspace volume so file operations are possible, just
- * without a clone or push target.
+ * - `REPO_BACKED` — `repositoryId` points at a [Repository], the
+ *   orchestrator clones it and stamps the per-repo deploy key into
+ *   a workspace-scoped k8s Secret.
+ * - `SCRATCH`     — Pod without a clone. `repositoryId` is null.
+ * - `CHAT`        — never actually persisted as a workspace row
+ *   today; chat lives in its own [ChatSession] table. The enum
+ *   value exists for type-symmetry with the UI tabs.
+ *
+ * `projectId` is set when the workspace was opened "inside a
+ * project context" so the UI can group workspaces by project; it
+ * stays null for ad-hoc work.
+ *
+ * `githubLinkId` is kept around through the M:N migration window so
+ * the orchestrator and Vault adapter continue to find the legacy
+ * per-link path. New code reads [repositoryId]; a follow-up PR
+ * drops the column once every consumer migrates.
  */
 data class Workspace(
     val id: WorkspaceId,
@@ -21,13 +34,14 @@ data class Workspace(
     val status: WorkspaceStatus,
     val createdAt: Instant,
     val updatedAt: Instant,
-    /**
-     * Optional link to a GithubLink under a Project. When set, the
-     * orchestrator stamps the link's per-repo deploy key into a
-     * workspace-scoped k8s Secret and mounts that instead of the
-     * cluster-wide default. Ad-hoc workspaces (no Project) leave
-     * this null and fall back to the shared `agents-github-deploy-key`.
-     */
+    val repositoryId: RepositoryId? = null,
+    val projectId: ProjectId? = null,
+    val kind: WorkspaceKind = WorkspaceKind.REPO_BACKED,
+    @Deprecated(
+        "Use repositoryId — kept for the V9 migration window so legacy " +
+            "rows + the orchestrator's per-link deploy-key lookup keep working.",
+        ReplaceWith("repositoryId"),
+    )
     val githubLinkId: GithubLinkId? = null,
 ) {
     val isRepoBacked: Boolean get() = repoUrl != null

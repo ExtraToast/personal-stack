@@ -314,6 +314,24 @@ class Fabric8AgentRunnerOrchestratorIntegrationTest {
             projectId: ProjectId,
             linkId: GithubLinkId,
         ): DeployKeyStore.KeyMaterial? = if (linkId == this.linkId) material else null
+
+        override fun store(
+            repositoryId: com.jorisjonkers.personalstack.assistant.domain.model.RepositoryId,
+            privateKeyOpenssh: String,
+            publicKeyOpenssh: String,
+            knownHosts: String,
+        ): DeployKeyStore.StoredKey = error("not used in this test")
+
+        override fun remove(repositoryId: com.jorisjonkers.personalstack.assistant.domain.model.RepositoryId) =
+            error("not used in this test")
+
+        override fun readPublicKey(
+            repositoryId: com.jorisjonkers.personalstack.assistant.domain.model.RepositoryId,
+        ): String? = material.publicKey
+
+        override fun loadKey(
+            repositoryId: com.jorisjonkers.personalstack.assistant.domain.model.RepositoryId,
+        ): DeployKeyStore.KeyMaterial? = if (repositoryId.value == linkId.value) material else null
     }
 
     private class SingleEntryGithubLinkRepo(

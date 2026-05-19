@@ -1,8 +1,11 @@
 package com.jorisjonkers.personalstack.assistant.infrastructure.persistence
 
 import com.jorisjonkers.personalstack.assistant.domain.model.GithubLinkId
+import com.jorisjonkers.personalstack.assistant.domain.model.ProjectId
+import com.jorisjonkers.personalstack.assistant.domain.model.RepositoryId
 import com.jorisjonkers.personalstack.assistant.domain.model.Workspace
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId
+import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceKind
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceStatus
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepository
 import org.jooq.DSLContext
@@ -23,6 +26,7 @@ import java.util.UUID
  * audit-log persistence, which predates the codegen plugin.
  */
 @Repository
+@Suppress("DEPRECATION")
 class JooqWorkspaceRepository(
     private val dsl: DSLContext,
 ) : WorkspaceRepository {
@@ -40,6 +44,9 @@ class JooqWorkspaceRepository(
             .set(GATEWAY_ENDPOINT, workspace.gatewayEndpoint)
             .set(STATUS, workspace.status.name)
             .set(GITHUB_LINK_ID, workspace.githubLinkId?.value)
+            .set(REPOSITORY_ID, workspace.repositoryId?.value)
+            .set(PROJECT_ID, workspace.projectId?.value)
+            .set(KIND, workspace.kind.name)
             .set(CREATED_AT, createdAt)
             .set(UPDATED_AT, updatedAt)
             .onConflict(ID)
@@ -52,6 +59,9 @@ class JooqWorkspaceRepository(
             .set(GATEWAY_ENDPOINT, workspace.gatewayEndpoint)
             .set(STATUS, workspace.status.name)
             .set(GITHUB_LINK_ID, workspace.githubLinkId?.value)
+            .set(REPOSITORY_ID, workspace.repositoryId?.value)
+            .set(PROJECT_ID, workspace.projectId?.value)
+            .set(KIND, workspace.kind.name)
             .set(UPDATED_AT, updatedAt)
             .execute()
         return workspace
@@ -87,6 +97,9 @@ class JooqWorkspaceRepository(
             gatewayEndpoint = this[GATEWAY_ENDPOINT],
             status = WorkspaceStatus.valueOf(this[STATUS]),
             githubLinkId = this[GITHUB_LINK_ID]?.let { GithubLinkId(it) },
+            repositoryId = this[REPOSITORY_ID]?.let { RepositoryId(it) },
+            projectId = this[PROJECT_ID]?.let { ProjectId(it) },
+            kind = WorkspaceKind.valueOf(this[KIND]),
             createdAt = this[CREATED_AT].toInstant(),
             updatedAt = this[UPDATED_AT].toInstant(),
         )
@@ -111,6 +124,12 @@ class JooqWorkspaceRepository(
         @JvmStatic val STATUS = DSL.field("status", String::class.java)
 
         @JvmStatic val GITHUB_LINK_ID = DSL.field("github_link_id", UUID::class.java)
+
+        @JvmStatic val REPOSITORY_ID = DSL.field("repository_id", UUID::class.java)
+
+        @JvmStatic val PROJECT_ID = DSL.field("project_id", UUID::class.java)
+
+        @JvmStatic val KIND = DSL.field("kind", String::class.java)
 
         @JvmStatic val CREATED_AT = DSL.field("created_at", OffsetDateTime::class.java)
 

@@ -4,6 +4,7 @@ import com.jorisjonkers.personalstack.assistant.domain.model.Turn
 import com.jorisjonkers.personalstack.assistant.domain.model.Workspace
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentKind
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSession
+import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceKind
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
 import java.time.Instant
@@ -16,14 +17,31 @@ data class CreateWorkspaceRequest(
     val repoUrl: String? = null,
     val branch: String? = null,
     /**
-     * Optional. When set, repoUrl + branch are derived from the
-     * GithubLink (any values supplied alongside are ignored on the
-     * server) and the workspace will get the per-link deploy key
-     * mounted instead of the shared one.
+     * Workspace flavour. Defaults to REPO_BACKED so the existing UI
+     * (which doesn't yet send this field) keeps the previous shape.
      */
+    val kind: WorkspaceKind = WorkspaceKind.REPO_BACKED,
+    /**
+     * Optional project context. Set when the workspace was opened
+     * from a project's UI; null for ad-hoc work.
+     */
+    val projectId: UUID? = null,
+    /**
+     * Preferred way to bind a workspace to a repo + its deploy key.
+     * When set, `repoUrl` / `branch` are derived from the
+     * Repository row.
+     */
+    val repositoryId: UUID? = null,
+    /**
+     * Deprecated alias for [repositoryId]. Kept until PR F migrates
+     * the assistant-ui to the new field. The server prefers
+     * [repositoryId] when both are supplied.
+     */
+    @Deprecated("Use repositoryId", ReplaceWith("repositoryId"))
     val githubLinkId: UUID? = null,
 )
 
+@Suppress("DEPRECATION")
 data class WorkspaceResponse(
     val id: UUID,
     val name: String,
@@ -32,6 +50,9 @@ data class WorkspaceResponse(
     val podName: String?,
     val gatewayEndpoint: String?,
     val status: String,
+    val kind: String,
+    val projectId: UUID?,
+    val repositoryId: UUID?,
     val githubLinkId: UUID?,
     val createdAt: Instant,
     val updatedAt: Instant,
@@ -46,6 +67,9 @@ data class WorkspaceResponse(
                 podName = w.podName,
                 gatewayEndpoint = w.gatewayEndpoint,
                 status = w.status.name,
+                kind = w.kind.name,
+                projectId = w.projectId?.value,
+                repositoryId = w.repositoryId?.value,
                 githubLinkId = w.githubLinkId?.value,
                 createdAt = w.createdAt,
                 updatedAt = w.updatedAt,

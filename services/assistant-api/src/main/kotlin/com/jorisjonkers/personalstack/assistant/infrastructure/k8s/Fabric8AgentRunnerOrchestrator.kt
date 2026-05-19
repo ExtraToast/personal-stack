@@ -44,7 +44,7 @@ import java.util.Base64
  * readability win. The class stays as a single orchestrator because
  * every helper here operates on the same shared props + client.
  */
-@Suppress("TooManyFunctions", "LargeClass")
+@Suppress("TooManyFunctions", "LargeClass", "DEPRECATION")
 @Component
 class Fabric8AgentRunnerOrchestrator(
     private val client: KubernetesClient,
