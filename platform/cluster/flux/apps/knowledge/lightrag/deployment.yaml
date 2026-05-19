@@ -108,7 +108,11 @@ spec:
             - name: LLM_BINDING_HOST
               value: http://ollama.knowledge-system.svc.cluster.local:11434/v1/
             - name: LLM_MODEL
-              value: qwen2.5:14b-instruct-q4_K_M
+              # 7b fits cleanly in the 4 GiB GPU cards. 14b spills
+              # to CPU under the current hardware envelope and the
+              # llama-runner has crashed under load. Revisit on
+              # a bigger GPU.
+              value: qwen2.5:7b-instruct
             - name: EMBEDDING_BINDING
               value: openai
             - name: EMBEDDING_BINDING_HOST

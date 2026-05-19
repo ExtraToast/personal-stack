@@ -4,20 +4,27 @@
 # nomic-embed-text similarity-recall path.
 #
 # Schedules on an enschede node carrying `capability-nvidia: true`
-# (the GTX-960M / T1000 boxes). Uses the `nvidia-cdi` RuntimeClass
-# documented in CLAUDE.md — the only NVIDIA path that actually
-# works on this stack today.
+# — either GTX 960M or T1000, both with 4 GiB VRAM. No node
+# preference: T1000 is already shared with other GPU workloads,
+# so the scheduler picks whichever is least loaded.
+#
+# Uses the `nvidia-cdi` RuntimeClass documented in CLAUDE.md — the
+# only NVIDIA path that actually works on this stack today.
 #
 # Models are pulled lazily on first request and persisted to the
-# RWO `ollama-models` PVC (~16 GiB to fit qwen2.5:14b ≈ 9 GiB +
-# nomic-embed-text ≈ 274 MiB + headroom). Init container pre-pulls
-# the standard model set so the first curator request after a
-# fresh deploy doesn't 60-second-block on a model load + download.
+# RWO `ollama-models` PVC. Init container pre-pulls
+# `qwen2.5:7b-instruct` (~4.4 GiB) + `nomic-embed-text` (~274 MiB)
+# so the first curator request after a fresh deploy doesn't
+# 60-second-block on a model load + download. The 7b model is
+# what fits the available 4 GiB VRAM hardware (T1000 / GTX 960M);
+# larger models (14b, 32b) would overflow into CPU offload and
+# the llama-runner has crashed under that load on this stack.
 #
-# `OLLAMA_MAX_LOADED_MODELS=1` keeps memory in check on the 4 GiB
-# VRAM cards: only one model is hot at a time, swapping on demand.
-# The reranker we may add later is already accounted for by the
-# `min_size` / `max_size` pool buffers.
+# `OLLAMA_MAX_LOADED_MODELS=1` keeps VRAM contention in check: the
+# 7b chat model and the smaller nomic-embed-text don't both need
+# to be hot. Ollama swaps on demand; `OLLAMA_KEEP_ALIVE=5m` matches
+# the curator's CronJob cadence so consecutive calls within a pass
+# don't reload weights.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -82,7 +89,7 @@ spec:
               ollama serve &
               SERVE_PID=$!
               until ollama list >/dev/null 2>&1; do sleep 2; done
-              ollama pull qwen2.5:14b-instruct-q4_K_M
+              ollama pull qwen2.5:7b-instruct
               ollama pull nomic-embed-text
               kill $SERVE_PID
               wait $SERVE_PID 2>/dev/null || true
