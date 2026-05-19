@@ -12,18 +12,15 @@ function makeHost(initial?: string) {
       if (initial !== undefined) tabsProps.modelValue = initial
       return h(Tabs, tabsProps, {
         tabs: ({ active, activate }: { active: string; activate: (v: string) => void }) =>
-          ['a', 'b', 'c'].map((v) =>
-            h(
-              'button',
-              {
-                key: v,
-                'data-testid': `tab-${v}`,
-                'aria-selected': active === v,
-                onClick: () => activate(v),
-              },
-              v,
-            ),
-          ),
+          ['a', 'b', 'c'].map((v) => {
+            // Splitting the props object keeps each literal's keys
+            // either all-bare or all-quoted, sidestepping prettier
+            // (quoteProps=as-needed) and eslint (style/quote-props)
+            // disagreeing over the dashed `data-testid` and
+            // `aria-selected` keys.
+            const dashedAttrs = { 'data-testid': `tab-${v}`, 'aria-selected': active === v }
+            return h('button', { key: v, onClick: () => activate(v), ...dashedAttrs }, v)
+          }),
         default: () => [
           h(TabPanel, { value: 'a', keepAlive: true }, { default: () => 'Panel A' }),
           h(TabPanel, { value: 'b' }, { default: () => 'Panel B' }),
