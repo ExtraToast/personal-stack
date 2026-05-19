@@ -6,6 +6,7 @@ resources:
   - credentials
   - auth-bootstrap
   - refresh-ping
+  - kb-install
   - network-policy
   - agent-gateway-image # shared image pull only; runner Pods are created at runtime by assistant-api
   - rbac

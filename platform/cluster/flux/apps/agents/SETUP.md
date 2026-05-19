@@ -39,7 +39,45 @@ kubectl get ns agents-system`
       Kustomization hasn't reconciled yet — `flux reconcile
 kustomization apps-agents --timeout=60s` to nudge it.
 
-## 1. Provision the shared ad-hoc deploy key (optional)
+## 1. Populate the knowledge-system bearer token
+
+Every runner Pod inherits a copy of the Claude Code hooks + skills
+that pair with `knowledge-api`'s MCP server. The
+`agents-kb-install` CronJob runs `curl … /install.sh | bash` from
+inside the cluster against the shared `claude-credentials` PVC,
+which means a single install covers every workspace.
+
+The installer authenticates with a bearer token. Mint one and put
+it in Vault:
+
+```sh
+TOKEN="$(openssl rand -hex 32)"
+vault kv put -mount=secret agents/kb-bearer bearer="$TOKEN"
+# And register the same token under the MCP server's allow-list:
+vault kv patch -mount=secret knowledge-system/mcp-bearer \
+  agents="$TOKEN"
+```
+
+The Vault Static Secret operator projects this into the
+`agents-kb-bearer` Secret in `agents-system` within
+`refreshAfter: 1h`.
+
+Trigger the first install on demand (the CronJob also runs
+weekly):
+
+```sh
+kubectl -n agents-system create job --from=cronjob/agents-kb-install kb-install-now
+kubectl -n agents-system logs -f job/kb-install-now
+```
+
+Look for "[kb-install] done" plus `hooks/` and `skills/` listings.
+Clean up:
+
+```sh
+kubectl -n agents-system delete job kb-install-now
+```
+
+## 2. Provision the shared ad-hoc deploy key (optional)
 
 Skip this if you only ever plan to use Project-backed workspaces (the
 recommended path). The shared key is the fallback that ad-hoc
@@ -74,7 +112,7 @@ vss/agents-github-deploy-key force-sync=$(date +%s) -n agents-system`).
 You can delete the local `./ps-agents-deploy*` files after Vault has
 the bytes — keep a copy in 1Password if you want a personal backup.
 
-## 2. Bring up the auth-bootstrap Pod
+## 3. Bring up the auth-bootstrap Pod
 
 This Pod exists already if `apps-agents` has reconciled. Sanity-check:
 
@@ -93,7 +131,7 @@ If the Pod is in `ImagePullBackOff`, the `ghcr.io/extratoast/personal-stack/agen
 image hasn't been built yet — push the branch through CI, wait for
 Keel to pull, and retry.
 
-## 3. Log Claude Code in
+## 4. Log Claude Code in
 
 Open a shell inside the bootstrap Pod:
 
@@ -149,7 +187,7 @@ claude -p 'reply with the single word pong' --output-format text
 
 If both succeed, Claude is wired.
 
-## 4. Log Codex CLI in
+## 5. Log Codex CLI in
 
 In the same shell:
 
@@ -195,7 +233,7 @@ Exit the Pod:
 exit
 ```
 
-## 5. Confirm the refresh-ping CronJob is happy
+## 6. Confirm the refresh-ping CronJob is happy
 
 The `agents-refresh-ping` CronJob runs every six hours and re-runs the
 same sanity prompts. Trigger one immediately so you can verify both
@@ -231,7 +269,7 @@ Clean up the manual job:
 kubectl -n agents-system delete job refresh-ping-manual
 ```
 
-## 6. Spin up your first workspace
+## 7. Spin up your first workspace
 
 In assistant-ui at `https://assistant.jorisjonkers.dev` (or whichever
 host the forward-auth fronted UI lives on):
@@ -256,7 +294,7 @@ host the forward-auth fronted UI lives on):
    few seconds; the runner Pod is already booted and the CLI is
    already logged in.
 
-## 7. When things go wrong
+## 8. When things go wrong
 
 - **`claude /login` fails with "Address not allowed"** — the
   OAuth-redirect form requires the URL to come from `claude.ai`.
