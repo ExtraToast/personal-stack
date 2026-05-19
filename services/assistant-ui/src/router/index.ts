@@ -11,12 +11,24 @@ declare module 'vue-router' {
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
-    redirect: '/chat',
+    redirect: '/workspaces',
   },
   {
     path: '/chat',
     name: 'chat',
     component: () => import('@/features/chat/views/ChatView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/workspaces',
+    name: 'workspaces',
+    component: () => import('@/features/workspaces/views/WorkspacesView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/workspaces/:id',
+    name: 'workspace',
+    component: () => import('@/features/workspaces/views/WorkspaceView.vue'),
     meta: { requiresAuth: true },
   },
 ]
