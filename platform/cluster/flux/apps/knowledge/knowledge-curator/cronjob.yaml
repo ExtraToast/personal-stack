@@ -136,7 +136,11 @@ spec:
                 - name: OLLAMA_BASE_URL
                   value: http://ollama.knowledge-system.svc.cluster.local:11434/v1
                 - name: OLLAMA_CHAT_MODEL
-                  value: qwen2.5:14b-instruct-q4_K_M
+                  # 7b fits cleanly in the 4 GiB VRAM cards
+                  # (GTX 960M / T1000) with the kv cache. 14b
+                  # was research's first choice but assumes 12 GiB
+                  # — bump up only if Ollama lands on a bigger GPU.
+                  value: qwen2.5:7b-instruct
                 - name: OLLAMA_EMBEDDING_MODEL
                   value: nomic-embed-text
                 - name: OLLAMA_REQUEST_TIMEOUT_SECONDS
