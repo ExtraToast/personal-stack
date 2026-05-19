@@ -16,7 +16,12 @@ import java.util.UUID
 class GitController(
     private val commandBus: CommandBus,
 ) {
-    data class OpenPrRequest(val repoDir: String, val title: String, val body: String, val base: String = "main")
+    data class OpenPrRequest(
+        val repoDir: String,
+        val title: String,
+        val body: String,
+        val base: String = "main",
+    )
 
     @PostMapping("/open-pr")
     fun openPr(

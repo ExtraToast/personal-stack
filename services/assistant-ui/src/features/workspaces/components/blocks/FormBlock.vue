@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, computed } from 'vue'
+import { computed, reactive } from 'vue'
 
 interface FieldSpec {
   type: 'string' | 'integer' | 'number' | 'boolean'
@@ -19,20 +19,33 @@ const emit = defineEmits<{ submit: [value: Record<string, unknown>] }>()
  * No nested objects, no allOf/oneOf — agents who need richer
  * surfaces should fall back to a Choice block or a Diff block.
  */
-const properties = computed<Record<string, FieldSpec>>(() => {
-  const props_ = props.schema['properties']
-  return (props_ && typeof props_ === 'object' ? props_ : {}) as Record<string, FieldSpec>
-})
+function asProperties(value: unknown): Record<string, FieldSpec> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  const result: Record<string, FieldSpec> = {}
+  // FieldSpec / Record narrowing beyond "non-array object" lives
+  // behind a future shared schema; until then the casts here are
+  // intentional bridges from JSON-Schema's `unknown` to the inputs
+  // this component knows how to render.
+  /* eslint-disable ts/consistent-type-assertions */
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    if (v && typeof v === 'object') {
+      result[k] = v as FieldSpec
+    }
+  }
+  /* eslint-enable ts/consistent-type-assertions */
+  return result
+}
 
-const required = computed<string[]>(() => {
-  const r = props.schema['required']
-  return Array.isArray(r) ? (r as string[]) : []
-})
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((v): v is string => typeof v === 'string')
+}
+
+const properties = computed<Record<string, FieldSpec>>(() => asProperties(props.schema.properties))
+const required = computed<string[]>(() => asStringArray(props.schema.required))
 
 const values = reactive<Record<string, unknown>>(
-  Object.fromEntries(
-    Object.entries(properties.value).map(([k, spec]) => [k, spec.default ?? defaultFor(spec)]),
-  ),
+  Object.fromEntries(Object.entries(properties.value).map(([k, spec]) => [k, spec.default ?? defaultFor(spec)])),
 )
 
 function defaultFor(spec: FieldSpec): unknown {
@@ -63,39 +76,33 @@ function onSubmit(): void {
     <div v-for="(spec, name) in properties" :key="name" class="space-y-1">
       <label class="block text-sm font-medium">
         {{ spec.title ?? name }}
-        <span v-if="required.includes(name as string)" class="text-red-400">*</span>
+        <span v-if="required.includes(String(name))" class="text-red-400">*</span>
       </label>
       <p v-if="spec.description" class="text-xs text-gray-400">{{ spec.description }}</p>
       <select
         v-if="spec.enum"
-        v-model="values[name as string]"
+        v-model="values[String(name)]"
         class="w-full rounded border border-gray-700 bg-black/30 px-2 py-1 text-sm"
       >
         <option v-for="opt in spec.enum" :key="String(opt)" :value="opt">{{ opt }}</option>
       </select>
-      <input
-        v-else-if="spec.type === 'boolean'"
-        v-model="values[name as string]"
-        type="checkbox"
-        class="rounded"
-      >
+      <input v-else-if="spec.type === 'boolean'" v-model="values[String(name)]" type="checkbox" class="rounded" />
       <input
         v-else-if="spec.type === 'integer' || spec.type === 'number'"
-        v-model.number="values[name as string]"
+        v-model.number="values[String(name)]"
         type="number"
         :step="spec.type === 'integer' ? 1 : 'any'"
         class="w-full rounded border border-gray-700 bg-black/30 px-2 py-1 text-sm"
-      >
+      />
       <input
         v-else
-        v-model="values[name as string]"
+        v-model="values[String(name)]"
         type="text"
         class="w-full rounded border border-gray-700 bg-black/30 px-2 py-1 text-sm"
-      >
+      />
     </div>
-    <button
-      type="submit"
-      class="rounded bg-purple-600 hover:bg-purple-700 px-3 py-1.5 text-sm text-white"
-    >{{ submitLabel ?? 'Submit' }}</button>
+    <button type="submit" class="rounded bg-purple-600 hover:bg-purple-700 px-3 py-1.5 text-sm text-white">
+      {{ submitLabel ?? 'Submit' }}
+    </button>
   </form>
 </template>

@@ -1,5 +1,6 @@
 package com.jorisjonkers.personalstack.assistant.application.command
 
+import com.jorisjonkers.personalstack.assistant.application.rag.ContextBuilder
 import com.jorisjonkers.personalstack.assistant.domain.model.Turn
 import com.jorisjonkers.personalstack.assistant.domain.model.TurnRole
 import com.jorisjonkers.personalstack.assistant.domain.model.Workspace
@@ -9,7 +10,6 @@ import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSessi
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSessionStatus
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceStatus
-import com.jorisjonkers.personalstack.assistant.application.rag.ContextBuilder
 import com.jorisjonkers.personalstack.assistant.domain.port.AgentGatewayClient
 import com.jorisjonkers.personalstack.assistant.domain.port.TurnRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceAgentSessionRepository
@@ -93,15 +93,21 @@ class SendUserInputCommandHandlerTest {
             updatedAt = Instant.now(),
         )
 
-    private fun session(workspaceId: WorkspaceId, gatewayAgentId: String?) =
-        WorkspaceAgentSession(
-            id = WorkspaceAgentSessionId.random(),
-            workspaceId = workspaceId,
-            kind = WorkspaceAgentKind.CLAUDE,
-            gatewayAgentId = gatewayAgentId,
-            status =
-                if (gatewayAgentId != null) WorkspaceAgentSessionStatus.RUNNING else WorkspaceAgentSessionStatus.STARTING,
-            createdAt = Instant.now(),
-            updatedAt = Instant.now(),
-        )
+    private fun session(
+        workspaceId: WorkspaceId,
+        gatewayAgentId: String?,
+    ) = WorkspaceAgentSession(
+        id = WorkspaceAgentSessionId.random(),
+        workspaceId = workspaceId,
+        kind = WorkspaceAgentKind.CLAUDE,
+        gatewayAgentId = gatewayAgentId,
+        status =
+            if (gatewayAgentId != null) {
+                WorkspaceAgentSessionStatus.RUNNING
+            } else {
+                WorkspaceAgentSessionStatus.STARTING
+            },
+        createdAt = Instant.now(),
+        updatedAt = Instant.now(),
+    )
 }

@@ -16,9 +16,13 @@ import java.time.Instant
 import java.time.ZoneOffset
 
 class IdleScaleDownSchedulerTest {
-    private class FixedClock(var now: Instant) : Clock() {
+    private class FixedClock(
+        var now: Instant,
+    ) : Clock() {
         override fun getZone() = ZoneOffset.UTC
+
         override fun withZone(zone: java.time.ZoneId) = this
+
         override fun instant(): Instant = now
     }
 
@@ -84,17 +88,19 @@ class IdleScaleDownSchedulerTest {
         verify(exactly = 0) { orchestrator.destroy(any()) }
     }
 
-    private fun workspace(updatedAt: Instant, status: WorkspaceStatus = WorkspaceStatus.READY) =
-        Workspace(
-            id = WorkspaceId.random(),
-            name = "demo",
-            repoUrl = null,
-            branch = null,
-            podName = "agent-runner-deadbeef",
-            pvcName = "workspace-deadbeef",
-            gatewayEndpoint = "http://x:8090",
-            status = status,
-            createdAt = updatedAt.minusSeconds(1),
-            updatedAt = updatedAt,
-        )
+    private fun workspace(
+        updatedAt: Instant,
+        status: WorkspaceStatus = WorkspaceStatus.READY,
+    ) = Workspace(
+        id = WorkspaceId.random(),
+        name = "demo",
+        repoUrl = null,
+        branch = null,
+        podName = "agent-runner-deadbeef",
+        pvcName = "workspace-deadbeef",
+        gatewayEndpoint = "http://x:8090",
+        status = status,
+        createdAt = updatedAt.minusSeconds(1),
+        updatedAt = updatedAt,
+    )
 }

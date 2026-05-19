@@ -3,7 +3,9 @@ package com.jorisjonkers.personalstack.assistant.domain.model
 import java.util.UUID
 
 @JvmInline
-value class WorkspaceAgentSessionId(val value: UUID) {
+value class WorkspaceAgentSessionId(
+    val value: UUID,
+) {
     override fun toString(): String = value.toString()
 
     companion object {

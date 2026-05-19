@@ -4,7 +4,9 @@ import java.time.Instant
 import java.util.UUID
 
 @JvmInline
-value class TurnId(val value: UUID) {
+value class TurnId(
+    val value: UUID,
+) {
     override fun toString(): String = value.toString()
 
     companion object {

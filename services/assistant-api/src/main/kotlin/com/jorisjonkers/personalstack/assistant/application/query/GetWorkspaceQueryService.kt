@@ -12,7 +12,10 @@ class GetWorkspaceQueryService(
     private val workspaces: WorkspaceRepository,
     private val sessions: WorkspaceAgentSessionRepository,
 ) {
-    data class WorkspaceView(val workspace: Workspace, val sessions: List<WorkspaceAgentSession>)
+    data class WorkspaceView(
+        val workspace: Workspace,
+        val sessions: List<WorkspaceAgentSession>,
+    )
 
     fun get(id: WorkspaceId): WorkspaceView? {
         val workspace = workspaces.findById(id) ?: return null

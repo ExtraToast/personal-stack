@@ -45,14 +45,22 @@ open class VaultDeployKeyStore(
         return DeployKeyStore.StoredKey(fingerprint = fingerprint, vaultPath = path)
     }
 
-    override fun remove(projectId: ProjectId, linkId: GithubLinkId) {
+    override fun remove(
+        projectId: ProjectId,
+        linkId: GithubLinkId,
+    ) {
         writer.deleteSecret(vaultPath(projectId, linkId))
     }
 
-    override fun readPublicKey(projectId: ProjectId, linkId: GithubLinkId): String? =
-        runCatching { reader.getSecret(vaultPath(projectId, linkId), "public_key") }.getOrNull()
+    override fun readPublicKey(
+        projectId: ProjectId,
+        linkId: GithubLinkId,
+    ): String? = runCatching { reader.getSecret(vaultPath(projectId, linkId), "public_key") }.getOrNull()
 
-    override fun loadKey(projectId: ProjectId, linkId: GithubLinkId): DeployKeyStore.KeyMaterial? {
+    override fun loadKey(
+        projectId: ProjectId,
+        linkId: GithubLinkId,
+    ): DeployKeyStore.KeyMaterial? {
         val path = vaultPath(projectId, linkId)
         val priv = runCatching { reader.getSecret(path, "private_key") }.getOrNull() ?: return null
         val pub = runCatching { reader.getSecret(path, "public_key") }.getOrNull() ?: return null
@@ -61,8 +69,10 @@ open class VaultDeployKeyStore(
         return DeployKeyStore.KeyMaterial(privateKey = priv, publicKey = pub, knownHosts = known, fingerprint = fp)
     }
 
-    private fun vaultPath(projectId: ProjectId, linkId: GithubLinkId): String =
-        "secret/data/agents/projects/$projectId/repos/$linkId"
+    private fun vaultPath(
+        projectId: ProjectId,
+        linkId: GithubLinkId,
+    ): String = "secret/data/agents/projects/$projectId/repos/$linkId"
 
     private fun sha256Fingerprint(publicKey: String): String {
         // GitHub-compatible OpenSSH SHA-256 fingerprint: the

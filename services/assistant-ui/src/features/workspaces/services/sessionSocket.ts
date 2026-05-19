@@ -29,8 +29,11 @@ export function attachSessionSocket(opts: SessionSocketOptions): SessionSocket {
 
   ws.onmessage = (ev) => {
     try {
-      const payload = JSON.parse(ev.data) as { output?: string }
-      if (typeof payload.output === 'string') opts.onOutput(payload.output)
+      const payload: unknown = JSON.parse(ev.data)
+      if (payload && typeof payload === 'object' && 'output' in payload) {
+        const output = (payload as { output: unknown }).output // eslint-disable-line ts/consistent-type-assertions
+        if (typeof output === 'string') opts.onOutput(output)
+      }
     } catch {
       // ignore non-JSON frames
     }

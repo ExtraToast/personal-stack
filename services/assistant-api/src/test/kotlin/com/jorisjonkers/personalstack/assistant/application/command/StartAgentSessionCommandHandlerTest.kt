@@ -12,7 +12,6 @@ import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceAgentSessio
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepository
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test

@@ -21,7 +21,8 @@ import java.time.Instant
 class AgentControllerTest {
     private val sessions = mockk<AgentSessionManager>()
     private val mockMvc: MockMvc =
-        MockMvcBuilders.standaloneSetup(AgentController(sessions))
+        MockMvcBuilders
+            .standaloneSetup(AgentController(sessions))
             .setControllerAdvice(ErrorAdvice())
             .build()
     private val mapper = ObjectMapper()
@@ -39,12 +40,12 @@ class AgentControllerTest {
     @Test
     fun `POST agents spawns and returns 201 with session`() {
         every { sessions.spawn(AgentKind.CLAUDE, "/workspace/repo") } returns sample
-        mockMvc.perform(
-            post("/agents")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"kind":"CLAUDE","workspacePath":"/workspace/repo"}"""),
-        )
-            .andExpect(status().isCreated)
+        mockMvc
+            .perform(
+                post("/agents")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"kind":"CLAUDE","workspacePath":"/workspace/repo"}"""),
+            ).andExpect(status().isCreated)
             .andExpect(jsonPath("$.id").value("abc12345"))
             .andExpect(jsonPath("$.kind").value("CLAUDE"))
     }
@@ -52,7 +53,8 @@ class AgentControllerTest {
     @Test
     fun `GET agents lists sessions`() {
         every { sessions.list() } returns listOf(sample)
-        mockMvc.perform(get("/agents"))
+        mockMvc
+            .perform(get("/agents"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$[0].id").value("abc12345"))
     }
@@ -72,10 +74,11 @@ class AgentControllerTest {
     @Test
     fun `POST agents id send returns 202`() {
         every { sessions.send("abc12345", "hi", true) } returns Unit
-        mockMvc.perform(
-            post("/agents/abc12345/send")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"input":"hi","enter":true}"""),
-        ).andExpect(status().isAccepted)
+        mockMvc
+            .perform(
+                post("/agents/abc12345/send")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"input":"hi","enter":true}"""),
+            ).andExpect(status().isAccepted)
     }
 }

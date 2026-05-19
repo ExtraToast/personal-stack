@@ -14,7 +14,9 @@ import java.time.ZoneOffset
 import java.util.UUID
 
 @Repository
-class JooqTurnRepository(private val dsl: DSLContext) : TurnRepository {
+class JooqTurnRepository(
+    private val dsl: DSLContext,
+) : TurnRepository {
     override fun save(turn: Turn): Turn {
         val createdAt = turn.createdAt.atOffset(ZoneOffset.UTC)
         dsl
@@ -28,7 +30,10 @@ class JooqTurnRepository(private val dsl: DSLContext) : TurnRepository {
         return turn
     }
 
-    override fun findBySessionId(sessionId: WorkspaceAgentSessionId, limit: Int): List<Turn> =
+    override fun findBySessionId(
+        sessionId: WorkspaceAgentSessionId,
+        limit: Int,
+    ): List<Turn> =
         dsl
             .selectFrom(TURNS)
             .where(SESSION_ID.eq(sessionId.value))

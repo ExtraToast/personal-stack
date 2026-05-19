@@ -32,7 +32,7 @@ const blocks = computed<Block[]>(() => parseBlocks(props.body))
       <FormBlock
         v-else-if="block.kind === 'form'"
         :schema="block.schema"
-        :submit-label="block.submitLabel"
+        :submit-label="block.submitLabel ?? 'Submit'"
         @submit="(v: Record<string, unknown>) => emit('formSubmit', v)"
       />
       <DiffBlock v-else-if="block.kind === 'diff'" :path="block.path" :patch="block.patch" />

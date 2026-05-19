@@ -17,7 +17,11 @@ import java.time.Instant
 class AttachDeployKeyCommandHandlerTest {
     private val links = mockk<GithubLinkRepository>()
     private val deployKeys = mockk<DeployKeyStore>()
-    private val handler = AttachDeployKeyCommandHandler(links, deployKeys)
+    private val deployKeysProvider =
+        mockk<org.springframework.beans.factory.ObjectProvider<DeployKeyStore>> {
+            every { ifAvailable } returns deployKeys
+        }
+    private val handler = AttachDeployKeyCommandHandler(links, deployKeysProvider)
 
     private val sampleLink =
         GithubLink(
@@ -39,17 +43,19 @@ class AttachDeployKeyCommandHandlerTest {
         deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
         -----END OPENSSH PRIVATE KEY-----
         """.trimIndent()
-    private val validPublic = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl test@laptop"
+    private val validPublic =
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl test@laptop"
 
     @Test
     fun `handle stores the key in Vault and mirrors the fingerprint`() {
         every { links.findById(sampleLink.id) } returns sampleLink
         every {
             deployKeys.store(any(), any(), any(), any(), any())
-        } returns DeployKeyStore.StoredKey(
-            fingerprint = "SHA256:abcdef",
-            vaultPath = sampleLink.vaultKeyPath,
-        )
+        } returns
+            DeployKeyStore.StoredKey(
+                fingerprint = "SHA256:abcdef",
+                vaultPath = sampleLink.vaultKeyPath,
+            )
         val saved = slot<GithubLink>()
         every { links.save(capture(saved)) } answers { saved.captured }
 

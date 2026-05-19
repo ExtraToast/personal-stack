@@ -25,8 +25,8 @@ import org.springframework.stereotype.Component
  */
 @Component
 class LessonExtractor(
-    private val minBodyChars: Int = 240,
-    private val maxBodyChars: Int = 4_000,
+    private val minBodyChars: Int = MIN_BODY_CHARS,
+    private val maxBodyChars: Int = MAX_BODY_CHARS,
 ) {
     private val markerRegex = Regex("\\b(TIL|Note|Lesson|Key takeaway):", RegexOption.IGNORE_CASE)
     private val questionStarter =
@@ -39,41 +39,41 @@ class LessonExtractor(
         val confidence: Double,
     )
 
-    fun extract(workspace: Workspace, turns: List<Turn>): List<Candidate> {
+    private data class Pair(
+        val user: Turn,
+        val agentBody: String,
+    )
+
+    fun extract(
+        workspace: Workspace,
+        turns: List<Turn>,
+    ): List<Candidate> {
         val ordered = turns.sortedBy { it.createdAt }
-        val result = mutableListOf<Candidate>()
+        return collectPairs(ordered)
+            .filter { it.agentBody.length >= minBodyChars && isWorthCapturing(it.user.body, it.agentBody) }
+            .map { toCandidate(workspace, it) }
+    }
+
+    private fun collectPairs(ordered: List<Turn>): List<Pair> {
+        val pairs = mutableListOf<Pair>()
         var i = 0
         while (i < ordered.size) {
             val turn = ordered[i]
-            if (turn.role != TurnRole.USER) {
+            if (turn.role == TurnRole.USER) {
+                val (agentBody, next) = collectAgentReplies(ordered, i + 1)
+                if (agentBody.isNotBlank()) pairs.add(Pair(turn, agentBody))
+                i = next
+            } else {
                 i += 1
-                continue
             }
-            val (agentChunk, advance) = collectAgentReplies(ordered, i + 1)
-            i = advance
-            if (agentChunk.isBlank() || agentChunk.length < minBodyChars) continue
-            if (!isWorthCapturing(turn.body, agentChunk)) continue
-
-            val tags = buildList {
-                add("source:agents-ui")
-                add("kind:turn-pair")
-                if (markerRegex.containsMatchIn(agentChunk)) add("has-marker")
-                workspace.repoUrl?.let { add("repo:${ScopeInference.repoSlug(it)}") }
-            }
-
-            result.add(
-                Candidate(
-                    title = makeTitle(workspace, turn.body),
-                    body = makeBody(turn.body, agentChunk),
-                    tags = tags,
-                    confidence = scoreFor(turn.body, agentChunk),
-                ),
-            )
         }
-        return result
+        return pairs
     }
 
-    private fun collectAgentReplies(turns: List<Turn>, from: Int): Pair<String, Int> {
+    private fun collectAgentReplies(
+        turns: List<Turn>,
+        from: Int,
+    ): kotlin.Pair<String, Int> {
         val sb = StringBuilder()
         var j = from
         while (j < turns.size && turns[j].role != TurnRole.USER) {
@@ -86,29 +86,80 @@ class LessonExtractor(
         return sb.toString() to j
     }
 
-    private fun isWorthCapturing(userBody: String, agentBody: String): Boolean {
+    private fun toCandidate(
+        workspace: Workspace,
+        pair: Pair,
+    ): Candidate {
+        val tags =
+            buildList {
+                add("source:agents-ui")
+                add("kind:turn-pair")
+                if (markerRegex.containsMatchIn(pair.agentBody)) add("has-marker")
+                workspace.repoUrl?.let { add("repo:${ScopeInference.repoSlug(it)}") }
+            }
+        return Candidate(
+            title = makeTitle(workspace, pair.user.body),
+            body = makeBody(pair.user.body, pair.agentBody),
+            tags = tags,
+            confidence = scoreFor(pair.agentBody),
+        )
+    }
+
+    private fun isWorthCapturing(
+        userBody: String,
+        agentBody: String,
+    ): Boolean {
         val isQuestion = userBody.trim().endsWith("?") || questionStarter.containsMatchIn(userBody)
         val hasMarker = markerRegex.containsMatchIn(agentBody)
         return isQuestion || hasMarker
     }
 
-    private fun makeTitle(workspace: Workspace, userBody: String): String {
-        val prefix = workspace.name.take(40)
-        val tail = userBody.lines().firstOrNull { it.isNotBlank() }?.trim().orEmpty().take(120)
+    private fun makeTitle(
+        workspace: Workspace,
+        userBody: String,
+    ): String {
+        val prefix = workspace.name.take(TITLE_PREFIX_CHARS)
+        val tail =
+            userBody
+                .lines()
+                .firstOrNull { it.isNotBlank() }
+                ?.trim()
+                .orEmpty()
+                .take(TITLE_TAIL_CHARS)
         return if (tail.isBlank()) prefix else "$prefix — $tail"
     }
 
-    private fun makeBody(userBody: String, agentBody: String): String {
-        val q = userBody.trim().take(maxBodyChars / 4)
-        val a = agentBody.trim().take(maxBodyChars * 3 / 4)
+    private fun makeBody(
+        userBody: String,
+        agentBody: String,
+    ): String {
+        val q = userBody.trim().take(maxBodyChars / Q_FRACTION_DENOMINATOR)
+        val a = agentBody.trim().take(maxBodyChars * A_FRACTION_NUMERATOR / A_FRACTION_DENOMINATOR)
         return "Q: $q\n\nA: $a"
     }
 
-    private fun scoreFor(userBody: String, agentBody: String): Double {
-        val baseline = 0.35
-        val markerBonus = if (markerRegex.containsMatchIn(agentBody)) 0.15 else 0.0
-        val lengthBonus = (agentBody.length.coerceAtMost(2_000) / 4_000.0)
-        val codeFenceBonus = if (agentBody.contains("```")) 0.05 else 0.0
-        return (baseline + markerBonus + lengthBonus + codeFenceBonus).coerceIn(0.0, 0.85)
+    private fun scoreFor(agentBody: String): Double {
+        val markerBonus = if (markerRegex.containsMatchIn(agentBody)) MARKER_BONUS else 0.0
+        val lengthBonus = (agentBody.length.coerceAtMost(LENGTH_CAP) / LENGTH_DIVISOR)
+        val codeFenceBonus = if (agentBody.contains("```")) CODE_FENCE_BONUS else 0.0
+        return (BASELINE + markerBonus + lengthBonus + codeFenceBonus).coerceIn(0.0, MAX_CONFIDENCE)
+    }
+
+    companion object {
+        const val MIN_BODY_CHARS = 240
+        const val MAX_BODY_CHARS = 4_000
+
+        private const val TITLE_PREFIX_CHARS = 40
+        private const val TITLE_TAIL_CHARS = 120
+        private const val Q_FRACTION_DENOMINATOR = 4
+        private const val A_FRACTION_NUMERATOR = 3
+        private const val A_FRACTION_DENOMINATOR = 4
+
+        private const val BASELINE = 0.35
+        private const val MARKER_BONUS = 0.15
+        private const val LENGTH_CAP = 2_000
+        private const val LENGTH_DIVISOR = 4_000.0
+        private const val CODE_FENCE_BONUS = 0.05
+        private const val MAX_CONFIDENCE = 0.85
     }
 }

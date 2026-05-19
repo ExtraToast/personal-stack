@@ -16,15 +16,21 @@ class ErrorAdvice {
                 "error" to "process-failed",
                 "argv" to e.argv,
                 "exit" to e.result.exitCode,
-                "stderr" to e.result.stderr.take(2_000),
+                "stderr" to e.result.stderr.take(STDERR_PREVIEW_CHARS),
             ),
         )
 
     @ExceptionHandler(ProcessTimeoutException::class)
     fun onTimeout(e: ProcessTimeoutException): ResponseEntity<Map<String, String>> =
-        ResponseEntity.status(HttpStatus.GATEWAY_TIMEOUT).body(mapOf("error" to "timeout", "message" to (e.message ?: "")))
+        ResponseEntity
+            .status(HttpStatus.GATEWAY_TIMEOUT)
+            .body(mapOf("error" to "timeout", "message" to (e.message ?: "")))
 
     @ExceptionHandler(IllegalStateException::class)
     fun onIllegalState(e: IllegalStateException): ResponseEntity<Map<String, String>> =
         ResponseEntity.status(HttpStatus.NOT_FOUND).body(mapOf("error" to (e.message ?: "not-found")))
+
+    companion object {
+        private const val STDERR_PREVIEW_CHARS = 2_000
+    }
 }

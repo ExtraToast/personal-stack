@@ -32,7 +32,11 @@ data class Workspace(
 ) {
     val isRepoBacked: Boolean get() = repoUrl != null
 
-    fun withPodInfo(podName: String, pvcName: String, gatewayEndpoint: String): Workspace =
+    fun withPodInfo(
+        podName: String,
+        pvcName: String,
+        gatewayEndpoint: String,
+    ): Workspace =
         copy(
             podName = podName,
             pvcName = pvcName,

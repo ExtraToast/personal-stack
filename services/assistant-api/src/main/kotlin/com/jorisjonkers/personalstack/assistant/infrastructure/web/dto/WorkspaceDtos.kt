@@ -53,7 +53,9 @@ data class WorkspaceResponse(
     }
 }
 
-data class StartAgentSessionRequest(val kind: WorkspaceAgentKind)
+data class StartAgentSessionRequest(
+    val kind: WorkspaceAgentKind,
+)
 
 data class WorkspaceAgentSessionResponse(
     val id: UUID,
@@ -78,7 +80,10 @@ data class WorkspaceAgentSessionResponse(
     }
 }
 
-data class SendUserInputRequest(val text: String, val enter: Boolean = true)
+data class SendUserInputRequest(
+    val text: String,
+    val enter: Boolean = true,
+)
 
 data class TurnResponse(
     val id: UUID,

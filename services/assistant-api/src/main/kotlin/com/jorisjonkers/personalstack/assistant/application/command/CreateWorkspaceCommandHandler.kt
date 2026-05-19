@@ -42,14 +42,24 @@ class CreateWorkspaceCommandHandler(
 
     @Transactional
     override fun handle(command: CreateWorkspaceCommand) {
+        val workspace = persistInitial(command)
+        val withPod = provisionAndUpdate(workspace)
+        if (withPod.repoUrl != null) {
+            runCatching { gateway.clone(withPod, withPod.repoUrl, withPod.branch) }
+                .onFailure { log.warn("initial clone failed for {}: {}", workspace.id, it.message) }
+        }
+        log.info("workspace {} provisioned as pod {}", workspace.id, withPod.podName)
+    }
+
+    private fun persistInitial(command: CreateWorkspaceCommand): Workspace {
         val now = Instant.now()
-        val (resolvedRepoUrl, resolvedBranch) = resolveRepo(command)
+        val (repoUrl, branch) = resolveRepo(command)
         val workspace =
             Workspace(
                 id = command.workspaceId,
                 name = command.name,
-                repoUrl = resolvedRepoUrl,
-                branch = resolvedBranch,
+                repoUrl = repoUrl,
+                branch = branch,
                 podName = null,
                 pvcName = null,
                 gatewayEndpoint = null,
@@ -59,7 +69,10 @@ class CreateWorkspaceCommandHandler(
                 githubLinkId = command.githubLinkId,
             )
         workspaces.save(workspace)
+        return workspace
+    }
 
+    private fun provisionAndUpdate(workspace: Workspace): Workspace {
         val handle = orchestrator.provision(workspace)
         val withPod =
             workspace.withPodInfo(
@@ -68,13 +81,7 @@ class CreateWorkspaceCommandHandler(
                 gatewayEndpoint = handle.gatewayEndpoint,
             )
         workspaces.save(withPod)
-
-        if (withPod.repoUrl != null) {
-            runCatching { gateway.clone(withPod, withPod.repoUrl, withPod.branch) }
-                .onFailure { log.warn("initial clone failed for {}: {}", workspace.id, it.message) }
-        }
-
-        log.info("workspace {} provisioned as pod {}", workspace.id, handle.podName)
+        return withPod
     }
 
     private fun resolveRepo(command: CreateWorkspaceCommand): Pair<String?, String?> {

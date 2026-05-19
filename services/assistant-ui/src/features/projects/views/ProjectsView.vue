@@ -8,7 +8,9 @@ const store = useProjectsStore()
 const router = useRouter()
 const showCreate = ref(false)
 
-onMounted(() => { void store.loadAll() })
+onMounted(() => {
+  void store.loadAll()
+})
 
 async function onCreate(input: { name: string; slug: string; description: string }): Promise<void> {
   const p = await store.create(input)
@@ -25,7 +27,9 @@ async function onCreate(input: { name: string; slug: string; description: string
         type="button"
         class="rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm text-white"
         @click="showCreate = !showCreate"
-      >{{ showCreate ? 'Cancel' : 'New project' }}</button>
+      >
+        {{ showCreate ? 'Cancel' : 'New project' }}
+      </button>
     </header>
 
     <section v-if="showCreate" class="mb-8 rounded-lg border border-gray-700 bg-surface-darker p-4">

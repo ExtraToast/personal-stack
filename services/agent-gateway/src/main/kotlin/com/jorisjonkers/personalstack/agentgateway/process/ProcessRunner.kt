@@ -20,7 +20,11 @@ import java.util.concurrent.TimeUnit
 open class ProcessRunner {
     private val log = LoggerFactory.getLogger(ProcessRunner::class.java)
 
-    data class Result(val exitCode: Int, val stdout: String, val stderr: String) {
+    data class Result(
+        val exitCode: Int,
+        val stdout: String,
+        val stderr: String,
+    ) {
         val combined: String get() = if (stderr.isEmpty()) stdout else stdout + "\n" + stderr
     }
 
@@ -54,7 +58,15 @@ open class ProcessRunner {
     }
 }
 
-class ProcessTimeoutException(msg: String) : RuntimeException(msg)
+class ProcessTimeoutException(
+    msg: String,
+) : RuntimeException(msg)
 
-class ProcessFailedException(val argv: List<String>, val result: ProcessRunner.Result) :
-    RuntimeException("$argv exited ${result.exitCode}: ${result.stderr.take(500)}")
+class ProcessFailedException(
+    val argv: List<String>,
+    val result: ProcessRunner.Result,
+) : RuntimeException("$argv exited ${result.exitCode}: ${result.stderr.take(STDERR_PREVIEW_CHARS)}") {
+    companion object {
+        private const val STDERR_PREVIEW_CHARS = 500
+    }
+}

@@ -19,7 +19,9 @@ import java.util.concurrent.ConcurrentHashMap
  * `touch(workspaceId)` as they observe activity.
  */
 @Component
-class WorkspaceActivityTracker(private val clock: Clock = Clock.systemUTC()) {
+class WorkspaceActivityTracker(
+    private val clock: Clock = Clock.systemUTC(),
+) {
     private val lastSeen = ConcurrentHashMap<WorkspaceId, Instant>()
 
     fun touch(workspaceId: WorkspaceId) {

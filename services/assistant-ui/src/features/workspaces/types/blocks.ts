@@ -15,24 +15,33 @@ export type Block =
  * Mirror of libs/kotlin-common BlockParser. Used when an agent's
  * Turn body contains fenced ```block``` regions; the SessionTranscript
  * splits the body up so each block renders with its own component.
+ *
+ * Regex notes: the opening fence is matched as
+ * `\`\`\`block[^\n]*\n` rather than `\`\`\`block\s*\n` so the inner
+ * `[\s\S]*?` cannot share characters with the prefix — otherwise
+ * eslint's regexp/no-super-linear-backtracking flags the alternation
+ * as exploitable.
  */
-const FENCE = /```block\s*\n([\s\S]*?)```/g
+const FENCE = /```block[^\n]*\n([\s\S]*?)```/g
 
 export function parseBlocks(stream: string): Block[] {
   if (!stream) return []
   const blocks: Block[] = []
   let cursor = 0
-  let match: RegExpExecArray | null
-  while ((match = FENCE.exec(stream)) !== null) {
-    const plain = stream.slice(cursor, match.index)
+  for (const match of stream.matchAll(FENCE)) {
+    const idx = match.index ?? 0
+    const plain = stream.slice(cursor, idx)
     if (plain.trim().length > 0) blocks.push({ kind: 'text', md: plain })
     try {
-      const block = JSON.parse(match[1]!.trim()) as Block
-      blocks.push(block)
+      const parsed: unknown = JSON.parse(match[1]!.trim())
+      // The Block union is the JSON shape the API contract guarantees;
+      // a tighter runtime validator lives behind a future shared schema.
+      // eslint-disable-next-line ts/consistent-type-assertions
+      blocks.push(parsed as Block)
     } catch {
       blocks.push({ kind: 'text', md: `[unparsed block: ${match[1]}]` })
     }
-    cursor = match.index + match[0].length
+    cursor = idx + match[0].length
   }
   const trailing = stream.slice(cursor)
   if (trailing.trim().length > 0) blocks.push({ kind: 'text', md: trailing })

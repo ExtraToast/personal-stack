@@ -14,7 +14,11 @@ import java.time.Instant
 class RemoveGithubLinkCommandHandlerTest {
     private val links = mockk<GithubLinkRepository>(relaxed = true)
     private val deployKeys = mockk<DeployKeyStore>(relaxed = true)
-    private val handler = RemoveGithubLinkCommandHandler(links, deployKeys)
+    private val deployKeysProvider =
+        mockk<org.springframework.beans.factory.ObjectProvider<DeployKeyStore>> {
+            every { ifAvailable } returns deployKeys
+        }
+    private val handler = RemoveGithubLinkCommandHandler(links, deployKeysProvider)
 
     @Test
     fun `handle removes vault key then deletes the link row`() {

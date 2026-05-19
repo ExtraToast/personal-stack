@@ -89,6 +89,7 @@ class ProjectController(
     }
 
     @PostMapping("/{projectId}/links/{linkId}/key")
+    @Suppress("UnusedParameter") // projectId carried in the URL only
     fun attachKey(
         @PathVariable projectId: UUID,
         @PathVariable linkId: UUID,
@@ -106,6 +107,7 @@ class ProjectController(
     }
 
     @DeleteMapping("/{projectId}/links/{linkId}")
+    @Suppress("UnusedParameter") // projectId carried in the URL only
     fun removeLink(
         @PathVariable projectId: UUID,
         @PathVariable linkId: UUID,

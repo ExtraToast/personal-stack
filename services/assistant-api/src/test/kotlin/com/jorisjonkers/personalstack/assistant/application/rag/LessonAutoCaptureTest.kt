@@ -115,12 +115,16 @@ class LessonAutoCaptureTest {
             updatedAt = Instant.now(),
         )
 
-    private fun turn(role: TurnRole, body: String, sec: Long, sid: WorkspaceAgentSessionId) =
-        Turn(
-            id = TurnId.random(),
-            sessionId = sid,
-            role = role,
-            body = body,
-            createdAt = Instant.parse("2026-05-19T10:00:00Z").plusSeconds(sec),
-        )
+    private fun turn(
+        role: TurnRole,
+        body: String,
+        sec: Long,
+        sid: WorkspaceAgentSessionId,
+    ) = Turn(
+        id = TurnId.random(),
+        sessionId = sid,
+        role = role,
+        body = body,
+        createdAt = Instant.parse("2026-05-19T10:00:00Z").plusSeconds(sec),
+    )
 }

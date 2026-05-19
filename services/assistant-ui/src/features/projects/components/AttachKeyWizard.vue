@@ -3,7 +3,7 @@ import type { GithubLink } from '../types'
 import { ref } from 'vue'
 import SetupGuide from './SetupGuide.vue'
 
-const props = defineProps<{ link: GithubLink }>()
+defineProps<{ link: GithubLink }>()
 const emit = defineEmits<{
   submit: [value: { privateKeyOpenssh: string; publicKeyOpenssh: string; knownHosts: string }]
   cancel: []
@@ -55,7 +55,7 @@ function onSubmit(): void {
           required
           class="w-full rounded border border-gray-700 bg-black/40 px-3 py-2 font-mono text-xs"
           placeholder="ssh-ed25519 AAAA… name@laptop"
-        >
+        />
       </div>
       <div>
         <label class="block text-sm font-medium mb-1">known_hosts (optional)</label>
@@ -65,18 +65,20 @@ function onSubmit(): void {
           class="w-full rounded border border-gray-700 bg-black/40 px-3 py-2 font-mono text-xs"
           placeholder="output of `ssh-keyscan github.com`"
         />
-        <p class="text-xs text-gray-500 mt-1">
-          Leave blank to use the API's bundled GitHub host keys.
-        </p>
+        <p class="text-xs text-gray-500 mt-1">Leave blank to use the API's bundled GitHub host keys.</p>
       </div>
       <p v-if="error" class="text-red-400 text-sm">{{ error }}</p>
       <div class="flex justify-end gap-2">
-        <button type="button" class="rounded px-4 py-2 text-sm text-gray-300 hover:bg-gray-800" @click="emit('cancel')">Cancel</button>
+        <button type="button" class="rounded px-4 py-2 text-sm text-gray-300 hover:bg-gray-800" @click="emit('cancel')">
+          Cancel
+        </button>
         <button
           type="submit"
           :disabled="busy"
           class="rounded bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 px-4 py-2 text-sm text-white"
-        >Attach key</button>
+        >
+          Attach key
+        </button>
       </div>
     </form>
   </div>

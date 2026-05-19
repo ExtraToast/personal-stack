@@ -3,10 +3,12 @@
 -- public_key, known_hosts) provisioned for this single repo.
 CREATE TABLE github_links (
     id                       UUID PRIMARY KEY,
-    project_id               UUID        NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    name                     TEXT        NOT NULL,
-    repo_url                 TEXT        NOT NULL,
-    default_branch           TEXT        NOT NULL DEFAULT 'main',
+    project_id               UUID         NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    -- VARCHAR(80) because the table carries UNIQUE(project_id, name);
+    -- H2 (jOOQ's DDL simulation backend) cannot index a CLOB.
+    name                     VARCHAR(80)  NOT NULL,
+    repo_url                 TEXT         NOT NULL,
+    default_branch           TEXT         NOT NULL DEFAULT 'main',
     -- Path under the Vault `secret/data/` mount where the deploy key
     -- lives. Stored relative so a future Vault namespace change
     -- doesn't require a data migration.

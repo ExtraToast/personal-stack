@@ -12,7 +12,10 @@ class ProjectQueryService(
     private val projects: ProjectsRepository,
     private val links: GithubLinkRepository,
 ) {
-    data class ProjectDetail(val project: Project, val links: List<GithubLink>)
+    data class ProjectDetail(
+        val project: Project,
+        val links: List<GithubLink>,
+    )
 
     fun list(): List<Project> = projects.findAll()
 

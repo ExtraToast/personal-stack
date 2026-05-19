@@ -20,7 +20,10 @@ class TokenBucket(
     private val refillInterval: Duration,
     private val clock: Clock = Clock.systemUTC(),
 ) {
-    private data class State(var tokens: Int, var lastRefill: Instant)
+    private data class State(
+        var tokens: Int,
+        var lastRefill: Instant,
+    )
 
     private val state = ConcurrentHashMap<String, State>()
 

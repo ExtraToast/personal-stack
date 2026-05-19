@@ -48,7 +48,7 @@ class LogTailer(
                     offset.addAndGet(read.toLong())
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: java.io.IOException) {
             log.warn("tail of {} failed: {}", file, e.message)
         }
     }

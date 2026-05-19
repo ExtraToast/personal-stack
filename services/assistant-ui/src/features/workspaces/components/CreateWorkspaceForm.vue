@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import type { Project } from '@/features/projects/types'
 import { onMounted, ref, watch } from 'vue'
-import { listProjects, getProject } from '@/features/projects/services/projectsService'
+import { getProject, listProjects } from '@/features/projects/services/projectsService'
 
 const emit = defineEmits<{
   submit: [value: { name: string; repoUrl: string | null; branch: string | null; githubLinkId: string | null }]
   cancel: []
 }>()
 
-interface LinkOption { id: string; label: string; repoUrl: string; defaultBranch: string }
+interface LinkOption {
+  id: string
+  label: string
+  repoUrl: string
+  defaultBranch: string
+}
 
 const name = ref('')
 const repoUrl = ref('')
@@ -33,7 +38,12 @@ watch(selectedProjectId, async (id) => {
   const detail = await getProject(id)
   links.value = detail.links
     .filter((l) => !!l.deployKeyFingerprint)
-    .map((l) => ({ id: l.id, label: `${l.name} (${l.repoUrl}@${l.defaultBranch})`, repoUrl: l.repoUrl, defaultBranch: l.defaultBranch }))
+    .map((l) => ({
+      id: l.id,
+      label: `${l.name} (${l.repoUrl}@${l.defaultBranch})`,
+      repoUrl: l.repoUrl,
+      defaultBranch: l.defaultBranch,
+    }))
   if (links.value.length > 0) selectedLinkId.value = links.value[0]!.id
 })
 
@@ -51,8 +61,8 @@ function onSubmit(): void {
   }
   emit('submit', {
     name: name.value.trim(),
-    repoUrl: mode.value === 'adhoc' ? (repoUrl.value.trim() || null) : null,
-    branch: mode.value === 'adhoc' ? (branch.value.trim() || null) : null,
+    repoUrl: mode.value === 'adhoc' ? repoUrl.value.trim() || null : null,
+    branch: mode.value === 'adhoc' ? branch.value.trim() || null : null,
     githubLinkId: null,
   })
 }
@@ -70,7 +80,7 @@ function onSubmit(): void {
         maxlength="80"
         class="w-full rounded border border-gray-700 bg-surface-darker px-3 py-2"
         placeholder="ps-knowledge-tweaks"
-      >
+      />
     </div>
 
     <div>
@@ -143,7 +153,7 @@ function onSubmit(): void {
           type="text"
           class="w-full rounded border border-gray-700 bg-surface-darker px-3 py-2"
           placeholder="git@github.com:owner/repo.git"
-        >
+        />
       </div>
       <div>
         <label class="block text-sm font-medium mb-1" for="ws-branch">Branch (optional)</label>
@@ -153,16 +163,14 @@ function onSubmit(): void {
           type="text"
           class="w-full rounded border border-gray-700 bg-surface-darker px-3 py-2"
           placeholder="main"
-        >
+        />
       </div>
     </template>
 
     <div class="flex gap-2 justify-end">
-      <button
-        type="button"
-        class="rounded px-4 py-2 text-sm text-gray-300 hover:bg-gray-800"
-        @click="emit('cancel')"
-      >Cancel</button>
+      <button type="button" class="rounded px-4 py-2 text-sm text-gray-300 hover:bg-gray-800" @click="emit('cancel')">
+        Cancel
+      </button>
       <button type="submit" class="rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm text-white">Create</button>
     </div>
   </form>

@@ -18,6 +18,7 @@ class SetupGuideController(
     private val guides: SetupGuideService,
 ) {
     @GetMapping("/setup-guide", produces = ["text/markdown", MediaType.TEXT_PLAIN_VALUE])
+    @Suppress("UnusedParameter") // projectId carried in the URL only
     fun guide(
         @PathVariable projectId: UUID,
         @PathVariable linkId: UUID,

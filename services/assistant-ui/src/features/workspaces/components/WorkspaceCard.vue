@@ -21,10 +21,7 @@ const statusColor: Record<Workspace['status'], string> = {
   >
     <div class="flex items-center justify-between mb-2">
       <h3 class="font-semibold">{{ workspace.name }}</h3>
-      <span
-        class="inline-flex items-center gap-1 text-xs"
-        :class="['text-gray-300']"
-      >
+      <span class="inline-flex items-center gap-1 text-xs text-gray-300">
         <span class="h-2 w-2 rounded-full" :class="statusColor[workspace.status]" />
         {{ workspace.status }}
       </span>

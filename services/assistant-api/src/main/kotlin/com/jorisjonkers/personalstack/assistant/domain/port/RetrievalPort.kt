@@ -7,9 +7,16 @@ package com.jorisjonkers.personalstack.assistant.domain.port
  * fan out to the underlying sources and rerank as needed.
  */
 interface RetrievalPort {
-    data class Snippet(val source: String, val text: String, val score: Double)
+    data class Snippet(
+        val source: String,
+        val text: String,
+        val score: Double,
+    )
 
-    fun retrieve(query: String, limit: Int): List<Snippet>
+    fun retrieve(
+        query: String,
+        limit: Int,
+    ): List<Snippet>
 }
 
 /**
@@ -19,5 +26,10 @@ interface RetrievalPort {
  * block that lands here directly.
  */
 interface KnowledgeWritePort {
-    fun ingestNote(title: String, body: String, scope: String, tags: List<String> = emptyList())
+    fun ingestNote(
+        title: String,
+        body: String,
+        scope: String,
+        tags: List<String> = emptyList(),
+    )
 }

@@ -12,7 +12,9 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 class LogTailerTest {
     @Test
-    fun `tailer emits bytes appended to the file`(@TempDir tmp: Path) {
+    fun `tailer emits bytes appended to the file`(
+        @TempDir tmp: Path,
+    ) {
         val file = tmp.resolve("agent.log")
         Files.createFile(file)
         val received = CopyOnWriteArrayList<String>()

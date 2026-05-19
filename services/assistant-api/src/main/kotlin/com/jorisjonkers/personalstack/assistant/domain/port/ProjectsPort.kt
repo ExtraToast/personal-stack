@@ -35,7 +35,10 @@ interface GithubLinkRepository {
  * the fingerprint that the GithubLink row will mirror.
  */
 interface DeployKeyStore {
-    data class StoredKey(val fingerprint: String, val vaultPath: String)
+    data class StoredKey(
+        val fingerprint: String,
+        val vaultPath: String,
+    )
 
     data class KeyMaterial(
         val privateKey: String,
@@ -59,7 +62,10 @@ interface DeployKeyStore {
         knownHosts: String,
     ): StoredKey
 
-    fun remove(projectId: ProjectId, linkId: GithubLinkId)
+    fun remove(
+        projectId: ProjectId,
+        linkId: GithubLinkId,
+    )
 
     /**
      * Return the public key half (only) at the link's path. Used
@@ -67,7 +73,10 @@ interface DeployKeyStore {
      * mid-flow and we need to remind them which key to paste into
      * GitHub.
      */
-    fun readPublicKey(projectId: ProjectId, linkId: GithubLinkId): String?
+    fun readPublicKey(
+        projectId: ProjectId,
+        linkId: GithubLinkId,
+    ): String?
 
     /**
      * Load the full key material for a link. Returns null if no
@@ -75,5 +84,8 @@ interface DeployKeyStore {
      * workspace-scoped k8s Secret out of the Vault-stored bytes
      * at Pod-creation time.
      */
-    fun loadKey(projectId: ProjectId, linkId: GithubLinkId): KeyMaterial?
+    fun loadKey(
+        projectId: ProjectId,
+        linkId: GithubLinkId,
+    ): KeyMaterial?
 }

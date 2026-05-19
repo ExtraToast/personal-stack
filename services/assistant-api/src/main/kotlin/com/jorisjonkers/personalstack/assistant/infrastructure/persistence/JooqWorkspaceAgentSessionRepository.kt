@@ -15,7 +15,9 @@ import java.time.ZoneOffset
 import java.util.UUID
 
 @Repository
-class JooqWorkspaceAgentSessionRepository(private val dsl: DSLContext) : WorkspaceAgentSessionRepository {
+class JooqWorkspaceAgentSessionRepository(
+    private val dsl: DSLContext,
+) : WorkspaceAgentSessionRepository {
     override fun save(session: WorkspaceAgentSession): WorkspaceAgentSession {
         val createdAt = session.createdAt.atOffset(ZoneOffset.UTC)
         val updatedAt = session.updatedAt.atOffset(ZoneOffset.UTC)
@@ -38,7 +40,11 @@ class JooqWorkspaceAgentSessionRepository(private val dsl: DSLContext) : Workspa
     }
 
     override fun findById(id: WorkspaceAgentSessionId): WorkspaceAgentSession? =
-        dsl.selectFrom(WAS).where(ID.eq(id.value)).fetchOne()?.toSession()
+        dsl
+            .selectFrom(WAS)
+            .where(ID.eq(id.value))
+            .fetchOne()
+            ?.toSession()
 
     override fun findAllByWorkspaceId(workspaceId: WorkspaceId): List<WorkspaceAgentSession> =
         dsl
@@ -54,13 +60,13 @@ class JooqWorkspaceAgentSessionRepository(private val dsl: DSLContext) : Workspa
 
     private fun Record.toSession(): WorkspaceAgentSession =
         WorkspaceAgentSession(
-            id = WorkspaceAgentSessionId(this[ID] as UUID),
-            workspaceId = WorkspaceId(this[WORKSPACE_ID] as UUID),
-            kind = WorkspaceAgentKind.valueOf(this[KIND] as String),
-            gatewayAgentId = this[GATEWAY_AGENT_ID] as String?,
-            status = WorkspaceAgentSessionStatus.valueOf(this[STATUS] as String),
-            createdAt = (this[CREATED_AT] as OffsetDateTime).toInstant(),
-            updatedAt = (this[UPDATED_AT] as OffsetDateTime).toInstant(),
+            id = WorkspaceAgentSessionId(this[ID]),
+            workspaceId = WorkspaceId(this[WORKSPACE_ID]),
+            kind = WorkspaceAgentKind.valueOf(this[KIND]),
+            gatewayAgentId = this[GATEWAY_AGENT_ID],
+            status = WorkspaceAgentSessionStatus.valueOf(this[STATUS]),
+            createdAt = this[CREATED_AT].toInstant(),
+            updatedAt = this[UPDATED_AT].toInstant(),
         )
 
     companion object {

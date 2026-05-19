@@ -3,6 +3,7 @@ package com.jorisjonkers.personalstack.assistant.application.command
 import com.jorisjonkers.personalstack.assistant.domain.port.DeployKeyStore
 import com.jorisjonkers.personalstack.assistant.domain.port.GithubLinkRepository
 import com.jorisjonkers.personalstack.common.command.CommandHandler
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -21,10 +22,19 @@ private val GITHUB_KNOWN_HOSTS_FALLBACK =
     github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
     """.trimIndent()
 
+/**
+ * `deployKeysProvider` is an [ObjectProvider] because the Vault-
+ * backed [DeployKeyStore] is `@ConditionalOnProperty(spring.cloud
+ * .vault.enabled)`: in tests where Vault is disabled the bean is
+ * absent and the constructor would otherwise fail to autowire.
+ * Resolving lazily lets the handler exist at boot and surface a
+ * clear "vault disabled" error only when an operator actually
+ * attempts to attach a key.
+ */
 @Component
 class AttachDeployKeyCommandHandler(
     private val links: GithubLinkRepository,
-    private val deployKeys: DeployKeyStore,
+    private val deployKeysProvider: ObjectProvider<DeployKeyStore>,
 ) : CommandHandler<AttachDeployKeyCommand> {
     @Transactional
     override fun handle(command: AttachDeployKeyCommand) {
@@ -37,6 +47,9 @@ class AttachDeployKeyCommandHandler(
         require(command.publicKeyOpenssh.matches(Regex("^ssh-(ed25519|rsa)\\s.+", RegexOption.DOT_MATCHES_ALL))) {
             "public key must be an OpenSSH single-line key (ssh-ed25519 / ssh-rsa preferred)"
         }
+        val deployKeys =
+            deployKeysProvider.ifAvailable
+                ?: error("vault disabled — deploy-key storage adapter is not loaded")
         val stored =
             deployKeys.store(
                 projectId = link.projectId,

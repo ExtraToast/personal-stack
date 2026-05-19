@@ -29,14 +29,16 @@ class AgentAttachHandler(
     private val tailers = ConcurrentHashMap<String, LogTailer>()
 
     override fun afterConnectionEstablished(session: WebSocketSession) {
-        val agentId = agentIdOf(session) ?: run {
-            session.close(CloseStatus.BAD_DATA.withReason("missing agentId"))
-            return
-        }
-        val agent = sessions.get(agentId) ?: run {
-            session.close(CloseStatus.BAD_DATA.withReason("unknown agent"))
-            return
-        }
+        val agentId =
+            agentIdOf(session) ?: run {
+                session.close(CloseStatus.BAD_DATA.withReason("missing agentId"))
+                return
+            }
+        val agent =
+            sessions.get(agentId) ?: run {
+                session.close(CloseStatus.BAD_DATA.withReason("unknown agent"))
+                return
+            }
         log.info("ws attach to agent {} (tmux={})", agentId, agent.tmuxSession)
         val tailer =
             LogTailer(agent.logFile) { bytes ->
@@ -49,7 +51,10 @@ class AgentAttachHandler(
         tailer.start()
     }
 
-    override fun handleTextMessage(session: WebSocketSession, message: TextMessage) {
+    override fun handleTextMessage(
+        session: WebSocketSession,
+        message: TextMessage,
+    ) {
         val agentId = agentIdOf(session) ?: return
         val payload =
             runCatching { mapper.readValue(message.payload, Map::class.java) }
@@ -62,7 +67,10 @@ class AgentAttachHandler(
         sessions.send(agentId, input, enter)
     }
 
-    override fun afterConnectionClosed(session: WebSocketSession, status: CloseStatus) {
+    override fun afterConnectionClosed(
+        session: WebSocketSession,
+        status: CloseStatus,
+    ) {
         tailers.remove(session.id)?.close()
     }
 

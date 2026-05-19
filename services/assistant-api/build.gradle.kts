@@ -60,7 +60,10 @@ tasks.jacocoTestCoverageVerification {
     classDirectories.setFrom(
         classDirectories.files.map { dir ->
             fileTree(dir) {
-                exclude(agentRuntimeIoExclusions + listOf("**/jooq/**", "**/generated/**", "**/*Application.class", "**/*ApplicationKt.class"))
+                exclude(
+                    agentRuntimeIoExclusions +
+                        listOf("**/jooq/**", "**/generated/**", "**/*Application.class", "**/*ApplicationKt.class"),
+                )
             }
         },
     )
@@ -70,7 +73,10 @@ tasks.jacocoTestReport {
     classDirectories.setFrom(
         classDirectories.files.map { dir ->
             fileTree(dir) {
-                exclude(agentRuntimeIoExclusions + listOf("**/jooq/**", "**/generated/**", "**/*Application.class", "**/*ApplicationKt.class"))
+                exclude(
+                    agentRuntimeIoExclusions +
+                        listOf("**/jooq/**", "**/generated/**", "**/*Application.class", "**/*ApplicationKt.class"),
+                )
             }
         },
     )

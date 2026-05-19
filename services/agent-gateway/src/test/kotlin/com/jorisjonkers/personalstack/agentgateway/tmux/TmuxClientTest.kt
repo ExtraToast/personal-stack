@@ -46,11 +46,17 @@ class TmuxClientTest {
         verify {
             runner.run(
                 match { it.containsAll(listOf("send-keys", "-t", "agent-abc:0.0", "-l", "hello world")) },
-                any(), any(), any(), any(),
+                any(),
+                any(),
+                any(),
+                any(),
             )
             runner.run(
                 match { it.containsAll(listOf("send-keys", "-t", "agent-abc:0.0", "Enter")) },
-                any(), any(), any(), any(),
+                any(),
+                any(),
+                any(),
+                any(),
             )
         }
     }
@@ -72,7 +78,9 @@ class TmuxClientTest {
     }
 
     @Test
-    fun `ensureStateDir creates the directory`(@TempDir tmp: Path) {
+    fun `ensureStateDir creates the directory`(
+        @TempDir tmp: Path,
+    ) {
         val withTmp =
             props.copy(
                 tmux = props.tmux.copy(stateDir = tmp.resolve("agent-gw").toString()),

@@ -11,6 +11,7 @@ import java.nio.file.Path
 
 class AgentSessionManagerTest {
     private val tmux = mockk<TmuxClient>(relaxed = true)
+
     private fun manager(tmp: Path): AgentSessionManager {
         val props =
             GatewayProperties(
@@ -24,7 +25,9 @@ class AgentSessionManagerTest {
     }
 
     @Test
-    fun `spawn registers session and starts tmux + pipe`(@TempDir tmp: Path) {
+    fun `spawn registers session and starts tmux + pipe`(
+        @TempDir tmp: Path,
+    ) {
         val mgr = manager(tmp)
         val s = mgr.spawn(AgentKind.CLAUDE, workspacePath = "/workspace/repo")
         assertThat(s.kind).isEqualTo(AgentKind.CLAUDE)
@@ -38,14 +41,18 @@ class AgentSessionManagerTest {
     }
 
     @Test
-    fun `spawn uses workspaceRoot when no path provided`(@TempDir tmp: Path) {
+    fun `spawn uses workspaceRoot when no path provided`(
+        @TempDir tmp: Path,
+    ) {
         val mgr = manager(tmp)
         val s = mgr.spawn(AgentKind.CODEX)
         assertThat(s.cwd).isEqualTo("/workspace")
     }
 
     @Test
-    fun `stop kills tmux session and removes from registry`(@TempDir tmp: Path) {
+    fun `stop kills tmux session and removes from registry`(
+        @TempDir tmp: Path,
+    ) {
         val mgr = manager(tmp)
         val s = mgr.spawn(AgentKind.SHELL)
         assertThat(mgr.stop(s.id)).isTrue
@@ -54,13 +61,17 @@ class AgentSessionManagerTest {
     }
 
     @Test
-    fun `stop returns false for unknown id`(@TempDir tmp: Path) {
+    fun `stop returns false for unknown id`(
+        @TempDir tmp: Path,
+    ) {
         val mgr = manager(tmp)
         assertThat(mgr.stop("does-not-exist")).isFalse
     }
 
     @Test
-    fun `send delegates to tmux sendKeys with enter flag`(@TempDir tmp: Path) {
+    fun `send delegates to tmux sendKeys with enter flag`(
+        @TempDir tmp: Path,
+    ) {
         val mgr = manager(tmp)
         val s = mgr.spawn(AgentKind.CLAUDE)
         mgr.send(s.id, "list files", enter = true)
@@ -68,7 +79,9 @@ class AgentSessionManagerTest {
     }
 
     @Test
-    fun `capture delegates to tmux capture`(@TempDir tmp: Path) {
+    fun `capture delegates to tmux capture`(
+        @TempDir tmp: Path,
+    ) {
         val mgr = manager(tmp)
         val s = mgr.spawn(AgentKind.CLAUDE)
         every { tmux.capture(s.tmuxSession, 1_000) } returns "screen content"

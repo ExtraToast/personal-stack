@@ -29,7 +29,11 @@ class GitClient(
 ) {
     private val log = LoggerFactory.getLogger(GitClient::class.java)
 
-    fun clone(repoUrl: String, intoDir: String, branch: String? = null): String {
+    fun clone(
+        repoUrl: String,
+        intoDir: String,
+        branch: String? = null,
+    ): String {
         val argv =
             mutableListOf("git", "clone", "--depth", "50").apply {
                 if (branch != null) {
@@ -43,14 +47,21 @@ class GitClient(
         return intoDir
     }
 
-    fun checkoutNewBranch(repoDir: String, branch: String) {
+    fun checkoutNewBranch(
+        repoDir: String,
+        branch: String,
+    ) {
         runner.run(
             listOf("git", "checkout", "-b", branch),
             cwd = File(repoDir),
         )
     }
 
-    fun push(repoDir: String, remote: String = "origin", branch: String? = null): String {
+    fun push(
+        repoDir: String,
+        remote: String = "origin",
+        branch: String? = null,
+    ): String {
         val argv =
             mutableListOf("git", "push", "-u", remote).apply {
                 if (branch != null) add(branch) else add("HEAD")
@@ -58,22 +69,34 @@ class GitClient(
         return runner.run(argv, cwd = File(repoDir), env = gitEnv(), timeoutSeconds = 300).combined
     }
 
-    fun openPr(repoDir: String, title: String, body: String, base: String = "main"): String {
+    fun openPr(
+        repoDir: String,
+        title: String,
+        body: String,
+        base: String = "main",
+    ): String {
         val argv =
             listOf(
-                "gh", "pr", "create",
-                "--title", title,
-                "--body", body,
-                "--base", base,
+                "gh",
+                "pr",
+                "create",
+                "--title",
+                title,
+                "--body",
+                body,
+                "--base",
+                base,
             )
         return runner.run(argv, cwd = File(repoDir), env = ghEnv(), timeoutSeconds = 120).stdout.trim()
     }
 
     fun currentBranch(repoDir: String): String =
-        runner.run(
-            listOf("git", "rev-parse", "--abbrev-ref", "HEAD"),
-            cwd = File(repoDir),
-        ).stdout.trim()
+        runner
+            .run(
+                listOf("git", "rev-parse", "--abbrev-ref", "HEAD"),
+                cwd = File(repoDir),
+            ).stdout
+            .trim()
 
     private fun gitEnv(): Map<String, String> {
         val key = ensureDeployKey()

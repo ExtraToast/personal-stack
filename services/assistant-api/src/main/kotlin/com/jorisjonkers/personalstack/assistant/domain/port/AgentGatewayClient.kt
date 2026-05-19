@@ -11,19 +11,48 @@ import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentKind
  * not by this control plane.
  */
 interface AgentGatewayClient {
-    data class GatewayAgent(val id: String, val kind: WorkspaceAgentKind, val cwd: String)
+    data class GatewayAgent(
+        val id: String,
+        val kind: WorkspaceAgentKind,
+        val cwd: String,
+    )
 
-    fun spawnAgent(workspace: Workspace, kind: WorkspaceAgentKind, workspacePath: String? = null): GatewayAgent
+    fun spawnAgent(
+        workspace: Workspace,
+        kind: WorkspaceAgentKind,
+        workspacePath: String? = null,
+    ): GatewayAgent
 
-    fun stopAgent(workspace: Workspace, gatewayAgentId: String)
+    fun stopAgent(
+        workspace: Workspace,
+        gatewayAgentId: String,
+    )
 
-    fun sendInput(workspace: Workspace, gatewayAgentId: String, input: String, enter: Boolean = true)
+    fun sendInput(
+        workspace: Workspace,
+        gatewayAgentId: String,
+        input: String,
+        enter: Boolean = true,
+    )
 
-    fun capture(workspace: Workspace, gatewayAgentId: String): String
+    fun capture(
+        workspace: Workspace,
+        gatewayAgentId: String,
+    ): String
 
-    fun clone(workspace: Workspace, repoUrl: String, branch: String? = null): String
+    fun clone(
+        workspace: Workspace,
+        repoUrl: String,
+        branch: String? = null,
+    ): String
 
-    fun openPr(workspace: Workspace, repoDir: String, title: String, body: String, base: String = "main"): String
+    fun openPr(
+        workspace: Workspace,
+        repoDir: String,
+        title: String,
+        body: String,
+        base: String = "main",
+    ): String
 
     fun isReady(workspace: Workspace): Boolean
 }

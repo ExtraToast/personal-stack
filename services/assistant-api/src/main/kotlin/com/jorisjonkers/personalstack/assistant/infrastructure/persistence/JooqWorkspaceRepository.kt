@@ -23,7 +23,9 @@ import java.util.UUID
  * audit-log persistence, which predates the codegen plugin.
  */
 @Repository
-class JooqWorkspaceRepository(private val dsl: DSLContext) : WorkspaceRepository {
+class JooqWorkspaceRepository(
+    private val dsl: DSLContext,
+) : WorkspaceRepository {
     override fun save(workspace: Workspace): Workspace {
         val createdAt = workspace.createdAt.atOffset(ZoneOffset.UTC)
         val updatedAt = workspace.updatedAt.atOffset(ZoneOffset.UTC)
@@ -56,7 +58,11 @@ class JooqWorkspaceRepository(private val dsl: DSLContext) : WorkspaceRepository
     }
 
     override fun findById(id: WorkspaceId): Workspace? =
-        dsl.selectFrom(WORKSPACES).where(ID.eq(id.value)).fetchOne()?.toWorkspace()
+        dsl
+            .selectFrom(WORKSPACES)
+            .where(ID.eq(id.value))
+            .fetchOne()
+            ?.toWorkspace()
 
     override fun findAllByStatusNot(status: WorkspaceStatus): List<Workspace> =
         dsl
@@ -72,17 +78,17 @@ class JooqWorkspaceRepository(private val dsl: DSLContext) : WorkspaceRepository
 
     private fun Record.toWorkspace(): Workspace =
         Workspace(
-            id = WorkspaceId(this[ID] as UUID),
-            name = this[NAME] as String,
-            repoUrl = this[REPO_URL] as String?,
-            branch = this[BRANCH] as String?,
-            podName = this[POD_NAME] as String?,
-            pvcName = this[PVC_NAME] as String?,
-            gatewayEndpoint = this[GATEWAY_ENDPOINT] as String?,
-            status = WorkspaceStatus.valueOf(this[STATUS] as String),
-            githubLinkId = (this[GITHUB_LINK_ID] as UUID?)?.let { GithubLinkId(it) },
-            createdAt = (this[CREATED_AT] as OffsetDateTime).toInstant(),
-            updatedAt = (this[UPDATED_AT] as OffsetDateTime).toInstant(),
+            id = WorkspaceId(this[ID]),
+            name = this[NAME],
+            repoUrl = this[REPO_URL],
+            branch = this[BRANCH],
+            podName = this[POD_NAME],
+            pvcName = this[PVC_NAME],
+            gatewayEndpoint = this[GATEWAY_ENDPOINT],
+            status = WorkspaceStatus.valueOf(this[STATUS]),
+            githubLinkId = this[GITHUB_LINK_ID]?.let { GithubLinkId(it) },
+            createdAt = this[CREATED_AT].toInstant(),
+            updatedAt = this[UPDATED_AT].toInstant(),
         )
 
     companion object {

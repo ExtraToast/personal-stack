@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 import { useApiWithAuth } from '@personal-stack/vue-common'
+import { ref } from 'vue'
 
 const props = defineProps<{ workspaceId: string }>()
 
@@ -16,10 +16,12 @@ async function submit(): Promise<void> {
   busy.value = true
   message.value = null
   try {
-    await useApiWithAuth({ baseUrl: '/api/v1' }).post(
-      `/workspaces/${props.workspaceId}/git/open-pr`,
-      { repoDir: repoDir.value, title: title.value, body: body.value, base: base.value },
-    )
+    await useApiWithAuth({ baseUrl: '/api/v1' }).post(`/workspaces/${props.workspaceId}/git/open-pr`, {
+      repoDir: repoDir.value,
+      title: title.value,
+      body: body.value,
+      base: base.value,
+    })
     message.value = 'PR creation queued — watch the transcript for the gateway response.'
     open.value = false
   } catch (e: unknown) {
@@ -46,7 +48,7 @@ async function submit(): Promise<void> {
         type="text"
         placeholder="PR title"
         class="w-full rounded border border-gray-700 bg-black/30 px-3 py-2 text-sm"
-      >
+      />
       <textarea
         v-model="body"
         rows="5"
@@ -59,13 +61,13 @@ async function submit(): Promise<void> {
           type="text"
           placeholder="repo dir"
           class="flex-1 rounded border border-gray-700 bg-black/30 px-3 py-2 text-sm font-mono"
-        >
+        />
         <input
           v-model="base"
           type="text"
           placeholder="base branch"
           class="w-32 rounded border border-gray-700 bg-black/30 px-3 py-2 text-sm"
-        >
+        />
       </div>
       <button
         type="button"

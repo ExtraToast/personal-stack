@@ -21,6 +21,14 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
 
+/**
+ * `workspaceId` is bound from the path purely so Spring's routing
+ * keeps the nested URL shape intact (sessions are conceptually
+ * children of a workspace). The handler bodies operate on the
+ * session id only — session uniqueness is guaranteed at the
+ * persistence layer regardless of the parent workspace.
+ */
+@Suppress("UnusedParameter")
 @RestController
 @RequestMapping("/api/v1/workspaces/{workspaceId}/sessions")
 class AgentSessionController(
@@ -63,8 +71,7 @@ class AgentSessionController(
     fun turns(
         @PathVariable workspaceId: UUID,
         @PathVariable sessionId: UUID,
-    ): List<TurnResponse> =
-        turnHistory.history(WorkspaceAgentSessionId(sessionId)).map(TurnResponse::of)
+    ): List<TurnResponse> = turnHistory.history(WorkspaceAgentSessionId(sessionId)).map(TurnResponse::of)
 
     @DeleteMapping("/{sessionId}")
     fun stop(

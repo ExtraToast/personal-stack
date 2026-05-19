@@ -25,7 +25,10 @@ data class CloneRequest(
     val intoDir: String? = null,
 )
 
-data class PushRequest(val repoDir: String, val branch: String? = null)
+data class PushRequest(
+    val repoDir: String,
+    val branch: String? = null,
+)
 
 data class OpenPrRequest(
     val repoDir: String,
@@ -34,4 +37,7 @@ data class OpenPrRequest(
     val base: String = "main",
 )
 
-data class GitOperationResponse(val ok: Boolean, val output: String)
+data class GitOperationResponse(
+    val ok: Boolean,
+    val output: String,
+)

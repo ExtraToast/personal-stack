@@ -12,7 +12,9 @@ import java.time.ZoneOffset
 import java.util.UUID
 
 @Repository
-class JooqProjectsRepository(private val dsl: DSLContext) : ProjectsRepository {
+class JooqProjectsRepository(
+    private val dsl: DSLContext,
+) : ProjectsRepository {
     override fun save(project: Project): Project {
         val createdAt = project.createdAt.atOffset(ZoneOffset.UTC)
         val updatedAt = project.updatedAt.atOffset(ZoneOffset.UTC)
@@ -35,10 +37,18 @@ class JooqProjectsRepository(private val dsl: DSLContext) : ProjectsRepository {
     }
 
     override fun findById(id: ProjectId): Project? =
-        dsl.selectFrom(PROJECTS).where(ID.eq(id.value)).fetchOne()?.toProject()
+        dsl
+            .selectFrom(PROJECTS)
+            .where(ID.eq(id.value))
+            .fetchOne()
+            ?.toProject()
 
     override fun findBySlug(slug: String): Project? =
-        dsl.selectFrom(PROJECTS).where(SLUG.eq(slug)).fetchOne()?.toProject()
+        dsl
+            .selectFrom(PROJECTS)
+            .where(SLUG.eq(slug))
+            .fetchOne()
+            ?.toProject()
 
     override fun findAll(): List<Project> =
         dsl

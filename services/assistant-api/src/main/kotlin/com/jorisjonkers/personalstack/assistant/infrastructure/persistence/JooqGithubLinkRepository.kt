@@ -13,7 +13,9 @@ import java.time.ZoneOffset
 import java.util.UUID
 
 @Repository
-class JooqGithubLinkRepository(private val dsl: DSLContext) : GithubLinkRepository {
+class JooqGithubLinkRepository(
+    private val dsl: DSLContext,
+) : GithubLinkRepository {
     override fun save(link: GithubLink): GithubLink {
         val createdAt = link.createdAt.atOffset(ZoneOffset.UTC)
         val updatedAt = link.updatedAt.atOffset(ZoneOffset.UTC)
@@ -44,7 +46,11 @@ class JooqGithubLinkRepository(private val dsl: DSLContext) : GithubLinkReposito
     }
 
     override fun findById(id: GithubLinkId): GithubLink? =
-        dsl.selectFrom(LINKS).where(ID.eq(id.value)).fetchOne()?.toLink()
+        dsl
+            .selectFrom(LINKS)
+            .where(ID.eq(id.value))
+            .fetchOne()
+            ?.toLink()
 
     override fun findAllByProjectId(projectId: ProjectId): List<GithubLink> =
         dsl
@@ -60,16 +66,16 @@ class JooqGithubLinkRepository(private val dsl: DSLContext) : GithubLinkReposito
 
     private fun Record.toLink(): GithubLink =
         GithubLink(
-            id = GithubLinkId(this[ID] as UUID),
-            projectId = ProjectId(this[PROJECT_ID] as UUID),
-            name = this[NAME] as String,
-            repoUrl = this[REPO_URL] as String,
-            defaultBranch = this[DEFAULT_BRANCH] as String,
-            vaultKeyPath = this[VAULT_KEY_PATH] as String,
-            deployKeyFingerprint = this[FINGERPRINT] as String?,
-            deployKeyAddedAt = (this[KEY_ADDED_AT] as OffsetDateTime?)?.toInstant(),
-            createdAt = (this[CREATED_AT] as OffsetDateTime).toInstant(),
-            updatedAt = (this[UPDATED_AT] as OffsetDateTime).toInstant(),
+            id = GithubLinkId(this[ID]),
+            projectId = ProjectId(this[PROJECT_ID]),
+            name = this[NAME],
+            repoUrl = this[REPO_URL],
+            defaultBranch = this[DEFAULT_BRANCH],
+            vaultKeyPath = this[VAULT_KEY_PATH],
+            deployKeyFingerprint = this[FINGERPRINT],
+            deployKeyAddedAt = this[KEY_ADDED_AT]?.toInstant(),
+            createdAt = this[CREATED_AT].toInstant(),
+            updatedAt = this[UPDATED_AT].toInstant(),
         )
 
     companion object {

@@ -1,6 +1,15 @@
 import type { Workspace, WorkspaceDetail } from '../types'
-import { setActivePinia, createPinia } from 'pinia'
+import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  createWorkspace,
+  destroyWorkspace,
+  getTurns,
+  getWorkspace,
+  listWorkspaces,
+  startSession,
+} from '../services/workspaceService'
+
 import { useWorkspacesStore } from '../stores/workspaces'
 
 vi.mock('../services/workspaceService', () => ({
@@ -13,15 +22,6 @@ vi.mock('../services/workspaceService', () => ({
   getTurns: vi.fn(),
   sendInput: vi.fn(),
 }))
-
-import {
-  createWorkspace,
-  destroyWorkspace,
-  getTurns,
-  getWorkspace,
-  listWorkspaces,
-  startSession,
-} from '../services/workspaceService'
 
 const mocked = {
   listWorkspaces: vi.mocked(listWorkspaces),
@@ -41,6 +41,7 @@ function fakeWorkspace(over: Partial<Workspace> = {}): Workspace {
     podName: null,
     gatewayEndpoint: null,
     status: 'READY',
+    githubLinkId: null,
     createdAt: '2026-05-19T10:00:00Z',
     updatedAt: '2026-05-19T10:00:00Z',
     ...over,

@@ -55,14 +55,15 @@ class CreateProjectCommandHandlerTest {
 
     @Test
     fun `handle rejects slug already in use by another project`() {
-        val existing = Project(
-            id = ProjectId.random(),
-            name = "other",
-            slug = "shared",
-            description = "",
-            createdAt = Instant.now(),
-            updatedAt = Instant.now(),
-        )
+        val existing =
+            Project(
+                id = ProjectId.random(),
+                name = "other",
+                slug = "shared",
+                description = "",
+                createdAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
         every { projects.findBySlug("shared") } returns existing
         assertThrows<IllegalStateException> {
             handler.handle(CreateProjectCommand(ProjectId.random(), "Mine", "shared"))

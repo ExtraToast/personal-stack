@@ -1,5 +1,6 @@
 package com.jorisjonkers.personalstack.assistant.infrastructure.integration
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.jorisjonkers.personalstack.assistant.config.RagProperties
 import com.jorisjonkers.personalstack.assistant.domain.port.RetrievalPort
 import org.slf4j.LoggerFactory
@@ -20,17 +21,33 @@ class LightRagClient(
     private val props: RagProperties,
 ) : RetrievalPort {
     private val log = LoggerFactory.getLogger(LightRagClient::class.java)
-    private data class Req(val query: String, val mode: String = "mix", val top_k: Int = 5)
-    private data class Resp(val response: String?)
 
-    override fun retrieve(query: String, limit: Int): List<RetrievalPort.Snippet> {
+    /**
+     * `top_k` snake-case stays on the wire because that's what
+     * LightRAG's HTTP API expects; the Kotlin field uses camelCase
+     * and Jackson rewrites it via @JsonProperty.
+     */
+    private data class Req(
+        val query: String,
+        val mode: String = "mix",
+        @param:JsonProperty("top_k") val topK: Int = DEFAULT_TOP_K,
+    )
+
+    private data class Resp(
+        val response: String?,
+    )
+
+    override fun retrieve(
+        query: String,
+        limit: Int,
+    ): List<RetrievalPort.Snippet> {
         if (!props.enabled) return emptyList()
         return runCatching {
             val body =
                 restClient
                     .post()
                     .uri("${props.lightragUrl}/query")
-                    .body(Req(query = query, top_k = limit))
+                    .body(Req(query = query, topK = limit))
                     .retrieve()
                     .body(Resp::class.java)
             val text = body?.response ?: ""
@@ -39,5 +56,9 @@ class LightRagClient(
             log.warn("LightRAG query failed: {}", it.message)
             emptyList()
         }
+    }
+
+    companion object {
+        private const val DEFAULT_TOP_K = 5
     }
 }

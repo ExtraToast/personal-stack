@@ -13,7 +13,14 @@ onMounted(() => {
   void store.loadAll()
 })
 
-async function onCreate(input: { name: string; repoUrl: string | null; branch: string | null; githubLinkId: string | null }): Promise<void> {
+interface CreateWorkspaceInput {
+  name: string
+  repoUrl: string | null
+  branch: string | null
+  githubLinkId: string | null
+}
+
+async function onCreate(input: CreateWorkspaceInput): Promise<void> {
   const ws = await store.create(input)
   showCreate.value = false
   void router.push(`/workspaces/${ws.id}`)
@@ -24,6 +31,9 @@ function onOpen(id: string): void {
 }
 
 async function onDestroy(id: string): Promise<void> {
+  // See ProjectView.onRemove — browser confirm() is the simplest
+  // accept/cancel surface for a destructive action.
+  // eslint-disable-next-line no-alert
   if (!window.confirm('Destroy this workspace? The runner Pod and PVC will be deleted.')) return
   await store.destroy(id)
 }
@@ -53,13 +63,7 @@ async function onDestroy(id: string): Promise<void> {
       No workspaces yet. Spin one up to start working with Claude or Codex.
     </div>
     <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <WorkspaceCard
-        v-for="ws in store.workspaces"
-        :key="ws.id"
-        :workspace="ws"
-        @open="onOpen"
-        @destroy="onDestroy"
-      />
+      <WorkspaceCard v-for="ws in store.workspaces" :key="ws.id" :workspace="ws" @open="onOpen" @destroy="onDestroy" />
     </div>
   </div>
 </template>

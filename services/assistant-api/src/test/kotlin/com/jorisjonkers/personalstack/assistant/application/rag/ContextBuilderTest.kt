@@ -6,7 +6,11 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
 class ContextBuilderTest {
-    private fun props(enabled: Boolean = true, maxSnippets: Int = 5, maxContextChars: Int = 4_000): RagProperties =
+    private fun props(
+        enabled: Boolean = true,
+        maxSnippets: Int = 5,
+        maxContextChars: Int = 4_000,
+    ): RagProperties =
         RagProperties(
             enabled = enabled,
             knowledgeMcpUrl = "http://kb:8080",
@@ -16,8 +20,13 @@ class ContextBuilderTest {
             maxContextChars = maxContextChars,
         )
 
-    private class FakeSource(private val snippets: List<RetrievalPort.Snippet>) : RetrievalPort {
-        override fun retrieve(query: String, limit: Int): List<RetrievalPort.Snippet> = snippets
+    private class FakeSource(
+        private val snippets: List<RetrievalPort.Snippet>,
+    ) : RetrievalPort {
+        override fun retrieve(
+            query: String,
+            limit: Int,
+        ): List<RetrievalPort.Snippet> = snippets
     }
 
     @Test

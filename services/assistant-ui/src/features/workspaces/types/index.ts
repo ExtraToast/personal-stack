@@ -1,10 +1,4 @@
-export type WorkspaceStatus =
-  | 'PENDING'
-  | 'STARTING'
-  | 'READY'
-  | 'IDLE'
-  | 'FAILED'
-  | 'DESTROYED'
+export type WorkspaceStatus = 'PENDING' | 'STARTING' | 'READY' | 'IDLE' | 'FAILED' | 'DESTROYED'
 
 export interface Workspace {
   id: string

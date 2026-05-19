@@ -23,28 +23,40 @@ import java.util.concurrent.atomic.AtomicLong
 class KnowledgeMcpClient(
     private val restClient: RestClient,
     private val props: RagProperties,
-) : RetrievalPort, KnowledgeWritePort {
+) : RetrievalPort,
+    KnowledgeWritePort {
     private val log = LoggerFactory.getLogger(KnowledgeMcpClient::class.java)
     private val seq = AtomicLong(0)
 
-    override fun retrieve(query: String, limit: Int): List<RetrievalPort.Snippet> {
+    override fun retrieve(
+        query: String,
+        limit: Int,
+    ): List<RetrievalPort.Snippet> {
         if (!props.enabled) return emptyList()
-        val arguments = mapOf("query" to query, "limit" to limit)
         return runCatching {
-            val resp = callTool("knowledge_recall", arguments) ?: return emptyList()
+            val resp = callTool("knowledge_recall", mapOf("query" to query, "limit" to limit))
             // CallToolResult.content is an array of TextContent { type, text }.
             val text =
-                resp["result"]?.get("content")?.firstOrNull()?.get("text")?.asText()
-                    ?: return emptyList()
-            val hits = parseRecallHits(text)
-            hits.take(limit)
+                resp
+                    ?.get("result")
+                    ?.get("content")
+                    ?.firstOrNull()
+                    ?.get("text")
+                    ?.asText()
+                    .orEmpty()
+            if (text.isBlank()) emptyList() else parseRecallHits(text).take(limit)
         }.getOrElse {
             log.warn("knowledge.recall failed: {}", it.message)
             emptyList()
         }
     }
 
-    override fun ingestNote(title: String, body: String, scope: String, tags: List<String>) {
+    override fun ingestNote(
+        title: String,
+        body: String,
+        scope: String,
+        tags: List<String>,
+    ) {
         if (!props.enabled) return
         runCatching {
             callTool(
@@ -59,7 +71,10 @@ class KnowledgeMcpClient(
         }.onFailure { log.warn("knowledge.capture failed: {}", it.message) }
     }
 
-    private fun callTool(name: String, arguments: Map<String, Any?>): JsonNode? {
+    private fun callTool(
+        name: String,
+        arguments: Map<String, Any?>,
+    ): JsonNode? {
         val payload =
             mapOf(
                 "jsonrpc" to "2.0",
@@ -75,8 +90,7 @@ class KnowledgeMcpClient(
                 if (props.knowledgeMcpToken.isNotBlank()) {
                     h[HttpHeaders.AUTHORIZATION] = "Bearer ${props.knowledgeMcpToken}"
                 }
-            }
-            .body(payload)
+            }.body(payload)
             .retrieve()
             .body(JsonNode::class.java)
     }

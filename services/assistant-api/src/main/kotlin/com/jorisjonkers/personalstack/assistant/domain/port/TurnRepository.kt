@@ -6,5 +6,8 @@ import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSessi
 interface TurnRepository {
     fun save(turn: Turn): Turn
 
-    fun findBySessionId(sessionId: WorkspaceAgentSessionId, limit: Int = 200): List<Turn>
+    fun findBySessionId(
+        sessionId: WorkspaceAgentSessionId,
+        limit: Int = 200,
+    ): List<Turn>
 }

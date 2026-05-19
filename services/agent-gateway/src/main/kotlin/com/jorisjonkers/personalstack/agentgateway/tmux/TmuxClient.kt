@@ -31,15 +31,28 @@ class TmuxClient(
         return dir
     }
 
-    fun newSession(name: String, command: List<String>, cwd: String, env: Map<String, String> = emptyMap()) {
+    fun newSession(
+        name: String,
+        command: List<String>,
+        cwd: String,
+        env: Map<String, String> = emptyMap(),
+    ) {
         ensureStateDir()
         val argv =
             mutableListOf(
-                "tmux", "-L", props.tmux.socketName,
-                "new-session", "-d",
-                "-s", name,
-                "-x", "200", "-y", "50",
-                "-c", cwd,
+                "tmux",
+                "-L",
+                props.tmux.socketName,
+                "new-session",
+                "-d",
+                "-s",
+                name,
+                "-x",
+                "200",
+                "-y",
+                "50",
+                "-c",
+                cwd,
             ) + command
         runner.run(argv, env = env)
         log.info("tmux session {} created in {}", name, cwd)
@@ -52,49 +65,84 @@ class TmuxClient(
         )
     }
 
-    fun sendKeys(session: String, text: String, enter: Boolean = true) {
+    fun sendKeys(
+        session: String,
+        text: String,
+        enter: Boolean = true,
+    ) {
         val argv =
             mutableListOf(
-                "tmux", "-L", props.tmux.socketName,
-                "send-keys", "-t", "$session:0.0",
-                "-l", text,
+                "tmux",
+                "-L",
+                props.tmux.socketName,
+                "send-keys",
+                "-t",
+                "$session:0.0",
+                "-l",
+                text,
             )
         runner.run(argv)
         if (enter) {
             runner.run(
                 listOf(
-                    "tmux", "-L", props.tmux.socketName,
-                    "send-keys", "-t", "$session:0.0", "Enter",
+                    "tmux",
+                    "-L",
+                    props.tmux.socketName,
+                    "send-keys",
+                    "-t",
+                    "$session:0.0",
+                    "Enter",
                 ),
             )
         }
     }
 
-    fun sendKey(session: String, key: String) {
+    fun sendKey(
+        session: String,
+        key: String,
+    ) {
         runner.run(
             listOf(
-                "tmux", "-L", props.tmux.socketName,
-                "send-keys", "-t", "$session:0.0", key,
+                "tmux",
+                "-L",
+                props.tmux.socketName,
+                "send-keys",
+                "-t",
+                "$session:0.0",
+                key,
             ),
         )
     }
 
-    fun capture(session: String, historyLines: Int = 1_000): String =
-        runner.run(
-            listOf(
-                "tmux", "-L", props.tmux.socketName,
-                "capture-pane", "-p",
-                "-S", "-$historyLines",
-                "-t", "$session:0.0",
-            ),
-        ).stdout
+    fun capture(
+        session: String,
+        historyLines: Int = 1_000,
+    ): String =
+        runner
+            .run(
+                listOf(
+                    "tmux",
+                    "-L",
+                    props.tmux.socketName,
+                    "capture-pane",
+                    "-p",
+                    "-S",
+                    "-$historyLines",
+                    "-t",
+                    "$session:0.0",
+                ),
+            ).stdout
 
     fun listSessions(): List<String> {
         val result =
             runner.run(
                 listOf(
-                    "tmux", "-L", props.tmux.socketName,
-                    "list-sessions", "-F", "#{session_name}",
+                    "tmux",
+                    "-L",
+                    props.tmux.socketName,
+                    "list-sessions",
+                    "-F",
+                    "#{session_name}",
                 ),
                 checked = false,
             )
@@ -102,11 +150,19 @@ class TmuxClient(
         return result.stdout.lines().filter { it.isNotBlank() }
     }
 
-    fun startPipeToFile(session: String, file: Path) {
+    fun startPipeToFile(
+        session: String,
+        file: Path,
+    ) {
         runner.run(
             listOf(
-                "tmux", "-L", props.tmux.socketName,
-                "pipe-pane", "-O", "-t", "$session:0.0",
+                "tmux",
+                "-L",
+                props.tmux.socketName,
+                "pipe-pane",
+                "-O",
+                "-t",
+                "$session:0.0",
                 "cat >> ${file.toAbsolutePath()}",
             ),
         )

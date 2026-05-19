@@ -27,7 +27,10 @@ class AgentSessionManager(
     private val log = LoggerFactory.getLogger(AgentSessionManager::class.java)
     private val sessions = ConcurrentHashMap<String, AgentSession>()
 
-    fun spawn(kind: AgentKind, workspacePath: String? = null): AgentSession {
+    fun spawn(
+        kind: AgentKind,
+        workspacePath: String? = null,
+    ): AgentSession {
         val id = UUID.randomUUID().toString().substring(0, 8)
         val tmuxSession = "agent-$id"
         val cwd = workspacePath ?: props.workspaceRoot
@@ -65,12 +68,19 @@ class AgentSessionManager(
 
     fun list(): List<AgentSession> = sessions.values.sortedBy { it.createdAt }
 
-    fun send(id: String, input: String, enter: Boolean = true) {
+    fun send(
+        id: String,
+        input: String,
+        enter: Boolean = true,
+    ) {
         val session = sessions[id] ?: error("unknown agent: $id")
         tmux.sendKeys(session.tmuxSession, input, enter = enter)
     }
 
-    fun capture(id: String, historyLines: Int = 1_000): String {
+    fun capture(
+        id: String,
+        historyLines: Int = 1_000,
+    ): String {
         val session = sessions[id] ?: error("unknown agent: $id")
         return tmux.capture(session.tmuxSession, historyLines)
     }

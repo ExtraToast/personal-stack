@@ -90,14 +90,17 @@ class LessonExtractorTest {
         assertThat(tags).contains("repo:personal-stack")
     }
 
-    private fun turn(role: TurnRole, body: String, sec: Long) =
-        Turn(
-            id = TurnId.random(),
-            sessionId = sessionId,
-            role = role,
-            body = body,
-            createdAt = Instant.parse("2026-05-19T10:00:00Z").plusSeconds(sec),
-        )
+    private fun turn(
+        role: TurnRole,
+        body: String,
+        sec: Long,
+    ) = Turn(
+        id = TurnId.random(),
+        sessionId = sessionId,
+        role = role,
+        body = body,
+        createdAt = Instant.parse("2026-05-19T10:00:00Z").plusSeconds(sec),
+    )
 
     private fun workspace(repoUrl: String? = null) =
         Workspace(

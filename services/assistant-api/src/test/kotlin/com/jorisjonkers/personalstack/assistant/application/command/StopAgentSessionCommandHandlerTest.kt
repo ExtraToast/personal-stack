@@ -1,5 +1,6 @@
 package com.jorisjonkers.personalstack.assistant.application.command
 
+import com.jorisjonkers.personalstack.assistant.application.rag.LessonAutoCapture
 import com.jorisjonkers.personalstack.assistant.domain.model.Workspace
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentKind
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSession
@@ -7,7 +8,6 @@ import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSessi
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSessionStatus
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceStatus
-import com.jorisjonkers.personalstack.assistant.application.rag.LessonAutoCapture
 import com.jorisjonkers.personalstack.assistant.domain.port.AgentGatewayClient
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceAgentSessionRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepository
@@ -64,14 +64,16 @@ class StopAgentSessionCommandHandlerTest {
             updatedAt = Instant.now(),
         )
 
-    private fun session(workspaceId: WorkspaceId, gatewayAgentId: String?) =
-        WorkspaceAgentSession(
-            id = WorkspaceAgentSessionId.random(),
-            workspaceId = workspaceId,
-            kind = WorkspaceAgentKind.CLAUDE,
-            gatewayAgentId = gatewayAgentId,
-            status = WorkspaceAgentSessionStatus.RUNNING,
-            createdAt = Instant.now(),
-            updatedAt = Instant.now(),
-        )
+    private fun session(
+        workspaceId: WorkspaceId,
+        gatewayAgentId: String?,
+    ) = WorkspaceAgentSession(
+        id = WorkspaceAgentSessionId.random(),
+        workspaceId = workspaceId,
+        kind = WorkspaceAgentKind.CLAUDE,
+        gatewayAgentId = gatewayAgentId,
+        status = WorkspaceAgentSessionStatus.RUNNING,
+        createdAt = Instant.now(),
+        updatedAt = Instant.now(),
+    )
 }

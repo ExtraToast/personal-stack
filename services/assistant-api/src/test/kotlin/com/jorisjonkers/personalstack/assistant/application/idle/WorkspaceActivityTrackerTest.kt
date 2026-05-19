@@ -8,9 +8,13 @@ import java.time.Instant
 import java.time.ZoneOffset
 
 class WorkspaceActivityTrackerTest {
-    private class FixedClock(var now: Instant) : Clock() {
+    private class FixedClock(
+        var now: Instant,
+    ) : Clock() {
         override fun getZone() = ZoneOffset.UTC
+
         override fun withZone(zone: java.time.ZoneId) = this
+
         override fun instant(): Instant = now
     }
 

@@ -29,7 +29,7 @@ class IdleScaleDownScheduler(
     private val orchestrator: AgentRunnerOrchestrator,
     private val tracker: WorkspaceActivityTracker,
     private val clock: Clock = Clock.systemUTC(),
-    @Value("\${agent-runtime.idle-after-seconds:1800}")
+    @param:Value("\${agent-runtime.idle-after-seconds:1800}")
     private val idleAfterSeconds: Long,
 ) {
     private val log = LoggerFactory.getLogger(IdleScaleDownScheduler::class.java)
@@ -37,24 +37,22 @@ class IdleScaleDownScheduler(
     @Scheduled(fixedDelayString = "\${agent-runtime.idle-sweep-period-ms:300000}")
     fun sweep() {
         val threshold = clock.instant().minus(Duration.ofSeconds(idleAfterSeconds))
-        val active = workspaces.findAllByStatusNot(WorkspaceStatus.DESTROYED)
-        var scaled = 0
-        for (ws in active) {
-            if (ws.status != WorkspaceStatus.READY) continue
-            val lastSeen = effectiveLastSeen(ws)
-            if (lastSeen.isAfter(threshold)) continue
-            scaleDown(ws)
-            scaled += 1
-        }
-        if (scaled > 0) log.info("idle-sweep scaled down {} workspace(s)", scaled)
+        val candidates =
+            workspaces
+                .findAllByStatusNot(WorkspaceStatus.DESTROYED)
+                .filter { it.status == WorkspaceStatus.READY && !effectiveLastSeen(it).isAfter(threshold) }
+        candidates.forEach { scaleDown(it) }
+        if (candidates.isNotEmpty()) log.info("idle-sweep scaled down {} workspace(s)", candidates.size)
     }
 
-    private fun effectiveLastSeen(workspace: Workspace): Instant =
-        tracker.lastSeen(workspace.id) ?: workspace.updatedAt
+    private fun effectiveLastSeen(workspace: Workspace): Instant = tracker.lastSeen(workspace.id) ?: workspace.updatedAt
 
     private fun scaleDown(workspace: Workspace) {
         runCatching { orchestrator.destroy(workspace) }
-            .onFailure { log.warn("scale-down of {} failed: {}", workspace.id, it.message); return }
+            .onFailure {
+                log.warn("scale-down of {} failed: {}", workspace.id, it.message)
+                return
+            }
         workspaces.save(
             workspace.copy(
                 status = WorkspaceStatus.IDLE,

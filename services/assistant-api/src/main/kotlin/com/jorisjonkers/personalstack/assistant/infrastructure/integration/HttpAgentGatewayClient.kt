@@ -23,15 +23,33 @@ class HttpAgentGatewayClient(
         val cwd: String,
     )
 
-    private data class SpawnRequest(val kind: WorkspaceAgentKind, val workspacePath: String? = null)
+    private data class SpawnBody(
+        val kind: WorkspaceAgentKind,
+        val workspacePath: String? = null,
+    )
 
-    private data class SendRequest(val input: String, val enter: Boolean)
+    private data class SendBody(
+        val input: String,
+        val enter: Boolean,
+    )
 
-    private data class CloneRequest(val repoUrl: String, val branch: String? = null, val intoDir: String? = null)
+    private data class CloneBody(
+        val repoUrl: String,
+        val branch: String? = null,
+        val intoDir: String? = null,
+    )
 
-    private data class OpenPrRequest(val repoDir: String, val title: String, val body: String, val base: String = "main")
+    private data class OpenPrBody(
+        val repoDir: String,
+        val title: String,
+        val body: String,
+        val base: String = "main",
+    )
 
-    private data class GitResponse(val ok: Boolean, val output: String)
+    private data class GitResult(
+        val ok: Boolean,
+        val output: String,
+    )
 
     private fun endpoint(workspace: Workspace): String =
         workspace.gatewayEndpoint ?: error("workspace ${workspace.id} not yet provisioned with a gateway endpoint")
@@ -45,32 +63,44 @@ class HttpAgentGatewayClient(
             restClient
                 .post()
                 .uri("${endpoint(workspace)}/agents")
-                .body(SpawnRequest(kind, workspacePath))
+                .body(SpawnBody(kind, workspacePath))
                 .retrieve()
                 .body(GatewayAgentDto::class.java)
                 ?: error("empty response from gateway")
         return AgentGatewayClient.GatewayAgent(id = dto.id, kind = dto.kind, cwd = dto.cwd)
     }
 
-    override fun stopAgent(workspace: Workspace, gatewayAgentId: String) {
+    override fun stopAgent(
+        workspace: Workspace,
+        gatewayAgentId: String,
+    ) {
         restClient
             .delete()
             .uri("${endpoint(workspace)}/agents/$gatewayAgentId")
             .retrieve()
-            .onStatus(HttpStatusCode::is4xxClientError) { _, _ -> /* idempotent — ignore 404 */ }
+            // idempotent — ignore 404 from a gateway agent we've already stopped
+            .onStatus(HttpStatusCode::is4xxClientError) { _, _ -> }
             .toBodilessEntity()
     }
 
-    override fun sendInput(workspace: Workspace, gatewayAgentId: String, input: String, enter: Boolean) {
+    override fun sendInput(
+        workspace: Workspace,
+        gatewayAgentId: String,
+        input: String,
+        enter: Boolean,
+    ) {
         restClient
             .post()
             .uri("${endpoint(workspace)}/agents/$gatewayAgentId/send")
-            .body(SendRequest(input, enter))
+            .body(SendBody(input, enter))
             .retrieve()
             .toBodilessEntity()
     }
 
-    override fun capture(workspace: Workspace, gatewayAgentId: String): String {
+    override fun capture(
+        workspace: Workspace,
+        gatewayAgentId: String,
+    ): String {
         @Suppress("UNCHECKED_CAST")
         val body =
             restClient
@@ -81,33 +111,47 @@ class HttpAgentGatewayClient(
         return body["text"] ?: ""
     }
 
-    override fun clone(workspace: Workspace, repoUrl: String, branch: String?): String {
+    override fun clone(
+        workspace: Workspace,
+        repoUrl: String,
+        branch: String?,
+    ): String {
         val resp =
             restClient
                 .post()
                 .uri("${endpoint(workspace)}/git/clone")
-                .body(CloneRequest(repoUrl = repoUrl, branch = branch))
+                .body(CloneBody(repoUrl = repoUrl, branch = branch))
                 .retrieve()
-                .body(GitResponse::class.java)
+                .body(GitResult::class.java)
                 ?: error("empty response from gateway")
         return resp.output
     }
 
-    override fun openPr(workspace: Workspace, repoDir: String, title: String, body: String, base: String): String {
+    override fun openPr(
+        workspace: Workspace,
+        repoDir: String,
+        title: String,
+        body: String,
+        base: String,
+    ): String {
         val resp =
             restClient
                 .post()
                 .uri("${endpoint(workspace)}/git/open-pr")
-                .body(OpenPrRequest(repoDir = repoDir, title = title, body = body, base = base))
+                .body(OpenPrBody(repoDir = repoDir, title = title, body = body, base = base))
                 .retrieve()
-                .body(GitResponse::class.java)
+                .body(GitResult::class.java)
                 ?: error("empty response from gateway")
         return resp.output
     }
 
     override fun isReady(workspace: Workspace): Boolean =
         runCatching {
-            restClient.get().uri("${endpoint(workspace)}/healthz").retrieve().toBodilessEntity()
+            restClient
+                .get()
+                .uri("${endpoint(workspace)}/healthz")
+                .retrieve()
+                .toBodilessEntity()
             true
         }.getOrElse { false }
 }
