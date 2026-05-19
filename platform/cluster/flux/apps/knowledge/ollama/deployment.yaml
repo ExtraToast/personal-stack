@@ -22,9 +22,13 @@
 #
 # `OLLAMA_MAX_LOADED_MODELS=1` keeps VRAM contention in check: the
 # 7b chat model and the smaller nomic-embed-text don't both need
-# to be hot. Ollama swaps on demand; `OLLAMA_KEEP_ALIVE=5m` matches
-# the curator's CronJob cadence so consecutive calls within a pass
-# don't reload weights.
+# to be hot. Ollama swaps on demand. `OLLAMA_KEEP_ALIVE` is set to
+# `60m` — long enough that the 5-min curator CronJob always finds
+# the model warm. The previous `5m` value matched the cron cadence
+# exactly, so the model evicted right as the next pass started:
+# every pass paid the 4.7 GB cold-load tax on CPU, which on this
+# host (no GPU, qwen2.5:7b in `cpu_avx2` mode) routinely exceeded
+# the curator's 180 s per-request timeout and crashed the pass.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -127,11 +131,14 @@ spec:
             # resident set inside the container memory limit.
             - name: OLLAMA_MAX_LOADED_MODELS
               value: '1'
-            # Keep an idle model loaded for the duration of a
-            # curator pass (5 min cadence) so back-to-back calls
-            # within a pass don't reload the weights.
+            # Keep the model resident long enough that the next
+            # 5-min curator pass always finds it warm. The previous
+            # `5m` matched the pass cadence exactly and evicted at
+            # the worst possible moment; `60m` adds enough slack
+            # that bursts (drain Job, multiple worker captures in a
+            # window, manual MCP calls) all hit a hot model.
             - name: OLLAMA_KEEP_ALIVE
-              value: '5m'
+              value: '60m'
             # No GPU. Force CPU-only inference so Ollama doesn't
             # try to discover and partially-offload onto a card
             # we deliberately don't request.
