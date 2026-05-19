@@ -13,19 +13,18 @@ export async function getProject(id: string): Promise<ProjectDetail> {
   return getApi().get<ProjectDetail>(`/projects/${id}`)
 }
 
-export async function createProject(input: {
-  name: string
-  slug: string
-  description?: string
-}): Promise<Project> {
+export async function createProject(input: { name: string; slug: string; description?: string }): Promise<Project> {
   return getApi().post<Project>('/projects', input)
 }
 
-export async function addLink(projectId: string, input: {
-  name: string
-  repoUrl: string
-  defaultBranch?: string
-}): Promise<GithubLink> {
+export async function addLink(
+  projectId: string,
+  input: {
+    name: string
+    repoUrl: string
+    defaultBranch?: string
+  },
+): Promise<GithubLink> {
   return getApi().post<GithubLink>(`/projects/${projectId}/links`, input)
 }
 
@@ -33,11 +32,15 @@ export async function removeLink(projectId: string, linkId: string): Promise<voi
   return getApi().del(`/projects/${projectId}/links/${linkId}`)
 }
 
-export async function attachKey(projectId: string, linkId: string, input: {
-  privateKeyOpenssh: string
-  publicKeyOpenssh: string
-  knownHosts?: string
-}): Promise<void> {
+export async function attachKey(
+  projectId: string,
+  linkId: string,
+  input: {
+    privateKeyOpenssh: string
+    publicKeyOpenssh: string
+    knownHosts?: string
+  },
+): Promise<void> {
   return getApi().post(`/projects/${projectId}/links/${linkId}/key`, input)
 }
 

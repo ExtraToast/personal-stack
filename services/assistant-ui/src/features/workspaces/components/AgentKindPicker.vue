@@ -18,9 +18,7 @@ const options: { value: AgentKind; label: string; description: string }[] = [
       :key="opt.value"
       type="button"
       class="rounded-lg border p-3 text-left transition-colors"
-      :class="modelValue === opt.value
-        ? 'border-blue-500 bg-blue-500/10'
-        : 'border-gray-700 hover:border-gray-500'"
+      :class="modelValue === opt.value ? 'border-blue-500 bg-blue-500/10' : 'border-gray-700 hover:border-gray-500'"
       @click="emit('update:modelValue', opt.value)"
     >
       <div class="font-semibold">{{ opt.label }}</div>

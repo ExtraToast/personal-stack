@@ -1,14 +1,7 @@
 import type { GithubLink, Project } from '../types'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import {
-  addLink,
-  attachKey,
-  createProject,
-  getProject,
-  listProjects,
-  removeLink,
-} from '../services/projectsService'
+import { addLink, attachKey, createProject, getProject, listProjects, removeLink } from '../services/projectsService'
 
 export const useProjectsStore = defineStore('projects', () => {
   const projects = ref<Project[]>([])
@@ -49,7 +42,11 @@ export const useProjectsStore = defineStore('projects', () => {
     return p
   }
 
-  async function addNewLink(input: { name: string; repoUrl: string; defaultBranch?: string }): Promise<GithubLink | null> {
+  async function addNewLink(input: {
+    name: string
+    repoUrl: string
+    defaultBranch?: string
+  }): Promise<GithubLink | null> {
     const project = activeProject.value
     if (!project) return null
     const link = await addLink(project.id, input)
@@ -64,7 +61,10 @@ export const useProjectsStore = defineStore('projects', () => {
     links.value = links.value.filter((l) => l.id !== linkId)
   }
 
-  async function attach(linkId: string, body: { privateKeyOpenssh: string; publicKeyOpenssh: string; knownHosts?: string }): Promise<void> {
+  async function attach(
+    linkId: string,
+    body: { privateKeyOpenssh: string; publicKeyOpenssh: string; knownHosts?: string },
+  ): Promise<void> {
     const project = activeProject.value
     if (!project) return
     await attachKey(project.id, linkId, body)

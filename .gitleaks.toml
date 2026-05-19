@@ -17,3 +17,13 @@ regexes = [
   '''-----BEGIN OPENSSH PRIVATE KEY-----[\s\S]*?-----END OPENSSH PRIVATE KEY-----''',
   '''\d+/api/actuator/prometheus''',
 ]
+# Files that legitimately reference the OpenSSH armour string as a
+# structural check (not a key value). AttachDeployKeyCommandHandler
+# validates uploaded keys by comparing against the BEGIN/END
+# headers; gitleaks' default `private-key` rule trips on the header
+# alone because the surrounding entropy of the Kotlin string
+# literal crosses its threshold. Real key bytes never live in-repo
+# — they're in Vault at `secret/data/agents/projects/<pid>/repos/<lid>`.
+paths = [
+  '''services/assistant-api/src/main/kotlin/com/jorisjonkers/personalstack/assistant/application/command/AttachDeployKeyCommandHandler\.kt''',
+]

@@ -45,7 +45,7 @@ function onSubmit(): void {
         maxlength="80"
         class="w-full rounded border border-gray-700 bg-surface-darker px-3 py-2"
         placeholder="Personal Stack"
-      >
+      />
     </div>
     <div>
       <label class="block text-sm font-medium mb-1" for="proj-slug">Slug</label>
@@ -58,7 +58,7 @@ function onSubmit(): void {
         class="w-full rounded border border-gray-700 bg-surface-darker px-3 py-2 font-mono"
         placeholder="personal-stack"
         @input="onSlugInput"
-      >
+      />
       <p class="text-xs text-gray-500 mt-1">Lowercase, hyphens only — used in KB scope `project:&lt;slug&gt;`.</p>
     </div>
     <div>
@@ -72,8 +72,12 @@ function onSubmit(): void {
       />
     </div>
     <div class="flex justify-end gap-2">
-      <button type="button" class="rounded px-4 py-2 text-sm text-gray-300 hover:bg-gray-800" @click="emit('cancel')">Cancel</button>
-      <button type="submit" class="rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm text-white">Create project</button>
+      <button type="button" class="rounded px-4 py-2 text-sm text-gray-300 hover:bg-gray-800" @click="emit('cancel')">
+        Cancel
+      </button>
+      <button type="submit" class="rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm text-white">
+        Create project
+      </button>
     </div>
   </form>
 </template>

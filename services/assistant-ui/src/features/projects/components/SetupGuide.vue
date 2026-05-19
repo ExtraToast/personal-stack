@@ -26,7 +26,8 @@ watch(() => [props.projectId, props.linkId], load)
     <pre
       v-else-if="markdown !== null"
       class="whitespace-pre-wrap bg-black/30 border border-gray-700 rounded p-4 text-sm font-mono leading-relaxed"
-    >{{ markdown }}</pre>
+      >{{ markdown }}</pre
+    >
     <div v-else class="text-gray-500 italic">Loading setup guide…</div>
   </div>
 </template>

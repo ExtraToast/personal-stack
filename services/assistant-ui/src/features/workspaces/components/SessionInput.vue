@@ -29,11 +29,6 @@ function onKeydown(ev: KeyboardEvent): void {
       placeholder="Type a message (Enter to send, Shift+Enter for newline)"
       @keydown="onKeydown"
     />
-    <button
-      type="submit"
-      class="rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm text-white"
-    >
-      Send
-    </button>
+    <button type="submit" class="rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm text-white">Send</button>
   </form>
 </template>

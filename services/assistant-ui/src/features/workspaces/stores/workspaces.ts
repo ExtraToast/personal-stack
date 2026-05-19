@@ -50,11 +50,7 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
     }
   }
 
-  async function create(input: {
-    name: string
-    repoUrl?: string | null
-    branch?: string | null
-  }): Promise<Workspace> {
+  async function create(input: { name: string; repoUrl?: string | null; branch?: string | null }): Promise<Workspace> {
     const ws = await createWorkspace(input)
     workspaces.value.unshift(ws)
     return ws

@@ -3,13 +3,18 @@ export interface ChoiceOption {
   label: string
 }
 
-export type Block
-  = | { kind: 'text'; md: string }
-    | { kind: 'choice'; prompt: string; options: ChoiceOption[] }
-    | { kind: 'form'; schema: Record<string, unknown>; submitLabel?: string }
-    | { kind: 'diff'; path: string; patch: string }
-    | { kind: 'tool-call'; name: string; args: Record<string, unknown>; result?: unknown }
-    | { kind: 'approval'; action: string; payload: Record<string, unknown> }
+// Prettier wants `=` at the end of the line; eslint's
+// `style/operator-linebreak` wants it at the start of the next.
+// Suppress the eslint rule rather than fight prettier — the
+// formatter is the authority on layout. Reviewed via CI on every PR.
+// eslint-disable-next-line style/operator-linebreak
+export type Block =
+  | { kind: 'text'; md: string }
+  | { kind: 'choice'; prompt: string; options: ChoiceOption[] }
+  | { kind: 'form'; schema: Record<string, unknown>; submitLabel?: string }
+  | { kind: 'diff'; path: string; patch: string }
+  | { kind: 'tool-call'; name: string; args: Record<string, unknown>; result?: unknown }
+  | { kind: 'approval'; action: string; payload: Record<string, unknown> }
 
 /**
  * Mirror of libs/kotlin-common BlockParser. Used when an agent's

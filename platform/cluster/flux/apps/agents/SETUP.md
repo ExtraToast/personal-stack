@@ -33,13 +33,11 @@ Once-only, before doing anything in the cluster:
       not include Codex CLI access.
 
 - [ ] **Cluster context selected.**
-      ```
-      kube-personal
-      kubectl get ns agents-system
-      ```
+      `    kube-personal
+kubectl get ns agents-system`
       should show `Active`. If it doesn't, the `apps-agents` Flux
       Kustomization hasn't reconciled yet — `flux reconcile
-      kustomization apps-agents --timeout=60s` to nudge it.
+kustomization apps-agents --timeout=60s` to nudge it.
 
 ## 1. Provision the shared ad-hoc deploy key (optional)
 
@@ -201,7 +199,7 @@ exit
 
 The `agents-refresh-ping` CronJob runs every six hours and re-runs the
 same sanity prompts. Trigger one immediately so you can verify both
-CLIs work from a *fresh* Pod (not the one you just typed into):
+CLIs work from a _fresh_ Pod (not the one you just typed into):
 
 ```sh
 kubectl -n agents-system create job --from=cronjob/agents-refresh-ping refresh-ping-manual
@@ -262,7 +260,7 @@ host the forward-auth fronted UI lives on):
 
 - **`claude /login` fails with "Address not allowed"** — the
   OAuth-redirect form requires the URL to come from `claude.ai`.
-  Make sure you copied the *redirect* URL (after approving in the
+  Make sure you copied the _redirect_ URL (after approving in the
   browser), not the original authorization URL.
 - **`codex login --device` hangs forever** — most often the device
   code expired (~10 min). Cancel with Ctrl-C, re-run, and complete

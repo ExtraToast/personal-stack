@@ -10,7 +10,7 @@ metadata:
   name: agents-refresh-ping
   namespace: agents-system
 spec:
-  schedule: '17 */6 * * *'  # offset minute to avoid every-other-cron-on-the-hour pile-up
+  schedule: '17 */6 * * *' # offset minute to avoid every-other-cron-on-the-hour pile-up
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 2
   failedJobsHistoryLimit: 5
