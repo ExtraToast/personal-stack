@@ -144,6 +144,23 @@ spec:
                   # the qwen2.5:7b model stays pulled on the Ollama
                   # PVC during the cutover.
                   value: qwen3:8b
+                # Heavy chat endpoint — host-native Ollama on
+                # enschede-rx7900xtx-1 (RX 7900 XTX, 24 GiB VRAM)
+                # fronted by the selector-less ollama-heavy Service.
+                # `curator.ollama_router.resolve_chat` probes this
+                # URL once per pass; a 2xx response routes the
+                # classifier here with OLLAMA_HEAVY_CHAT_MODEL, any
+                # timeout / 5xx / connection failure falls back to
+                # the OLLAMA_BASE_URL / OLLAMA_CHAT_MODEL pair above.
+                # Embedding traffic stays on the light endpoint —
+                # flipping embedding models per pass would push the
+                # backfill CronJob into permanent re-embedding.
+                - name: OLLAMA_HEAVY_BASE_URL
+                  value: http://ollama-heavy.utility-system.svc.cluster.local:11434/v1
+                - name: OLLAMA_HEAVY_CHAT_MODEL
+                  value: qwen2.5:14b-instruct
+                - name: OLLAMA_HEAVY_PROBE_TIMEOUT_SECONDS
+                  value: '2.0'
                 - name: OLLAMA_EMBEDDING_MODEL
                   # qwen3-embedding:0.6b feeds the recall path's
                   # pgvector ANN leg (knowledge-api V9 schema).

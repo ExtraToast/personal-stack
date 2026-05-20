@@ -117,6 +117,22 @@ spec:
               value: '16384'
             - name: OTEL_BSP_MAX_EXPORT_BATCH_SIZE
               value: '2048'
+            # Heavy chat endpoint — host-native Ollama on
+            # enschede-rx7900xtx-1 (RX 7900 XTX, 24 GiB VRAM) fronted
+            # by the selector-less ollama-heavy Service.
+            # OllamaChatEndpointResolver probes this URL at startup
+            # and every OLLAMA_HEAVY_PROBE_CACHE_SECONDS; a 2xx
+            # response routes /digest chat calls here with
+            # OLLAMA_HEAVY_CHAT_MODEL, any failure stays on the
+            # in-cluster light pair from application.yml.
+            - name: OLLAMA_HEAVY_BASE_URL
+              value: http://ollama-heavy.utility-system.svc.cluster.local:11434/v1
+            - name: OLLAMA_HEAVY_CHAT_MODEL
+              value: qwen2.5:14b-instruct
+            - name: OLLAMA_HEAVY_PROBE_TIMEOUT_MS
+              value: '2000'
+            - name: OLLAMA_HEAVY_PROBE_CACHE_SECONDS
+              value: '120'
           ports:
             - containerPort: 8080
               name: http
