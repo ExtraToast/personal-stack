@@ -81,6 +81,33 @@ class CuratorStore(Protocol):
         """
         ...
 
+    def select_title_quality_batch(
+        self,
+        *,
+        patterns: list[str],
+        limit: int,
+    ) -> list[tuple[str, str, str, str]]:
+        """Pick promoted notes whose ``title`` matches any of ``patterns``
+        (POSIX regex, case-insensitive). Returns ``(id, title, body,
+        vault_path)`` tuples ordered by ``captured_at`` so the oldest
+        suspect titles re-title first. Only promoted notes
+        (``vault_path IS NOT NULL``) are eligible — drafts in
+        ``_inbox/`` are still on the regular curator pass.
+        """
+        ...
+
+    def update_title(
+        self,
+        *,
+        note_id: str,
+        title: str,
+    ) -> int:
+        """Set ``kb_notes.title`` for ``note_id`` and bump ``updated_at``.
+        Returns rowcount so the caller can skip the vault commit when
+        the row vanished (0 rows touched).
+        """
+        ...
+
 
 class PostgresCuratorStore:
     """Real Postgres-backed implementation.
@@ -238,6 +265,43 @@ class PostgresCuratorStore:
             )
             return [(row[0], row[1], row[2]) for row in cur.fetchall()]
 
+    def select_title_quality_batch(
+        self,
+        *,
+        patterns: list[str],
+        limit: int,
+    ) -> list[tuple[str, str, str, str]]:
+        # Combine the patterns into a single OR alternation so the
+        # query stays a single planned regex match per row — Postgres'
+        # `~*` is a sequential scan on `kb_notes.title` either way, but
+        # one regex beats `N` for the planner.
+        if not patterns:
+            return []
+        combined = "|".join(f"({p})" for p in patterns)
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                sql.SQL(
+                    "SELECT id, title, body, vault_path FROM kb_notes "
+                    "WHERE vault_path IS NOT NULL AND title ~* %s "
+                    "ORDER BY captured_at LIMIT %s"
+                ),
+                (combined, limit),
+            )
+            return [(row[0], row[1], row[2], row[3]) for row in cur.fetchall()]
+
+    def update_title(
+        self,
+        *,
+        note_id: str,
+        title: str,
+    ) -> int:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                sql.SQL("UPDATE kb_notes SET title = %s, updated_at = NOW() WHERE id = %s"),
+                (title, note_id),
+            )
+            return cur.rowcount
+
 
 class InMemoryCuratorStore:
     """Test double used by unit tests and a local smoke loop."""
@@ -252,6 +316,14 @@ class InMemoryCuratorStore:
         self.embeddings: dict[str, tuple[tuple[float, ...], str]] = {}
         # Pending rows for backfill smoke tests — `(id, title, body)`.
         self.backfill_queue: list[tuple[str, str, str]] = []
+        # Pending rows for title-quality smoke tests —
+        # `(id, title, body, vault_path)`. Tests populate this
+        # alongside `_existing` so the selector returns deterministic
+        # batches.
+        self.title_quality_queue: list[tuple[str, str, str, str]] = []
+        # `note_id -> new_title` written via `update_title`. Mirrors
+        # the kb_notes column the title-quality pass updates.
+        self.titles: dict[str, str] = {}
 
     def existing_ids(self, ids: Iterable[str]) -> set[str]:
         return {i for i in ids if i in self._existing}
@@ -319,3 +391,36 @@ class InMemoryCuratorStore:
             if len(out) >= limit:
                 break
         return out
+
+    def select_title_quality_batch(
+        self,
+        *,
+        patterns: list[str],
+        limit: int,
+    ) -> list[tuple[str, str, str, str]]:
+        # Mirror the SQL: case-insensitive regex match on title; tests
+        # populate `title_quality_queue` directly with the rows that
+        # would survive the WHERE clause.
+        import re
+
+        if not patterns:
+            return []
+        compiled = re.compile("|".join(patterns), re.IGNORECASE)
+        out: list[tuple[str, str, str, str]] = []
+        for note_id, title, body, vault_path in self.title_quality_queue:
+            if compiled.search(title):
+                out.append((note_id, title, body, vault_path))
+            if len(out) >= limit:
+                break
+        return out
+
+    def update_title(
+        self,
+        *,
+        note_id: str,
+        title: str,
+    ) -> int:
+        if note_id not in self._existing:
+            return 0
+        self.titles[note_id] = title
+        return 1
