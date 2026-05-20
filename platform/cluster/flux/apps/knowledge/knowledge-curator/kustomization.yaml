@@ -5,3 +5,4 @@ resources:
   - topics-configmap.yaml
   - cronjob.yaml
   - backfill-embeddings-cronjob.yaml
+  - title-quality-cronjob.yaml
