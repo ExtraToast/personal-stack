@@ -22,7 +22,7 @@ async function onCreate(): Promise<void> {
     await create.run(async () => {
       const created = await store.create({ name: label, kind: 'SCRATCH' })
       toast.success('Scratch workspace created', 'No git clone — just a Pod with a shell.')
-      await router.push(`/workspaces/${created.id}`)
+      await router.push(`/sessions/workspace/${created.id}`)
     })
     name.value = ''
   } catch (e) {
@@ -66,7 +66,7 @@ async function onCreate(): Promise<void> {
       </p>
       <ul v-else class="space-y-2" data-testid="scratch-list">
         <li v-for="w in scratchWorkspaces" :key="w.id">
-          <Card :to="`/workspaces/${w.id}`" :data-testid="`scratch-${w.id}`">
+          <Card :to="`/sessions/workspace/${w.id}`" :data-testid="`scratch-${w.id}`">
             <template #header>
               <div class="flex items-baseline justify-between">
                 <span class="font-semibold">{{ w.name }}</span>

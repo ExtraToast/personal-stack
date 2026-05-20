@@ -83,7 +83,7 @@ async function onSubmit(): Promise<void> {
       })
       emit('created', ws.id)
       toast.success('Workspace created', `Booting ${ws.name}…`)
-      await router.push(`/workspaces/${ws.id}`)
+      await router.push(`/sessions/workspace/${ws.id}`)
     })
     // Reset for next time.
     step.value = 'pick-project'

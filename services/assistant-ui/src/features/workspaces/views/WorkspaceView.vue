@@ -98,12 +98,8 @@ async function onBlockFormSubmit(value: { sessionId: string; data: Record<string
   <div class="flex flex-col h-screen">
     <header class="border-b border-gray-700 px-6 py-3 flex items-center justify-between">
       <div>
-        <button
-          type="button"
-          class="text-sm text-gray-400 hover:text-gray-200 mb-1"
-          @click="router.push('/workspaces')"
-        >
-          ← Workspaces
+        <button type="button" class="text-sm text-gray-400 hover:text-gray-200 mb-1" @click="router.push('/sessions')">
+          ← Sessions
         </button>
         <h1 class="text-xl font-bold">
           {{ store.activeWorkspace?.name ?? 'Loading…' }}

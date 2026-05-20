@@ -16,11 +16,27 @@ describe('router', () => {
     expect(sessionsRoute?.meta?.requiresAuth).toBe(true)
   })
 
-  it('keeps the legacy /chat route mounted during the migration window', async () => {
+  it('redirects / to /sessions', async () => {
     const { router } = await import('../router/index')
-    const chatRoute = router.getRoutes().find((r) => r.path === '/chat')
-    expect(chatRoute).toBeDefined()
-    expect(chatRoute?.meta?.requiresAuth).toBe(true)
+    const rootRoute = router.getRoutes().find((r) => r.path === '/')
+    expect(rootRoute).toBeDefined()
+    expect(rootRoute?.redirect).toBe('/sessions')
+  })
+
+  it('exposes the workspace detail surface under /sessions/workspace/:id', async () => {
+    const { router } = await import('../router/index')
+    const detailRoute = router.getRoutes().find((r) => r.path === '/sessions/workspace/:id')
+    expect(detailRoute).toBeDefined()
+    expect(detailRoute?.name).toBe('workspace-detail')
+    expect(detailRoute?.meta?.requiresAuth).toBe(true)
+  })
+
+  it('legacy /chat and /workspaces routes are gone', async () => {
+    const { router } = await import('../router/index')
+    const paths = router.getRoutes().map((r) => r.path)
+    expect(paths).not.toContain('/chat')
+    expect(paths).not.toContain('/workspaces')
+    expect(paths).not.toContain('/workspaces/:id')
   })
 
   it('sessions route is named sessions', async () => {

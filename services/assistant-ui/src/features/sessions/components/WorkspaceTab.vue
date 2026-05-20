@@ -32,7 +32,7 @@ onMounted(() => {
 
     <ul v-else class="grid gap-3 sm:grid-cols-2" data-testid="workspace-list">
       <li v-for="w in repoBackedWorkspaces" :key="w.id">
-        <Card :to="`/workspaces/${w.id}`" :data-testid="`workspace-${w.id}`">
+        <Card :to="`/sessions/workspace/${w.id}`" :data-testid="`workspace-${w.id}`">
           <template #header>
             <div class="flex items-baseline justify-between">
               <span class="font-semibold">{{ w.name }}</span>
