@@ -40,9 +40,21 @@ spec:
     spec:
       restartPolicy: OnFailure
       serviceAccountName: vault-bootstrap-auth
+      # Vault itself only runs on Frankfurt (see release.yaml), so the
+      # bootstrap Job — which talks to the Frankfurt Vault and only
+      # makes sense colocated — pins here too. Without this the Job
+      # could land on any worker, and on the AMD enschede-rx7900xtx-1
+      # node a freshly-pulled `hashicorp/vault:latest` started failing
+      # with `vault: Operation not permitted` on the first command,
+      # blocking the entire bootstrap flow (new Vault policies + roles
+      # never landed). Pinning to Frankfurt + a known image tag (matches
+      # the server-side `vault` StatefulSet version) keeps the Job
+      # predictable.
+      nodeSelector:
+        personal-stack/site: frankfurt
       containers:
         - name: bootstrap
-          image: hashicorp/vault
+          image: hashicorp/vault:1.21.2
           imagePullPolicy: IfNotPresent
           command:
             - sh
