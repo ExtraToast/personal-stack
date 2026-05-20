@@ -76,6 +76,7 @@ dependencies {
     testImplementation("org.assertj:assertj-core:3.27.7")
     testImplementation("org.springframework.boot:spring-boot-starter-amqp:4.0.6")
     testImplementation("org.springframework.boot:spring-boot-starter-web:4.0.6")
+    testImplementation("org.springframework.boot:spring-boot-starter-validation:4.0.6")
     testImplementation("org.springframework:spring-aop:7.0.7")
     testImplementation("org.aspectj:aspectjweaver:1.9.25.1")
     testImplementation("io.opentelemetry:opentelemetry-api:1.60.1")
