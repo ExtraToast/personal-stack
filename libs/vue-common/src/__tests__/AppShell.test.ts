@@ -126,7 +126,7 @@ describe('appShell', () => {
       global: { plugins: [router] },
     })
     const alpha = wrapper.find('[data-testid="nav-alpha"]')
-    expect(alpha.classes().join(' ')).toContain('bg-[var(--color-surface-elevated)]')
+    expect(alpha.classes().join(' ')).toContain('text-[var(--color-terminal-green)]')
   })
 
   it('extras slot renders both in the desktop right cluster and in the drawer', async () => {

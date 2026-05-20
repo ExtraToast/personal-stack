@@ -37,7 +37,7 @@ const navItems: AppShellNavItem[] = [
     <template #extras>
       <button
         type="button"
-        class="rounded-md px-2 py-1.5 font-mono text-xs text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-terminal-cyan)]"
+        class="font-mono text-xs text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-terminal-cyan)]"
         data-testid="nav-locale"
         @click="toggleLocale"
       >
@@ -46,7 +46,7 @@ const navItems: AppShellNavItem[] = [
       <RouterLink
         v-if="authStore.isAuthenticated"
         :to="{ name: 'apps' }"
-        class="rounded-md px-3 py-1.5 font-mono text-xs text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-terminal-green)]"
+        class="font-mono text-xs text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-terminal-green)]"
         data-testid="nav-my-apps"
       >
         {{ t('nav.myApps') }}
@@ -54,7 +54,7 @@ const navItems: AppShellNavItem[] = [
       <RouterLink
         v-if="authStore.isAdmin"
         to="/admin"
-        class="rounded-md px-3 py-1.5 font-mono text-xs text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-terminal-green)]"
+        class="font-mono text-xs text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-terminal-green)]"
         data-testid="nav-admin"
       >
         {{ t('nav.admin') }}
@@ -63,7 +63,7 @@ const navItems: AppShellNavItem[] = [
       <button
         v-else
         type="button"
-        class="rounded-md px-3 py-1.5 font-mono text-xs text-[var(--color-terminal-green)] transition-colors hover:bg-[var(--color-surface-elevated)]"
+        class="font-mono text-xs text-[var(--color-terminal-green)] transition-colors hover:text-[var(--color-text-primary)]"
         data-testid="nav-login"
         @click="authStore.login()"
       >
