@@ -2,7 +2,7 @@
 import { Card, FormField, SubmitButton, useMutationState, useToast } from '@personal-stack/vue-common'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useWorkspacesStore } from '@/features/workspaces/stores/workspaces'
+import { useWorkspacesStore } from '@/features/workspaces'
 
 const store = useWorkspacesStore()
 const router = useRouter()

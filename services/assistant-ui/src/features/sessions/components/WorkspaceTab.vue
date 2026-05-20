@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Card, Modal, SubmitButton } from '@personal-stack/vue-common'
 import { computed, onMounted, ref } from 'vue'
-import { useWorkspacesStore } from '@/features/workspaces/stores/workspaces'
+import { useWorkspacesStore } from '@/features/workspaces'
 import CreateWorkspaceWizard from './CreateWorkspaceWizard.vue'
 
 const store = useWorkspacesStore()

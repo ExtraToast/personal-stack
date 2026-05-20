@@ -2,9 +2,9 @@
 import { FormField, SubmitButton, useMutationState, useToast } from '@personal-stack/vue-common'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useProjectsStore } from '@/features/projects/stores/projects'
+import { useProjectsStore } from '@/features/projects'
 import { useRepositoriesStore } from '@/features/repositories'
-import { useWorkspacesStore } from '@/features/workspaces/stores/workspaces'
+import { useWorkspacesStore } from '@/features/workspaces'
 
 interface Props {
   open: boolean
