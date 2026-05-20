@@ -235,6 +235,29 @@ class AssistantApiContractIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
+    fun `creating a workspace with an unknown repositoryId returns 404 ProblemDetail`() {
+        val bogus = UUID.randomUUID()
+        mockMvc
+            .perform(
+                post("/api/v1/workspaces")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        objectMapper.writeValueAsString(
+                            mapOf(
+                                "name" to "bogus-repo-workspace",
+                                "kind" to "REPO_BACKED",
+                                "repositoryId" to bogus.toString(),
+                            ),
+                        ),
+                    ),
+            ).andExpect(status().isNotFound)
+            .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(jsonPath("$.status").value(404))
+            .andExpect(jsonPath("$.title").value("Resource Not Found"))
+            .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString(bogus.toString())))
+    }
+
+    @Test
     fun `chat session creation response matches expected schema`() {
         val userId = UUID.randomUUID().toString()
         mockMvc
