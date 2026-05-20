@@ -1,4 +1,5 @@
 import type { ProblemDetail } from '../types'
+import { ApiError } from '../types'
 
 interface ApiOptions {
   baseUrl?: string
@@ -23,8 +24,7 @@ export function useApi(options: ApiOptions = {}): UseApiReturn {
       },
     })
     if (!response.ok) {
-      const problem: ProblemDetail = await response.json()
-      throw problem
+      throw await problemFromResponse(response)
     }
     const json: Promise<T> = response.json()
     return json
@@ -36,4 +36,26 @@ export function useApi(options: ApiOptions = {}): UseApiReturn {
     put: <T>(path: string, body: unknown) => request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
     del: (path: string) => request<void>(path, { method: 'DELETE' }),
   }
+}
+
+/**
+ * Parses a non-2xx response into an [ApiError] that wraps a
+ * [ProblemDetail]. Falls back to a synthetic ProblemDetail when the
+ * response body is missing or unparseable (e.g. an HTML 502 from the
+ * ingress) so callers never have to special-case "no body" — the
+ * structured shape is always available.
+ */
+export async function problemFromResponse(response: Response): Promise<ApiError> {
+  let problem: ProblemDetail
+  try {
+    const parsed: ProblemDetail = await response.json()
+    problem = parsed
+  } catch {
+    problem = {
+      type: 'about:blank',
+      title: response.statusText || 'Request failed',
+      status: response.status,
+    }
+  }
+  return new ApiError(problem)
 }

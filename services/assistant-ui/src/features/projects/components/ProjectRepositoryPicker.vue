@@ -28,7 +28,7 @@ onMounted(async () => {
   try {
     await store.loadAll()
   } catch (e) {
-    toast.error('Could not load repositories', e instanceof Error ? e.message : String(e))
+    toast.errorFromCatch('Could not load repositories', e)
   }
 })
 

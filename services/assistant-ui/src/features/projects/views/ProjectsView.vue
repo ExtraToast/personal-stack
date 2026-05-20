@@ -21,7 +21,7 @@ async function onCreate(input: { name: string; slug: string; description: string
     toast.success('Project created', 'Link a repository next to open workspaces against it.')
     void router.push(`/projects/${p.id}`)
   } catch (e) {
-    toast.error('Could not create the project', e instanceof Error ? e.message : String(e))
+    toast.errorFromCatch('Could not create the project', e)
   }
 }
 </script>

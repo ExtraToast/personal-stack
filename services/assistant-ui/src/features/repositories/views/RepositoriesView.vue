@@ -23,7 +23,7 @@ async function onCreate(input: CreateRepositoryInput): Promise<void> {
     toast.success('Repository created', `Attach a deploy key next so the agent can clone ${created.name}.`)
     await router.push(`/repositories/${created.id}`)
   } catch (e) {
-    toast.error('Could not create the repository', e instanceof Error ? e.message : String(e))
+    toast.errorFromCatch('Could not create the repository', e)
   }
 }
 </script>

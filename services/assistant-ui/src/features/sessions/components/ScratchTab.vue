@@ -26,7 +26,7 @@ async function onCreate(): Promise<void> {
     })
     name.value = ''
   } catch (e) {
-    toast.error('Could not create scratch workspace', e instanceof Error ? e.message : String(e))
+    toast.errorFromCatch('Could not create scratch workspace', e)
   }
 }
 </script>

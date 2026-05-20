@@ -35,7 +35,7 @@ onMounted(async () => {
   try {
     await projects.loadAll()
   } catch (e) {
-    toast.error('Could not load projects', e instanceof Error ? e.message : String(e))
+    toast.errorFromCatch('Could not load projects', e)
   }
 })
 
@@ -45,7 +45,7 @@ watch(selectedProjectId, async (id) => {
   try {
     await projects.open(id)
   } catch (e) {
-    toast.error('Could not load that project', e instanceof Error ? e.message : String(e))
+    toast.errorFromCatch('Could not load that project', e)
   }
 })
 
@@ -60,7 +60,7 @@ watch(selectedRepositoryId, async (id) => {
       if (!name.value) name.value = repo.name
     }
   } catch (e) {
-    toast.error('Could not load repository', e instanceof Error ? e.message : String(e))
+    toast.errorFromCatch('Could not load repository', e)
   }
 })
 
@@ -92,7 +92,7 @@ async function onSubmit(): Promise<void> {
     branch.value = 'main'
     name.value = ''
   } catch (e) {
-    toast.error('Could not create the workspace', e instanceof Error ? e.message : String(e))
+    toast.errorFromCatch('Could not create the workspace', e)
   }
 }
 </script>

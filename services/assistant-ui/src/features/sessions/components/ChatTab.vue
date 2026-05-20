@@ -21,7 +21,7 @@ onMounted(async () => {
   try {
     await store.loadAll()
   } catch (e) {
-    toast.error('Could not load chat sessions', e instanceof Error ? e.message : String(e))
+    toast.errorFromCatch('Could not load chat sessions', e)
   }
 })
 
@@ -33,7 +33,7 @@ watch(
       try {
         await store.open(store.sessions[0]!.id)
       } catch (e) {
-        toast.error('Could not open the chat', e instanceof Error ? e.message : String(e))
+        toast.errorFromCatch('Could not open the chat', e)
       }
     }
   },
@@ -49,7 +49,7 @@ async function onCreate(): Promise<void> {
       newTitle.value = ''
     })
   } catch (e) {
-    toast.error('Could not start a chat session', e instanceof Error ? e.message : String(e))
+    toast.errorFromCatch('Could not start a chat session', e)
   }
 }
 
@@ -63,7 +63,7 @@ async function onSend(): Promise<void> {
     })
     draft.value = ''
   } catch (e) {
-    toast.error('Could not send message', e instanceof Error ? e.message : String(e))
+    toast.errorFromCatch('Could not send message', e)
   }
 }
 
@@ -71,7 +71,7 @@ async function onSelect(id: string): Promise<void> {
   try {
     await store.open(id)
   } catch (e) {
-    toast.error('Could not open the chat', e instanceof Error ? e.message : String(e))
+    toast.errorFromCatch('Could not open the chat', e)
   }
 }
 </script>

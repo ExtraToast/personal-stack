@@ -30,6 +30,7 @@ export { initFaro } from './observability/initFaro'
 export type { InitFaroOptions } from './observability/initFaro'
 
 // Shared types + utilities.
-export type { ApiError, AuthTokens, FieldError, ProblemDetail, User } from './types'
+export { ApiError } from './types'
+export type { AuthTokens, FieldError, ProblemDetail, User } from './types'
 export { decodeJwt, isTokenExpired } from './utils/jwt'
 export type { JwtPayload } from './utils/jwt'

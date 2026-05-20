@@ -1,16 +1,23 @@
 <script setup lang="ts">
-import type { Repository } from '../types'
+import type { AttachDeployKeyInput, Repository } from '../types'
 import { FormField, SubmitButton, useMutationState, useToast } from '@personal-stack/vue-common'
 import { computed, ref } from 'vue'
 
 interface Props {
   repository: Repository
+  /**
+   * Awaited submit handler supplied by the parent. The wizard's
+   * mutation state mirrors this promise so the SubmitButton flips to
+   * `failure` on a rejected server response and the modal stays open
+   * for the user to fix + retry.
+   */
+  onSubmit: (input: AttachDeployKeyInput) => Promise<void>
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  submit: [value: { privateKeyOpenssh: string; publicKeyOpenssh: string; knownHosts?: string }]
+  success: []
   cancel: []
 }>()
 
@@ -23,23 +30,22 @@ const toast = useToast()
 
 const canSubmit = computed(() => privateKey.value.trim().length > 0 && publicKey.value.trim().length > 0)
 
-async function onSubmit(): Promise<void> {
+async function handleSubmit(): Promise<void> {
   if (!canSubmit.value) return
-  // `exactOptionalPropertyTypes`: emit either with `knownHosts` set or
-  // omit the key entirely — never `knownHosts: undefined`.
-  const payload: { privateKeyOpenssh: string; publicKeyOpenssh: string; knownHosts?: string } = {
+  // `exactOptionalPropertyTypes`: build the payload with `knownHosts`
+  // either set or omitted entirely — never `knownHosts: undefined`.
+  const payload: AttachDeployKeyInput = {
     privateKeyOpenssh: privateKey.value,
     publicKeyOpenssh: publicKey.value,
   }
   const trimmedHosts = knownHosts.value.trim()
   if (trimmedHosts) payload.knownHosts = knownHosts.value
   try {
-    await submit.run(async () => {
-      emit('submit', payload)
-    })
+    await submit.run(() => props.onSubmit(payload))
     toast.success('Deploy key attached', `${props.repository.name} can now clone + push.`)
+    emit('success')
   } catch (e) {
-    toast.error('Could not attach the deploy key', e instanceof Error ? e.message : String(e))
+    toast.errorFromCatch('Could not attach the deploy key', e)
   }
 }
 </script>
@@ -64,7 +70,7 @@ cat ./ps-{{ props.repository.name }}          # private key</code></pre>
       </p>
     </section>
 
-    <form class="space-y-4" @submit.prevent="onSubmit">
+    <form class="space-y-4" @submit.prevent="handleSubmit">
       <h3 class="text-lg font-semibold">Paste the keys</h3>
 
       <FormField label="Private key" required hint="OpenSSH format; the contents of the private key file.">
