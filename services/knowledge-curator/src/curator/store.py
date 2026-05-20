@@ -12,14 +12,33 @@ relation rows hit the DB.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
-from contextlib import AbstractContextManager
+import json
+from collections.abc import Iterable, Iterator
+from contextlib import AbstractContextManager, contextmanager
+from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Protocol
 
 import psycopg
 import structlog
 from psycopg import sql
 from psycopg_pool import ConnectionPool
+
+
+@dataclass(frozen=True, slots=True)
+class OrchestratorPassRow:
+    """Shape returned by :meth:`CuratorStore.load_pass_state`.
+
+    Mirrors the columns of `kb_curator_runs` 1:1 so a caller can read
+    the prior run's status / watermark without reaching back into SQL.
+    """
+
+    pass_name: str
+    last_started_at: datetime | None
+    last_completed_at: datetime | None
+    last_status: str
+    watermark: dict[str, Any]
+    notes_processed: int
 
 
 class CuratorStore(Protocol):
@@ -105,6 +124,57 @@ class CuratorStore(Protocol):
         """Set ``kb_notes.title`` for ``note_id`` and bump ``updated_at``.
         Returns rowcount so the caller can skip the vault commit when
         the row vanished (0 rows touched).
+        """
+        ...
+
+    # -- orchestrator state -----------------------------------------
+
+    def load_pass_state(self, pass_name: str) -> OrchestratorPassRow:
+        """Return the most-recent state row for ``pass_name``. Synthesises
+        a fresh row (last_completed_at=None, watermark={}) if the pass
+        has never run.
+        """
+        ...
+
+    def mark_pass_running(self, pass_name: str) -> None:
+        """Upsert `kb_curator_runs` with last_status='running' +
+        last_started_at=NOW(). Called by the orchestrator immediately
+        before invoking Pass.run.
+        """
+        ...
+
+    def record_pass_outcome(
+        self,
+        *,
+        pass_name: str,
+        status: str,
+        notes_processed: int,
+        watermark_before: dict[str, Any],
+        watermark_after: dict[str, Any],
+        duration_seconds: float,
+        error: str | None = None,
+    ) -> None:
+        """Persist a terminal Pass outcome — updates `kb_curator_runs`
+        AND appends one row to `kb_curator_pass_history`. ``status``
+        is one of 'success' | 'no_work' | 'failed'.
+        """
+        ...
+
+    def record_no_work(self, pass_name: str) -> None:
+        """Cheap variant of `record_pass_outcome` for the 98% case
+        where `has_work` returned False. Updates `kb_curator_runs`
+        with last_status='no_work' + last_completed_at=NOW(); does
+        NOT append a history row.
+        """
+        ...
+
+    def pass_advisory_lock(self, pass_name: str) -> AbstractContextManager[None]:
+        """Acquire a transaction-scoped advisory lock keyed by
+        ``pass_name``. Returns a context manager — the lock holds for
+        the duration of the `with` block and releases when the
+        underlying transaction commits / rolls back. Blocks if another
+        orchestrator is currently inside the same pass; a slow tick
+        does not overlap itself.
         """
         ...
 
@@ -302,6 +372,158 @@ class PostgresCuratorStore:
             )
             return cur.rowcount
 
+    # -- orchestrator state -----------------------------------------
+
+    def load_pass_state(self, pass_name: str) -> OrchestratorPassRow:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                sql.SQL(
+                    "SELECT pass_name, last_started_at, last_completed_at, "
+                    "       last_status, watermark, notes_processed "
+                    "FROM kb_curator_runs WHERE pass_name = %s"
+                ),
+                (pass_name,),
+            )
+            row = cur.fetchone()
+        if row is None:
+            return OrchestratorPassRow(
+                pass_name=pass_name,
+                last_started_at=None,
+                last_completed_at=None,
+                last_status="never_run",
+                watermark={},
+                notes_processed=0,
+            )
+        watermark = row[4] if isinstance(row[4], dict) else (json.loads(row[4]) if row[4] else {})
+        return OrchestratorPassRow(
+            pass_name=row[0],
+            last_started_at=row[1],
+            last_completed_at=row[2],
+            last_status=row[3],
+            watermark=watermark,
+            notes_processed=row[5],
+        )
+
+    def mark_pass_running(self, pass_name: str) -> None:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                sql.SQL(
+                    "INSERT INTO kb_curator_runs "
+                    "  (pass_name, last_started_at, last_status, watermark) "
+                    "VALUES (%s, NOW(), 'running', '{}'::jsonb) "
+                    "ON CONFLICT (pass_name) DO UPDATE SET "
+                    "  last_started_at = EXCLUDED.last_started_at, "
+                    "  last_status = 'running'"
+                ),
+                (pass_name,),
+            )
+
+    def record_pass_outcome(
+        self,
+        *,
+        pass_name: str,
+        status: str,
+        notes_processed: int,
+        watermark_before: dict[str, Any],
+        watermark_after: dict[str, Any],
+        duration_seconds: float,
+        error: str | None = None,
+    ) -> None:
+        if status not in {"success", "no_work", "failed"}:
+            raise ValueError(f"invalid status: {status!r}")
+        wm_after_json = json.dumps(watermark_after)
+        wm_before_json = json.dumps(watermark_before)
+        # Both rows in one connection — the history append + the
+        # latest-state update want to be atomic so a reader that
+        # opens between them never sees a state row pointing at
+        # nothing.
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                sql.SQL(
+                    "INSERT INTO kb_curator_runs "
+                    "  (pass_name, last_started_at, last_completed_at, "
+                    "   last_status, watermark, notes_processed, "
+                    "   duration_seconds, error_summary) "
+                    "VALUES (%s, NOW(), NOW(), %s, %s::jsonb, %s, %s, %s) "
+                    "ON CONFLICT (pass_name) DO UPDATE SET "
+                    "  last_completed_at = NOW(), "
+                    "  last_status = EXCLUDED.last_status, "
+                    "  watermark = EXCLUDED.watermark, "
+                    "  notes_processed = EXCLUDED.notes_processed, "
+                    "  duration_seconds = EXCLUDED.duration_seconds, "
+                    "  error_summary = EXCLUDED.error_summary"
+                ),
+                (
+                    pass_name,
+                    status,
+                    wm_after_json,
+                    notes_processed,
+                    duration_seconds,
+                    error,
+                ),
+            )
+            cur.execute(
+                sql.SQL(
+                    "INSERT INTO kb_curator_pass_history "
+                    "  (pass_name, started_at, completed_at, status, "
+                    "   notes_processed, duration_seconds, "
+                    "   watermark_before, watermark_after, error) "
+                    "VALUES (%s, NOW() - (%s || ' seconds')::interval, "
+                    "        NOW(), %s, %s, %s, %s::jsonb, %s::jsonb, %s)"
+                ),
+                (
+                    pass_name,
+                    duration_seconds,
+                    status,
+                    notes_processed,
+                    duration_seconds,
+                    wm_before_json,
+                    wm_after_json,
+                    error,
+                ),
+            )
+
+    def record_no_work(self, pass_name: str) -> None:
+        # Cheap path: no history row, just bump the latest-state
+        # timestamps so an operator querying `last_completed_at` sees
+        # the curator is alive even on quiet ticks.
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                sql.SQL(
+                    "INSERT INTO kb_curator_runs "
+                    "  (pass_name, last_started_at, last_completed_at, "
+                    "   last_status, watermark) "
+                    "VALUES (%s, NOW(), NOW(), 'no_work', '{}'::jsonb) "
+                    "ON CONFLICT (pass_name) DO UPDATE SET "
+                    "  last_completed_at = NOW(), "
+                    "  last_status = 'no_work'"
+                ),
+                (pass_name,),
+            )
+
+    @contextmanager
+    def pass_advisory_lock(self, pass_name: str) -> Iterator[None]:
+        # `pg_advisory_xact_lock(hashtext(...))` is transaction-scoped:
+        # the lock releases on commit or rollback. Wrapping the
+        # entire Pass.run inside this `with` block means a slow tick
+        # can not overlap itself across consecutive orchestrator
+        # invocations — the second tick blocks here until the first
+        # releases. Multiple distinct passes use different hash keys
+        # and never contend.
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                sql.SQL("SELECT pg_advisory_xact_lock(hashtext(%s))"),
+                (f"curator/{pass_name}",),
+            )
+            try:
+                yield
+            finally:
+                # Lock releases at transaction commit which happens
+                # when the connection context manager exits. Nothing
+                # to do here, but keep the try/finally so a future
+                # refactor can plug in explicit release if needed.
+                pass
+
 
 class InMemoryCuratorStore:
     """Test double used by unit tests and a local smoke loop."""
@@ -324,6 +546,13 @@ class InMemoryCuratorStore:
         # `note_id -> new_title` written via `update_title`. Mirrors
         # the kb_notes column the title-quality pass updates.
         self.titles: dict[str, str] = {}
+        # `pass_name -> OrchestratorPassRow`. Mirrors `kb_curator_runs`
+        # state for orchestrator unit tests; `pass_history` mirrors
+        # `kb_curator_pass_history`. Both are publicly mutable so
+        # tests can prime the state then assert on the post-call
+        # shape.
+        self.pass_state: dict[str, OrchestratorPassRow] = {}
+        self.pass_history: list[dict[str, Any]] = []
 
     def existing_ids(self, ids: Iterable[str]) -> set[str]:
         return {i for i in ids if i in self._existing}
@@ -424,3 +653,85 @@ class InMemoryCuratorStore:
             return 0
         self.titles[note_id] = title
         return 1
+
+    # -- orchestrator state -----------------------------------------
+
+    def load_pass_state(self, pass_name: str) -> OrchestratorPassRow:
+        existing = self.pass_state.get(pass_name)
+        if existing is not None:
+            return existing
+        return OrchestratorPassRow(
+            pass_name=pass_name,
+            last_started_at=None,
+            last_completed_at=None,
+            last_status="never_run",
+            watermark={},
+            notes_processed=0,
+        )
+
+    def mark_pass_running(self, pass_name: str) -> None:
+        prior = self.load_pass_state(pass_name)
+        self.pass_state[pass_name] = OrchestratorPassRow(
+            pass_name=pass_name,
+            last_started_at=datetime.now(),
+            last_completed_at=prior.last_completed_at,
+            last_status="running",
+            watermark=prior.watermark,
+            notes_processed=prior.notes_processed,
+        )
+
+    def record_pass_outcome(
+        self,
+        *,
+        pass_name: str,
+        status: str,
+        notes_processed: int,
+        watermark_before: dict[str, Any],
+        watermark_after: dict[str, Any],
+        duration_seconds: float,
+        error: str | None = None,
+    ) -> None:
+        if status not in {"success", "no_work", "failed"}:
+            raise ValueError(f"invalid status: {status!r}")
+        now = datetime.now()
+        self.pass_state[pass_name] = OrchestratorPassRow(
+            pass_name=pass_name,
+            last_started_at=now,
+            last_completed_at=now,
+            last_status=status,
+            watermark=dict(watermark_after),
+            notes_processed=notes_processed,
+        )
+        self.pass_history.append(
+            {
+                "pass_name": pass_name,
+                "started_at": now,
+                "completed_at": now,
+                "status": status,
+                "notes_processed": notes_processed,
+                "duration_seconds": duration_seconds,
+                "watermark_before": dict(watermark_before),
+                "watermark_after": dict(watermark_after),
+                "error": error,
+            }
+        )
+
+    def record_no_work(self, pass_name: str) -> None:
+        prior = self.load_pass_state(pass_name)
+        now = datetime.now()
+        self.pass_state[pass_name] = OrchestratorPassRow(
+            pass_name=pass_name,
+            last_started_at=now,
+            last_completed_at=now,
+            last_status="no_work",
+            watermark=prior.watermark,
+            notes_processed=prior.notes_processed,
+        )
+
+    @contextmanager
+    def pass_advisory_lock(self, pass_name: str) -> Iterator[None]:
+        # The in-memory test double is single-threaded by definition;
+        # the advisory lock is a no-op here. The Pass protocol's
+        # contract only depends on the lock being held for the
+        # duration of `run`, and that holds trivially.
+        yield
