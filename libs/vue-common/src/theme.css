@@ -3,15 +3,33 @@
  *
  * Imported once per consumer app (services/app-ui, services/assistant-ui,
  * services/auth-ui) so every UI renders against the same palette,
- * scrollbar, and selection styling. App-specific decoration (portfolio
- * animations in app-ui, etc.) stays in the consumer's own index.css.
+ * scrollbar, selection, and base behaviour. App-specific decoration
+ * (portfolio animations in app-ui, etc.) stays in the consumer's own
+ * index.css.
  *
  * Authoring rule of thumb: anything that should be visually identical
  * across every personal-stack UI belongs here. Anything bespoke to one
  * app stays per-app.
+ *
+ * Tailwind v4 + pnpm workspace symlinks: the `@source` directive below
+ * tells Tailwind to scan vue-common's own components when generating
+ * utility classes. Without it, classes that only appear inside
+ * `libs/vue-common/src/components/*.vue` (animate-spin, sr-only, the
+ * arbitrary-value `bg-[var(--color-...)]` chains used by SubmitButton,
+ * Modal, etc.) silently fail to generate and the components render
+ * unstyled. Trial-and-error confirmed this is the reason SubmitButton's
+ * spinner + sr-only label weren't taking effect.
  */
 
+@source "../../../libs/vue-common/src/**/*.{vue,ts}";
+
 @theme {
+  /*
+   * Dark theme defaults. Light theme overrides land in the
+   * `[data-theme="light"]` block below; `useTheme()` toggles
+   * `data-theme` on `<html>` based on the user's preference +
+   * the system colour-scheme.
+   */
   --color-terminal-green: #4ade80;
   --color-terminal-cyan: #22d3ee;
   --color-terminal-amber: #fbbf24;
@@ -21,13 +39,52 @@
   --color-surface-card: #12121a;
   --color-surface-elevated: #1a1a25;
   --color-surface-border: #2a2a3a;
+  --color-text-primary: #e5e7eb;
+  --color-text-muted: #9ca3af;
   --color-accent: #6366f1;
   --color-accent-light: #818cf8;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
 }
 
+/*
+ * Light theme. `useTheme()` (in libs/vue-common/src/composables/useTheme.ts)
+ * sets `data-theme="light"` or `data-theme="dark"` on `<html>` based
+ * on the user's preference. The dark palette is the default (lives
+ * in `@theme` above); this block redefines the same CSS variables
+ * for the light mode.
+ */
+:root[data-theme='light'] {
+  --color-surface-dark: #f5f5f7;
+  --color-surface-card: #ffffff;
+  --color-surface-elevated: #fafafa;
+  --color-surface-border: #d4d4d8;
+  --color-text-primary: #18181b;
+  --color-text-muted: #52525b;
+  --color-accent: #4f46e5;
+  --color-accent-light: #6366f1;
+}
+
+/*
+ * Anchor the html / body backgrounds so overscroll never reveals the
+ * default white background under the page. The earlier behaviour —
+ * scroll up past the top of the page on a trackpad and a white band
+ * shows above the dark UI — was visually jarring; this lock removes it.
+ */
 html {
   scroll-behavior: smooth;
+  background: var(--color-surface-dark);
+  overscroll-behavior: none;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+body {
+  background: var(--color-surface-dark);
+  color: var(--color-text-primary);
+  min-height: 100vh;
 }
 
 ::-webkit-scrollbar {

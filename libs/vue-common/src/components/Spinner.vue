@@ -24,7 +24,7 @@ const dimensions = {
 
 <template>
   <span
-    class="inline-block rounded-full border-current border-r-transparent align-[-0.125em] motion-safe:animate-spin"
+    class="inline-block animate-spin rounded-full border-current border-r-transparent align-[-0.125em]"
     :class="[dimensions]"
     role="status"
     :aria-label="label || undefined"

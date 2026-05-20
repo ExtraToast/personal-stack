@@ -14,8 +14,7 @@ interface Props {
   /**
    * Wired to a `useMutationState` instance — the button reflects its
    * status directly. When provided, the consumer doesn't need to pass
-   * `disabled`/`loading` separately. Pass `status` as the result of
-   * `state.status` (a ref) so the button rerenders.
+   * `disabled`/`loading` separately.
    */
   status?: MutationStatus
   /**
@@ -31,6 +30,11 @@ interface Props {
    * caller is wiring `@click` directly.
    */
   type?: 'submit' | 'button' | 'reset'
+  /**
+   * Pending-state label override. Defaults to "Submitting…". The
+   * idle/success/failure label always comes from `label`.
+   */
+  pendingLabel?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -38,6 +42,7 @@ const props = withDefaults(defineProps<Props>(), {
   status: 'idle',
   disabled: false,
   type: 'submit',
+  pendingLabel: 'Submitting…',
 })
 
 const emit = defineEmits<{
@@ -52,13 +57,13 @@ const isBlocked = computed(() => props.disabled || isPending.value)
 const variantClasses = computed(() => {
   switch (props.variant) {
     case 'primary':
-      return 'bg-[var(--color-accent)] hover:bg-[var(--color-accent-light)] text-white'
+      return 'bg-[var(--color-accent)] hover:bg-[var(--color-accent-light)] text-white border border-transparent shadow-sm'
     case 'secondary':
-      return 'bg-[var(--color-surface-elevated)] hover:bg-[var(--color-surface-border)] text-gray-200 border border-[var(--color-surface-border)]'
+      return 'bg-[var(--color-surface-elevated)] hover:bg-[var(--color-surface-border)] text-[var(--color-text-primary)] border border-[var(--color-surface-border)]'
     case 'danger':
-      return 'bg-red-600 hover:bg-red-700 text-white'
+      return 'bg-red-600 hover:bg-red-700 text-white border border-transparent shadow-sm'
     case 'ghost':
-      return 'bg-transparent hover:bg-[var(--color-surface-elevated)] text-gray-300'
+      return 'bg-transparent hover:bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] border border-transparent'
   }
   return ''
 })
@@ -82,16 +87,15 @@ function handleClick(event: MouseEvent): void {
     :type="type"
     :disabled="isBlocked"
     :aria-busy="isPending"
-    class="inline-flex items-center justify-center gap-2 rounded px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+    class="inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-light)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
     :class="[variantClasses]"
     data-testid="submit-button"
     :data-status="status"
     @click="handleClick"
   >
     <template v-if="isPending">
-      <Spinner size="sm" label="" />
-      <span class="sr-only">Submitting…</span>
-      <span aria-hidden="true">{{ label }}</span>
+      <Spinner size="sm" :label="pendingLabel" />
+      <span>{{ pendingLabel }}</span>
     </template>
     <template v-else-if="isSuccess">
       <svg

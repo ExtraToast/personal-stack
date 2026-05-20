@@ -1,4 +1,6 @@
 // UI components.
+export { default as AppShell } from './components/AppShell.vue'
+export type { AppShellNavItem } from './components/appShellTypes'
 export { default as BaseButton } from './components/BaseButton.vue'
 export { default as Card } from './components/Card.vue'
 export { default as Dropdown } from './components/Dropdown.vue'
