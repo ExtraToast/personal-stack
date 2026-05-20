@@ -22,6 +22,6 @@ dependencies {
     // selected in spring-conventions (currently 3.21.2); the codegen emits
     // refs to runtime APIs (Constants.VERSION_*, ForeignKeyRule, …) that
     // only resolve when both sides line up.
-    implementation("org.jooq:jooq-codegen:3.21.2")
-    implementation("org.jooq:jooq-meta-extensions:3.21.2")
+    implementation("org.jooq:jooq-codegen:3.21.4")
+    implementation("org.jooq:jooq-meta-extensions:3.21.4")
 }

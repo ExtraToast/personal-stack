@@ -46,7 +46,7 @@ dependencies {
     // lifecycle. Server-side apply, no informer cache (one-shot CRUD
     // is enough), pulled in with the kubernetes-client-bom to keep
     // model + httpclient versions aligned.
-    implementation(platform("io.fabric8:kubernetes-client-bom:7.1.0"))
+    implementation(platform("io.fabric8:kubernetes-client-bom:7.7.0"))
     implementation("io.fabric8:kubernetes-client")
     testImplementation("io.fabric8:kubernetes-server-mock")
 }

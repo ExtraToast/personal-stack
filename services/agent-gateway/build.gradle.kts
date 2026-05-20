@@ -14,7 +14,7 @@ dependencies {
     // TimingAutoConfiguration in kotlin-common activates.
     runtimeOnly("io.micrometer:micrometer-tracing-bridge-otel")
     runtimeOnly("io.opentelemetry:opentelemetry-exporter-otlp")
-    testImplementation("org.awaitility:awaitility:4.2.2")
+    testImplementation("org.awaitility:awaitility:4.3.0")
 }
 
 // agent-gateway is the only service in the monorepo whose hot path is
