@@ -98,35 +98,13 @@ class ReadMcpTools(
     private fun recallDescriptor() =
         toolDescriptor(
             name = "knowledge.recall",
-            description =
-                "Layered recall over kb_notes. `mode=fast` is single-leg Postgres FTS (~50 ms p50). " +
-                    "`mode=hybrid` adds the pgvector ANN leg and fuses with Reciprocal Rank Fusion " +
-                    "(~100-300 ms once Ollama is warm). `mode=deep` reserves the slot for LightRAG " +
-                    "graph recall + listwise rerank — today it aliases to `hybrid`. Server-side " +
-                    "default is configurable (`knowledge.recall.default-mode`); when omitted, the " +
-                    "server's choice applies.",
+            description = RECALL_TOOL_DESCRIPTION,
             required = listOf("query"),
             properties =
                 mapOf(
                     "query" to mapOf("type" to "string"),
-                    "mode" to
-                        mapOf(
-                            "type" to "string",
-                            "enum" to RecallMode.entries.map { it.wire },
-                            "description" to
-                                "fast = FTS only; hybrid = FTS + vector + RRF; deep = hybrid + " +
-                                "graph + rerank (currently aliases hybrid).",
-                        ),
-                    "scope" to
-                        mapOf(
-                            "type" to "string",
-                            "description" to
-                                "Restrict to a single scope (`topic:<slug>` / `project:<repo>` / " +
-                                "`agent:<name>`). Pass `all` to include every scope including " +
-                                "untriaged `_inbox`. Omit for the curated default — every " +
-                                "scope except `_inbox` and assistant-private agent scopes " +
-                                "(`agent:_shared` stays visible).",
-                        ),
+                    "mode" to recallModeProperty(),
+                    "scope" to recallScopeProperty(),
                     "limit" to
                         mapOf(
                             "type" to "integer",
@@ -135,6 +113,26 @@ class ReadMcpTools(
                             "default" to DEFAULT_RECALL_LIMIT,
                         ),
                 ),
+        )
+
+    private fun recallModeProperty() =
+        mapOf(
+            "type" to "string",
+            "enum" to RecallMode.entries.map { it.wire },
+            "description" to
+                "fast = FTS only; hybrid = FTS + vector + RRF; deep = hybrid + " +
+                "graph + rerank (currently aliases hybrid).",
+        )
+
+    private fun recallScopeProperty() =
+        mapOf(
+            "type" to "string",
+            "description" to
+                "Restrict to a single scope (`topic:<slug>` / `project:<repo>` / " +
+                "`agent:<name>`). Pass `all` to include every scope including " +
+                "untriaged `_inbox`. Omit for the curated default — every " +
+                "scope except `_inbox` and assistant-private agent scopes " +
+                "(`agent:_shared` stays visible).",
         )
 
     private fun recallHandler(args: JsonNode): Map<String, Any?> {
@@ -242,6 +240,14 @@ class ReadMcpTools(
         private const val DEFAULT_RECENT_LIMIT = 20
         private const val MAX_LIMIT = 100
         private const val DEFAULT_RELATION_DEPTH = 1
+
+        private const val RECALL_TOOL_DESCRIPTION =
+            "Layered recall over kb_notes. `mode=fast` is single-leg Postgres FTS (~50 ms p50). " +
+                "`mode=hybrid` adds the pgvector ANN leg and fuses with Reciprocal Rank Fusion " +
+                "(~100-300 ms once Ollama is warm). `mode=deep` reserves the slot for LightRAG " +
+                "graph recall + listwise rerank — today it aliases to `hybrid`. Server-side " +
+                "default is configurable (`knowledge.recall.default-mode`); when omitted, the " +
+                "server's choice applies."
 
         // Hard ceiling for the agent-facing depth; the repo enforces
         // its own (private) ceiling underneath, so this just keeps the

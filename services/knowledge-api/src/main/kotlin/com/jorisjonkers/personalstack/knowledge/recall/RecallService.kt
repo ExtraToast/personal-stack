@@ -98,6 +98,7 @@ class RecallService(
         return hits
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun recallHybrid(
         query: String,
         scope: String?,
@@ -113,9 +114,12 @@ class RecallService(
             try {
                 val embedding = queryEmbedder.embed(query)
                 embeddingRepository.recallVector(embedding, scope, limit * VECTOR_OVERFETCH_FACTOR)
-            } catch (ex: Exception) {
+            } catch (ex: RuntimeException) {
                 // Embedder or vector repo failed — log + count, don't 500
                 // the read path. The FTS leg alone still produces an answer.
+                // Narrow to RuntimeException so genuine programming errors
+                // (Errors, ThreadDeath, …) still propagate; RestClient and
+                // JDBC both wrap their failures as RuntimeException subtypes.
                 log.warn(
                     "vector leg degraded; falling back to FTS-only (mode=hybrid, scope={}, query.len={})",
                     scope,
