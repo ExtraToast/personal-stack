@@ -11,13 +11,19 @@ declare module 'vue-router' {
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
-    redirect: '/workspaces',
+    redirect: '/sessions',
   },
   {
-    path: '/chat',
-    name: 'chat',
-    component: () => import('@/features/chat/views/ChatView.vue'),
+    path: '/sessions',
+    name: 'sessions',
+    component: () => import('@/features/sessions/views/SessionsView.vue'),
     meta: { requiresAuth: true },
+  },
+  {
+    // Legacy chat route stays as an alias of /sessions during the
+    // migration window so deep links and bookmarks still resolve.
+    path: '/chat',
+    redirect: '/sessions',
   },
   {
     path: '/workspaces',

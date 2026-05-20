@@ -9,23 +9,24 @@ vi.mock('@personal-stack/vue-common', () => ({
 }))
 
 describe('router', () => {
-  it('has /chat route requiring auth', async () => {
+  it('has /sessions route requiring auth', async () => {
+    const { router } = await import('../router/index')
+    const sessionsRoute = router.getRoutes().find((r) => r.path === '/sessions')
+    expect(sessionsRoute).toBeDefined()
+    expect(sessionsRoute?.meta?.requiresAuth).toBe(true)
+  })
+
+  it('keeps /chat as a backwards-compat redirect to /sessions', async () => {
     const { router } = await import('../router/index')
     const chatRoute = router.getRoutes().find((r) => r.path === '/chat')
     expect(chatRoute).toBeDefined()
-    expect(chatRoute?.meta?.requiresAuth).toBe(true)
+    expect(chatRoute?.redirect).toBe('/sessions')
   })
 
-  it('redirects / to /chat', async () => {
+  it('sessions route is named sessions', async () => {
     const { router } = await import('../router/index')
-    const resolved = router.resolve('/')
-    expect(resolved.redirectedFrom).toBeUndefined()
-  })
-
-  it('chat route is named chat', async () => {
-    const { router } = await import('../router/index')
-    const chatRoute = router.getRoutes().find((r) => r.name === 'chat')
-    expect(chatRoute).toBeDefined()
-    expect(chatRoute?.path).toBe('/chat')
+    const sessionsRoute = router.getRoutes().find((r) => r.name === 'sessions')
+    expect(sessionsRoute).toBeDefined()
+    expect(sessionsRoute?.path).toBe('/sessions')
   })
 })
