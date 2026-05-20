@@ -140,11 +140,7 @@
       };
 
       deploy.nodes.enschede-rx7900xtx-1 = {
-        # Hostname is the bootstrap-install LAN IP; once the host is up and
-        # joined to the tailnet, edit this to its 100.x tailnet address
-        # (matches the gtx-960m-1 / t1000-1 pattern — MagicDNS is off
-        # fleet-wide so the bare hostname does not resolve).
-        hostname = "REPLACE_WITH_TAILNET_IP";
+        hostname = "100.112.121.102";
         # External game-drive automounts + long-running Wolf service make
         # the magic-rollback confirm race-prone, same reasoning as the
         # gtx-960m-1 node.

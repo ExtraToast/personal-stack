@@ -98,13 +98,13 @@ nodes:
       - nvidia
 
   enschede-rx7900xtx-1:
-    status: install-ready
+    status: active
     site: enschede
     arch: amd64
     # Pinned to the tailnet IP post-install (matches t1000-1 / gtx-960m-1).
     # MagicDNS is off fleet-wide, so the bare hostname will not resolve.
     ssh:
-      host: REPLACE_WITH_TAILNET_IP
+      host: 100.112.121.102
       user: deploy
       port: 2222
     target_roles:
