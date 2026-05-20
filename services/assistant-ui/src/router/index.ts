@@ -10,13 +10,8 @@ declare module 'vue-router' {
 
 const routes: RouteRecordRaw[] = [
   {
-    // The legacy landing target stays `/workspaces` until the
-    // existing Playwright suite migrates over to the redesigned
-    // entry points (see PR G). The nav exposes `/sessions` as the
-    // recommended top-level surface; F.3 flips the default once the
-    // legacy tests are gone.
     path: '/',
-    redirect: '/workspaces',
+    redirect: '/sessions',
   },
   {
     path: '/sessions',
@@ -25,23 +20,13 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
-    // Legacy chat route — Playwright `AssistantChatFlowTest` still
-    // pokes at it during the migration window. Will be folded into
-    // `/sessions` (Chat tab) once the legacy tests retire.
-    path: '/chat',
-    name: 'chat',
-    component: () => import('@/features/chat/views/ChatView.vue'),
-    meta: { requiresAuth: true },
-  },
-  {
-    path: '/workspaces',
-    name: 'workspaces',
-    component: () => import('@/features/workspaces/views/WorkspacesView.vue'),
-    meta: { requiresAuth: true },
-  },
-  {
-    path: '/workspaces/:id',
-    name: 'workspace',
+    // Workspace detail (repo-backed or scratch). Reached from the
+    // Sessions > Workspace tab cards and the Scratch tab. The view
+    // still lives under `features/workspaces/` because it consumes
+    // that feature's components + store directly; only the URL is
+    // namespaced under `/sessions/` to match the redesigned IA.
+    path: '/sessions/workspace/:id',
+    name: 'workspace-detail',
     component: () => import('@/features/workspaces/views/WorkspaceView.vue'),
     meta: { requiresAuth: true },
   },
