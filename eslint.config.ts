@@ -5,6 +5,10 @@ export default antfu(
     vue: true,
     typescript: true,
     formatters: false,
+    // Generated artefacts (e.g. openapi-typescript output pinned by the
+    // assistant-api ↔ assistant-ui contract gate) are regenerated on
+    // every drift check; reformatting them would only churn the diff.
+    ignores: ['**/src/api/generated.ts'],
   },
   {
     rules: {

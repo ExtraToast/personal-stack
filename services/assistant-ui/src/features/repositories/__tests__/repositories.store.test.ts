@@ -85,7 +85,7 @@ describe('repositories store', () => {
     mocked.createRepository.mockResolvedValue(created)
     const store = useRepositoriesStore()
     store.items = [fakeRepo({ id: 'old' })]
-    const result = await store.create({ name: 'new', repoUrl: 'git@x:y/z.git' })
+    const result = await store.create({ name: 'new', repoUrl: 'git@x:y/z.git', defaultBranch: 'main' })
     expect(result).toEqual(created)
     expect(store.items[0]!.id).toBe('new')
   })
