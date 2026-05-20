@@ -93,6 +93,16 @@ spec:
               SERVE_PID=$!
               until ollama list >/dev/null 2>&1; do sleep 2; done
               ollama pull qwen2.5:7b-instruct
+              # qwen3:8b is the curator's new chat model — native
+              # structured-output (Qwen2.5 needed Ollama's grammar
+              # overlay), better reasoning, same ~5 GiB Q4 footprint
+              # as the 7b it replaces. Pulled alongside qwen2.5:7b
+              # during the cutover window so a config flip
+              # (`OLLAMA_CHAT_MODEL=qwen2.5:7b-instruct`) reverts
+              # without a deploy. Drop Qwen2.5 in a follow-up once
+              # the curator has run on Qwen3 for a full week without
+              # JSON-validity regressions.
+              ollama pull qwen3:8b
               ollama pull nomic-embed-text
               # qwen3-embedding:0.6b feeds the recall path's pgvector
               # ANN leg (knowledge-api V9 schema). Matryoshka-native,
