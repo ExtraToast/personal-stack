@@ -1,0 +1,60 @@
+# Selector-less Service + Endpoints fronting the host-native Ollama
+# on enschede-rx7900xtx-1. The NixOS host module (`ollama-rocm.nix`)
+# runs the daemon on 0.0.0.0:11434 over ROCm against the RX 7900 XTX;
+# this gateway lets in-cluster pods reach it by cluster DNS instead
+# of carrying the tailnet IP around. See the same pattern note in
+# CLAUDE.md: "Host-native services exposed as k8s backends ... get a
+# selector-less Service + Endpoints ... in `utility-system/<name>-
+# gateway/`".
+#
+# Consumed by:
+#   - knowledge-curator CronJob (OLLAMA_HEAVY_BASE_URL)
+#   - knowledge-api Deployment (OLLAMA_HEAVY_BASE_URL)
+#
+# Embedding + reranker traffic intentionally does NOT route here —
+# it stays on the in-cluster CPU Ollama so the recall path's
+# `kb_notes.embedding_model` doesn't churn across endpoint flips.
+#
+# Known caveat (CLAUDE.md, flannel-over-tailscale): a pod on
+# `frankfurt` talking to a selector-less Service backed by an
+# enschede tailnet IP takes a different iptables path than the
+# usual pod-to-pod flannel route, and can hit SNAT surprises. If
+# we see that here, the escape hatch is to wrap the host-native
+# Ollama in a tiny Deployment with `nodeSelector +
+# capability-amd-gpu=true` + `hostNetwork: true` (the AdGuard
+# pattern) and front it with a selector-backed Service. Try the
+# canonical path first.
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama-heavy
+  namespace: utility-system
+  labels:
+    app.kubernetes.io/name: ollama-heavy
+spec:
+  # No selector: Endpoints are managed by hand below.
+  ports:
+    - name: http
+      port: 11434
+      targetPort: 11434
+      protocol: TCP
+---
+# Hand-managed Endpoints. The tailnet IP comes from `fleet.yaml`'s
+# `enschede-rx7900xtx-1.ssh.host`; if the node ever gets a new
+# tailnet address (e.g. re-auth onto the tailnet), update both
+# values together — fleet.yaml + flake.nix on the platform side,
+# and this Endpoints object on the cluster side.
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: ollama-heavy
+  namespace: utility-system
+  labels:
+    app.kubernetes.io/name: ollama-heavy
+subsets:
+  - addresses:
+      - ip: 100.112.121.102
+    ports:
+      - name: http
+        port: 11434
+        protocol: TCP
