@@ -12,19 +12,21 @@
   # they ship in linux-firmware which is unfree-redistributable.
   hardware.enableRedistributableFirmware = true;
 
+  # RADV (Mesa's Vulkan ICD) is the default Vulkan path for AMD on
+  # modern nixpkgs; AMD's proprietary amdvlk package was deprecated
+  # and removed upstream. RDNA3 is RADV-supported end to end, so no
+  # second Vulkan ICD is needed. libvdpau-va-gl bridges VDPAU
+  # consumers to VAAPI on the AMD path.
   hardware.graphics = {
     enable = true;
     enable32Bit = true;
     extraPackages = with pkgs; [
-      amdvlk
       libva
       libvdpau-va-gl
       mesa
       rocmPackages.clr.icd
-      vaapiVdpau
     ];
     extraPackages32 = with pkgs.pkgsi686Linux; [
-      amdvlk
       mesa
     ];
   };
