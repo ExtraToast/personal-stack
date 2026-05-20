@@ -14,7 +14,9 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "depcruise": "depcruise src --config .dependency-cruiser.cjs --output-type err",
-    "stryker": "stryker run"
+    "stryker": "stryker run",
+    "contract:generate": "openapi-typescript ../assistant-api/openapi.json -o src/api/generated.ts && node scripts/contract-banner.mjs src/api/generated.ts",
+    "contract:check": "openapi-typescript ../assistant-api/openapi.json -o /tmp/assistant-ui-generated.ts && node scripts/contract-banner.mjs /tmp/assistant-ui-generated.ts && diff -u src/api/generated.ts /tmp/assistant-ui-generated.ts"
   },
   "dependencies": {
     "@personal-stack/vue-common": "workspace:*",
@@ -35,6 +37,7 @@
     "dependency-cruiser": "^17.4.0",
     "jsdom": "^29.1.1",
     "msw": "^2.14.3",
+    "openapi-typescript": "7.4.4",
     "tailwindcss": "^4.2.4",
     "typescript": "^6.0.3",
     "vite": "^8.0.10",

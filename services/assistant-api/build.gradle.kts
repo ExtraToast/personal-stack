@@ -102,3 +102,32 @@ tasks.jacocoTestReport {
             .map { fileTree(it) { exclude(jacocoExclusions) } },
     )
 }
+
+// The OpenAPI contract is pinned to `services/assistant-api/openapi.json`
+// (committed). The `contract-export` JUnit tag identifies the single test
+// that boots the Spring context, hits `/api/v1/api-docs`, and writes the
+// spec to disk. The default `integrationTest` task skips that tag — the
+// spec dump is a build-time artefact, not a verification step — while the
+// new `exportOpenApiSpec` task below runs only that tag and feeds the
+// `services/assistant-ui` contract-typegen pipeline.
+tasks.named<Test>("integrationTest") {
+    useJUnitPlatform {
+        includeTags("integration")
+        excludeTags("contract-export")
+    }
+}
+
+tasks.register<Test>("exportOpenApiSpec") {
+    description = "Boots the Spring context and writes the OpenAPI spec to services/assistant-api/openapi.json"
+    group = "documentation"
+    testClassesDirs = sourceSets["integrationTest"].output.classesDirs
+    classpath = sourceSets["integrationTest"].runtimeClasspath
+    useJUnitPlatform {
+        includeTags("contract-export")
+    }
+    systemProperty("openapi.spec.output", file("openapi.json").absolutePath)
+    // Always re-run: the spec is derived from the live springdoc output,
+    // so caching past runs would defeat the drift gate. The CI workflow
+    // diffs the freshly-written file against the committed copy.
+    outputs.upToDateWhen { false }
+}

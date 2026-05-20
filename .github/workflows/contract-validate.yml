@@ -1,0 +1,65 @@
+name: Contract Validate
+
+# Pins the assistant-api ↔ assistant-ui type contract. Two diffs gate
+# the PR: the freshly-exported springdoc spec against the committed
+# `services/assistant-api/openapi.json`, and the regenerated TypeScript
+# types against the committed `services/assistant-ui/src/api/generated.ts`.
+# Either gap fails the job — the same pattern as `Platform Validate`
+# uses to keep the rendered Traefik catalog ConfigMaps in step with
+# `platform/inventory/fleet.yaml`. Regenerate locally with
+# `./gradlew :services:assistant-api:exportOpenApiSpec` and
+# `pnpm --filter @personal-stack/assistant-ui contract:generate`.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'services/assistant-api/**'
+      - 'services/assistant-ui/**'
+      - 'libs/kotlin-common/**'
+      - 'libs/vue-common/**'
+      - 'build-logic/**'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/contract-validate.yml'
+
+concurrency:
+  group: contract-validate-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  contract-validate:
+    name: Validate OpenAPI Contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-java-gradle
+        with:
+          java-version: '21'
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          node-version: '24'
+      - name: Export OpenAPI spec from assistant-api
+        run: bash infra/scripts/run-strict-command.sh ./gradlew :services:assistant-api:exportOpenApiSpec
+      - name: Diff exported spec against committed openapi.json
+        run: |
+          set -euo pipefail
+          # The export task overwrites the committed path with the live
+          # springdoc output. `git diff --exit-code` against HEAD then
+          # surfaces any drift; the workflow fails with the patch so the
+          # regenerate command is obvious from the CI log.
+          if ! git diff --exit-code -- services/assistant-api/openapi.json; then
+            echo "::error::services/assistant-api/openapi.json is stale."
+            echo "::error::Regenerate locally with: ./gradlew :services:assistant-api:exportOpenApiSpec"
+            exit 1
+          fi
+      - name: Check openapi-typescript output is up to date
+        run: bash infra/scripts/run-strict-command.sh pnpm --filter @personal-stack/assistant-ui contract:check
