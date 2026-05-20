@@ -25,7 +25,11 @@ const privateKey = ref('')
 const publicKey = ref('')
 const knownHosts = ref('')
 
-const submit = useMutationState<void>()
+// Longer reset window than the default 2 s — an attach-key failure
+// is typically a Vault / RBAC issue worth surfacing to the user
+// for several seconds; the default 2 s flickered past and made the
+// red SubmitButton state easy to miss (and racy to assert in tests).
+const submit = useMutationState<void>({ resetDelayMs: 8_000 })
 const toast = useToast()
 
 const canSubmit = computed(() => privateKey.value.trim().length > 0 && publicKey.value.trim().length > 0)

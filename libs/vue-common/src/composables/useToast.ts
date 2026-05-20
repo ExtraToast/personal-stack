@@ -122,8 +122,9 @@ function problemDetailOf(e: unknown): ProblemDetail | null {
 
 function isProblemDetailShape(e: unknown): e is ProblemDetail {
   if (typeof e !== 'object' || e === null) return false
-  const record = e as Record<string, unknown>
-  return typeof record.status === 'number' && typeof record.title === 'string'
+  const status = Reflect.get(e, 'status')
+  const title = Reflect.get(e, 'title')
+  return typeof status === 'number' && typeof title === 'string'
 }
 
 export interface ToastApi {
