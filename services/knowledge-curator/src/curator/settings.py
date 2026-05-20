@@ -34,11 +34,21 @@ class Settings:
     db_user: str
     db_password: str
 
-    # Ollama — OpenAI-compatible endpoint
+    # Ollama — OpenAI-compatible endpoint. The "light" endpoint is the
+    # in-cluster CPU deployment that hosts every consumer's models by
+    # default; the "heavy" endpoint, when configured, points at the
+    # host-native GPU Ollama on enschede-rx7900xtx-1 (RX 7900 XTX,
+    # 24 GiB VRAM) and is preferred for chat work whenever its probe
+    # responds. Embedding + reranker calls always go to the light
+    # endpoint — flipping embedding models per pass would force the
+    # backfill CronJob into permanent re-embedding loops.
     ollama_base_url: str
     ollama_chat_model: str
     ollama_embedding_model: str
     ollama_request_timeout_seconds: float
+    ollama_heavy_base_url: str
+    ollama_heavy_chat_model: str
+    ollama_heavy_probe_timeout_seconds: float
 
     # knowledge-api recall (for nearest-neighbour evidence). The
     # curator authenticates with its own bearer token reserved for
@@ -102,6 +112,14 @@ class Settings:
             # the divergent rows automatically).
             ollama_embedding_model=e.get("OLLAMA_EMBEDDING_MODEL", "qwen3-embedding:0.6b"),
             ollama_request_timeout_seconds=float(e.get("OLLAMA_REQUEST_TIMEOUT_SECONDS", "120")),
+            # Heavy endpoint defaults intentionally inert: an unset
+            # OLLAMA_HEAVY_BASE_URL short-circuits the router straight
+            # to the light values without doing any I/O.
+            ollama_heavy_base_url=e.get("OLLAMA_HEAVY_BASE_URL", ""),
+            ollama_heavy_chat_model=e.get("OLLAMA_HEAVY_CHAT_MODEL", "qwen2.5:14b-instruct"),
+            ollama_heavy_probe_timeout_seconds=float(
+                e.get("OLLAMA_HEAVY_PROBE_TIMEOUT_SECONDS", "2.0"),
+            ),
             knowledge_api_base_url=e.get(
                 "KNOWLEDGE_API_BASE_URL",
                 "http://knowledge-api.knowledge-system.svc.cluster.local:8080",

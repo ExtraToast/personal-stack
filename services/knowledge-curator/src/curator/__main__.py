@@ -30,6 +30,7 @@ from curator.indexes import (
     write_topic_mocs,
 )
 from curator.lightrag import LightRagClient
+from curator.ollama_router import resolve_chat
 from curator.projects import ProjectVocabulary
 from curator.promote import Promoter
 from curator.recall import RecallClient
@@ -64,9 +65,20 @@ def main() -> int:
     projects = _load_projects(store, log)
 
     shared_http = httpx.Client(timeout=settings.ollama_request_timeout_seconds)
+    # Resolve the chat endpoint ONCE per pass: probes the heavy URL
+    # (rx7900xtx host-native Ollama) and falls back to the in-cluster
+    # CPU Ollama if the probe times out. Embedding calls stay on the
+    # light endpoint regardless — flipping embedding models per pass
+    # would force the backfill CronJob into permanent re-embedding.
+    chat_endpoint = resolve_chat(settings)
+    log.info(
+        "curator.chat_endpoint",
+        profile=chat_endpoint.profile,
+        model=chat_endpoint.model,
+    )
     classifier = OllamaClassifier(
-        base_url=settings.ollama_base_url,
-        model=settings.ollama_chat_model,
+        base_url=chat_endpoint.base_url,
+        model=chat_endpoint.model,
         topic_slugs=topics.slugs,
         project_slugs=projects.slugs,
         timeout_seconds=settings.ollama_request_timeout_seconds,
