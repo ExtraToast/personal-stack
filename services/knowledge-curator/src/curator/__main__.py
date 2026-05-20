@@ -128,6 +128,12 @@ def main() -> int:
         confidence_floor=settings.classify_confidence_floor,
         recall_limit=settings.classify_top_k_neighbours,
         lightrag=lightrag,
+        # Wires the recall path's pgvector ANN leg — every promoted
+        # note now lands with an embedding alongside its vault commit.
+        # Soft-failure on the curator side: an Ollama outage leaves
+        # the row's embedding NULL, the backfill CronJob picks it up.
+        embedder=embedder,
+        embedding_model=settings.ollama_embedding_model,
     )
 
     inbox_root = settings.vault_clone_dir / "_inbox"

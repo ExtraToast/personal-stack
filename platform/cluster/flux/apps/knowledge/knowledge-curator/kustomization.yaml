@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - topics-configmap.yaml
   - cronjob.yaml
+  - backfill-embeddings-cronjob.yaml
