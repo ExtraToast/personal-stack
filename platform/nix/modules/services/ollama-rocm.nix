@@ -6,9 +6,13 @@
   # release drops gfx1100 from the default targets we'd set
   # HSA_OVERRIDE_GFX_VERSION=11.0.0 to pin against the nearest LLVM
   # codegen path.
+  #
+  # nixpkgs-unstable removed services.ollama.acceleration; the
+  # selector is now the package variant, so pin `pkgs.ollama-rocm`
+  # to get the ROCm-built daemon binary.
   services.ollama = {
     enable = true;
-    acceleration = "rocm";
+    package = pkgs.ollama-rocm;
     # Listen on every interface so other pods on the tailnet can
     # reach the API directly without a k8s Service. Workloads in
     # the cluster (assistant-api, knowledge-curator) use this
