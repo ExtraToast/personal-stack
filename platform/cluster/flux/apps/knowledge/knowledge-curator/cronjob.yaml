@@ -1,13 +1,25 @@
 # knowledge-curator runs as a CronJob, not a Deployment: each pass
-# is a one-shot classify-and-promote over `_inbox/*.md`. The 5-min
-# cadence keeps inbox latency tolerable while leaving headroom for
-# Ollama to handle the qwen2.5:14b classification calls without
-# overlapping runs.
+# is a one-shot classify-and-promote over `_inbox/*.md` plus a drain
+# of `_inbox/_needs-review/` when CURATOR_DRAIN_NEEDS_REVIEW=1.
+#
+# Cadence: hourly. The earlier 5-min schedule made sense when each
+# pass was a sub-second qwen3:8b classification over an empty inbox,
+# but two things changed:
+#   1. CURATOR_DRAIN_NEEDS_REVIEW is now permanently on, so every
+#      pass also walks the needs-review backlog (~20 candidates) —
+#      ~3 min on the rx7900xtx heavy host, ~13 min on the in-cluster
+#      qwen3:8b CPU fallback.
+#   2. The heavy gateway is best-effort; when the rx7900xtx node is
+#      offline the entire drain stays on CPU.
+# Hourly keeps inbox latency tolerable (one capture queued ~30 min
+# average) while cutting daily passes from 288 → 24 and giving the
+# fallback path time to drain inside its window instead of stacking
+# Forbid-blocked retries.
 #
 # `concurrencyPolicy: Forbid` is critical: the curator shares the
 # vault clone PVC with the worker, and two concurrent `git mv`
-# passes on the same working tree would race. Forbid means a
-# slow pass blocks the next start rather than running in parallel.
+# passes on the same working tree would race. Forbid means a slow
+# pass blocks the next start rather than running in parallel.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -29,11 +41,15 @@ metadata:
     keel.sh/trigger: poll
     keel.sh/pollSchedule: '@every 2m'
 spec:
-  schedule: '*/5 * * * *'
+  schedule: '0 * * * *'
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
-  startingDeadlineSeconds: 240
+  # 30-min deadline matches the worst-case CPU-fallback drain window
+  # (20 needs-review candidates × ~40 s/qwen3:8b on CPU ≈ 13 min)
+  # plus headroom. Below this, a slow pass eats the next trigger;
+  # above this, missed starts queue forever.
+  startingDeadlineSeconds: 1800
   jobTemplate:
     spec:
       backoffLimit: 1
