@@ -73,7 +73,7 @@ onBeforeUnmount(() => {
         @click.self="onBackdropClick"
       >
         <div
-          class="w-full max-w-lg rounded-lg border border-[var(--color-surface-border)] bg-[var(--color-surface-card)] shadow-2xl"
+          class="flex max-h-[90vh] w-full max-w-lg flex-col rounded-lg border border-[var(--color-surface-border)] bg-[var(--color-surface-card)] shadow-2xl"
           role="dialog"
           aria-modal="true"
           :aria-labelledby="title ? 'modal-title' : undefined"
@@ -81,7 +81,7 @@ onBeforeUnmount(() => {
         >
           <header
             v-if="title"
-            class="flex items-baseline justify-between border-b border-[var(--color-surface-border)] px-5 py-3"
+            class="flex flex-none items-baseline justify-between border-b border-[var(--color-surface-border)] px-5 py-3"
           >
             <h2 id="modal-title" class="text-lg font-semibold">{{ title }}</h2>
             <button
@@ -104,12 +104,12 @@ onBeforeUnmount(() => {
               </svg>
             </button>
           </header>
-          <div class="p-5">
+          <div class="min-h-0 flex-1 overflow-y-auto p-5">
             <slot />
           </div>
           <footer
             v-if="$slots.footer"
-            class="flex justify-end gap-2 border-t border-[var(--color-surface-border)] px-5 py-3"
+            class="flex flex-none justify-end gap-2 border-t border-[var(--color-surface-border)] px-5 py-3"
           >
             <slot name="footer" />
           </footer>

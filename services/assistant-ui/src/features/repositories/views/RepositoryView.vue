@@ -20,13 +20,16 @@ onMounted(async () => {
   try {
     await store.loadDetail(id.value)
   } catch (e) {
-    toast.error('Could not load the repository', e instanceof Error ? e.message : String(e))
+    toast.errorFromCatch('Could not load the repository', e)
   }
 })
 
+// The wizard awaits this; re-throwing on failure lets the wizard's
+// mutation state flip to `failure`, keeps the modal open, and lets
+// the wizard render the ProblemDetail-aware toast. On success the
+// wizard emits `success` and the view closes the modal below.
 async function onAttachKey(input: AttachDeployKeyInput): Promise<void> {
   await store.attachKey(id.value, input)
-  showKeyWizard.value = false
 }
 
 async function onDestroy(): Promise<void> {
@@ -41,7 +44,7 @@ async function onDestroy(): Promise<void> {
     toast.success('Repository deleted')
     await router.push('/repositories')
   } catch (e) {
-    toast.error('Could not delete the repository', e instanceof Error ? e.message : String(e))
+    toast.errorFromCatch('Could not delete the repository', e)
   }
 }
 </script>
@@ -104,7 +107,12 @@ async function onDestroy(): Promise<void> {
     </section>
 
     <Modal :open="showKeyWizard" title="Attach deploy key" @close="showKeyWizard = false">
-      <AttachKeyWizard :repository="detail.repository" @submit="onAttachKey" @cancel="showKeyWizard = false" />
+      <AttachKeyWizard
+        :repository="detail.repository"
+        :on-submit="onAttachKey"
+        @success="showKeyWizard = false"
+        @cancel="showKeyWizard = false"
+      />
     </Modal>
   </div>
   <div v-else class="max-w-4xl mx-auto p-6 text-gray-400">Loading…</div>

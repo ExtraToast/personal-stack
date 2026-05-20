@@ -18,7 +18,7 @@ onMounted(async () => {
   try {
     await store.open(projectId.value)
   } catch (e) {
-    toast.error('Could not load the project', e instanceof Error ? e.message : String(e))
+    toast.errorFromCatch('Could not load the project', e)
   }
 })
 
@@ -28,7 +28,7 @@ async function onPickRepo(repositoryId: string): Promise<void> {
     showPicker.value = false
     toast.success('Repository linked')
   } catch (e) {
-    toast.error('Could not link the repository', e instanceof Error ? e.message : String(e))
+    toast.errorFromCatch('Could not link the repository', e)
   }
 }
 
@@ -44,7 +44,7 @@ async function onUnlink(repositoryId: string, repositoryName: string): Promise<v
     })
     toast.success(`Unlinked ${repositoryName}`)
   } catch (e) {
-    toast.error('Could not unlink the repository', e instanceof Error ? e.message : String(e))
+    toast.errorFromCatch('Could not unlink the repository', e)
   }
 }
 </script>

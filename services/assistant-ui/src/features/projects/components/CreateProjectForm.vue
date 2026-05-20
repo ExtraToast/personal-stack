@@ -39,7 +39,7 @@ async function onSubmit(): Promise<void> {
       emit('submit', { name: name.value.trim(), slug: slug.value, description: description.value.trim() })
     })
   } catch (e) {
-    toast.error('Could not create the project', e instanceof Error ? e.message : String(e))
+    toast.errorFromCatch('Could not create the project', e)
   }
 }
 </script>

@@ -1,4 +1,5 @@
-import type { ProblemDetail } from '../types'
+import { ApiError } from '../types'
+import { problemFromResponse } from './useApi'
 import { useAuth } from './useAuth'
 
 interface ApiWithAuthOptions {
@@ -36,12 +37,16 @@ export function useApiWithAuth(options: ApiWithAuthOptions = {}): ApiClient {
     if (response.status === 401) {
       logout()
       options.onUnauthorized?.()
-      throw new Error('Unauthorized')
+      throw new ApiError({
+        type: 'about:blank',
+        title: 'Unauthorized',
+        status: 401,
+        detail: 'Unauthorized',
+      })
     }
 
     if (!response.ok) {
-      const problem: ProblemDetail = await response.json()
-      throw problem
+      throw await problemFromResponse(response)
     }
 
     if (response.status === 204) {
