@@ -37,7 +37,13 @@ const isInteractive = computed(() => (props.interactive === 'auto' ? props.to !=
 const paddingClass = computed(() => (props.padding === 'none' ? '' : props.padding === 'compact' ? 'p-3' : 'p-4'))
 
 const cardClasses = computed(() => [
-  'rounded-lg border border-[var(--color-surface-border)] bg-[var(--color-surface-card)]',
+  // `block` is load-bearing when the card renders as a RouterLink:
+  // browsers default `<a>` to inline, so the flex header / multi-line
+  // body inside the card collapses into a single inline run with the
+  // padding applied per inline-box instead of around the whole card.
+  // Forcing block layout keeps the card visual identical between the
+  // `<article>` and RouterLink branches.
+  'block rounded-lg border border-[var(--color-surface-border)] bg-[var(--color-surface-card)] text-[var(--color-text-primary)] no-underline',
   paddingClass.value,
   isInteractive.value ? 'cursor-pointer hover:border-[var(--color-accent)] transition-colors' : '',
 ])
