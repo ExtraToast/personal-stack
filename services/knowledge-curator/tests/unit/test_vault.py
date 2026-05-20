@@ -171,6 +171,40 @@ def test_curator_vault_move_to_needs_review(clone: Path) -> None:
     assert "review too-ambiguous" in repo.head.commit.message
 
 
+def test_curator_vault_move_to_needs_review_is_noop_when_already_in_review(clone: Path) -> None:
+    """Drain pass re-classification: file is already in needs-review,
+    classification fails again, Promoter calls move_to_needs_review
+    with a source that's identical to the computed destination. The
+    legacy code crashed with ``git mv X X`` exit 128; the no-op
+    guard returns the existing path unchanged.
+    """
+
+    vault = CuratorVault(
+        clone_dir=clone,
+        author=Actor("curator", "curator@test"),
+        ssh_key_path=None,
+        push=False,
+    )
+    review_rel = "_inbox/_needs-review/120000-foo--01HXYZ00.md"
+    # Seed the file directly in _needs-review/ so source==dest.
+    target = clone / review_rel
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("---\nid: x\n---\n# X\n", encoding="utf-8")
+    repo = Repo(clone)
+    repo.index.add([review_rel])
+    repo.index.commit(
+        "seed review file", author=Actor("seed", "seed@test"), committer=Actor("seed", "seed@test")
+    )
+    head_before = repo.head.commit.hexsha
+
+    result = vault.move_to_needs_review(source_rel=review_rel, reason="classify-failed:retry")
+
+    assert result.new_relative_path == review_rel
+    # No new commit — caller did not actually move anything.
+    assert repo.head.commit.hexsha == head_before
+    assert (clone / review_rel).exists()
+
+
 def test_curator_vault_commit_paths_no_op_when_clean(clone: Path) -> None:
     vault = CuratorVault(
         clone_dir=clone,

@@ -282,10 +282,25 @@ class CuratorVault:
         flagged set without having to run `git status` on the cluster
         clone. The commit subject carries the reason so `git log`
         captures the audit trail.
+
+        When the source is already inside `_inbox/_needs-review/` the
+        function is a no-op — the orchestrator's
+        :class:`NeedsReviewDrainPass` re-feeds review files on every
+        tick, and a re-classification failure that "re-routes" the
+        file to the same location used to crash on ``git mv X X``.
+        Returning the existing relative path keeps the audit trail
+        tidy: the caller's structured `curator.outcome` log line
+        still records `status=needs_review reason=<...>`, and the
+        file's mtime is unchanged so the next drain tick's
+        ``has_work`` skips it (mtime < the just-advanced
+        ``last_completed_at`` watermark).
         """
 
         src = self._clone_dir / source_rel
         review_rel = f"_inbox/_needs-review/{src.name}"
+        if source_rel == review_rel:
+            # No-op: file is already at the destination.
+            return PromotionResult(new_relative_path=review_rel, commit_sha="")
         review_path = self._clone_dir / review_rel
         review_path.parent.mkdir(parents=True, exist_ok=True)
         self._repo.git.mv(source_rel, review_rel)
