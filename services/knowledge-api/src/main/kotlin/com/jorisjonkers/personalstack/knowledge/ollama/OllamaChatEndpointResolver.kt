@@ -6,6 +6,7 @@ import org.springframework.http.client.JdkClientHttpRequestFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
+import org.springframework.web.client.RestClientException
 import java.net.http.HttpClient
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicReference
@@ -70,26 +71,7 @@ class OllamaChatEndpointResolver(
             current.set(light)
             return
         }
-
-        val probeUrl = heavyBase.trimEnd('/') + "/models"
-        val resolved =
-            try {
-                probeClient
-                    .get()
-                    .uri(probeUrl)
-                    .retrieve()
-                    .toBodilessEntity()
-                Endpoint(heavyBase, heavyChatModel, Profile.HEAVY)
-            } catch (ex: Exception) {
-                log.warn(
-                    "ollama_resolver.probe_failed probe_url={} error={}: {}",
-                    probeUrl,
-                    ex.javaClass.simpleName,
-                    ex.message,
-                )
-                light
-            }
-
+        val resolved = probeHeavy(heavyBase)
         val previous = current.getAndSet(resolved)
         if (previous.profile != resolved.profile) {
             log.info(
@@ -99,6 +81,35 @@ class OllamaChatEndpointResolver(
                 resolved.baseUrl,
                 resolved.model,
             )
+        }
+    }
+
+    /**
+     * Single-shot probe. Returns heavy on any 2xx; light on any
+     * [RestClientException] subclass — that covers
+     * [org.springframework.web.client.ResourceAccessException] for
+     * transport errors (connect refused, timeout, DNS) and the 4xx /
+     * 5xx response-status subclasses. A 3xx redirect is treated as
+     * unreachable since the Ollama OpenAI-compat surface never
+     * redirects in healthy operation.
+     */
+    private fun probeHeavy(heavyBase: String): Endpoint {
+        val probeUrl = heavyBase.trimEnd('/') + "/models"
+        return try {
+            probeClient
+                .get()
+                .uri(probeUrl)
+                .retrieve()
+                .toBodilessEntity()
+            Endpoint(heavyBase, heavyChatModel, Profile.HEAVY)
+        } catch (ex: RestClientException) {
+            log.warn(
+                "ollama_resolver.probe_failed probe_url={} error={}: {}",
+                probeUrl,
+                ex.javaClass.simpleName,
+                ex.message,
+            )
+            light
         }
     }
 
