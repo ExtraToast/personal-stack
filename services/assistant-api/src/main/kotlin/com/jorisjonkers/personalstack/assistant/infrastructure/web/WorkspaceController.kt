@@ -49,7 +49,11 @@ class WorkspaceController(
                 githubLinkId = req.githubLinkId?.let { GithubLinkId(it) },
             ),
         )
-        val view = getQuery.get(id) ?: error("created workspace not visible immediately — repository sync bug")
+        val view =
+            getQuery.get(id)
+                ?: throw IllegalStateException(
+                    "Workspace $id was created but not yet visible to the read model; retry the GET in a moment",
+                )
         return ResponseEntity.status(HttpStatus.CREATED).body(WorkspaceResponse.of(view.workspace))
     }
 
