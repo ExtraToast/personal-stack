@@ -65,15 +65,19 @@
 }
 
 /*
- * Anchor the html / body backgrounds so overscroll never reveals the
- * default white background under the page. The earlier behaviour —
- * scroll up past the top of the page on a trackpad and a white band
- * shows above the dark UI — was visually jarring; this lock removes it.
+ * Anchor html + body to the theme surface so trackpad / pull-to-refresh
+ * overscroll reveals the same colour as the page content. Earlier the
+ * lock used `overscroll-behavior: none`, which also disabled
+ * pull-to-refresh on mobile and made the area above the top of the
+ * scroll feel hard-stopped — the background-only anchor keeps the
+ * gesture available while still hiding the system white.
+ *
+ * `color-scheme` is what tells the browser chrome (overscroll area,
+ * scrollbars, form widgets) which palette to draw with.
  */
 html {
   scroll-behavior: smooth;
   background: var(--color-surface-dark);
-  overscroll-behavior: none;
   color-scheme: dark;
 }
 

@@ -39,22 +39,23 @@ function cycleTheme(): void {
 }
 
 const themeIcon = computed(() => {
-  if (mode.value === 'light') return '☀'
-  if (mode.value === 'dark') return '☾'
-  return '⟳'
+  if (mode.value === 'light') return 'light'
+  if (mode.value === 'dark') return 'dark'
+  return 'auto'
 })
 
 const themeLabel = computed(() => {
-  if (mode.value === 'light') return '☀ light'
-  if (mode.value === 'dark') return '☾ dark'
-  return '⟳ system'
+  if (mode.value === 'light') return 'light'
+  if (mode.value === 'dark') return 'dark'
+  return 'auto'
 })
 
-// Mobile drawer state — full-height slide-in panel from the right
-// on `< md`. The desktop layout shows the nav inline + the right
-// cluster (theme toggle, extras slot, account link); mobile
-// collapses every action behind a single hamburger trigger to keep
-// the top bar legible at narrow widths.
+// Drawer state — full-height slide-in panel on `< lg` (anything
+// narrower than 1024 px). The desktop layout shows the inline nav
+// + right cluster only at lg+ so the 5+ portfolio items and the
+// extras cluster never get squished into a too-narrow header on
+// laptops or tablet portrait. Below lg, every action collapses
+// behind the hamburger.
 const drawerOpen = ref(false)
 
 function openDrawer(): void {
@@ -107,28 +108,28 @@ onBeforeUnmount(() => {
           }}<span class="text-[var(--color-accent-light)]">{{ brandSuffix }}</span>
         </RouterLink>
 
-        <div class="hidden items-center gap-1 font-mono text-xs md:flex" data-testid="app-nav-desktop">
+        <div class="hidden items-center gap-5 font-mono text-xs tracking-tight lg:flex" data-testid="app-nav-desktop">
           <RouterLink
             v-for="item in navItems"
             :key="`desk-${item.testid ?? item.label}`"
             :to="item.to"
             :data-testid="item.testid"
-            class="rounded-md px-3 py-1.5 transition-colors"
+            class="transition-colors"
             :class="[
               isActive(item)
-                ? 'bg-[var(--color-surface-elevated)] text-[var(--color-terminal-green)]'
-                : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-terminal-green)]',
+                ? 'text-[var(--color-terminal-green)]'
+                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]',
             ]"
           >
             {{ item.label }}
           </RouterLink>
         </div>
 
-        <div class="hidden items-center gap-1 md:flex" data-testid="app-nav-right">
+        <div class="hidden items-center gap-4 lg:flex" data-testid="app-nav-right">
           <button
             v-if="showThemeToggle"
             type="button"
-            class="rounded-md px-2 py-1.5 font-mono text-sm text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-terminal-amber)]"
+            class="font-mono text-xs lowercase tracking-tight text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-terminal-amber)]"
             :title="`Theme: ${mode}`"
             :aria-label="`Theme: ${mode}`"
             data-testid="nav-theme-toggle"
@@ -139,7 +140,7 @@ onBeforeUnmount(() => {
           <slot name="extras" :compact="true" />
           <a
             :href="accountHref"
-            class="rounded-md px-3 py-1.5 font-mono text-xs text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-terminal-green)]"
+            class="font-mono text-xs text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-terminal-green)]"
             data-testid="nav-account"
           >
             Account
@@ -148,7 +149,7 @@ onBeforeUnmount(() => {
 
         <button
           type="button"
-          class="inline-flex h-11 w-11 items-center justify-center rounded-md text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-terminal-green)] md:hidden"
+          class="inline-flex h-11 w-11 items-center justify-center rounded-md text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-terminal-green)] lg:hidden"
           aria-label="Open menu"
           :aria-expanded="drawerOpen"
           data-testid="nav-menu-trigger"
@@ -177,7 +178,7 @@ onBeforeUnmount(() => {
       <Transition name="drawer">
         <div
           v-if="drawerOpen"
-          class="fixed inset-0 z-50 md:hidden"
+          class="fixed inset-0 z-50 lg:hidden"
           data-testid="nav-drawer-root"
           aria-modal="true"
           role="dialog"

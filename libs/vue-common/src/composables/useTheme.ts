@@ -23,6 +23,10 @@ const mode = ref<ThemeMode>(getStoredMode())
 function applyTheme(m: ThemeMode): void {
   if (!isBrowser) return
   const resolved = m === 'system' ? getSystemPreference() : m
+  // theme.css redefines the palette under `:root[data-theme='light']`;
+  // the `.dark` class selector this previously toggled matched nothing,
+  // which is why the toggle button appeared to do nothing.
+  document.documentElement.dataset.theme = resolved
   document.documentElement.classList.toggle('dark', resolved === 'dark')
 }
 
