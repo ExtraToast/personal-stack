@@ -128,7 +128,11 @@ spec:
             - name: OLLAMA_HEAVY_BASE_URL
               value: http://ollama-heavy.utility-system.svc.cluster.local:11434/v1
             - name: OLLAMA_HEAVY_CHAT_MODEL
-              value: qwen2.5:14b-instruct
+              # Bumped from qwen2.5:14b-instruct → qwen3:32b on the
+              # rx7900xtx host. Same value the curator picks. Single
+              # resident model on the 24 GiB card — see
+              # platform/nix/modules/services/ollama-rocm.nix.
+              value: qwen3:32b
             - name: OLLAMA_HEAVY_PROBE_TIMEOUT_MS
               value: '2000'
             - name: OLLAMA_HEAVY_PROBE_CACHE_SECONDS

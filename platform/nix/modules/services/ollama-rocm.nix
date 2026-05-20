@@ -23,23 +23,35 @@
     # root partition isn't responsible for tens of GiB of weights.
     home = "/var/lib/ollama";
     models = "/var/lib/ollama/models";
-    # Picked from the model the curator already uses (qwen2.5:14b-
-    # instruct). Pulling at activation guarantees the model is
-    # available before the assistant-api starts hitting it. Extra
-    # entries here become `ollama pull` calls on boot.
+    # qwen3:32b — single resident chat model on the 24 GiB RX 7900
+    # XTX. Q4_K_M lands around 19–20 GiB on disk, leaving ~4 GiB
+    # for the KV cache at the curator's typical 4–6 k context. Native
+    # structured-output mode (no Ollama grammar overlay needed —
+    # Qwen2.5 required one). Throughput is ~8–12 tok/s on this card;
+    # plenty for the 5-min curator cadence + bursty digest calls.
+    # Pre-pulling at activation guarantees the model is resident
+    # before the first /chat/completions hits, so a fresh deploy
+    # doesn't surface the ~19 GiB download as latency. The cluster-
+    # side resolver (#406 / #407) keeps qwen3:8b on the in-cluster
+    # CPU Ollama as the fallback whenever this node is offline.
     loadModels = [
-      "qwen2.5:14b-instruct"
+      "qwen3:32b"
     ];
     environmentVariables = {
       # Surface ROCm visible devices explicitly; with a single
       # 7900 XTX the index is 0.
       HIP_VISIBLE_DEVICES = "0";
-      # Keeps the daemon from evicting weights between sequential
-      # requests on a single-GPU host.
-      OLLAMA_KEEP_ALIVE = "30m";
-      # Cap parallel slots so a runaway agent can't OOM the 24 GiB
-      # VRAM during 14B inference.
-      OLLAMA_NUM_PARALLEL = "2";
+      # Keep the resident 32B from being evicted between bursts —
+      # curator + digest + future maintenance jobs share the one
+      # model slot, and a cold reload from disk costs ~30 s on this
+      # card. 60 m covers the gap between every consumer's longest
+      # idle window.
+      OLLAMA_KEEP_ALIVE = "60m";
+      # Single parallel slot. The 32B model + KV cache sits near
+      # the 24 GiB ceiling; two concurrent contexts would OOM.
+      # Concurrent callers serialize at Ollama's request queue
+      # rather than at the GPU. Was 2 under the 14B model.
+      OLLAMA_NUM_PARALLEL = "1";
     };
   };
 

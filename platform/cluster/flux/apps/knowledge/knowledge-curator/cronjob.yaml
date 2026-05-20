@@ -158,7 +158,13 @@ spec:
                 - name: OLLAMA_HEAVY_BASE_URL
                   value: http://ollama-heavy.utility-system.svc.cluster.local:11434/v1
                 - name: OLLAMA_HEAVY_CHAT_MODEL
-                  value: qwen2.5:14b-instruct
+                  # Bumped from qwen2.5:14b-instruct → qwen3:32b on
+                  # the rx7900xtx host. ~2× the parameters, native
+                  # structured-output mode (Qwen2.5 needed a GBNF
+                  # overlay), ~8–12 tok/s on the RX 7900 XTX. Single
+                  # resident model — see
+                  # platform/nix/modules/services/ollama-rocm.nix.
+                  value: qwen3:32b
                 - name: OLLAMA_HEAVY_PROBE_TIMEOUT_SECONDS
                   value: '2.0'
                 - name: OLLAMA_EMBEDDING_MODEL
