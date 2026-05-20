@@ -11,6 +11,7 @@ resources:
   - gatus-uptime.yaml
   - home.yaml
   - infrastructure-overview.yaml
+  - knowledge-system.yaml
   - loki-logs.yaml
   - metallb.yaml
   - postgres-exporter.yaml

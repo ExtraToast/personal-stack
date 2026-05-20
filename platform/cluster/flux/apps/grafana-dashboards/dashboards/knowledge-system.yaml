@@ -1,0 +1,90 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: knowledge-system
+  namespace: observability
+spec:
+  folder: 'Services'
+  resyncPeriod: 24h
+  instanceSelector: { matchLabels: { dashboards: grafana } }
+  # Knowledge-system read-side overview. The `knowledge.recall`
+  # Observation (RecallService.kt) exposes timing as a Prometheus
+  # histogram via Micrometer; its `recall.mode`, `recall.scope_kind`,
+  # and `recall.degraded` low-cardinality tags become metric labels.
+  # The high-cardinality counters (`recall.fts_hits`,
+  # `recall.vector_hits`, `recall.fused_hits`) live only on the
+  # Tempo trace — the heatmap panel cross-links to Tempo so the
+  # operator can pivot from "p95 spiked" to "which leg dropped
+  # rows" without leaving the dashboard.
+  json: |
+    {
+      "uid": "knowledge-system",
+      "title": "Knowledge System — Recall",
+      "tags": ["knowledge", "knowledge-api", "rag"],
+      "timezone": "browser",
+      "editable": false,
+      "refresh": "30s",
+      "time": { "from": "now-1h", "to": "now" },
+      "schemaVersion": 39,
+      "templating": { "list": [] },
+      "panels": [
+        { "id": 0, "type": "text", "title": "What this dashboard covers",
+          "gridPos": {"h":3,"w":24,"x":0,"y":0},
+          "options": {
+            "mode": "markdown",
+            "content": "Read-side metrics for `knowledge-api`'s `knowledge.recall` MCP tool. The histogram is driven by the `knowledge.recall` Micrometer Observation in `RecallService.kt`. To investigate a single slow recall, open Tempo via the exemplar dot on the latency heatmap — the trace carries `recall.fts_hits` / `recall.vector_hits` / `recall.fused_hits` attributes that are too high-cardinality to live on the Prometheus side."
+          }
+        },
+        { "id": 1, "title": "Recall rate by mode", "type": "timeseries",
+          "gridPos": {"h":8,"w":12,"x":0,"y":3},
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [{ "expr": "sum by(recall_mode)(rate(knowledge_recall_seconds_count{application=\"knowledge-api\"}[5m]))", "legendFormat": "{{recall_mode}}" }],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        { "id": 2, "title": "Recall latency p50 / p95 / p99", "type": "timeseries",
+          "gridPos": {"h":8,"w":12,"x":12,"y":3},
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "histogram_quantile(0.50, sum by(le)(rate(knowledge_recall_seconds_bucket{application=\"knowledge-api\"}[5m])))", "legendFormat": "p50" },
+            { "expr": "histogram_quantile(0.95, sum by(le)(rate(knowledge_recall_seconds_bucket{application=\"knowledge-api\"}[5m])))", "legendFormat": "p95" },
+            { "expr": "histogram_quantile(0.99, sum by(le)(rate(knowledge_recall_seconds_bucket{application=\"knowledge-api\"}[5m])))", "legendFormat": "p99" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        { "id": 3, "title": "Latency by mode (p95)", "type": "timeseries",
+          "gridPos": {"h":8,"w":12,"x":0,"y":11},
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "histogram_quantile(0.95, sum by(recall_mode, le)(rate(knowledge_recall_seconds_bucket{application=\"knowledge-api\"}[5m])))", "legendFormat": "{{recall_mode}}" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        { "id": 4, "title": "Recall by scope kind", "type": "timeseries",
+          "gridPos": {"h":8,"w":12,"x":12,"y":11},
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [{ "expr": "sum by(recall_scope_kind)(rate(knowledge_recall_seconds_count{application=\"knowledge-api\"}[5m]))", "legendFormat": "{{recall_scope_kind}}" }],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        { "id": 5, "title": "Degraded-leg rate", "type": "timeseries",
+          "gridPos": {"h":8,"w":12,"x":0,"y":19},
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "description": "Rate of recall calls where the vector leg dropped to FTS-only. A sustained spike means Ollama is unhealthy or the embedding model has been swapped out from under the index.",
+          "targets": [{ "expr": "sum by(recall_degraded)(rate(knowledge_recall_seconds_count{application=\"knowledge-api\", recall_degraded!=\"\"}[5m]))", "legendFormat": "{{recall_degraded}}" }],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        { "id": 6, "title": "Hybrid:fast call ratio", "type": "stat",
+          "gridPos": {"h":8,"w":12,"x":12,"y":19},
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "description": "Share of recall calls landing on hybrid (or deep) over the last 5 minutes. Tracks whether the upgrade is reaching production traffic.",
+          "targets": [
+            { "expr": "sum(rate(knowledge_recall_seconds_count{application=\"knowledge-api\", recall_mode=~\"hybrid|deep\"}[5m])) / clamp_min(sum(rate(knowledge_recall_seconds_count{application=\"knowledge-api\"}[5m])), 1e-9)", "legendFormat": "hybrid+deep share" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } }
+        },
+        { "id": 7, "title": "Recent recall warn/error log lines", "type": "logs",
+          "gridPos": {"h":10,"w":24,"x":0,"y":27},
+          "datasource": { "type": "loki", "uid": "loki" },
+          "targets": [{ "expr": "{service_name=\"knowledge-api\"} | json | (level=~\"WARN|warn|ERROR|error\") | logger_name =~ \".*recall.*\"" }]
+        }
+      ]
+    }
