@@ -23,9 +23,8 @@ function makeRouter() {
 
 describe('appShell', () => {
   beforeEach(() => {
-    // useTheme persists to localStorage; reset between tests so
-    // the cycler starts from a known position.
     localStorage.clear()
+    document.body.style.overflow = ''
   })
 
   it('renders the desktop nav links with testids', () => {
@@ -48,38 +47,57 @@ describe('appShell', () => {
     expect(link.text()).toContain('.dev')
   })
 
-  it('fold-out menu opens on trigger and closes on backdrop click', async () => {
+  it('hamburger trigger opens the slide-in drawer (Teleported to body)', async () => {
     const wrapper = mount(AppShell, {
       props: { navItems, brandMain: 'demo' },
       global: { plugins: [makeRouter()] },
       attachTo: document.body,
     })
-    expect(wrapper.find('[data-testid="nav-menu"]').exists()).toBe(false)
+    expect(document.body.querySelector('[data-testid="nav-drawer"]')).toBeNull()
     await wrapper.find('[data-testid="nav-menu-trigger"]').trigger('click')
-    expect(wrapper.find('[data-testid="nav-menu"]').exists()).toBe(true)
-
-    // Click outside the menu root — the document-level handler
-    // should detect it and close.
-    const outside = document.createElement('button')
-    document.body.appendChild(outside)
-    outside.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    await wrapper.vm.$nextTick()
-    expect(wrapper.find('[data-testid="nav-menu"]').exists()).toBe(false)
-    outside.remove()
+    expect(document.body.querySelector('[data-testid="nav-drawer"]')).not.toBeNull()
+    expect(document.body.style.overflow).toBe('hidden')
     wrapper.unmount()
   })
 
-  it('fold-out menu closes on Escape', async () => {
+  it('backdrop click closes the drawer', async () => {
     const wrapper = mount(AppShell, {
       props: { navItems, brandMain: 'demo' },
       global: { plugins: [makeRouter()] },
       attachTo: document.body,
     })
     await wrapper.find('[data-testid="nav-menu-trigger"]').trigger('click')
-    expect(wrapper.find('[data-testid="nav-menu"]').exists()).toBe(true)
+    const backdrop = document.body.querySelector<HTMLElement>('[data-testid="nav-drawer-backdrop"]')!
+    expect(backdrop).not.toBeNull()
+    backdrop.click()
+    await wrapper.vm.$nextTick()
+    expect(document.body.querySelector('[data-testid="nav-drawer"]')).toBeNull()
+    expect(document.body.style.overflow).toBe('')
+    wrapper.unmount()
+  })
+
+  it('escape closes the drawer', async () => {
+    const wrapper = mount(AppShell, {
+      props: { navItems, brandMain: 'demo' },
+      global: { plugins: [makeRouter()] },
+      attachTo: document.body,
+    })
+    await wrapper.find('[data-testid="nav-menu-trigger"]').trigger('click')
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('[data-testid="nav-menu"]').exists()).toBe(false)
+    expect(document.body.querySelector('[data-testid="nav-drawer"]')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('drawer lists every nav item with a drawer-prefixed testid', async () => {
+    const wrapper = mount(AppShell, {
+      props: { navItems, brandMain: 'demo' },
+      global: { plugins: [makeRouter()] },
+      attachTo: document.body,
+    })
+    await wrapper.find('[data-testid="nav-menu-trigger"]').trigger('click')
+    expect(document.body.querySelector('[data-testid="drawer-nav-alpha"]')).not.toBeNull()
+    expect(document.body.querySelector('[data-testid="drawer-nav-beta"]')).not.toBeNull()
     wrapper.unmount()
   })
 
@@ -108,7 +126,19 @@ describe('appShell', () => {
       global: { plugins: [router] },
     })
     const alpha = wrapper.find('[data-testid="nav-alpha"]')
-    // Active style applies bg-[var(--color-surface-elevated)].
     expect(alpha.classes().join(' ')).toContain('bg-[var(--color-surface-elevated)]')
+  })
+
+  it('extras slot renders both in the desktop right cluster and in the drawer', async () => {
+    const wrapper = mount(AppShell, {
+      props: { navItems, brandMain: 'demo' },
+      slots: { extras: '<span data-testid="extras-slot">EX</span>' },
+      global: { plugins: [makeRouter()] },
+      attachTo: document.body,
+    })
+    expect(wrapper.find('[data-testid="extras-slot"]').exists()).toBe(true)
+    await wrapper.find('[data-testid="nav-menu-trigger"]').trigger('click')
+    expect(document.body.querySelectorAll('[data-testid="extras-slot"]').length).toBeGreaterThanOrEqual(1)
+    wrapper.unmount()
   })
 })
