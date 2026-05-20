@@ -34,9 +34,15 @@
   # ROCm runtime + tooling for compute. `clr` provides HIP/OpenCL,
   # rocminfo / rocm-smi cover diagnostics. PyTorch / llama.cpp /
   # Ollama all bind against these at runtime via /opt/rocm symlink
-  # baked by the userspace.
+  # baked by the userspace. libdrm is pulled in explicitly so
+  # rocm-smi's product-name lookup (which dlopens libdrm_amdgpu.so)
+  # stops emitting "Fail to open libdrm_amdgpu.so" / "get_name, Failed
+  # to load a library" on every invocation. Without it the GPU still
+  # reports VRAM and gfx1100 fine, but the card series / model fields
+  # come back N/A — purely a diagnostics-quality fix.
   environment.systemPackages = with pkgs; [
     clinfo
+    libdrm
     libva-utils
     pciutils
     radeontop
