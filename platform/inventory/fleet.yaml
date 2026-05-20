@@ -97,6 +97,35 @@ nodes:
       - adguard
       - nvidia
 
+  enschede-rx7900xtx-1:
+    status: install-ready
+    site: enschede
+    arch: amd64
+    # Pinned to the tailnet IP post-install (matches t1000-1 / gtx-960m-1).
+    # MagicDNS is off fleet-wide, so the bare hostname will not resolve.
+    ssh:
+      host: REPLACE_WITH_TAILNET_IP
+      user: deploy
+      port: 2222
+    target_roles:
+      - k3s-worker
+      - utility-host
+    # Ryzen 7 5800X3D (8C/16T) + 32 GiB DDR4. Reserving headroom for
+    # Wolf streaming sessions and ROCm inference.
+    capacity:
+      cpu_millicores: 16000
+      memory_mib: 32000
+    gpus:
+      - vendor: amd
+        model: rx7900xtx
+        class: render-compute
+    capabilities:
+      - tailscale
+      - lan-ingress
+      - game-streaming
+      - llm-host
+      - amd-gpu
+
   enschede-pi-1:
     status: active
     site: enschede
@@ -208,6 +237,10 @@ service_intent:
     enschede-gtx-960m-1:
       - tailscale
       - game-streaming
+    enschede-rx7900xtx-1:
+      - tailscale
+      - game-streaming
+      - ollama
     enschede-t1000-1:
       - samba
       - tailscale
