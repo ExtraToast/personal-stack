@@ -16,11 +16,11 @@ describe('router', () => {
     expect(sessionsRoute?.meta?.requiresAuth).toBe(true)
   })
 
-  it('keeps /chat as a backwards-compat redirect to /sessions', async () => {
+  it('keeps the legacy /chat route mounted during the migration window', async () => {
     const { router } = await import('../router/index')
     const chatRoute = router.getRoutes().find((r) => r.path === '/chat')
     expect(chatRoute).toBeDefined()
-    expect(chatRoute?.redirect).toBe('/sessions')
+    expect(chatRoute?.meta?.requiresAuth).toBe(true)
   })
 
   it('sessions route is named sessions', async () => {
