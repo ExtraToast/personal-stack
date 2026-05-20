@@ -70,6 +70,10 @@
           system = "x86_64-linux";
           hostModule = ./nix/hosts/enschede-t1000-1/default.nix;
         };
+        enschede-rx7900xtx-1 = mkHost {
+          system = "x86_64-linux";
+          hostModule = ./nix/hosts/enschede-rx7900xtx-1/default.nix;
+        };
         # Pi host modules reference `imageBuild` in their imports list, which
         # forces the flag through specialArgs — otherwise NixOS resolves module
         # args lazily through `_module.args` and `nix flake check` loops on
@@ -132,6 +136,24 @@
           user = "root";
           sshOpts = [ "-p" "2222" ];
           path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.enschede-t1000-1;
+        };
+      };
+
+      deploy.nodes.enschede-rx7900xtx-1 = {
+        # Hostname is the bootstrap-install LAN IP; once the host is up and
+        # joined to the tailnet, edit this to its 100.x tailnet address
+        # (matches the gtx-960m-1 / t1000-1 pattern — MagicDNS is off
+        # fleet-wide so the bare hostname does not resolve).
+        hostname = "REPLACE_WITH_TAILNET_IP";
+        # External game-drive automounts + long-running Wolf service make
+        # the magic-rollback confirm race-prone, same reasoning as the
+        # gtx-960m-1 node.
+        magicRollback = false;
+        profiles.system = {
+          sshUser = "deploy";
+          user = "root";
+          sshOpts = [ "-p" "2222" ];
+          path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.enschede-rx7900xtx-1;
         };
       };
 
