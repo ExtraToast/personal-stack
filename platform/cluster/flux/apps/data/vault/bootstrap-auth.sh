@@ -82,6 +82,22 @@ path "secret/data/assistant-api/*" {
   capabilities = ["read"]
 }
 
+# Deploy keys for the agents subsystem land under these two paths
+# (see VaultDeployKeyStore.kt):
+#   secret/data/agents/repositories/<repositoryId>   (current)
+#   secret/data/agents/projects/<projectId>/repos/<linkId>   (legacy)
+# Both shapes need read + write so a freshly created repository can
+# accept a key, the runner can read it back, and a delete can purge
+# it. The metadata path is required for `vault kv delete` semantics
+# under KV v2.
+path "secret/data/agents/*" {
+  capabilities = ["create", "read", "update", "delete"]
+}
+
+path "secret/metadata/agents/*" {
+  capabilities = ["read", "delete", "list"]
+}
+
 path "rabbitmq/creds/app-consumer" {
   capabilities = ["read"]
 }
