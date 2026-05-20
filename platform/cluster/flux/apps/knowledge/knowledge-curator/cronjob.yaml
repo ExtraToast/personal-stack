@@ -1,25 +1,28 @@
-# knowledge-curator runs as a CronJob, not a Deployment: each pass
-# is a one-shot classify-and-promote over `_inbox/*.md` plus a drain
-# of `_inbox/_needs-review/` when CURATOR_DRAIN_NEEDS_REVIEW=1.
+# knowledge-curator runs the orchestrator entrypoint
+# (`python -m curator.orchestrator`) on a single CronJob. Each tick
+# walks the registered Passes (inbox, needs-review-drain; title
+# quality + relation enrichment land in a follow-up PR) and only
+# runs the ones whose `has_work(state)` probe returns True against
+# `kb_curator_runs`. The probes are cheap — a single filesystem
+# stat or indexed SQL count — so the 98% no-op case exits in
+# <100 ms with zero LLM calls.
 #
-# Cadence: hourly. The earlier 5-min schedule made sense when each
-# pass was a sub-second qwen3:8b classification over an empty inbox,
-# but two things changed:
-#   1. CURATOR_DRAIN_NEEDS_REVIEW is now permanently on, so every
-#      pass also walks the needs-review backlog (~20 candidates) —
-#      ~3 min on the rx7900xtx heavy host, ~13 min on the in-cluster
-#      qwen3:8b CPU fallback.
-#   2. The heavy gateway is best-effort; when the rx7900xtx node is
-#      offline the entire drain stays on CPU.
-# Hourly keeps inbox latency tolerable (one capture queued ~30 min
-# average) while cutting daily passes from 288 → 24 and giving the
-# fallback path time to drain inside its window instead of stacking
-# Forbid-blocked retries.
+# Cadence: every 5 minutes, 24/7. Frequency is effectively free
+# when nothing has changed; real compute only happens when the
+# ingest-worker drops a fresh capture or a file lands in
+# `_inbox/_needs-review/`. The previous schedule debate (5-min →
+# hourly → awake-hours) becomes moot once `has_work` gates every
+# pass. `suspend: false` is explicit so a manual `kubectl patch
+# suspend=true` for a planned outage gets reverted on the next
+# Flux reconcile — the intended safety net.
 #
-# `concurrencyPolicy: Forbid` is critical: the curator shares the
-# vault clone PVC with the worker, and two concurrent `git mv`
-# passes on the same working tree would race. Forbid means a slow
-# pass blocks the next start rather than running in parallel.
+# `concurrencyPolicy: Forbid` keeps two ticks from running
+# concurrently at the kubelet level. Inside the orchestrator each
+# pass additionally takes a `pg_advisory_xact_lock(hashtext(
+# 'curator/<pass_name>'))` inside `record_pass_outcome`'s
+# transaction, so a slow pass that overlaps the next tick blocks
+# at the lock instead of racing on the vault PVC or the `kb_*`
+# tables.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -41,7 +44,18 @@ metadata:
     keel.sh/trigger: poll
     keel.sh/pollSchedule: '@every 2m'
 spec:
-  schedule: '0 * * * *'
+  # Every 5 minutes, 24/7. With the orchestrator gating each pass
+  # behind a cheap has_work() probe (single indexed SQL count or
+  # filesystem stat) the no-op tick takes <100 ms — frequency is
+  # effectively free. The 98% case is "nothing changed, exit 0";
+  # only when the ingest-worker drops a new capture or a file lands
+  # in _inbox/_needs-review/ does any real compute happen.
+  schedule: '*/5 * * * *'
+  # `suspend: false` is explicit so kustomize-controller owns the
+  # field. Manual `kubectl patch suspend=true` for a planned outage
+  # gets reverted on the next Flux reconcile — which is the intended
+  # safety net, not a footgun.
+  suspend: false
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
@@ -106,7 +120,7 @@ spec:
                   . /vault/secrets/postgres.env
                   . /vault/secrets/mcp.env
                   set +a
-                  exec opentelemetry-instrument python -m curator
+                  exec opentelemetry-instrument python -m curator.orchestrator
               volumeMounts:
                 - name: vault-clone
                   mountPath: /var/lib/knowledge-vault
