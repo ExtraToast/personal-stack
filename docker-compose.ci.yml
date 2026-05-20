@@ -18,6 +18,17 @@ services:
       DB_PASSWORD: ci_assistant_pass
       OTEL_TRACES_EXPORTER: none
       OTEL_EXPORTER_OTLP_ENDPOINT: ''
+      # The system-test stack doesn't ship a Kubernetes cluster, so
+      # the production `Fabric8AgentRunnerOrchestrator` (which
+      # bootstraps a fabric8 KubernetesClient against the in-cluster
+      # API) would refuse to start. The `system-test` Spring profile
+      # swaps it for `StubAgentRunnerOrchestrator` — a no-op
+      # implementation that returns synthesised RunnerHandles so the
+      # workspace lifecycle commands run end-to-end except for the
+      # actual Pod side-effects. Real-cluster behaviour is exercised
+      # by Fabric8AgentRunnerOrchestratorIntegrationTest under
+      # assistant-api/integrationTest, against a Testcontainers k3s.
+      SPRING_PROFILES_ACTIVE: system-test
 
   auth-ui:
     image: personal-stack/auth-ui:ci
