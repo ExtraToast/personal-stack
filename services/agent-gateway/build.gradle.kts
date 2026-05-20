@@ -24,39 +24,16 @@ dependencies {
 // for the classes that *are* unit-testable (process abstraction, the
 // in-memory session registry, controllers via MockMvc, the log
 // tailer, the WS envelope parser) and acknowledge that TmuxClient /
-// GitClient / AgentAttachHandler / the Spring Boot main class are
-// covered by container-level integration tests in the system-tests
-// module rather than here.
-val ioBoundExclusions =
-    listOf(
-        "**/tmux/TmuxClient.class",
-        "**/git/GitClient.class",
-        "**/ws/AgentAttachHandler.class",
-        "**/AgentGatewayApplication*",
-    )
-
-tasks.jacocoTestCoverageVerification {
-    classDirectories.setFrom(
-        classDirectories.files.map { dir ->
-            fileTree(dir) {
-                exclude(
-                    ioBoundExclusions +
-                        listOf("**/jooq/**", "**/generated/**", "**/*Application.class", "**/*ApplicationKt.class"),
-                )
-            }
-        },
-    )
-}
-
-tasks.jacocoTestReport {
-    classDirectories.setFrom(
-        classDirectories.files.map { dir ->
-            fileTree(dir) {
-                exclude(
-                    ioBoundExclusions +
-                        listOf("**/jooq/**", "**/generated/**", "**/*Application.class", "**/*ApplicationKt.class"),
-                )
-            }
-        },
-    )
-}
+// GitClient / AgentAttachHandler are covered by container-level
+// integration tests in the system-tests module rather than here.
+// The Spring Boot main class is excluded by testing-conventions for
+// every service via the `**/*Application*` defaults.
+@Suppress("UNCHECKED_CAST")
+(extensions.getByName("jacocoExclusionPatterns") as ListProperty<String>).addAll(
+    // Trailing `*.class` (not `.class`) sweeps any future Kotlin-inner
+    // companions; the outer-class-only form silently drops `Outer$Inner`
+    // entries from the exclusion.
+    "**/tmux/TmuxClient*.class",
+    "**/git/GitClient*.class",
+    "**/ws/AgentAttachHandler*.class",
+)
