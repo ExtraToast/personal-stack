@@ -18,7 +18,7 @@ class GlobalExceptionHandlerTest {
     fun `handleNotFound returns 404 ProblemDetail`() {
         val ex = NotFoundException("User", "abc-123")
 
-        val response = handler.handleNotFound(ex)
+        val response = handler.handleNotFound(ex, null)
 
         assertThat(response.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
         val body = response.body!!
@@ -32,7 +32,7 @@ class GlobalExceptionHandlerTest {
     fun `handleDomain returns 400 ProblemDetail with code`() {
         val ex = DomainException("Username already exists", "USERNAME_TAKEN")
 
-        val response = handler.handleDomain(ex)
+        val response = handler.handleDomain(ex, null)
 
         assertThat(response.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
         val body = response.body!!
@@ -55,7 +55,7 @@ class GlobalExceptionHandlerTest {
             )
         val ex = MethodArgumentNotValidException(methodParameter, bindingResult)
 
-        val response = handler.handleValidation(ex)
+        val response = handler.handleValidation(ex, null)
 
         assertThat(response.statusCode).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY)
         val body = response.body!!
@@ -68,16 +68,17 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    fun `handleUnexpected returns 500 ProblemDetail`() {
+    fun `handleUnexpected returns 500 ProblemDetail with exception class and message`() {
         val ex = RuntimeException("Something broke")
 
-        val response = handler.handleUnexpected(ex)
+        val response = handler.handleUnexpected(ex, null)
 
         assertThat(response.statusCode).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR)
         val body = response.body!!
         assertThat(body.status).isEqualTo(500)
         assertThat(body.title).isEqualTo("Internal Server Error")
-        assertThat(body.detail).isEqualTo("An unexpected error occurred")
+        assertThat(body.detail).isEqualTo("RuntimeException: Something broke")
+        assertThat(body.exception).isEqualTo("java.lang.RuntimeException")
         assertThat(body.type).isEqualTo(URI.create("https://jorisjonkers.dev/errors/internal-error"))
     }
 
@@ -85,7 +86,7 @@ class GlobalExceptionHandlerTest {
     fun `ProblemDetail has correct RFC 7807 structure`() {
         val ex = DomainException("Email not confirmed", "EMAIL_NOT_CONFIRMED")
 
-        val response = handler.handleDomain(ex)
+        val response = handler.handleDomain(ex, null)
         val body = response.body!!
 
         // RFC 7807 requires type, title, status; detail and instance are optional

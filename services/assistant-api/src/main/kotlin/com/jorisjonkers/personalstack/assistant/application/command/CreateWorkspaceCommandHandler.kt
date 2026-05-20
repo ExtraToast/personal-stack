@@ -133,9 +133,21 @@ class CreateWorkspaceCommandHandler(
         command: CreateWorkspaceCommand,
         repoId: RepositoryId,
     ): ResolvedRepo {
+        // Split the two failure modes apart so the API surfaces a
+        // distinct status:
+        //   * RepositoryRepository absent → IllegalStateException
+        //     (config issue, 409 Conflict via GlobalExceptionHandler).
+        //   * Row not found → NoSuchElementException (404).
+        val repos =
+            repositories.ifAvailable
+                ?: throw IllegalStateException(
+                    "Repository feature is not configured; cannot create workspace for repositoryId=${repoId.value}",
+                )
         val repo =
-            repositories.ifAvailable?.findById(repoId)
-                ?: error("repository requested but Repository feature not wired (Vault disabled?)")
+            repos.findById(repoId)
+                ?: throw NoSuchElementException(
+                    "repository not found: repositoryId=${repoId.value}",
+                )
         val branch = command.branch?.takeIf { it.isNotBlank() } ?: repo.defaultBranch
         // legacyLinkId mirrors repositoryId during the V9 window so
         // the orchestrator's deploy-key lookup keeps working against
@@ -155,8 +167,14 @@ class CreateWorkspaceCommandHandler(
     ): ResolvedRepo {
         val links =
             githubLinks.ifAvailable
-                ?: error("github link requested but Projects feature not wired (Vault disabled?)")
-        val link = links.findById(linkId) ?: error("github link not found: $linkId")
+                ?: throw IllegalStateException(
+                    "Projects feature is not configured; cannot create workspace for githubLinkId=${linkId.value}",
+                )
+        val link =
+            links.findById(linkId)
+                ?: throw NoSuchElementException(
+                    "github link not found: githubLinkId=${linkId.value}",
+                )
         val branch = command.branch?.takeIf { it.isNotBlank() } ?: link.defaultBranch
         return ResolvedRepo(
             repoUrl = link.repoUrl,

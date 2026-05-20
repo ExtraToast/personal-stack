@@ -25,19 +25,29 @@ metadata:
 spec:
   # Two replicas because auth-api is on the forward-auth path for
   # nearly every public service. A 1-replica rollout takes the whole
-  # cluster's auth surface offline for the JVM warmup window
-  # (~10–15 s); with 2 replicas + maxUnavailable=1 the partner is
-  # always Ready and Traefik forward-auth never sees a closed door.
+  # cluster's auth surface offline for the JVM warmup window — and
+  # that window is not the 10–15 s the original comment assumed.
+  # Cold start on Spring Boot 4 with the OTel agent + Pyroscope agent
+  # + kotlin-common's per-method tracing aspect runs ~3–5 minutes on
+  # Frankfurt at request==limit==1000m; the 600 s startupProbe budget
+  # exists precisely to cover that. During the warm-up window every
+  # sign-in (`GET /api/v1/auth/me`) and every forward-auth-protected
+  # request 503s because the Service has zero ready endpoints.
   #
-  # Frankfurt is CPU-tight (~750m free at 90% requested), so a second
-  # 1500m replica may sit Pending until something else releases CPU.
-  # That's fine: the Deployment becomes Available with 1 pod (because
-  # maxUnavailable=1 means desired-1 = 1 minimum), one replica keeps
-  # serving, and the spare schedules opportunistically. Critically,
-  # rollouts of new images replace one pod at a time and the surviving
-  # OLD pod keeps serving until the NEW pod is Ready — true zero-
-  # downtime even on a tight node.
-  replicas: 1
+  # PR #320 swept this from 2 → 1 along with the other stateless apps
+  # on the VPS for CPU budget reasons. The sweep was correct for
+  # services that are not on the forward-auth hot path, but for
+  # auth-api the cost is a full sign-in outage on every Keel-driven
+  # rollout. With replicas=2 + maxSurge=0 + maxUnavailable=1 the
+  # partner stays Ready for the whole rollout and Traefik
+  # forward-auth keeps a live endpoint.
+  #
+  # Frankfurt currently has ~1500m CPU request budget free at 1000m
+  # per replica, so the second replica schedules without preempting
+  # anything; if that changes the Deployment becomes Available with
+  # 1 pod (maxUnavailable=1 → desired-1 = 1 minimum) and the spare
+  # schedules opportunistically.
+  replicas: 2
   # Long deadline so a Pending second replica doesn't flip the
   # HelmRelease to Failed (chart default is 600s = 10 min).
   progressDeadlineSeconds: 1800

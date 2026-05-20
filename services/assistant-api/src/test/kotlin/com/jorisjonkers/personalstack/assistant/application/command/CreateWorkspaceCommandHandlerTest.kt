@@ -224,6 +224,89 @@ class CreateWorkspaceCommandHandlerTest {
     }
 
     @Test
+    fun `unknown repositoryId raises NoSuchElementException with the id in the message`() {
+        val repoId = RepositoryId.random()
+        every { repositories.findById(repoId) } returns null
+
+        val ex =
+            assertThrows<NoSuchElementException> {
+                handler.handle(
+                    CreateWorkspaceCommand(
+                        workspaceId = WorkspaceId.random(),
+                        name = "demo",
+                        repoUrl = null,
+                        branch = null,
+                        repositoryId = repoId,
+                    ),
+                )
+            }
+        assertThat(ex.message).contains(repoId.value.toString())
+    }
+
+    @Test
+    fun `unknown githubLinkId raises NoSuchElementException with the id in the message`() {
+        val linkId = GithubLinkId.random()
+        every { githubLinks.findById(linkId) } returns null
+
+        val ex =
+            assertThrows<NoSuchElementException> {
+                handler.handle(
+                    CreateWorkspaceCommand(
+                        workspaceId = WorkspaceId.random(),
+                        name = "demo",
+                        repoUrl = null,
+                        branch = null,
+                        githubLinkId = linkId,
+                    ),
+                )
+            }
+        assertThat(ex.message).contains(linkId.value.toString())
+    }
+
+    @Test
+    fun `repositoryId with Vault disabled raises IllegalStateException naming the feature`() {
+        // Simulate the @ConditionalOnProperty-wired feature being absent.
+        every { repositoryProvider.ifAvailable } returns null
+        val repoId = RepositoryId.random()
+
+        val ex =
+            assertThrows<IllegalStateException> {
+                handler.handle(
+                    CreateWorkspaceCommand(
+                        workspaceId = WorkspaceId.random(),
+                        name = "demo",
+                        repoUrl = null,
+                        branch = null,
+                        repositoryId = repoId,
+                    ),
+                )
+            }
+        assertThat(ex.message).contains("Repository feature is not configured")
+        assertThat(ex.message).contains(repoId.value.toString())
+    }
+
+    @Test
+    fun `githubLinkId with Projects feature disabled raises IllegalStateException`() {
+        every { linkProvider.ifAvailable } returns null
+        val linkId = GithubLinkId.random()
+
+        val ex =
+            assertThrows<IllegalStateException> {
+                handler.handle(
+                    CreateWorkspaceCommand(
+                        workspaceId = WorkspaceId.random(),
+                        name = "demo",
+                        repoUrl = null,
+                        branch = null,
+                        githubLinkId = linkId,
+                    ),
+                )
+            }
+        assertThat(ex.message).contains("Projects feature is not configured")
+        assertThat(ex.message).contains(linkId.value.toString())
+    }
+
+    @Test
     fun `handle prefers repositoryId when both fields are set`() {
         val repoId = RepositoryId.random()
         val repository =

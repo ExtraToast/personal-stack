@@ -20,6 +20,7 @@ import io.fabric8.kubernetes.api.model.VolumeMountBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Component
 import java.util.Base64
 
@@ -46,6 +47,7 @@ import java.util.Base64
  */
 @Suppress("TooManyFunctions", "LargeClass", "DEPRECATION")
 @Component
+@Profile("!system-test")
 class Fabric8AgentRunnerOrchestrator(
     private val client: KubernetesClient,
     private val props: AgentRuntimeProperties,
