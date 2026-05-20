@@ -85,11 +85,14 @@ class Settings:
                 "OLLAMA_BASE_URL",
                 "http://ollama.knowledge-system.svc.cluster.local:11434/v1",
             ),
-            # qwen2.5:14b-instruct is the research-blessed first
-            # choice for JSON-constrained classification at <16 GB
-            # VRAM. Fall back to 7b on smaller boxes — change the env
-            # var, not the code.
-            ollama_chat_model=e.get("OLLAMA_CHAT_MODEL", "qwen2.5:14b-instruct-q4_K_M"),
+            # Qwen3-8B is the realistic upgrade target given the
+            # CPU-only cluster + 2 GiB GPU SKU: native structured-
+            # output mode (Qwen2.5 needed Ollama's JSON-schema
+            # grammar overlay), better reasoning, same ~5 GiB Q4
+            # footprint as Qwen2.5-7B. Production cronjob overrides
+            # via env to pin the in-cluster choice independently
+            # from local smoke tests.
+            ollama_chat_model=e.get("OLLAMA_CHAT_MODEL", "qwen3:8b"),
             # qwen3-embedding:0.6b is Matryoshka-native, multilingual,
             # instruction-aware, and beats nomic-embed-text on MTEB at
             # ~1 GB Q4. The 1024-dim output matches the V9 schema's

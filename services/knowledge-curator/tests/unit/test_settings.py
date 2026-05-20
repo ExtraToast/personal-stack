@@ -8,7 +8,9 @@ from curator.settings import Settings
 def test_defaults_target_in_cluster_ollama_and_knowledge_api() -> None:
     s = Settings.from_env(env={})
     assert s.ollama_base_url.endswith("/v1")
-    assert s.ollama_chat_model.startswith("qwen2.5")
+    # Default chat model bumped from Qwen2.5 to Qwen3 — native
+    # structured-output mode replaces the JSON-schema grammar overlay.
+    assert s.ollama_chat_model.startswith("qwen3")
     # Default embedder is now Qwen3-Embedding-0.6B — Matryoshka-native,
     # multilingual, beats nomic on MTEB at ~1 GB Q4. The 1024-dim
     # output matches knowledge-api's V9 `vector(1024)` column.

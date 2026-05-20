@@ -136,11 +136,14 @@ spec:
                 - name: OLLAMA_BASE_URL
                   value: http://ollama.knowledge-system.svc.cluster.local:11434/v1
                 - name: OLLAMA_CHAT_MODEL
-                  # 7b fits cleanly in the 4 GiB VRAM cards
-                  # (GTX 960M / T1000) with the kv cache. 14b
-                  # was research's first choice but assumes 12 GiB
-                  # — bump up only if Ollama lands on a bigger GPU.
-                  value: qwen2.5:7b-instruct
+                  # qwen3:8b replaces qwen2.5:7b-instruct: same ~5 GiB
+                  # Q4 footprint, native structured-output mode (no
+                  # Ollama grammar overlay needed), better reasoning.
+                  # Roll back via this env var alone if JSON-validity
+                  # rate or topic-classification precision regresses —
+                  # the qwen2.5:7b model stays pulled on the Ollama
+                  # PVC during the cutover.
+                  value: qwen3:8b
                 - name: OLLAMA_EMBEDDING_MODEL
                   # qwen3-embedding:0.6b feeds the recall path's
                   # pgvector ANN leg (knowledge-api V9 schema).
