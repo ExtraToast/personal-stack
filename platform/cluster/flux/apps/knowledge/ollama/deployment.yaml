@@ -103,6 +103,13 @@ spec:
               # a follow-up PR once `kb_notes.embedding_model =
               # 'nomic-embed-text'` count hits zero.
               ollama pull qwen3-embedding:0.6b
+              # qwen3-reranker:0.6b backs `mode=deep` listwise rerank on
+              # the knowledge-api side (`OllamaListwiseReranker`). ~1 GiB
+              # on disk; with `OLLAMA_MAX_LOADED_MODELS=1` it swaps in
+              # only when a deep-mode recall fires. Beats
+              # bge-reranker-v2-m3 on MMTEB at the smallest size in the
+              # purpose-built reranker family.
+              ollama pull qwen3-reranker:0.6b
               kill $SERVE_PID
               wait $SERVE_PID 2>/dev/null || true
           env:
