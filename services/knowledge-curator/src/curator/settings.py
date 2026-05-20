@@ -90,7 +90,14 @@ class Settings:
             # VRAM. Fall back to 7b on smaller boxes — change the env
             # var, not the code.
             ollama_chat_model=e.get("OLLAMA_CHAT_MODEL", "qwen2.5:14b-instruct-q4_K_M"),
-            ollama_embedding_model=e.get("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text"),
+            # qwen3-embedding:0.6b is Matryoshka-native, multilingual,
+            # instruction-aware, and beats nomic-embed-text on MTEB at
+            # ~1 GB Q4. The 1024-dim output matches the V9 schema's
+            # `vector(1024)` column on the knowledge-api side; swapping
+            # models means re-embedding the corpus (the watermark on
+            # `kb_notes.embedding_model` makes the backfill job pick up
+            # the divergent rows automatically).
+            ollama_embedding_model=e.get("OLLAMA_EMBEDDING_MODEL", "qwen3-embedding:0.6b"),
             ollama_request_timeout_seconds=float(e.get("OLLAMA_REQUEST_TIMEOUT_SECONDS", "120")),
             knowledge_api_base_url=e.get(
                 "KNOWLEDGE_API_BASE_URL",

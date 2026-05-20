@@ -44,6 +44,35 @@ class CuratorStore(Protocol):
         props_json: str = "{}",
     ) -> None: ...
 
+    def write_embedding(
+        self,
+        *,
+        note_id: str,
+        vector: tuple[float, ...],
+        model: str,
+    ) -> int:
+        """Persist the embedding the recall path's vector leg will use.
+
+        The column lives in the Postgres-only migration tree (V9 in
+        ``db/migration-pg/``); the curator is the sole writer. Returns
+        the number of rows touched — 0 means the row wasn't there
+        (orphan note), >0 means the embedding was stored.
+        """
+        ...
+
+    def select_embedding_backfill_batch(
+        self,
+        *,
+        model: str,
+        limit: int,
+    ) -> list[tuple[str, str, str]]:
+        """Pick rows whose embedding is missing or stale relative to the
+        target model. Returns ``(id, title, body)`` tuples ordered by
+        ``embedded_at NULLS FIRST, captured_at`` so the oldest unembedded
+        rows drain first. Cheaper than two passes (NULL then stale).
+        """
+        ...
+
     def conflict_edges(self) -> list[tuple[str, str, str]]:
         """Return every `(subject_id, predicate, object_id)` row whose
         predicate is in {`supersedes`, `contradicts`} for the
@@ -166,6 +195,49 @@ class PostgresCuratorStore:
             )
             return [(row[0], row[1], row[2]) for row in cur.fetchall()]
 
+    def write_embedding(
+        self,
+        *,
+        note_id: str,
+        vector: tuple[float, ...],
+        model: str,
+    ) -> int:
+        # pgvector accepts a bracketed comma-separated literal which
+        # the `::vector` cast in SQL parses without a pgvector-aware
+        # JDBC adapter (the Kotlin recall side uses the same trick).
+        literal = "[" + ",".join(repr(float(v)) for v in vector) + "]"
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                sql.SQL(
+                    "UPDATE kb_notes "
+                    "SET embedding = %s::vector, "
+                    "    embedding_model = %s, "
+                    "    embedded_at = NOW(), "
+                    "    updated_at = NOW() "
+                    "WHERE id = %s"
+                ),
+                (literal, model, note_id),
+            )
+            return cur.rowcount
+
+    def select_embedding_backfill_batch(
+        self,
+        *,
+        model: str,
+        limit: int,
+    ) -> list[tuple[str, str, str]]:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                sql.SQL(
+                    "SELECT id, title, body FROM kb_notes "
+                    "WHERE embedding IS NULL OR embedding_model IS DISTINCT FROM %s "
+                    "ORDER BY embedded_at NULLS FIRST, captured_at "
+                    "LIMIT %s"
+                ),
+                (model, limit),
+            )
+            return [(row[0], row[1], row[2]) for row in cur.fetchall()]
+
 
 class InMemoryCuratorStore:
     """Test double used by unit tests and a local smoke loop."""
@@ -174,6 +246,12 @@ class InMemoryCuratorStore:
         self._existing: set[str] = set(existing)
         self.promotions: list[dict[str, object]] = []
         self.relations: list[tuple[str, str, str]] = []
+        # `(note_id, model) -> vector`. Mirrors the kb_notes columns the
+        # Postgres store writes; lets unit tests assert on embeddings
+        # without spinning up a real DB.
+        self.embeddings: dict[str, tuple[tuple[float, ...], str]] = {}
+        # Pending rows for backfill smoke tests — `(id, title, body)`.
+        self.backfill_queue: list[tuple[str, str, str]] = []
 
     def existing_ids(self, ids: Iterable[str]) -> set[str]:
         return {i for i in ids if i in self._existing}
@@ -212,3 +290,32 @@ class InMemoryCuratorStore:
 
     def conflict_edges(self) -> list[tuple[str, str, str]]:
         return [(s, p, o) for (s, p, o) in self.relations if p in ("supersedes", "contradicts")]
+
+    def write_embedding(
+        self,
+        *,
+        note_id: str,
+        vector: tuple[float, ...],
+        model: str,
+    ) -> int:
+        if note_id not in self._existing:
+            return 0
+        self.embeddings[note_id] = (vector, model)
+        return 1
+
+    def select_embedding_backfill_batch(
+        self,
+        *,
+        model: str,
+        limit: int,
+    ) -> list[tuple[str, str, str]]:
+        # Mirror the SQL: include any row whose model is missing or
+        # diverges from the target. Truncate to `limit`.
+        out: list[tuple[str, str, str]] = []
+        for note_id, title, body in self.backfill_queue:
+            stored = self.embeddings.get(note_id)
+            if stored is None or stored[1] != model:
+                out.append((note_id, title, body))
+            if len(out) >= limit:
+                break
+        return out

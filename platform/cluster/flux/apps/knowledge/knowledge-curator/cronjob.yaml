@@ -142,7 +142,12 @@ spec:
                   # — bump up only if Ollama lands on a bigger GPU.
                   value: qwen2.5:7b-instruct
                 - name: OLLAMA_EMBEDDING_MODEL
-                  value: nomic-embed-text
+                  # qwen3-embedding:0.6b feeds the recall path's
+                  # pgvector ANN leg (knowledge-api V9 schema).
+                  # `kb_notes.embedding_model` carries this same
+                  # string so the backfill CronJob can spot stale
+                  # rows when the model swaps out.
+                  value: qwen3-embedding:0.6b
                 # 5 minutes. Big enough that even a worst-case
                 # cold load (4.7 GB qwen2.5:7b paged in from disk on
                 # CPU with a hot page-cache miss) completes inside

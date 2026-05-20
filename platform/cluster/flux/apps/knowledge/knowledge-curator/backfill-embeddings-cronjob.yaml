@@ -1,0 +1,106 @@
+# Nightly batch — embeds any kb_notes row whose `embedding` is NULL
+# or whose `embedding_model` watermark diverges from the curator's
+# configured `OLLAMA_EMBEDDING_MODEL`. One batch per tick keeps the
+# pass short and bounded; a long backlog drains over several nights
+# without ever stepping on the live curator's 5-minute cadence.
+#
+# `concurrencyPolicy: Forbid` shares Ollama with the live curator —
+# overlap would compete for the embedding-model RAM slot
+# (`OLLAMA_MAX_LOADED_MODELS=1` on the deployment). Forbid means the
+# next backfill skips rather than queueing.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: kb-embedding-backfill
+  namespace: knowledge-system
+  annotations:
+    keel.sh/policy: force
+    keel.sh/match-tag: 'true'
+    keel.sh/trigger: poll
+    keel.sh/pollSchedule: '@every 2m'
+spec:
+  schedule: '17 3 * * *' # 03:17 UTC — off-peak; curator passes happen on the 5s.
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 600
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          annotations:
+            vault.hashicorp.com/agent-inject: 'true'
+            vault.hashicorp.com/agent-inject-token: 'true'
+            vault.hashicorp.com/agent-pre-populate-only: 'true'
+            vault.hashicorp.com/role: knowledge-curator
+            vault.hashicorp.com/agent-run-as-user: '1000'
+            vault.hashicorp.com/agent-run-as-group: '1000'
+            vault.hashicorp.com/agent-inject-secret-postgres.env: secret/data/platform/postgres
+            vault.hashicorp.com/agent-inject-template-postgres.env: |
+              DB_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "kb.user" }}{{ end }}
+              DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "kb.password" }}{{ end }}
+        spec:
+          # Reuses the curator ServiceAccount + DB credentials —
+          # this job has exactly the same DB write surface (UPDATE
+          # kb_notes embedding column). No extra RBAC needed.
+          serviceAccountName: knowledge-curator
+          restartPolicy: OnFailure
+          nodeSelector:
+            personal-stack/site: frankfurt
+          containers:
+            - name: backfill
+              image: ghcr.io/extratoast/personal-stack/knowledge-curator:latest
+              imagePullPolicy: Always
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  set -a
+                  . /vault/secrets/postgres.env
+                  set +a
+                  exec opentelemetry-instrument python -m curator.backfill_embeddings
+              env:
+                - name: LOG_LEVEL
+                  value: INFO
+                - name: DEPLOYMENT_ENVIRONMENT
+                  value: production
+                - name: OTEL_SERVICE_NAME
+                  value: knowledge-curator-backfill
+                - name: OTEL_EXPORTER_OTLP_ENDPOINT
+                  value: http://alloy.observability.svc.cluster.local:4318
+                - name: OTEL_EXPORTER_OTLP_PROTOCOL
+                  value: http/protobuf
+                - name: OTEL_LOGS_EXPORTER
+                  value: none
+                - name: OTEL_METRICS_EXPORTER
+                  value: none
+                - name: OTEL_TRACES_EXPORTER
+                  value: otlp
+                - name: OTEL_PYTHON_LOG_CORRELATION
+                  value: 'true'
+                - name: DB_HOST
+                  value: postgres.data-system.svc.cluster.local
+                - name: DB_PORT
+                  value: '5432'
+                - name: DB_NAME
+                  value: knowledge_db
+                - name: OLLAMA_BASE_URL
+                  value: http://ollama.knowledge-system.svc.cluster.local:11434/v1
+                - name: OLLAMA_EMBEDDING_MODEL
+                  value: qwen3-embedding:0.6b
+                - name: OLLAMA_REQUEST_TIMEOUT_SECONDS
+                  value: '300'
+                # 100 rows per batch keeps the pass well under 10 min
+                # at the current corpus scale (10² notes today; revisit
+                # when the corpus crosses 10³).
+                - name: KB_BACKFILL_BATCH_SIZE
+                  value: '100'
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi

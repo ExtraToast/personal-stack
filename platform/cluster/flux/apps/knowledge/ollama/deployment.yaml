@@ -94,6 +94,15 @@ spec:
               until ollama list >/dev/null 2>&1; do sleep 2; done
               ollama pull qwen2.5:7b-instruct
               ollama pull nomic-embed-text
+              # qwen3-embedding:0.6b feeds the recall path's pgvector
+              # ANN leg (knowledge-api V9 schema). Matryoshka-native,
+              # multilingual, ~1 GiB on disk. Pulled alongside nomic
+              # for the cutover window — the backfill CronJob picks
+              # up rows whose `embedding_model` still reads
+              # `nomic-embed-text` and re-embeds them. Drop nomic in
+              # a follow-up PR once `kb_notes.embedding_model =
+              # 'nomic-embed-text'` count hits zero.
+              ollama pull qwen3-embedding:0.6b
               kill $SERVE_PID
               wait $SERVE_PID 2>/dev/null || true
           env:

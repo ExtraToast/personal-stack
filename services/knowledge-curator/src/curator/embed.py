@@ -48,6 +48,14 @@ class OllamaEmbedder:
         if self._owns_client:
             self._client.close()
 
+    @property
+    def model(self) -> str:
+        """Name of the embedding model this client points at — used by
+        the persistence path so the watermark and the vector are
+        always written together.
+        """
+        return self._model
+
     def embed(self, text: str) -> Embedding:
         response = self._client.post(
             f"{self._base_url}/embeddings",
