@@ -2,19 +2,18 @@
 # is a one-shot classify-and-promote over `_inbox/*.md` plus a drain
 # of `_inbox/_needs-review/` when CURATOR_DRAIN_NEEDS_REVIEW=1.
 #
-# Cadence: hourly. The earlier 5-min schedule made sense when each
-# pass was a sub-second qwen3:8b classification over an empty inbox,
-# but two things changed:
-#   1. CURATOR_DRAIN_NEEDS_REVIEW is now permanently on, so every
-#      pass also walks the needs-review backlog (~20 candidates) —
+# Cadence: hourly during awake hours only (07:00–22:00 UTC,
+# i.e. 09:00–00:00 CEST / 08:00–23:00 CET). Two overlapping motivators:
+#   1. CURATOR_DRAIN_NEEDS_REVIEW is permanently on, so every pass
+#      also walks the needs-review backlog (~20 candidates) —
 #      ~3 min on the rx7900xtx heavy host, ~13 min on the in-cluster
-#      qwen3:8b CPU fallback.
-#   2. The heavy gateway is best-effort; when the rx7900xtx node is
-#      offline the entire drain stays on CPU.
-# Hourly keeps inbox latency tolerable (one capture queued ~30 min
-# average) while cutting daily passes from 288 → 24 and giving the
-# fallback path time to drain inside its window instead of stacking
-# Forbid-blocked retries.
+#      qwen3:8b CPU fallback. Overnight the heavy host is usually
+#      offline, so 24/7 hourly = 5+ h of frankfurt CPU per night.
+#   2. New captures during sleeping hours can wait until morning to
+#      promote; inbox latency only matters when the user is awake.
+# Restricting to 07–22 UTC drops daily passes 288 → 16 (18× less)
+# and keeps every overnight hour completely silent on both Ollama
+# and the vault PVC. Permanent — no nightly toggle needed.
 #
 # `concurrencyPolicy: Forbid` is critical: the curator shares the
 # vault clone PVC with the worker, and two concurrent `git mv`
@@ -41,7 +40,7 @@ metadata:
     keel.sh/trigger: poll
     keel.sh/pollSchedule: '@every 2m'
 spec:
-  schedule: '0 * * * *'
+  schedule: '0 7-22 * * *'
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
