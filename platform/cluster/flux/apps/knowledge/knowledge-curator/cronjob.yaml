@@ -197,6 +197,20 @@ spec:
                   value: safe.directory
                 - name: GIT_CONFIG_VALUE_0
                   value: '*'
+                # Drain `_inbox/_needs-review/` on every pass alongside
+                # the day-bucket inbox walk. Initially these were two
+                # separate manual operations (a one-off Job with the
+                # env, then the regular cron) — but with qwen3:32b on
+                # the rx7900xtx heavy endpoint the per-note re-classify
+                # is fast enough (~5–10 s) that even a backlog of ~50
+                # needs-review notes finishes in a single ~5–10 min
+                # pass. `concurrencyPolicy: Forbid` on the CronJob
+                # already keeps slow passes from running concurrently,
+                # and the per-file Promoter swallows individual
+                # failures so a stuck classify on one file does not
+                # abort the rest.
+                - name: CURATOR_DRAIN_NEEDS_REVIEW
+                  value: '1'
               resources:
                 requests:
                   cpu: 100m
