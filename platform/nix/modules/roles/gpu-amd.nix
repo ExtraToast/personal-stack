@@ -1,4 +1,23 @@
 { config, lib, pkgs, ... }:
+let
+  # rocm-smi is a Python script that calls ctypes.CDLL("libdrm_amdgpu.so")
+  # with a bare soname. NixOS has no ld.so.cache and the system PATH
+  # does not influence dlopen() lookups, so even with pkgs.libdrm present
+  # on disk the call fails with "Fail to open libdrm_amdgpu.so" and the
+  # tool reports "get_name, Failed to load a library" / Card Series N/A.
+  # Wrap the upstream binary so LD_LIBRARY_PATH points at pkgs.libdrm
+  # for this one invocation. Wolf, Ollama, RADV, and rocminfo all bind
+  # against Mesa or HSA and are unaffected.
+  rocm-smi-wrapped = pkgs.symlinkJoin {
+    name = "rocm-smi-wrapped";
+    paths = [ pkgs.rocmPackages.rocm-smi ];
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+    postBuild = ''
+      wrapProgram $out/bin/rocm-smi \
+        --prefix LD_LIBRARY_PATH : ${pkgs.libdrm}/lib
+    '';
+  };
+in
 {
   # AMD modern desktop GPUs (RDNA1+, including RDNA3 / Navi 31 on the
   # RX 7900 XTX) use the in-tree amdgpu kernel module — no out-of-tree
@@ -32,22 +51,19 @@
   };
 
   # ROCm runtime + tooling for compute. `clr` provides HIP/OpenCL,
-  # rocminfo / rocm-smi cover diagnostics. PyTorch / llama.cpp /
-  # Ollama all bind against these at runtime via /opt/rocm symlink
-  # baked by the userspace. libdrm is pulled in explicitly so
-  # rocm-smi's product-name lookup (which dlopens libdrm_amdgpu.so)
-  # stops emitting "Fail to open libdrm_amdgpu.so" / "get_name, Failed
-  # to load a library" on every invocation. Without it the GPU still
-  # reports VRAM and gfx1100 fine, but the card series / model fields
-  # come back N/A — purely a diagnostics-quality fix.
+  # rocminfo covers HSA diagnostics. PyTorch / llama.cpp / Ollama all
+  # bind against these at runtime via the /opt/rocm symlink baked by
+  # the userspace. rocm-smi is replaced by rocm-smi-wrapped above so
+  # its libdrm_amdgpu.so dlopen succeeds — keep it out of this list
+  # so the wrapped binary wins the PATH race.
   environment.systemPackages = with pkgs; [
     clinfo
     libdrm
     libva-utils
     pciutils
     radeontop
+    rocm-smi-wrapped
     rocmPackages.rocminfo
-    rocmPackages.rocm-smi
     vulkan-tools
   ];
 
