@@ -110,10 +110,12 @@ nodes:
     target_roles:
       - k3s-worker
       - utility-host
-    # Ryzen 7 5800X3D (8C/16T) + 32 GiB DDR4. Reserving headroom for
-    # Wolf streaming sessions and ROCm inference.
+    # Ryzen 7 5800X3D (8C/16T, 4552 MHz boost) + 32 GiB DDR4.
+    # cpu_millicores follows the fleet convention threads × boost_MHz
+    # (matches enschede-t1000-1's 12 × ~4500 MHz = 54000 and the Pis'
+    # 4 × 1500 MHz = 6000), so 16 × 4552 ≈ 72800.
     capacity:
-      cpu_millicores: 16000
+      cpu_millicores: 72800
       memory_mib: 32000
     gpus:
       - vendor: amd
