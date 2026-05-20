@@ -11,6 +11,7 @@ interface NavItem {
 const route = useRoute()
 
 const navItems: NavItem[] = [
+  { label: 'Sessions', to: '/sessions', testid: 'nav-sessions' },
   { label: 'Workspaces', to: '/workspaces', testid: 'nav-workspaces' },
   { label: 'Chat', to: '/chat', testid: 'nav-chat' },
   { label: 'Projects', to: '/projects', testid: 'nav-projects' },
