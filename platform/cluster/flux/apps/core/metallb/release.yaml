@@ -8,6 +8,18 @@ spec:
   chart:
     spec:
       chart: metallb
+      # Pin to the 0.15.x patch line. The 0.16.0 release ships a
+      # frr-k8s sub-chart whose ServiceMonitor template dereferences
+      # `.Values.prometheus.serviceMonitor.enabled` without the
+      # corresponding default — the upgrade fails with
+      # `nil pointer evaluating interface {}.serviceMonitor` and
+      # apps-core's HealthCheck on the HelmRelease blocks every
+      # dependent kustomization (apps-knowledge, apps-utility-system,
+      # apps-data, …). Pinning keeps the cluster on the last
+      # known-good release; a future deliberate bump to 0.16+ should
+      # pair an explicit `values: { prometheus: { serviceMonitor:
+      # { enabled: false } } }` so the new template renders cleanly.
+      version: '~0.15.3'
       sourceRef:
         kind: HelmRepository
         name: metallb
