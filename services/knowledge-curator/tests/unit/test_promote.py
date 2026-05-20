@@ -231,6 +231,97 @@ def test_promote_flags_review_on_classifier_error(clone: Path) -> None:
     assert "classify-failed" in outcome.reason
 
 
+def test_promote_writes_embedding_when_embedder_wired(clone: Path) -> None:
+    """Happy path: promote writes the embedding alongside the row."""
+    from curator.embed import Embedding
+
+    @dataclass
+    class _StubEmbedder:
+        model: str = "qwen3-embedding:0.6b"
+        last_text: str = ""
+
+        def embed(self, text: str) -> Embedding:
+            self.last_text = text
+            return Embedding(vector=(0.1, 0.2, 0.3), model=self.model)
+
+    rel = _seed_inbox_note(clone)
+    store = InMemoryCuratorStore(existing=["01HXYZ00000000000000000000"])
+    embedder = _StubEmbedder()
+    promoter = Promoter(
+        classifier=_StubClassifier(response=_classification()),  # type: ignore[arg-type]
+        recall=_StubRecall(hits=[]),  # type: ignore[arg-type]
+        store=store,
+        vault=_StubVault(),  # type: ignore[arg-type]
+        topics=_topics(),
+        clone_dir=clone,
+        confidence_floor=0.55,
+        recall_limit=3,
+        embedder=embedder,  # type: ignore[arg-type]
+        embedding_model="qwen3-embedding:0.6b",
+    )
+    outcome = promoter.promote_inbox_file(rel)
+    assert outcome.status == "promoted"
+    assert store.embeddings["01HXYZ00000000000000000000"] == (
+        (0.1, 0.2, 0.3),
+        "qwen3-embedding:0.6b",
+    )
+    # Embedding receives title + body, joined with a blank line, so
+    # the recall query embedding (which embeds the user's query alone)
+    # still lands close in vector space without the body's noise
+    # dominating the title's signal.
+    assert embedder.last_text.startswith("Vault Agent uid alignment")
+
+
+def test_promote_swallows_embedder_failure_and_still_promotes(clone: Path) -> None:
+    """Embedder outage must not block the promote — backfill picks up the row."""
+    from curator.embed import Embedding
+
+    @dataclass
+    class _ExplodingEmbedder:
+        model: str = "qwen3-embedding:0.6b"
+
+        def embed(self, text: str) -> Embedding:
+            raise RuntimeError("ollama down")
+
+    rel = _seed_inbox_note(clone)
+    store = InMemoryCuratorStore(existing=["01HXYZ00000000000000000000"])
+    promoter = Promoter(
+        classifier=_StubClassifier(response=_classification()),  # type: ignore[arg-type]
+        recall=_StubRecall(hits=[]),  # type: ignore[arg-type]
+        store=store,
+        vault=_StubVault(),  # type: ignore[arg-type]
+        topics=_topics(),
+        clone_dir=clone,
+        confidence_floor=0.55,
+        recall_limit=3,
+        embedder=_ExplodingEmbedder(),  # type: ignore[arg-type]
+        embedding_model="qwen3-embedding:0.6b",
+    )
+    outcome = promoter.promote_inbox_file(rel)
+    assert outcome.status == "promoted"
+    # Row promoted; embedding never written.
+    assert "01HXYZ00000000000000000000" not in store.embeddings
+
+
+def test_promote_skips_embedding_when_no_embedder_wired(clone: Path) -> None:
+    """Backward-compat: callers that don't pass an embedder still promote."""
+    rel = _seed_inbox_note(clone)
+    store = InMemoryCuratorStore(existing=["01HXYZ00000000000000000000"])
+    promoter = Promoter(
+        classifier=_StubClassifier(response=_classification()),  # type: ignore[arg-type]
+        recall=_StubRecall(hits=[]),  # type: ignore[arg-type]
+        store=store,
+        vault=_StubVault(),  # type: ignore[arg-type]
+        topics=_topics(),
+        clone_dir=clone,
+        confidence_floor=0.55,
+        recall_limit=3,
+    )
+    outcome = promoter.promote_inbox_file(rel)
+    assert outcome.status == "promoted"
+    assert store.embeddings == {}
+
+
 def test_promote_supersedes_inserts_relations(clone: Path) -> None:
     rel = _seed_inbox_note(clone)
     store = InMemoryCuratorStore(

@@ -36,6 +36,7 @@ from curator.classify import (
     Neighbour,
     OllamaClassifier,
 )
+from curator.embed import OllamaEmbedder
 from curator.lightrag import LightRagClient, LightRagDocument
 from curator.projects import ProjectVocabulary
 from curator.recall import RecallClient, RecallHit
@@ -93,6 +94,8 @@ class Promoter:
         recall_limit: int,
         lightrag: LightRagClient | None = None,
         resolver: RelationResolver | None = None,
+        embedder: OllamaEmbedder | None = None,
+        embedding_model: str | None = None,
     ) -> None:
         self._classifier = classifier
         self._recall = recall
@@ -113,6 +116,18 @@ class Promoter:
         # to feature-flag the behaviour off temporarily (pass a
         # resolver whose `resolve` always returns the originals).
         self._resolver = resolver or RelationResolver(recall=recall, store=store)
+        # Embedder feeds the recall side's pgvector ANN leg (PR-1 of
+        # the recall stack added the column; this Promoter is the
+        # writer). Optional so tests + the V1 path that ran before
+        # embeddings existed still work — when None, promotes still
+        # succeed and the row carries a NULL embedding the backfill
+        # job picks up later.
+        self._embedder = embedder
+        # The model name persisted alongside the vector. Used as the
+        # backfill watermark — a future model swap surfaces every
+        # row whose `embedding_model` diverges as a candidate to
+        # re-embed.
+        self._embedding_model = embedding_model or (embedder.model if embedder else "")
 
     def promote_inbox_file(self, inbox_rel: str) -> PromoteOutcome:
         path = self._clone_dir / inbox_rel
@@ -224,6 +239,29 @@ class Promoter:
             )
         for target in resolution.see_also:
             self._store.insert_relation(subject_id=front.id, predicate="see_also", object_id=target)
+
+        # Embed + persist for the recall path's pgvector ANN leg. Soft
+        # failure: an Ollama outage must not block the promote, the
+        # backfill CronJob picks the row up next pass. Skip when no
+        # embedder is wired (e.g. tests, or the bring-up window before
+        # the V9 schema lands in a target environment).
+        if self._embedder is not None and self._embedding_model:
+            try:
+                embedding = self._embedder.embed(
+                    f"{classification.title}\n\n{front.body}",
+                )
+                self._store.write_embedding(
+                    note_id=front.id,
+                    vector=embedding.vector,
+                    model=self._embedding_model,
+                )
+            except Exception as exc:
+                log.warning(
+                    "curator.embed_skipped",
+                    note_id=front.id,
+                    model=self._embedding_model,
+                    error=str(exc),
+                )
         if self._lightrag is not None:
             # Fire-and-forget: a slow / down LightRAG must not block
             # the promotion's git + DB writes. The next pass that
