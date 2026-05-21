@@ -127,6 +127,23 @@ class CuratorStore(Protocol):
         """
         ...
 
+    def select_relation_enrichment_batch(
+        self,
+        *,
+        min_age_days: int,
+        limit: int,
+    ) -> list[tuple[str, str, str, str]]:
+        """Pick promoted notes with **no** outgoing ``see_also`` edges
+        that have settled long enough to have stable neighbours.
+
+        Returns ``(id, title, body, scope)`` tuples. Used by
+        :class:`curator.orchestrator.passes.relation_enrichment.RelationEnrichmentPass`.
+        Only promoted notes (``vault_path IS NOT NULL``) captured
+        more than ``min_age_days`` ago qualify — fresh captures
+        are still owned by the inbox curator.
+        """
+        ...
+
     # -- orchestrator state -----------------------------------------
 
     def load_pass_state(self, pass_name: str) -> OrchestratorPassRow:
@@ -372,6 +389,29 @@ class PostgresCuratorStore:
             )
             return cur.rowcount
 
+    def select_relation_enrichment_batch(
+        self,
+        *,
+        min_age_days: int,
+        limit: int,
+    ) -> list[tuple[str, str, str, str]]:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                sql.SQL(
+                    "SELECT n.id, n.title, n.body, n.scope "
+                    "FROM kb_notes n "
+                    "LEFT JOIN kb_relations r "
+                    "  ON r.subject_id = n.id AND r.predicate = 'see_also' "
+                    "WHERE r.subject_id IS NULL "
+                    "  AND n.vault_path IS NOT NULL "
+                    "  AND n.captured_at < NOW() - (%s || ' days')::interval "
+                    "ORDER BY n.captured_at "
+                    "LIMIT %s"
+                ),
+                (min_age_days, limit),
+            )
+            return [(row[0], row[1], row[2], row[3]) for row in cur.fetchall()]
+
     # -- orchestrator state -----------------------------------------
 
     def load_pass_state(self, pass_name: str) -> OrchestratorPassRow:
@@ -553,6 +593,12 @@ class InMemoryCuratorStore:
         # shape.
         self.pass_state: dict[str, OrchestratorPassRow] = {}
         self.pass_history: list[dict[str, Any]] = []
+        # Pending rows for relation-enrichment smoke tests —
+        # `(id, title, body, scope)`. Tests prime this directly; the
+        # InMemory selector ignores the `min_age_days` filter and
+        # returns every queued row that lacks a see_also edge in
+        # `self.relations`.
+        self.relation_enrichment_queue: list[tuple[str, str, str, str]] = []
 
     def existing_ids(self, ids: Iterable[str]) -> set[str]:
         return {i for i in ids if i in self._existing}
@@ -653,6 +699,28 @@ class InMemoryCuratorStore:
             return 0
         self.titles[note_id] = title
         return 1
+
+    def select_relation_enrichment_batch(
+        self,
+        *,
+        min_age_days: int,
+        limit: int,
+    ) -> list[tuple[str, str, str, str]]:
+        # Filter out rows that already have a see_also edge (mirrors
+        # the SQL LEFT JOIN ... IS NULL gate). `min_age_days` is
+        # accepted but not enforced — the in-memory queue is curated
+        # by the test, so age semantics are out of scope for unit
+        # coverage and exercised in integration.
+        _ = min_age_days
+        out: list[tuple[str, str, str, str]] = []
+        with_see_also = {s for (s, p, _o) in self.relations if p == "see_also"}
+        for row in self.relation_enrichment_queue:
+            if row[0] in with_see_also:
+                continue
+            out.append(row)
+            if len(out) >= limit:
+                break
+        return out
 
     # -- orchestrator state -----------------------------------------
 

@@ -45,8 +45,13 @@ from curator.indexes import (
 )
 from curator.lightrag import LightRagClient
 from curator.ollama_router import resolve_chat
-from curator.orchestrator.passes import InboxPass, NeedsReviewDrainPass
-from curator.orchestrator.protocol import Pass
+from curator.orchestrator.passes import (
+    InboxPass,
+    NeedsReviewDrainPass,
+    RelationEnrichmentPass,
+    TitleQualityPass,
+)
+from curator.orchestrator.protocol import Pass, PassState
 from curator.projects import ProjectVocabulary
 from curator.promote import Promoter
 from curator.recall import RecallClient
@@ -171,6 +176,30 @@ def build_passes(
             promoter=promoter,
             vault=vault,
         ),
+        # Title-quality + relation-enrichment run AFTER inbox + drain
+        # so a freshly-promoted note in this very tick is eligible for
+        # title polish + see_also discovery on the NEXT tick rather
+        # than the same one. Keeps each pass's view of the data
+        # stable for the duration of its run.
+        TitleQualityPass(
+            store=store,
+            vault=vault,
+            vault_clone_dir=settings.vault_clone_dir,
+            http_client=shared_http,
+            chat_base_url=chat_endpoint.base_url,
+            chat_model=chat_endpoint.model,
+            chat_timeout_seconds=settings.ollama_request_timeout_seconds,
+        ),
+        RelationEnrichmentPass(
+            store=store,
+            recall=recall,
+            topics=topics,
+            projects=projects,
+            http_client=shared_http,
+            chat_base_url=chat_endpoint.base_url,
+            chat_model=chat_endpoint.model,
+            chat_timeout_seconds=settings.ollama_request_timeout_seconds,
+        ),
     ]
 
 
@@ -187,7 +216,15 @@ def run_tick(
     for pass_ in passes:
         try:
             with store.pass_advisory_lock(pass_.name):
-                state = store.load_pass_state(pass_.name)
+                row = store.load_pass_state(pass_.name)
+                state = PassState(
+                    pass_name=row.pass_name,
+                    last_started_at=row.last_started_at,
+                    last_completed_at=row.last_completed_at,
+                    last_status=row.last_status,
+                    watermark=row.watermark,
+                    notes_processed=row.notes_processed,
+                )
                 if not pass_.has_work(state):
                     store.record_no_work(pass_.name)
                     counts["no_work"] += 1

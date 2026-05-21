@@ -35,6 +35,7 @@ import logging
 import os
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 
 import httpx
 import structlog
@@ -219,7 +220,7 @@ def run_title_quality(
     store: CuratorStore,
     vault: CuratorVault,
     rewriter: OllamaTitleRewriter,
-    vault_clone_dir,  # noqa: ANN001 — Path
+    vault_clone_dir: Path,
     patterns: list[str],
     batch_size: int,
 ) -> TitleQualityStats:
