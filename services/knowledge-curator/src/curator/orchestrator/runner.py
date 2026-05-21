@@ -45,7 +45,12 @@ from curator.indexes import (
 )
 from curator.lightrag import LightRagClient
 from curator.ollama_router import resolve_chat
-from curator.orchestrator.passes import InboxPass, NeedsReviewDrainPass
+from curator.orchestrator.passes import (
+    InboxPass,
+    NeedsReviewDrainPass,
+    RelationEnrichmentPass,
+    TitleQualityPass,
+)
 from curator.orchestrator.protocol import Pass
 from curator.projects import ProjectVocabulary
 from curator.promote import Promoter
@@ -170,6 +175,30 @@ def build_passes(
             vault_clone_dir=settings.vault_clone_dir,
             promoter=promoter,
             vault=vault,
+        ),
+        # Title-quality + relation-enrichment run AFTER inbox + drain
+        # so a freshly-promoted note in this very tick is eligible for
+        # title polish + see_also discovery on the NEXT tick rather
+        # than the same one. Keeps each pass's view of the data
+        # stable for the duration of its run.
+        TitleQualityPass(
+            store=store,
+            vault=vault,
+            vault_clone_dir=settings.vault_clone_dir,
+            http_client=shared_http,
+            chat_base_url=chat_endpoint.base_url,
+            chat_model=chat_endpoint.model,
+            chat_timeout_seconds=settings.ollama_request_timeout_seconds,
+        ),
+        RelationEnrichmentPass(
+            store=store,
+            recall=recall,
+            topics=topics,
+            projects=projects,
+            http_client=shared_http,
+            chat_base_url=chat_endpoint.base_url,
+            chat_model=chat_endpoint.model,
+            chat_timeout_seconds=settings.ollama_request_timeout_seconds,
         ),
     ]
 

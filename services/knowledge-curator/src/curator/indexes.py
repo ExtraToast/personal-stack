@@ -38,9 +38,9 @@ class IndexedNote:
     """Light read-only projection of a promoted note for the indexes."""
 
     id: str
-    rel_path: str        # path under the vault root, e.g. "topics/vault/lesson/foo.md"
-    type: str            # lesson | decision | note | fact
-    scope: str           # topic:<slug> | project:<repo> | agent:<name>
+    rel_path: str  # path under the vault root, e.g. "topics/vault/lesson/foo.md"
+    type: str  # lesson | decision | note | fact
+    scope: str  # topic:<slug> | project:<repo> | agent:<name>
     title: str
     captured_at: str
 
