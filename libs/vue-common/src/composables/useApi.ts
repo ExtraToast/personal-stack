@@ -86,5 +86,6 @@ export async function parseOkResponse<T>(response: Response): Promise<T> {
     // eslint-disable-next-line ts/consistent-type-assertions -- non-JSON 2xx body has no typed payload
     return undefined as unknown as T
   }
+  // eslint-disable-next-line ts/consistent-type-assertions -- JSON.parse() returns `any`; the helper's signature is the contract that surfaces the actual response shape to callers
   return JSON.parse(text) as T
 }

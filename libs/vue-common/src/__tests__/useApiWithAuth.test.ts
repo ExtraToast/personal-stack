@@ -90,7 +90,7 @@ describe('useApiWithAuth', () => {
 
     await api.post('/repositories/abc/key', {})
 
-    const init = fetchMock.mock.calls[0]![1] as RequestInit
+    const [, init] = fetchMock.mock.calls[0]!
     expect(init.method).toBe('POST')
     expect(init.headers).toMatchObject({ 'X-XSRF-TOKEN': 'tok-abc' })
     // cleanup
