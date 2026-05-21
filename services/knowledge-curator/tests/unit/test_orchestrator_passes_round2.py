@@ -235,6 +235,151 @@ def test_relation_enrichment_writes_validated_see_also_edges() -> None:
     assert outcome.watermark_after["model"] == "qwen3:32b"
 
 
+def test_relation_enrichment_run_returns_no_work_on_empty_candidate_set() -> None:
+    store = InMemoryCuratorStore()
+    recall = _StubRecall(hits=[])
+    with httpx.Client(timeout=1.0) as http:
+        p = RelationEnrichmentPass(
+            store=store,
+            recall=recall,  # type: ignore[arg-type]
+            topics=_topics(),
+            projects=_projects(),
+            http_client=http,
+            chat_base_url="http://x/v1",
+            chat_model="qwen3:32b",
+            chat_timeout_seconds=1.0,
+        )
+        outcome = p.run(_state("relation_enrichment"))
+    assert outcome.status == "no_work"
+    assert outcome.notes_processed == 0
+
+
+def test_relation_enrichment_skips_self_match_in_recall_hits() -> None:
+    """A recall result that includes the candidate itself must not
+    end up in the neighbour list — the LLM would otherwise see the
+    note quoting itself, which biases the see_also choice.
+    """
+
+    store = InMemoryCuratorStore(existing={"kb_self", "kb_other"})
+    store.relation_enrichment_queue.append(("kb_self", "Self title", "body", "topic:test"))
+    recall = _StubRecall(
+        hits=[
+            RecallHit(
+                id="kb_self",
+                type="note",
+                scope="topic:test",
+                title="Self title",
+                snippet="...",
+                score=0.99,
+            ),
+            RecallHit(
+                id="kb_other",
+                type="note",
+                scope="topic:test",
+                title="Other",
+                snippet="...",
+                score=0.5,
+            ),
+        ]
+    )
+    base_url = "http://ollama-heavy.test/v1"
+    with respx.mock(base_url=base_url) as mock_router:
+        mock_router.post("/chat/completions").respond(
+            200, json=_classify_response(see_also=["kb_other"])
+        )
+        with httpx.Client(timeout=5.0) as http:
+            p = RelationEnrichmentPass(
+                store=store,
+                recall=recall,  # type: ignore[arg-type]
+                topics=_topics(),
+                projects=_projects(),
+                http_client=http,
+                chat_base_url=base_url,
+                chat_model="qwen3:32b",
+                chat_timeout_seconds=5.0,
+            )
+            outcome = p.run(_state("relation_enrichment"))
+    assert outcome.notes_processed == 1
+    assert ("kb_self", "see_also", "kb_other") in store.relations
+
+
+def test_relation_enrichment_soft_fails_on_recall_outage() -> None:
+    """When the recall service raises, the pass classifies with an
+    empty neighbour list rather than aborting the whole tick.
+    """
+
+    @dataclass
+    class _BrokenRecall:
+        def recall(
+            self,
+            *,
+            query: str,
+            limit: int = 5,
+            scope: str | None = None,
+        ) -> list[RecallHit]:
+            _ = query, limit, scope
+            raise RuntimeError("recall down")
+
+    store = InMemoryCuratorStore(existing={"kb_a"})
+    store.relation_enrichment_queue.append(("kb_a", "Some title", "body", "topic:test"))
+    base_url = "http://ollama-heavy.test/v1"
+    with respx.mock(base_url=base_url) as mock_router:
+        mock_router.post("/chat/completions").respond(200, json=_classify_response(see_also=[]))
+        with httpx.Client(timeout=5.0) as http:
+            p = RelationEnrichmentPass(
+                store=store,
+                recall=_BrokenRecall(),  # type: ignore[arg-type]
+                topics=_topics(),
+                projects=_projects(),
+                http_client=http,
+                chat_base_url=base_url,
+                chat_model="qwen3:32b",
+                chat_timeout_seconds=5.0,
+            )
+            outcome = p.run(_state("relation_enrichment"))
+    assert outcome.status == "success"
+    assert outcome.notes_processed == 1
+
+
+def test_relation_enrichment_swallows_classify_errors() -> None:
+    """One bad classification must not poison the rest of the batch."""
+
+    store = InMemoryCuratorStore(existing={"kb_a", "kb_b"})
+    store.relation_enrichment_queue.extend(
+        [
+            ("kb_a", "A title", "body", "topic:test"),
+            ("kb_b", "B title", "body", "topic:test"),
+        ]
+    )
+    recall = _StubRecall(hits=[])
+    base_url = "http://ollama-heavy.test/v1"
+    with respx.mock(base_url=base_url) as mock_router:
+        # First call: broken JSON forces a Classification ValidationError
+        # after the one built-in retry. Second call: clean response.
+        mock_router.post("/chat/completions").mock(
+            side_effect=[
+                httpx.Response(200, json={"choices": [{"message": {"content": "not json"}}]}),
+                httpx.Response(200, json={"choices": [{"message": {"content": "not json"}}]}),
+                httpx.Response(200, json=_classify_response(see_also=[])),
+            ]
+        )
+        with httpx.Client(timeout=5.0) as http:
+            p = RelationEnrichmentPass(
+                store=store,
+                recall=recall,  # type: ignore[arg-type]
+                topics=_topics(),
+                projects=_projects(),
+                http_client=http,
+                chat_base_url=base_url,
+                chat_model="qwen3:32b",
+                chat_timeout_seconds=5.0,
+            )
+            outcome = p.run(_state("relation_enrichment"))
+    # `kb_a` is dropped (classifier-after-retry failure); `kb_b` is
+    # processed. Pass-level outcome reports the survivor.
+    assert outcome.notes_processed == 1
+
+
 def test_relation_enrichment_skips_when_candidate_already_has_see_also() -> None:
     store = InMemoryCuratorStore(existing={"kb_done"})
     store.relation_enrichment_queue.append(("kb_done", "Some title", "body", "topic:test"))

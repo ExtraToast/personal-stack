@@ -216,3 +216,111 @@ def test_ollama_rewriter_raises_on_transport_error() -> None:
             )
             with pytest.raises(TitleRewriteError):
                 rewriter.rewrite(title="How to bootstrap k3s", body="x")
+
+
+def test_run_title_quality_skips_candidate_when_rewriter_errors(tmp_path: Path) -> None:
+    """A `TitleRewriteError` for one candidate must not blow up the
+    whole batch — the row is counted as `skipped` and the rest of
+    the candidates are still processed.
+    """
+
+    store = InMemoryCuratorStore(existing={"kb_a"})
+    store.title_quality_queue.append(
+        ("kb_a", "How to bootstrap k3s", "body", "topics/kubernetes/note/x.md")
+    )
+    vault = _make_vault(tmp_path)
+    _seed_vault(tmp_path / "vault", "topics/kubernetes/note/x.md", "How to bootstrap k3s")
+
+    base_url = "http://ollama-heavy.test/v1"
+    with respx.mock(base_url=base_url) as mock_router:
+        mock_router.post("/chat/completions").mock(side_effect=httpx.ConnectError("nope"))
+        with httpx.Client(timeout=1.0) as http:
+            rewriter = OllamaTitleRewriter(
+                base_url=base_url,
+                model="qwen3:32b",
+                timeout_seconds=1.0,
+                client=http,
+            )
+            stats = run_title_quality(
+                store=store,
+                vault=vault,
+                rewriter=rewriter,
+                vault_clone_dir=tmp_path / "vault",
+                patterns=list(DEFAULT_PATTERNS),
+                batch_size=10,
+            )
+    assert stats.skipped == 1
+    assert stats.rewritten == 0
+    assert "kb_a" not in store.titles
+
+
+def test_run_title_quality_skips_when_vault_file_missing(tmp_path: Path) -> None:
+    """A row pointing at a vault path that vanished between promote
+    and re-pass should be skipped, not crash.
+    """
+
+    store = InMemoryCuratorStore(existing={"kb_a"})
+    store.title_quality_queue.append(
+        ("kb_a", "How to bootstrap k3s", "body", "topics/kubernetes/note/missing.md")
+    )
+    vault = _make_vault(tmp_path)
+
+    base_url = "http://ollama-heavy.test/v1"
+    with respx.mock(base_url=base_url) as mock_router:
+        mock_router.post("/chat/completions").respond(
+            200, json=_ollama_response("k3s bootstrap notes")
+        )
+        with httpx.Client(timeout=5.0) as http:
+            rewriter = OllamaTitleRewriter(
+                base_url=base_url,
+                model="qwen3:32b",
+                timeout_seconds=5.0,
+                client=http,
+            )
+            stats = run_title_quality(
+                store=store,
+                vault=vault,
+                rewriter=rewriter,
+                vault_clone_dir=tmp_path / "vault",
+                patterns=list(DEFAULT_PATTERNS),
+                batch_size=10,
+            )
+    assert stats.skipped == 1
+    assert stats.rewritten == 0
+
+
+def test_run_title_quality_skips_when_vault_file_unparseable(tmp_path: Path) -> None:
+    """A vault file whose frontmatter is corrupt is skipped, not
+    crashed on — the parse_failed branch.
+    """
+
+    store = InMemoryCuratorStore(existing={"kb_a"})
+    rel = "topics/kubernetes/note/corrupt.md"
+    store.title_quality_queue.append(("kb_a", "How to bootstrap k3s", "body", rel))
+    vault = _make_vault(tmp_path)
+    target = tmp_path / "vault" / rel
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("not a valid markdown note with frontmatter\n", encoding="utf-8")
+
+    base_url = "http://ollama-heavy.test/v1"
+    with respx.mock(base_url=base_url) as mock_router:
+        mock_router.post("/chat/completions").respond(
+            200, json=_ollama_response("k3s bootstrap notes")
+        )
+        with httpx.Client(timeout=5.0) as http:
+            rewriter = OllamaTitleRewriter(
+                base_url=base_url,
+                model="qwen3:32b",
+                timeout_seconds=5.0,
+                client=http,
+            )
+            stats = run_title_quality(
+                store=store,
+                vault=vault,
+                rewriter=rewriter,
+                vault_clone_dir=tmp_path / "vault",
+                patterns=list(DEFAULT_PATTERNS),
+                batch_size=10,
+            )
+    assert stats.skipped == 1
+    assert stats.rewritten == 0

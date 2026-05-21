@@ -51,7 +51,7 @@ from curator.orchestrator.passes import (
     RelationEnrichmentPass,
     TitleQualityPass,
 )
-from curator.orchestrator.protocol import Pass
+from curator.orchestrator.protocol import Pass, PassState
 from curator.projects import ProjectVocabulary
 from curator.promote import Promoter
 from curator.recall import RecallClient
@@ -216,7 +216,15 @@ def run_tick(
     for pass_ in passes:
         try:
             with store.pass_advisory_lock(pass_.name):
-                state = store.load_pass_state(pass_.name)
+                row = store.load_pass_state(pass_.name)
+                state = PassState(
+                    pass_name=row.pass_name,
+                    last_started_at=row.last_started_at,
+                    last_completed_at=row.last_completed_at,
+                    last_status=row.last_status,
+                    watermark=row.watermark,
+                    notes_processed=row.notes_processed,
+                )
                 if not pass_.has_work(state):
                     store.record_no_work(pass_.name)
                     counts["no_work"] += 1
