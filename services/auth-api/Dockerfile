@@ -1,4 +1,4 @@
-FROM gradle:9.4-jdk21-alpine AS build
+FROM gradle:9.5.1-jdk21-alpine AS build
 WORKDIR /app
 
 # Layer 1: Copy only build scripts for dependency caching
