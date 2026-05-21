@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CreateRepositoryInput } from '../types'
+import type { CreateRepositoryInput, Repository } from '../types'
 import { Card, Modal, useToast } from '@personal-stack/vue-common'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -16,15 +16,19 @@ onMounted(() => {
   void store.loadAll()
 })
 
-async function onCreate(input: CreateRepositoryInput): Promise<void> {
-  try {
-    const created = await store.create(input)
-    showCreate.value = false
-    toast.success('Repository created', `Attach a deploy key next so the agent can clone ${created.name}.`)
-    await router.push(`/repositories/${created.id}`)
-  } catch (e) {
-    toast.errorFromCatch('Could not create the repository', e)
-  }
+// The form (CreateRepositoryForm) now takes an awaited `onSubmit`
+// function prop and renders its own inline `<FormErrors>` banner +
+// per-field errors on rejection. The view stays thin: it forwards
+// the call to the store and handles only the success path (close
+// modal, success toast, navigate). Failures live on the form.
+async function onCreate(input: CreateRepositoryInput): Promise<Repository> {
+  return store.create(input)
+}
+
+async function onCreateSuccess(created: Repository): Promise<void> {
+  showCreate.value = false
+  toast.success('Repository created', `Attach a deploy key next so the agent can clone ${created.name}.`)
+  await router.push(`/repositories/${created.id}`)
 }
 </script>
 
@@ -87,7 +91,7 @@ async function onCreate(input: CreateRepositoryInput): Promise<void> {
     </ul>
 
     <Modal :open="showCreate" title="Create repository" @close="showCreate = false">
-      <CreateRepositoryForm @submit="onCreate" @cancel="showCreate = false" />
+      <CreateRepositoryForm :on-submit="onCreate" @success="onCreateSuccess" @cancel="showCreate = false" />
     </Modal>
   </div>
 </template>
