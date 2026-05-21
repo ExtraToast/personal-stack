@@ -8,6 +8,7 @@ import com.jorisjonkers.personalstack.knowledge.capture.CaptureRequest
 import com.jorisjonkers.personalstack.knowledge.capture.CaptureService
 import com.jorisjonkers.personalstack.knowledge.digest.DigestService
 import com.jorisjonkers.personalstack.knowledge.discovery.DiscoveryService
+import com.jorisjonkers.personalstack.knowledge.discovery.TagClusterService
 import com.jorisjonkers.personalstack.knowledge.domain.DigestCandidate
 import com.jorisjonkers.personalstack.knowledge.domain.KbAuditRow
 import com.jorisjonkers.personalstack.knowledge.domain.KbNote
@@ -37,6 +38,7 @@ class McpToolsTest {
     private val captureService = mockk<CaptureService>()
     private val recallService = mockk<RecallService>(relaxed = true)
     private val discoveryService = mockk<DiscoveryService>(relaxed = true)
+    private val tagClusterService = mockk<TagClusterService>(relaxed = true)
     private val digestService = mockk<DigestService>(relaxed = true)
     private val auditService = mockk<AuditService>(relaxed = true)
     private val topicRepository = mockk<TopicRepository>(relaxed = true)
@@ -52,7 +54,7 @@ class McpToolsTest {
         McpTools(
             CaptureMcpTools(captureService),
             ReadMcpTools(recallService),
-            DiscoveryMcpTools(discoveryService),
+            DiscoveryMcpTools(discoveryService, tagClusterService),
             AdminMcpTools(topicRepository, noteRepository, auditRepository, adminAuthorization),
             DigestMcpTools(digestService),
             AuditMcpTools(auditService),
@@ -95,6 +97,7 @@ class McpToolsTest {
             "knowledge.list_inbox",
             "knowledge.suggest_topic",
             "knowledge.find_duplicates",
+            "knowledge.list_tag_candidates",
             "knowledge.add_topic",
             "knowledge.update_topic",
             "knowledge.merge_topics",
