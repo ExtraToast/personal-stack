@@ -73,15 +73,20 @@ class RepositoriesFlowTest : PlaywrightTestBase() {
         page.locator("[data-testid='repository-attach-key']").click()
         assertThat(page.locator("[data-testid='attach-key-wizard']")).isVisible()
 
-        // Synthetic OpenSSH armour — assistant-api stores the bytes
-        // verbatim, doesn't crypto-verify them. The fingerprint
-        // emitted by VaultDeployKeyStore is the SHA-256 of the
-        // public key, which the UI displays on the detail surface
-        // once the writeback propagates.
+        // Synthetic OpenSSH armour. assistant-api stores the bytes
+        // verbatim but VaultDeployKeyStore.sha256Fingerprint
+        // Base64-decodes the middle field of the public key, so a
+        // non-Base64 stand-in (e.g. `AAAA-{uuid}`) raises an
+        // IllegalArgumentException → 400 before the write. The
+        // body below is the real github.com ed25519 host key: free
+        // to publish, valid OpenSSH single-line shape, and yields
+        // a stable fingerprint.
         page.locator("[data-testid='attach-key-private']").fill(
             "-----BEGIN OPENSSH PRIVATE KEY-----\nrt-private-$name\n-----END OPENSSH PRIVATE KEY-----\n",
         )
-        page.locator("[data-testid='attach-key-public']").fill("ssh-ed25519 AAAA-$name test@laptop")
+        page.locator("[data-testid='attach-key-public']").fill(
+            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl ps-test-$name",
+        )
         page.locator("[data-testid='attach-key-submit']").click()
 
         // Success path: wizard's `submit.run` resolves, the wizard
