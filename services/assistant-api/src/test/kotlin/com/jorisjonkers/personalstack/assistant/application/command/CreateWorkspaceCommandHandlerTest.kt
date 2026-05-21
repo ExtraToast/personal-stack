@@ -147,7 +147,7 @@ class CreateWorkspaceCommandHandlerTest {
     }
 
     @Test
-    fun `handle resolves from repositoryId and mirrors it into the legacy linkId`() {
+    fun `handle resolves from repositoryId and mirrors the legacy linkId when a matching github_links row exists`() {
         val repoId = RepositoryId.random()
         val repository =
             Repository(
@@ -162,6 +162,22 @@ class CreateWorkspaceCommandHandlerTest {
                 updatedAt = Instant.now(),
             )
         every { repositories.findById(repoId) } returns repository
+        // Mirror exists in github_links — the legacy per-link Vault
+        // path is still valid for this repo, so legacyLinkId carries
+        // through.
+        every { githubLinks.findById(GithubLinkId(repoId.value)) } returns
+            GithubLink(
+                id = GithubLinkId(repoId.value),
+                projectId = ProjectId.random(),
+                name = "personal-stack",
+                repoUrl = repository.repoUrl,
+                defaultBranch = repository.defaultBranch,
+                vaultKeyPath = repository.vaultKeyPath,
+                deployKeyFingerprint = repository.deployKeyFingerprint,
+                deployKeyAddedAt = repository.deployKeyAddedAt,
+                createdAt = repository.createdAt,
+                updatedAt = repository.updatedAt,
+            )
         val saved = mutableListOf<Workspace>()
         every { workspaces.save(capture(saved)) } answers { firstArg() }
         every { orchestrator.provision(any()) } returns
@@ -183,6 +199,52 @@ class CreateWorkspaceCommandHandlerTest {
         assertThat(saved.first().repositoryId).isEqualTo(repoId)
         assertThat(saved.first().githubLinkId?.value).isEqualTo(repoId.value)
         verify { gateway.clone(any(), "git@github.com:ExtraToast/personal-stack.git", "trunk") }
+    }
+
+    @Test
+    fun `handle leaves legacy linkId null when no github_links mirror exists`() {
+        // Regression for the production workspace 500: post-V9
+        // repositories created directly (no project link first) have
+        // no github_links row. The handler used to mirror the repo
+        // id into github_link_id unconditionally; the
+        // `workspaces.github_link_id → github_links.id` FK then
+        // violated and the insert failed with
+        // DataIntegrityViolationException → opaque 500. The fix is
+        // to leave legacyLinkId null when the mirror row is absent.
+        val repoId = RepositoryId.random()
+        val repository =
+            Repository(
+                id = repoId,
+                name = "personal-stack",
+                repoUrl = "git@github.com:ExtraToast/personal-stack.git",
+                defaultBranch = "main",
+                vaultKeyPath = "secret/data/agents/repositories/$repoId",
+                deployKeyFingerprint = null,
+                deployKeyAddedAt = null,
+                createdAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
+        every { repositories.findById(repoId) } returns repository
+        every { githubLinks.findById(GithubLinkId(repoId.value)) } returns null
+        val saved = mutableListOf<Workspace>()
+        every { workspaces.save(capture(saved)) } answers { firstArg() }
+        every { orchestrator.provision(any()) } returns
+            AgentRunnerOrchestrator.RunnerHandle("p", "v", "http://p.svc:8090")
+        every { gateway.clone(any(), any(), any()) } returns "/workspace/personal-stack"
+
+        handler.handle(
+            CreateWorkspaceCommand(
+                workspaceId = WorkspaceId.random(),
+                name = "demo",
+                repoUrl = null,
+                branch = null,
+                repositoryId = repoId,
+            ),
+        )
+
+        assertThat(saved.first().repoUrl).isEqualTo("git@github.com:ExtraToast/personal-stack.git")
+        assertThat(saved.first().repositoryId).isEqualTo(repoId)
+        assertThat(saved.first().githubLinkId).isNull()
     }
 
     @Test
@@ -322,10 +384,17 @@ class CreateWorkspaceCommandHandlerTest {
                 updatedAt = Instant.now(),
             )
         every { repositories.findById(repoId) } returns repository
-        every { workspaces.save(any()) } answers { firstArg() }
+        // The repository-path branch now also probes github_links for
+        // the legacy mirror (to decide whether the FK can be set), so
+        // mock the "no mirror" case to keep this test focused on the
+        // preference assertion.
+        every { githubLinks.findById(GithubLinkId(repoId.value)) } returns null
+        val saved = mutableListOf<Workspace>()
+        every { workspaces.save(capture(saved)) } answers { firstArg() }
         every { orchestrator.provision(any()) } returns
             AgentRunnerOrchestrator.RunnerHandle("p", "v", "http://p.svc:8090")
         every { gateway.clone(any(), any(), any()) } returns "/workspace/x"
+        val unrelatedLinkId = GithubLinkId.random()
 
         handler.handle(
             CreateWorkspaceCommand(
@@ -334,11 +403,14 @@ class CreateWorkspaceCommandHandlerTest {
                 repoUrl = null,
                 branch = null,
                 repositoryId = repoId,
-                githubLinkId = GithubLinkId.random(),
+                githubLinkId = unrelatedLinkId,
             ),
         )
 
-        // Repository path was used (githubLinks.findById would otherwise be needed).
-        verify(exactly = 0) { githubLinks.findById(any()) }
+        // Repository path was used: the saved row carries the repo's
+        // URL and the legacy-link id (which the link-path branch
+        // would have resolved differently) was never consulted.
+        assertThat(saved.first().repoUrl).isEqualTo(repository.repoUrl)
+        verify(exactly = 0) { githubLinks.findById(unrelatedLinkId) }
     }
 }

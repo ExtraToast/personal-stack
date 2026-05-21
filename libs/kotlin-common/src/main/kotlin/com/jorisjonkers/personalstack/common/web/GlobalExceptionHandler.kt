@@ -5,6 +5,7 @@ import com.jorisjonkers.personalstack.common.exception.NotFoundException
 import jakarta.validation.ConstraintViolationException
 import org.slf4j.LoggerFactory
 import org.slf4j.MDC
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.dao.EmptyResultDataAccessException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -229,6 +230,32 @@ open class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(body)
     }
 
+    @ExceptionHandler(DataIntegrityViolationException::class)
+    @Suppress("LongMethod")
+    fun handleDataIntegrity(
+        ex: DataIntegrityViolationException,
+        request: WebRequest?,
+    ): ResponseEntity<ProblemDetail> {
+        val info = PostgresConstraintParser.parse(ex)
+        val detail =
+            info.detail
+                ?: "Database constraint violation: ${ex.mostSpecificCause.message ?: "no message"}"
+        logClientError(ex, request, HttpStatus.UNPROCESSABLE_ENTITY)
+        val body =
+            problem(
+                type = URI.create("https://jorisjonkers.dev/errors/constraint-violation"),
+                title = "Constraint violation",
+                status = HttpStatus.UNPROCESSABLE_ENTITY,
+                detail = detail,
+                request = request,
+                errors = info.column?.let { listOf(FieldError(field = it, message = info.shortMessage())) }.orEmpty(),
+                constraint = info.constraint,
+                column = info.column,
+                referencedTable = info.referencedTable,
+            )
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(body)
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException::class)
     fun handleMessageNotReadable(
         ex: HttpMessageNotReadableException,
@@ -280,6 +307,7 @@ open class GlobalExceptionHandler {
      * lean on the same envelope shape (instance URI + traceId
      * extraction) without duplicating the boilerplate.
      */
+    @Suppress("LongParameterList")
     protected fun problem(
         type: URI,
         title: String,
@@ -291,6 +319,9 @@ open class GlobalExceptionHandler {
         exception: String? = null,
         kubernetesCode: Int? = null,
         kubernetesReason: String? = null,
+        constraint: String? = null,
+        column: String? = null,
+        referencedTable: String? = null,
     ): ProblemDetail =
         ProblemDetail(
             type = type,
@@ -303,6 +334,9 @@ open class GlobalExceptionHandler {
             exception = exception,
             kubernetesCode = kubernetesCode,
             kubernetesReason = kubernetesReason,
+            constraint = constraint,
+            column = column,
+            referencedTable = referencedTable,
         )
 
     protected fun currentTraceId(): String? = MDC.get("traceId") ?: MDC.get("trace_id")
