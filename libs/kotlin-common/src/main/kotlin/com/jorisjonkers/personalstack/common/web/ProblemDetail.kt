@@ -32,6 +32,19 @@ data class ProblemDetail(
     /** Kubernetes API server's `Status.reason` on a 502 (e.g.
      * `Forbidden`, `Invalid`, `NotFound`). */
     val kubernetesReason: String? = null,
+    /** Postgres constraint name on a 422 constraint violation
+     * (e.g. `workspaces_github_link_id_fkey`). Lets the UI bind
+     * the error to a specific input. */
+    val constraint: String? = null,
+    /** Column name parsed from the Postgres `Detail` line (e.g.
+     * `github_link_id`). The UI's [FieldError] consumer uses this
+     * to anchor the inline error to the right input. */
+    val column: String? = null,
+    /** Referenced table on a foreign-key violation (e.g.
+     * `github_links`). Useful when the message needs to read
+     * "the repository no longer exists" rather than naming a
+     * column the user doesn't think about. */
+    val referencedTable: String? = null,
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)

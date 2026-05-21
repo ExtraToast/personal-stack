@@ -10,6 +10,7 @@ import jakarta.validation.Path
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.slf4j.MDC
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.dao.EmptyResultDataAccessException
 import org.springframework.http.HttpStatus
 import org.springframework.validation.BindingResult
@@ -272,6 +273,108 @@ class GlobalExceptionHandlerTest {
         val response = handler.handleIllegalArgument(IllegalArgumentException("x"), req)
 
         assertThat(response.body!!.instance).isNull()
+    }
+
+    @Test
+    fun `handleDataIntegrity maps an FK violation to 422 with constraint+column+referencedTable`() {
+        // Regression for the production workspace 500: the upsert hit
+        // `workspaces_github_link_id_fkey` because the legacy mirror
+        // pointed at a non-existent github_links row. The handler
+        // must surface the FK so the UI can render the error next to
+        // the field that referenced the missing row.
+        val cause =
+            FakePsqlException(
+                serverErrorMessage =
+                    FakeServerErrorMessage(
+                        constraint = "workspaces_github_link_id_fkey",
+                        detail = "Key (github_link_id)=(a1b2c3d4-e5f6-…) is not present in table \"github_links\".",
+                    ),
+                sqlState = "23503",
+                message = "ERROR: insert or update on table \"workspaces\" violates foreign key constraint",
+            )
+        val ex = DataIntegrityViolationException("FK violation", cause)
+
+        val response = handler.handleDataIntegrity(ex, webRequest("/api/v1/workspaces"))
+
+        assertThat(response.statusCode).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY)
+        val body = response.body!!
+        assertThat(body.status).isEqualTo(422)
+        assertThat(body.title).isEqualTo("Constraint violation")
+        assertThat(body.constraint).isEqualTo("workspaces_github_link_id_fkey")
+        assertThat(body.column).isEqualTo("github_link_id")
+        assertThat(body.referencedTable).isEqualTo("github_links")
+        assertThat(body.detail).contains("github_link_id")
+        assertThat(body.detail).contains("github_links")
+        assertThat(body.errors).hasSize(1)
+        assertThat(body.errors[0].field).isEqualTo("github_link_id")
+        assertThat(body.type).isEqualTo(URI.create("https://jorisjonkers.dev/errors/constraint-violation"))
+    }
+
+    @Test
+    fun `handleDataIntegrity maps a UNIQUE violation to 422 with constraint+column`() {
+        val cause =
+            FakePsqlException(
+                serverErrorMessage =
+                    FakeServerErrorMessage(
+                        constraint = "repositories_name_key",
+                        detail = "Key (name)=(personal-stack) already exists.",
+                    ),
+                sqlState = "23505",
+            )
+        val ex = DataIntegrityViolationException("unique violation", cause)
+
+        val response = handler.handleDataIntegrity(ex, webRequest("/api/v1/repositories"))
+
+        assertThat(response.statusCode).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY)
+        val body = response.body!!
+        assertThat(body.constraint).isEqualTo("repositories_name_key")
+        assertThat(body.column).isEqualTo("name")
+        assertThat(body.referencedTable).isNull()
+        assertThat(body.detail).contains("already in use")
+        assertThat(body.errors).hasSize(1)
+        assertThat(body.errors[0].field).isEqualTo("name")
+    }
+
+    @Test
+    fun `handleDataIntegrity falls back to the bare cause message when no PSQLException is in the chain`() {
+        // E.g. an H2-driven test, or a synthetic DataIntegrityViolation
+        // thrown by jOOQ itself without a Postgres-shaped cause.
+        val ex = DataIntegrityViolationException("Something failed without a structured cause")
+
+        val response = handler.handleDataIntegrity(ex, webRequest("/api/v1/whatever"))
+
+        assertThat(response.statusCode).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY)
+        val body = response.body!!
+        assertThat(body.constraint).isNull()
+        assertThat(body.column).isNull()
+        assertThat(body.detail).contains("Something failed without a structured cause")
+        assertThat(body.errors).isEmpty()
+    }
+
+    /**
+     * Fake stand-in for `org.postgresql.util.PSQLException`. The parser
+     * uses structural typing (`getServerErrorMessage`-shaped duck) so
+     * this fake is sufficient and the test stays driver-free.
+     */
+    @Suppress("unused", "MemberVisibilityCanBePrivate")
+    private class FakePsqlException(
+        message: String? = "fake psql exception",
+        private val serverErrorMessage: FakeServerErrorMessage? = null,
+        private val sqlState: String? = null,
+    ) : RuntimeException(message) {
+        fun getServerErrorMessage(): FakeServerErrorMessage? = serverErrorMessage
+
+        fun getSQLState(): String? = sqlState
+    }
+
+    @Suppress("unused", "MemberVisibilityCanBePrivate")
+    private class FakeServerErrorMessage(
+        private val constraint: String? = null,
+        private val detail: String? = null,
+    ) {
+        fun getConstraint(): String? = constraint
+
+        fun getDetail(): String? = detail
     }
 
     @Test

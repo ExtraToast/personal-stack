@@ -149,15 +149,30 @@ class CreateWorkspaceCommandHandler(
                     "repository not found: repositoryId=${repoId.value}",
                 )
         val branch = command.branch?.takeIf { it.isNotBlank() } ?: repo.defaultBranch
-        // legacyLinkId mirrors repositoryId during the V9 window so
-        // the orchestrator's deploy-key lookup keeps working against
-        // the legacy per-link Vault path; once the orchestrator is
-        // migrated this assignment goes away.
+        // legacyLinkId is set ONLY when a real github_links row with
+        // the same id exists. Setting it unconditionally used to be
+        // safe under the assumption every repository carried a 1:1
+        // github_links mirror, but post-V9 repositories created
+        // directly (no project link first) don't — the
+        // `workspaces.github_link_id → github_links.id` FK then
+        // violates on insert with `DataIntegrityViolationException`
+        // and the workspace create fails with an opaque 500.
+        //
+        // The orchestrator's `resolveKeyMaterial` accepts a null
+        // linkId (falls back to the cluster-wide deploy key); this
+        // is the right shape once the per-link Vault path is fully
+        // retired anyway.
+        val legacyLinkId = GithubLinkId(repoId.value)
+        val realLegacyId =
+            githubLinks
+                .ifAvailable
+                ?.findById(legacyLinkId)
+                ?.let { legacyLinkId }
         return ResolvedRepo(
             repoUrl = repo.repoUrl,
             branch = branch,
             repositoryId = repoId,
-            legacyLinkId = GithubLinkId(repoId.value),
+            legacyLinkId = realLegacyId,
         )
     }
 
