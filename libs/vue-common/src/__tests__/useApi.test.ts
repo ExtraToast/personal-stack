@@ -86,4 +86,42 @@ describe('useApi', () => {
       expect(e.message).toBe('Bad Gateway')
     }
   })
+
+  it('returns undefined on a 204 No Content', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }))
+    const api = useApi()
+    const result = await api.del('/workspaces/123')
+    expect(result).toBeUndefined()
+  })
+
+  it('returns undefined on a 202 Accepted with an empty body (fire-and-forget commands)', async () => {
+    // Regression: assistant-api's POST /repositories/{id}/key returns
+    // 202 Accepted with no body. The previous parser called
+    // response.json() unconditionally on every 2xx that wasn't 204 and
+    // crashed with `JSON.parse: unexpected end of data`, surfacing as
+    // a misleading "Could not attach the deploy key" toast in the UI
+    // even when the backend had accepted the command.
+    fetchMock.mockResolvedValueOnce(new Response('', { status: 202 }))
+    const api = useApi()
+    const result = await api.post('/repositories/abc/key', { privateKeyOpenssh: 'x', publicKeyOpenssh: 'y' })
+    expect(result).toBeUndefined()
+  })
+
+  it('returns undefined on a 200 with an empty body', async () => {
+    fetchMock.mockResolvedValueOnce(new Response('', { status: 200 }))
+    const api = useApi()
+    const result = await api.get('/anything')
+    expect(result).toBeUndefined()
+  })
+
+  it('returns undefined on a 2xx with a non-JSON Content-Type', async () => {
+    // An upstream proxy that surfaces a plain-text health blurb on a
+    // 200 must not crash the client. The endpoint is non-JSON; the
+    // caller's `T` is therefore irrelevant, and `undefined` is the
+    // honest default.
+    fetchMock.mockResolvedValueOnce(new Response('OK', { status: 200, headers: { 'Content-Type': 'text/plain' } }))
+    const api = useApi()
+    const result = await api.get('/healthz')
+    expect(result).toBeUndefined()
+  })
 })

@@ -26,8 +26,7 @@ export function useApi(options: ApiOptions = {}): UseApiReturn {
     if (!response.ok) {
       throw await problemFromResponse(response)
     }
-    const json: Promise<T> = response.json()
-    return json
+    return parseOkResponse<T>(response)
   }
 
   return {
@@ -58,4 +57,35 @@ export async function problemFromResponse(response: Response): Promise<ApiError>
     }
   }
   return new ApiError(problem)
+}
+
+/**
+ * Deserializes a 2xx response body. Callers that POST to fire-and-forget
+ * endpoints (e.g. `202 Accepted` with no body, the common shape for
+ * eventually-consistent commands) used to hit `JSON.parse: unexpected
+ * end of data` because `response.json()` is unforgiving on empty input.
+ * The contract here:
+ *
+ * - `204 No Content` → `undefined` (the only status that's spec-bound to have no body).
+ * - Empty body of any other 2xx → `undefined` (e.g. `202 Accepted`, idempotent `200`).
+ * - Non-JSON Content-Type → `undefined` (a misconfigured proxy sending HTML on a 2xx, etc.).
+ * - Otherwise parsed JSON as `T`.
+ */
+export async function parseOkResponse<T>(response: Response): Promise<T> {
+  if (response.status === 204) {
+    // eslint-disable-next-line ts/consistent-type-assertions -- 204 No Content has no body; caller expects T but receives undefined
+    return undefined as unknown as T
+  }
+  const text = await response.text()
+  if (text.length === 0) {
+    // eslint-disable-next-line ts/consistent-type-assertions -- empty 2xx body has no payload to deserialize
+    return undefined as unknown as T
+  }
+  const contentType = response.headers.get('Content-Type') ?? ''
+  if (!contentType.toLowerCase().includes('json')) {
+    // eslint-disable-next-line ts/consistent-type-assertions -- non-JSON 2xx body has no typed payload
+    return undefined as unknown as T
+  }
+  // eslint-disable-next-line ts/consistent-type-assertions -- JSON.parse() returns `any`; the helper's signature is the contract that surfaces the actual response shape to callers
+  return JSON.parse(text) as T
 }
