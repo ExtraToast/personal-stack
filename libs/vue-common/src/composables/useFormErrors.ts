@@ -1,5 +1,6 @@
-import type { ApiError, FieldError, ProblemDetail } from '../types'
+import type { FieldError, ProblemDetail } from '../types'
 import { computed, ref, shallowRef } from 'vue'
+import { ApiError } from '../types'
 
 /**
  * Form-error binding for ProblemDetail-aware fetch helpers.
@@ -165,19 +166,10 @@ function isApiError(e: unknown): e is ApiError {
 }
 
 function syntheticApiError(detail: string): ApiError {
-  // Build a minimal-shape ApiError without importing the class
-  // directly (the import path differs in the consumer tree, and the
-  // banner only needs the `problem.detail` field). The Error-derived
-  // shape is enough for the banner to read.
-  const problem: ProblemDetail = {
+  return new ApiError({
     type: 'about:blank',
     title: 'Request failed',
     status: 0,
     detail,
-  }
-  const err = new Error(detail) as ApiError
-  ;(err as { name: string }).name = 'ApiError'
-  ;(err as { problem: ProblemDetail }).problem = problem
-  ;(err as { status: number }).status = 0
-  return err
+  })
 }
