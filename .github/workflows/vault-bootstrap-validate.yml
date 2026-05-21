@@ -107,6 +107,20 @@ jobs:
           sudo mv /tmp/vault-cli/vault /usr/local/bin/vault
           vault version
 
+      - name: Enable the transit secrets engine
+        # bootstrap-auth.sh assumes `transit/` is already mounted and
+        # reads/writes `transit/keys/auth-api-jwt` against it. In
+        # production the engine is enabled by hand on initial Vault
+        # bring-up; in CI the dev-mode Vault starts fresh on every
+        # workflow run, so we have to provision the mount before the
+        # script runs or every `vault write transit/keys/…` returns
+        # a 404 mount-not-found.
+        env:
+          VAULT_ADDR: http://127.0.0.1:8200
+          VAULT_TOKEN: dev-root-token
+        run: |
+          vault secrets enable transit
+
       - name: Seed the KV paths the script reads at runtime
         # Late in the script the dynamic-secrets blocks (rabbitmq /
         # postgres roles) read connection creds back out of Vault:
