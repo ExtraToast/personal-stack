@@ -38,6 +38,33 @@ export interface ProblemDetail {
    * `Forbidden`, `Invalid`, `NotFound`).
    */
   kubernetesReason?: string
+  /**
+   * Postgres constraint name on a 422 constraint violation
+   * (e.g. `workspaces_github_link_id_fkey`). Pair with `column`
+   * to bind the error to a specific FormField.
+   */
+  constraint?: string
+  /**
+   * Column name parsed from the Postgres detail line — the natural
+   * field name the UI should use to look up the matching FormField
+   * (e.g. `github_link_id`, `name`).
+   */
+  column?: string
+  /**
+   * Referenced table on a foreign-key violation. Useful when the
+   * inline message should read "the repository no longer exists"
+   * rather than naming a column the user doesn't think about.
+   */
+  referencedTable?: string
+  /**
+   * Upstream runner phase on a 503 from the agent-session
+   * provisioning path (`Pending`, `NotReady`, `ConnectionRefused`,
+   * `Unknown`). Pair with `retryAfterSeconds` to render a
+   * meaningful inline "Runner not ready, retry in 5s" message.
+   */
+  runnerStatus?: string
+  /** Suggested wait before retrying a 503; mirrors the `Retry-After` header. */
+  retryAfterSeconds?: number
 }
 
 export interface FieldError {
