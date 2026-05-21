@@ -1,5 +1,5 @@
 import { ApiError } from '../types'
-import { problemFromResponse } from './useApi'
+import { parseOkResponse, problemFromResponse } from './useApi'
 import { useAuth } from './useAuth'
 
 interface ApiWithAuthOptions {
@@ -49,13 +49,7 @@ export function useApiWithAuth(options: ApiWithAuthOptions = {}): ApiClient {
       throw await problemFromResponse(response)
     }
 
-    if (response.status === 204) {
-      // eslint-disable-next-line ts/consistent-type-assertions -- 204 No Content has no body; caller expects T but receives undefined
-      return undefined as unknown as T
-    }
-
-    const json: Promise<T> = response.json()
-    return json
+    return parseOkResponse<T>(response)
   }
 
   return {
