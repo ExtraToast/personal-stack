@@ -48,7 +48,7 @@ import java.net.URI
  * before the generic chain runs.
  */
 @RestControllerAdvice
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LargeClass")
 open class GlobalExceptionHandler {
     private val log = LoggerFactory.getLogger(GlobalExceptionHandler::class.java)
 
