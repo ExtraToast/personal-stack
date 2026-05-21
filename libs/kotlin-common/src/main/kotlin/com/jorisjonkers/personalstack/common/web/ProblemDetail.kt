@@ -45,6 +45,16 @@ data class ProblemDetail(
      * "the repository no longer exists" rather than naming a
      * column the user doesn't think about. */
     val referencedTable: String? = null,
+    /** Upstream runner phase on a 503 from the agent-session
+     * provisioning path (e.g. `Pending`, `NotReady`,
+     * `ConnectionRefused`). Lets the UI render a meaningful
+     * "Runner not ready, retry in 5s" inline instead of a bare
+     * 5xx. */
+    val runnerStatus: String? = null,
+    /** Hint to the caller (and to the corresponding `Retry-After`
+     * response header) for how many seconds to wait before
+     * retrying a 503. */
+    val retryAfterSeconds: Int? = null,
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
