@@ -18,29 +18,29 @@
   },
   "dependencies": {
     "@iconify-json/mdi": "^1.2.3",
-    "@iconify-json/simple-icons": "^1.2.81",
+    "@iconify-json/simple-icons": "^1.2.82",
     "@iconify/vue": "^5.0.1",
     "@personal-stack/vue-common": "workspace:*",
     "pinia": "^3.0.4",
     "primevue": "^4.5.5",
     "vue": "^3.5.34",
-    "vue-i18n": "^11.4.0",
-    "vue-router": "^5.0.6"
+    "vue-i18n": "^11.4.2",
+    "vue-router": "^5.0.7"
   },
   "devDependencies": {
-    "@playwright/test": "^1.59.1",
+    "@playwright/test": "^1.60.0",
     "@stryker-mutator/core": "^9.6.1",
     "@stryker-mutator/vitest-runner": "^9.6.1",
-    "@tailwindcss/vite": "^4.2.4",
+    "@tailwindcss/vite": "^4.3.0",
     "@vitejs/plugin-vue": "^6.0.6",
-    "@vitest/coverage-v8": "^4.1.5",
+    "@vitest/coverage-v8": "^4.1.6",
     "@vue/test-utils": "^2.4.10",
     "dependency-cruiser": "^17.4.0",
     "jsdom": "^29.1.1",
-    "tailwindcss": "^4.2.4",
+    "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
-    "vite": "^8.0.10",
-    "vitest": "^4.1.5",
-    "vue-tsc": "^3.2.8"
+    "vite": "^8.0.12",
+    "vitest": "^4.1.6",
+    "vue-tsc": "^3.2.9"
   }
 }
