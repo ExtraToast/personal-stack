@@ -1,0 +1,217 @@
+name: Production Smoke
+
+# Post-deploy canary that drives the agents subsystem end-to-end
+# against the production API. Catches the class of failure CI
+# structurally cannot — cluster-state drift (Vault policy missing,
+# bootstrap Job stuck, RBAC regressed, image rolled back) — within
+# minutes of the next deploy, instead of the next user attempting
+# the flow.
+#
+# Pattern of failures this guards against:
+# - PR #405: assistant-api Vault policy missing `secret/data/agents/*` →
+#   POST /api/v1/repositories/{id}/key returns 500.
+# - PR #409: vault-bootstrap-auth Job failed on a new node →
+#   #405's fixed policy never reached Vault.
+# - PR #386: auth-api replica count too low → sign-in 503 during
+#   Keel-driven rollouts.
+# - Anything the in-cluster Coverage Threshold + Fabric8 integration
+#   tests (T3 Stage A) wouldn't have caught: drift between the
+#   tested artefact and the actual deployed state.
+#
+# The canary uses a synthetic test user with the ASSISTANT service
+# permission, attaches a fake deploy key to a freshly-created
+# repository, and deletes the repository afterwards. Two-state
+# delta: every run creates and tears down the same shape.
+#
+# This is a NON-BLOCKING canary. A failure here pages the on-call
+# channel (Slack webhook) and surfaces in the workflow run summary,
+# but doesn't block the deploy that landed before it. The deploy
+# itself is gated by the in-CI checks (Full Pipeline, Vault
+# Bootstrap Validate, System Tests). This workflow's job is to
+# confirm the deploy actually reached a working state in prod.
+#
+# ─── Setup (one-time, manual) ─────────────────────────────────────
+#
+# Prerequisites stored as GitHub Actions repository secrets:
+#
+#   PROD_CANARY_USERNAME            — auth-api username of the
+#                                     synthetic canary user.
+#   PROD_CANARY_PASSWORD            — that user's password.
+#   PROD_SLACK_WEBHOOK_URL          — incoming webhook for the
+#                                     on-call notification on
+#                                     failure (optional; without
+#                                     it, only the workflow run
+#                                     fails).
+#
+# Seed the user once via the auth-api admin endpoints (run from a
+# laptop with kube-personal active):
+#
+#   ./infra/scripts/make-admin.sh canary-bot   # creates + confirms
+#   kube-personal && kubectl -n auth-system exec deploy/auth-api -- \
+#     curl -X POST http://localhost:8081/api/v1/admin/users/canary-bot/permissions \
+#     -H 'Content-Type: application/json' \
+#     -d '{"service":"ASSISTANT","granted":true}'
+#
+# Demote canary-bot from ADMIN once permission is granted so the
+# canary's blast-radius matches a real user.
+#
+# ─── Trigger ──────────────────────────────────────────────────────
+#
+# - Manual (`workflow_dispatch`): always available so an on-call
+#   can re-run the canary on demand after a fix.
+# - Scheduled (hourly): catches drift between deploys.
+# - On push to `main`: 5 min after the push so Flux has time to
+#   reconcile and Keel has time to roll any image bumps.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 * * * *' # offset off the hour so we don't pile onto Keel polls
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  ASSISTANT_API_URL: https://assistant.jorisjonkers.dev
+  AUTH_API_URL: https://auth.jorisjonkers.dev
+
+jobs:
+  smoke:
+    name: End-to-end attach-key smoke against prod
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Skip cleanly when the secrets aren't configured yet — the
+    # workflow file is committed but the seed user is out-of-band.
+    # `vars.PROD_CANARY_ENABLED` is the operator's opt-in switch.
+    if: ${{ vars.PROD_CANARY_ENABLED == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Allow Keel to land any post-deploy image bumps
+        # Keel polls ghcr every ~2 min. On `push: main` this workflow
+        # races with the rollout; the sleep below lets Keel see the
+        # new latest, restart the deployment, and the pod become
+        # ready before we drive any user-visible request through it.
+        if: ${{ github.event_name == 'push' }}
+        run: sleep 180
+
+      - name: Acquire a session cookie via session-login
+        id: login
+        env:
+          CANARY_USERNAME: ${{ secrets.PROD_CANARY_USERNAME }}
+          CANARY_PASSWORD: ${{ secrets.PROD_CANARY_PASSWORD }}
+        run: |
+          if [ -z "${CANARY_USERNAME:-}" ] || [ -z "${CANARY_PASSWORD:-}" ]; then
+            echo "::error::PROD_CANARY_USERNAME / PROD_CANARY_PASSWORD secrets are unset. See the workflow header for one-time setup."
+            exit 1
+          fi
+          # Use a per-run cookie jar so concurrent runs don't share state.
+          cookies=$(mktemp)
+          echo "cookies=${cookies}" >> "$GITHUB_OUTPUT"
+
+          # auth-api's `/api/v1/auth/session-login` exchanges
+          # username+password for a session cookie + a CSRF cookie.
+          # No OIDC dance here — that's reserved for browser flows.
+          curl -sf -c "${cookies}" \
+            -X POST "${AUTH_API_URL}/api/v1/auth/session-login" \
+            -H 'Content-Type: application/json' \
+            --data "{\"username\":\"${CANARY_USERNAME}\",\"password\":\"${CANARY_PASSWORD}\"}" \
+            -o /tmp/login.json
+          if ! grep -q 'JSESSIONID\|SESSION' "${cookies}"; then
+            echo "::error::session cookie never set after login"
+            cat /tmp/login.json >&2 || true
+            exit 1
+          fi
+
+      - name: Create a synthetic repository
+        id: create
+        env:
+          COOKIES: ${{ steps.login.outputs.cookies }}
+        run: |
+          name="canary-$(date -u +%Y%m%dT%H%M%SZ)"
+          csrf=$(awk '/XSRF-TOKEN/{print $7}' "${COOKIES}" | tail -1)
+          if [ -z "$csrf" ]; then
+            echo "::error::XSRF-TOKEN cookie missing — auth-api may have changed shape"
+            exit 1
+          fi
+          body=$(curl -sf -b "${COOKIES}" \
+            -X POST "${ASSISTANT_API_URL}/api/v1/repositories" \
+            -H 'Content-Type: application/json' \
+            -H "X-XSRF-TOKEN: ${csrf}" \
+            --data "{\"name\":\"${name}\",\"repoUrl\":\"git@github.com:owner/${name}.git\",\"defaultBranch\":\"main\"}")
+          repo_id=$(jq -r '.id' <<<"$body")
+          if [ -z "$repo_id" ] || [ "$repo_id" = "null" ]; then
+            echo "::error::no id in POST /repositories response: $body"
+            exit 1
+          fi
+          echo "repo_id=${repo_id}" >> "$GITHUB_OUTPUT"
+          echo "repo_name=${name}" >> "$GITHUB_OUTPUT"
+          echo "created repository ${repo_id} (${name})"
+
+      - name: Attach a synthetic deploy key — the failure mode that shipped 5× this month
+        # PR #405 / #409 / #426 all surfaced as 5xx on this exact
+        # endpoint. Driving it on every reconcile is the closest
+        # this workflow can get to a real-user signal.
+        env:
+          COOKIES: ${{ steps.login.outputs.cookies }}
+          REPO_ID: ${{ steps.create.outputs.repo_id }}
+          REPO_NAME: ${{ steps.create.outputs.repo_name }}
+        run: |
+          csrf=$(awk '/XSRF-TOKEN/{print $7}' "${COOKIES}" | tail -1)
+          public_key="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl canary-${REPO_NAME}"
+          private_key=$'-----BEGIN OPENSSH PRIVATE KEY-----\ncanary-private-'"${REPO_NAME}"'\n-----END OPENSSH PRIVATE KEY-----\n'
+          curl -sf -b "${COOKIES}" \
+            -X POST "${ASSISTANT_API_URL}/api/v1/repositories/${REPO_ID}/key" \
+            -H 'Content-Type: application/json' \
+            -H "X-XSRF-TOKEN: ${csrf}" \
+            --data "$(jq -n --arg pk "$private_key" --arg pub "$public_key" \
+              '{privateKeyOpenssh:$pk, publicKeyOpenssh:$pub}')" \
+            -o /dev/null
+          echo "attach-key returned 2xx for repository ${REPO_ID}"
+
+      - name: Verify the fingerprint propagates onto the repository detail
+        env:
+          COOKIES: ${{ steps.login.outputs.cookies }}
+          REPO_ID: ${{ steps.create.outputs.repo_id }}
+        run: |
+          # The fingerprint is computed synchronously by
+          # VaultDeployKeyStore.sha256Fingerprint and persisted on
+          # the repository row inside the same @Transactional
+          # CommandHandler, so it's available on the next GET. A
+          # missing fingerprint here implies either the Vault write
+          # silently fell back to a no-op store (PR #405 shape) or
+          # the row update was rolled back.
+          body=$(curl -sf -b "${COOKIES}" "${ASSISTANT_API_URL}/api/v1/repositories/${REPO_ID}")
+          fingerprint=$(jq -r '.repository.deployKeyFingerprint // .deployKeyFingerprint // empty' <<<"$body")
+          if [ -z "$fingerprint" ]; then
+            echo "::error::deployKeyFingerprint is empty after attach. Body: $body"
+            exit 1
+          fi
+          echo "fingerprint propagated: ${fingerprint}"
+
+      - name: Cleanup — delete the canary repository
+        if: always()
+        env:
+          COOKIES: ${{ steps.login.outputs.cookies }}
+          REPO_ID: ${{ steps.create.outputs.repo_id }}
+        run: |
+          if [ -z "${REPO_ID:-}" ]; then
+            echo "no repository to clean up"; exit 0
+          fi
+          csrf=$(awk '/XSRF-TOKEN/{print $7}' "${COOKIES}" | tail -1)
+          curl -sf -b "${COOKIES}" \
+            -X DELETE "${ASSISTANT_API_URL}/api/v1/repositories/${REPO_ID}" \
+            -H "X-XSRF-TOKEN: ${csrf}" \
+            -o /dev/null || echo "::warning::cleanup DELETE returned non-2xx — repository ${REPO_ID} may need manual cleanup"
+
+      - name: Page on-call if the smoke failed
+        if: failure() && env.WEBHOOK != ''
+        env:
+          WEBHOOK: ${{ secrets.PROD_SLACK_WEBHOOK_URL }}
+        run: |
+          curl -sf -X POST "${WEBHOOK}" \
+            -H 'Content-Type: application/json' \
+            --data "{\"text\":\":rotating_light: prod-smoke failed — assistant attach-key flow broken in production. Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            || true
