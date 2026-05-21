@@ -14,6 +14,9 @@ services:
   assistant-api:
     image: personal-stack/assistant-api:ci
     pull_policy: never
+    depends_on:
+      vault:
+        condition: service_healthy
     environment:
       DB_PASSWORD: ci_assistant_pass
       OTEL_TRACES_EXPORTER: none
@@ -29,6 +32,20 @@ services:
       # by Fabric8AgentRunnerOrchestratorIntegrationTest under
       # assistant-api/integrationTest, against a Testcontainers k3s.
       SPRING_PROFILES_ACTIVE: system-test
+      # Real Vault in the CI stack so the deploy-key write path
+      # actually runs end-to-end. Previously this was disabled,
+      # which meant production-only failures like PRs #405 / #409 /
+      # #426 (Vault policy missing, bootstrap Job broken,
+      # 202-empty-body JSON parse crash) could ship with green CI.
+      # Token auth against dev-mode Vault's root token — sufficient
+      # for the system-test stack where the goal is to exercise the
+      # write path, not the policy boundary (policy enforcement is
+      # validated by the bootstrap-validate CI job and prod canary,
+      # tracks T4 + T5 of the plan).
+      VAULT_ENABLED: 'true'
+      VAULT_ADDR: http://vault:8200
+      VAULT_AUTHENTICATION: TOKEN
+      SPRING_CLOUD_VAULT_TOKEN: dev-root-token
 
   auth-ui:
     image: personal-stack/auth-ui:ci

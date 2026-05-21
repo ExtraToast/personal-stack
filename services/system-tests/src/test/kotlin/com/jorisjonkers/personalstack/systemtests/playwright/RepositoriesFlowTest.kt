@@ -43,7 +43,20 @@ class RepositoriesFlowTest : PlaywrightTestBase() {
     }
 
     @Test
-    fun `attach-key wizard surfaces the meaningful 4xx when Vault is disabled`() {
+    fun `attach-key wizard writes the key to Vault and the wizard closes on success`() {
+        // Happy-path end-to-end. The CI compose stack now wires
+        // real Vault into assistant-api (see docker-compose.ci.yml's
+        // assistant-api `VAULT_*` env block), so this exercise drives
+        // the full write path: UI submits → assistant-api validates
+        // → SpringVaultKeyValueWriter writes
+        // `secret/data/agents/repositories/<id>` → 202 Accepted →
+        // wizard closes → success toast appears.
+        //
+        // This is the test that would have caught PR #405 (missing
+        // Vault policy), PR #409 (bootstrap Job broken by image
+        // drift), and PR #426 (UI crashing on 202 empty-body) all
+        // at once — none of them had a happy-path Playwright spec
+        // before this PR.
         val user = registerAndConfirm()
         TestHelper.grantServicePermission(user.username, "ASSISTANT")
         loginViaApi(user)
@@ -57,36 +70,29 @@ class RepositoriesFlowTest : PlaywrightTestBase() {
         page.locator("[data-testid='repo-create-submit']").click()
         page.waitForURL { it.contains("/repositories/") }
 
-        // Open the attach-key wizard.
         page.locator("[data-testid='repository-attach-key']").click()
         assertThat(page.locator("[data-testid='attach-key-wizard']")).isVisible()
 
-        // Synthetic OpenSSH armour — assistant-api validates the
-        // PEM shape but doesn't crypto-verify the bytes.
+        // Synthetic OpenSSH armour — assistant-api stores the bytes
+        // verbatim, doesn't crypto-verify them. The fingerprint
+        // emitted by VaultDeployKeyStore is the SHA-256 of the
+        // public key, which the UI displays on the detail surface
+        // once the writeback propagates.
         page.locator("[data-testid='attach-key-private']").fill(
             "-----BEGIN OPENSSH PRIVATE KEY-----\nrt-private-$name\n-----END OPENSSH PRIVATE KEY-----\n",
         )
         page.locator("[data-testid='attach-key-public']").fill("ssh-ed25519 AAAA-$name test@laptop")
         page.locator("[data-testid='attach-key-submit']").click()
 
-        // POST /key writes to Vault, which is disabled in the
-        // docker-compose system-test stack. PR #383 surfaces the
-        // upstream failure as a meaningful 502 ProblemDetail rather
-        // than a bare 500. The UI keeps the modal open (so the user
-        // can retry without losing typed input), surfaces a toast
-        // carrying the ProblemDetail, and flips the SubmitButton to
-        // its `failure` indicator.
-        assertThat(page.locator("[data-testid='attach-key-wizard']")).isVisible()
-        val toast = page.locator("[data-testid='toast'][data-kind='error']").first()
+        // Success path: wizard's `submit.run` resolves, the wizard
+        // emits `success`, and RepositoryView closes the modal.
+        assertThat(page.locator("[data-testid='attach-key-wizard']")).not().isVisible()
+        // Success toast surfaces in the host. The matcher targets
+        // `data-kind="success"` so a stale red toast from a prior
+        // failure can't satisfy the assertion.
+        val toast = page.locator("[data-testid='toast'][data-kind='success']").first()
         assertThat(toast).isVisible()
-        assertThat(toast).containsText("Could not attach the deploy key")
-        // SubmitButton emits `data-status="failure"` after the
-        // mutation rejects. `useMutationState` auto-resets to `idle`
-        // after 2_000 ms, so this assertion has to race the timer —
-        // Playwright's default 5 s polling is well within that window
-        // on the first poll after the click resolves.
-        assertThat(page.locator("[data-testid='attach-key-submit']"))
-            .hasAttribute("data-status", "failure")
+        assertThat(toast).containsText("Deploy key attached")
     }
 
     @Test
