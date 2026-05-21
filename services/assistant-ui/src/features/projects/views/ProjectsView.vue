@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Project } from '../types'
 import { Card, Modal, useToast } from '@personal-stack/vue-common'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -14,15 +15,14 @@ onMounted(() => {
   void store.loadAll()
 })
 
-async function onCreate(input: { name: string; slug: string; description: string }): Promise<void> {
-  try {
-    const p = await store.create(input)
-    showCreate.value = false
-    toast.success('Project created', 'Link a repository next to open workspaces against it.')
-    void router.push(`/projects/${p.id}`)
-  } catch (e) {
-    toast.errorFromCatch('Could not create the project', e)
-  }
+async function onCreate(input: { name: string; slug: string; description: string }): Promise<Project> {
+  return store.create(input)
+}
+
+async function onCreateSuccess(created: Project): Promise<void> {
+  showCreate.value = false
+  toast.success('Project created', 'Link a repository next to open workspaces against it.')
+  await router.push(`/projects/${created.id}`)
 }
 </script>
 
@@ -76,7 +76,7 @@ async function onCreate(input: { name: string; slug: string; description: string
     </ul>
 
     <Modal :open="showCreate" title="Create project" @close="showCreate = false">
-      <CreateProjectForm @submit="onCreate" @cancel="showCreate = false" />
+      <CreateProjectForm :on-submit="onCreate" @success="onCreateSuccess" @cancel="showCreate = false" />
     </Modal>
   </div>
 </template>

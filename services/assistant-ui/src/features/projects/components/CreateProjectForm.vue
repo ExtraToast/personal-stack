@@ -1,9 +1,17 @@
 <script setup lang="ts">
-import { FormField, SubmitButton, useMutationState, useToast } from '@personal-stack/vue-common'
+import type { Project } from '../types'
+import { FormErrors, FormField, SubmitButton, useFormErrors, useMutationState } from '@personal-stack/vue-common'
 import { computed, ref, watch } from 'vue'
 
+interface Props {
+  /** Awaited submit handler — same `onSubmit` shape as the other wizards. */
+  onSubmit: (input: { name: string; slug: string; description: string }) => Promise<Project>
+}
+
+const props = defineProps<Props>()
+
 const emit = defineEmits<{
-  submit: [value: { name: string; slug: string; description: string }]
+  success: [created: Project]
   cancel: []
 }>()
 
@@ -29,24 +37,33 @@ function onSlugInput(): void {
 }
 
 const submit = useMutationState<void>()
-const toast = useToast()
+const formErrors = useFormErrors()
 const canSubmit = computed(() => name.value.trim().length > 0 && slug.value.length > 0)
 
 async function onSubmit(): Promise<void> {
   if (!canSubmit.value) return
+  formErrors.clear()
   try {
+    let created: Project | undefined
     await submit.run(async () => {
-      emit('submit', { name: name.value.trim(), slug: slug.value, description: description.value.trim() })
+      created = await props.onSubmit({
+        name: name.value.trim(),
+        slug: slug.value,
+        description: description.value.trim(),
+      })
     })
+    if (created) emit('success', created)
   } catch (e) {
-    toast.errorFromCatch('Could not create the project', e)
+    formErrors.captureFromCatch(e)
   }
 }
 </script>
 
 <template>
   <form class="space-y-4" data-testid="create-project-form" @submit.prevent="onSubmit">
-    <FormField label="Name" required>
+    <FormErrors :error="formErrors.general.value" />
+
+    <FormField label="Name" required :error="formErrors.fieldErrorFor('name')">
       <template #default="{ id, invalid }">
         <input
           :id="id"
@@ -62,7 +79,12 @@ async function onSubmit(): Promise<void> {
       </template>
     </FormField>
 
-    <FormField label="Slug" required hint="Lowercase, hyphens only — used in KB scope project:&lt;slug&gt;.">
+    <FormField
+      label="Slug"
+      required
+      :error="formErrors.fieldErrorFor('slug')"
+      hint="Lowercase, hyphens only — used in KB scope project:&lt;slug&gt;."
+    >
       <template #default="{ id, invalid }">
         <input
           :id="id"
@@ -79,7 +101,11 @@ async function onSubmit(): Promise<void> {
       </template>
     </FormField>
 
-    <FormField label="Description" hint="Shown on the project's detail page. Optional.">
+    <FormField
+      label="Description"
+      :error="formErrors.fieldErrorFor('description')"
+      hint="Shown on the project's detail page. Optional."
+    >
       <template #default="{ id }">
         <textarea
           :id="id"

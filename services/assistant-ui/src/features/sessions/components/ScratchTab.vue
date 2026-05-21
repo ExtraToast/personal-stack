@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import { Card, FormField, SubmitButton, useMutationState, useToast } from '@personal-stack/vue-common'
+import {
+  Card,
+  FormErrors,
+  FormField,
+  SubmitButton,
+  useFormErrors,
+  useMutationState,
+  useToast,
+} from '@personal-stack/vue-common'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWorkspacesStore } from '@/features/workspaces'
@@ -8,6 +16,7 @@ const store = useWorkspacesStore()
 const router = useRouter()
 const toast = useToast()
 const create = useMutationState<void>()
+const formErrors = useFormErrors()
 const name = ref('')
 
 const scratchWorkspaces = computed(() => store.workspaces.filter((w) => w.kind === 'SCRATCH'))
@@ -18,6 +27,7 @@ onMounted(() => {
 
 async function onCreate(): Promise<void> {
   const label = name.value.trim() || `scratch-${new Date().toISOString().substring(11, 16).replace(':', '')}`
+  formErrors.clear()
   try {
     await create.run(async () => {
       const created = await store.create({ name: label, kind: 'SCRATCH' })
@@ -26,7 +36,7 @@ async function onCreate(): Promise<void> {
     })
     name.value = ''
   } catch (e) {
-    toast.errorFromCatch('Could not create scratch workspace', e)
+    formErrors.captureFromCatch(e)
   }
 }
 </script>
@@ -41,21 +51,28 @@ async function onCreate(): Promise<void> {
         A scratch workspace is a fresh Pod with a shell and the agent CLIs (Claude + Codex) — no git repo cloned. Useful
         for ad-hoc commands, package experiments, or pre-writing scripts before pulling them into a real project.
       </p>
-      <form class="mt-4 flex items-end gap-3" @submit.prevent="onCreate">
-        <FormField label="Name (optional)" hint="Defaults to a timestamped label.">
-          <template #default="{ id }">
-            <input
-              :id="id"
-              v-model="name"
-              type="text"
-              maxlength="80"
-              class="w-72 rounded border border-[var(--color-surface-border)] bg-[var(--color-surface-card)] px-3 py-2 text-sm"
-              placeholder="ad-hoc"
-              data-testid="scratch-name"
-            />
-          </template>
-        </FormField>
-        <SubmitButton label="Start scratch" :status="create.status.value" data-testid="scratch-create-submit" />
+      <form class="mt-4 space-y-3" @submit.prevent="onCreate">
+        <FormErrors :error="formErrors.general.value" />
+        <div class="flex items-end gap-3">
+          <FormField
+            label="Name (optional)"
+            :error="formErrors.fieldErrorFor('name')"
+            hint="Defaults to a timestamped label."
+          >
+            <template #default="{ id }">
+              <input
+                :id="id"
+                v-model="name"
+                type="text"
+                maxlength="80"
+                class="w-72 rounded border border-[var(--color-surface-border)] bg-[var(--color-surface-card)] px-3 py-2 text-sm"
+                placeholder="ad-hoc"
+                data-testid="scratch-name"
+              />
+            </template>
+          </FormField>
+          <SubmitButton label="Start scratch" :status="create.status.value" data-testid="scratch-create-submit" />
+        </div>
       </form>
     </Card>
 
