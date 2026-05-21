@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { FormField, SubmitButton, useMutationState, useToast } from '@personal-stack/vue-common'
+import {
+  FormErrors,
+  FormField,
+  SubmitButton,
+  useFormErrors,
+  useMutationState,
+  useToast,
+} from '@personal-stack/vue-common'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProjectsStore } from '@/features/projects'
@@ -30,6 +37,11 @@ const branch = ref('main')
 const name = ref('')
 
 const create = useMutationState<void>()
+// `formErrors` carries the structured error from the last failed
+// submit so the wizard can render an inline banner + per-field
+// error messages (per the ProblemDetail extensions from PRs #427
+// / #428) instead of just a top-right toast.
+const formErrors = useFormErrors()
 
 onMounted(async () => {
   try {
@@ -72,6 +84,7 @@ const keyAttached = computed(() => Boolean(selectedRepo.value?.deployKeyFingerpr
 
 async function onSubmit(): Promise<void> {
   if (!selectedProjectId.value || !selectedRepositoryId.value || !name.value.trim()) return
+  formErrors.clear()
   try {
     await create.run(async () => {
       const ws = await workspaces.create({
@@ -92,7 +105,11 @@ async function onSubmit(): Promise<void> {
     branch.value = 'main'
     name.value = ''
   } catch (e) {
-    toast.errorFromCatch('Could not create the workspace', e)
+    // Surface the structured error inline at the form (banner +
+    // per-field). The toast stays for non-form failures (background
+    // refreshes, navigation-time loads); keeping it on the submit
+    // path would duplicate the same content in two places.
+    formErrors.captureFromCatch(e)
   }
 }
 </script>
@@ -203,7 +220,14 @@ async function onSubmit(): Promise<void> {
     </section>
 
     <section v-else-if="step === 'pick-branch'" class="space-y-3">
-      <FormField label="Workspace name" required hint="Shown on the workspace card + used as the Pod name suffix.">
+      <FormErrors :error="formErrors.general.value" />
+
+      <FormField
+        label="Workspace name"
+        required
+        :error="formErrors.fieldErrorFor('name')"
+        hint="Shown on the workspace card + used as the Pod name suffix."
+      >
         <template #default="{ id }">
           <input
             :id="id"
@@ -218,7 +242,11 @@ async function onSubmit(): Promise<void> {
         </template>
       </FormField>
 
-      <FormField label="Branch" hint="The runner checks this out after the clone.">
+      <FormField
+        label="Branch"
+        :error="formErrors.fieldErrorFor('branch')"
+        hint="The runner checks this out after the clone."
+      >
         <template #default="{ id }">
           <input
             :id="id"

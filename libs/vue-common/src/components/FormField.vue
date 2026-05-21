@@ -6,14 +6,16 @@ interface Props {
   /**
    * Error message displayed under the field. When set, the wrapped
    * input gets `aria-invalid="true"` and `aria-describedby` pointing
-   * at the error id so screen readers announce it.
+   * at the error id so screen readers announce it. `undefined`
+   * is accepted explicitly so call sites can bind directly from a
+   * `useFormErrors().fieldErrorFor(name)` lookup without coercing.
    */
-  error?: string
+  error?: string | undefined
   /**
    * Optional helper hint displayed under the field when there's no
    * error. The error message takes precedence when both are set.
    */
-  hint?: string
+  hint?: string | undefined
   /**
    * Marks the field as required. Renders a red asterisk; doesn't
    * enforce HTML5 validation (that's on the inner input).
