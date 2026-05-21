@@ -1,10 +1,22 @@
 <script setup lang="ts">
-import type { CreateRepositoryInput } from '../types'
-import { FormField, SubmitButton, useMutationState, useToast } from '@personal-stack/vue-common'
+import type { CreateRepositoryInput, Repository } from '../types'
+import { FormErrors, FormField, SubmitButton, useFormErrors, useMutationState } from '@personal-stack/vue-common'
 import { computed, ref } from 'vue'
 
+interface Props {
+  /**
+   * Awaited submit handler supplied by the parent. The form's
+   * mutation state mirrors this promise so the SubmitButton flips
+   * to `failure` on a rejected server response and the inline
+   * banner anchors the error next to the failing field.
+   */
+  onSubmit: (input: CreateRepositoryInput) => Promise<Repository>
+}
+
+const props = defineProps<Props>()
+
 const emit = defineEmits<{
-  submit: [value: CreateRepositoryInput]
+  success: [created: Repository]
   cancel: []
 }>()
 
@@ -13,29 +25,39 @@ const repoUrl = ref('')
 const defaultBranch = ref('main')
 
 const submit = useMutationState<void>()
-const toast = useToast()
+const formErrors = useFormErrors()
 
 const canSubmit = computed(() => name.value.trim().length > 0 && repoUrl.value.trim().length > 0)
 
 async function onSubmit(): Promise<void> {
   if (!canSubmit.value) return
+  formErrors.clear()
   try {
+    let created: Repository | undefined
     await submit.run(async () => {
-      emit('submit', {
+      created = await props.onSubmit({
         name: name.value.trim(),
         repoUrl: repoUrl.value.trim(),
         defaultBranch: defaultBranch.value.trim() || 'main',
       })
     })
+    if (created) emit('success', created)
   } catch (e) {
-    toast.errorFromCatch('Could not create the repository', e)
+    formErrors.captureFromCatch(e)
   }
 }
 </script>
 
 <template>
   <form class="space-y-4" data-testid="create-repository-form" @submit.prevent="onSubmit">
-    <FormField label="Name" required hint="Short identifier — appears across project pickers.">
+    <FormErrors :error="formErrors.general.value" />
+
+    <FormField
+      label="Name"
+      required
+      :error="formErrors.fieldErrorFor('name')"
+      hint="Short identifier — appears across project pickers."
+    >
       <template #default="{ id, invalid, describedBy }">
         <input
           :id="id"
@@ -52,7 +74,12 @@ async function onSubmit(): Promise<void> {
       </template>
     </FormField>
 
-    <FormField label="Repository URL" required hint="SSH URL — git@github.com:owner/repo.git">
+    <FormField
+      label="Repository URL"
+      required
+      :error="formErrors.fieldErrorFor('repoUrl') ?? formErrors.fieldErrorFor('repo_url')"
+      hint="SSH URL — git@github.com:owner/repo.git"
+    >
       <template #default="{ id, invalid, describedBy }">
         <input
           :id="id"
@@ -68,7 +95,11 @@ async function onSubmit(): Promise<void> {
       </template>
     </FormField>
 
-    <FormField label="Default branch" hint="Branch the agent checks out by default.">
+    <FormField
+      label="Default branch"
+      :error="formErrors.fieldErrorFor('defaultBranch') ?? formErrors.fieldErrorFor('default_branch')"
+      hint="Branch the agent checks out by default."
+    >
       <template #default="{ id }">
         <input
           :id="id"
