@@ -13,6 +13,37 @@
 # The webadmin does NOT support SSO redirect. Access is gated by Traefik
 # forward-auth, so only authenticated users reach the login page.
 
+# ── Local keys ───────────────────────────────────────────────────
+#
+# Stalwart imports every key whose pattern does NOT match
+# config.local-keys into its internal rocksdb store on first boot and
+# subsequently serves it from there. Only keys that DO match are
+# re-read from this TOML on every boot — and crucially, only those
+# get %{env:VAR}% macro expansion (database settings are stored
+# verbatim). The upstream default list omits acme.*, which means the
+# %{env:STALWART_HOSTNAME}%, %{env:STALWART_DOMAIN}% and
+# %{env:CF_DNS_API_TOKEN}% macros under acme."letsencrypt" were being
+# persisted as literal strings and surfaced in the webadmin UI. Listing
+# the upstream defaults explicitly plus acme.* + config.local-keys
+# itself keeps the macros expanding on every boot.
+config.local-keys = [
+    "store.*",
+    "directory.*",
+    "tracer.*",
+    "server.*",
+    "!server.blocked-ip.*",
+    "!server.allowed-ip.*",
+    "authentication.fallback-admin.*",
+    "cluster.*",
+    "storage.data",
+    "storage.blob",
+    "storage.lookup",
+    "storage.fts",
+    "storage.directory",
+    "acme.*",
+    "config.local-keys",
+]
+
 # ── Server ───────────────────────────────────────────────────────
 
 server.hostname = "%{env:STALWART_HOSTNAME}%"
