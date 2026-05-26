@@ -5,6 +5,33 @@ metadata:
   namespace: mail-system
 data:
   config.toml: |
+    # config.local-keys decides which keys are read from this TOML
+    # every boot (and therefore get %{env:VAR}% expansion) versus
+    # imported once into rocksdb on first boot and served from there
+    # verbatim afterwards. Stalwart's upstream default list omits
+    # acme.*, which caused the %{env:STALWART_HOSTNAME}%,
+    # %{env:STALWART_DOMAIN}% and %{env:CF_DNS_API_TOKEN}% macros under
+    # acme."letsencrypt" to be persisted as literal strings and shown
+    # that way in the webadmin. Listing the defaults explicitly plus
+    # acme.* keeps every macro in this file expanding on every restart.
+    config.local-keys = [
+        "store.*",
+        "directory.*",
+        "tracer.*",
+        "server.*",
+        "!server.blocked-ip.*",
+        "!server.allowed-ip.*",
+        "authentication.fallback-admin.*",
+        "cluster.*",
+        "storage.data",
+        "storage.blob",
+        "storage.lookup",
+        "storage.fts",
+        "storage.directory",
+        "acme.*",
+        "config.local-keys",
+    ]
+
     server.hostname = "%{env:STALWART_HOSTNAME}%"
 
     server.listener.smtp.bind = "[::]:25"
