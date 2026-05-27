@@ -388,6 +388,11 @@ access_intent:
     faro: faro
     obsidian-sync: obsidian-sync
     knowledge-api: kb
+  # Hosts whose bare root must redirect to a sub-path. Stalwart v0.16
+  # serves its webadmin at /admin/ and 404s the root; the named
+  # Middleware lives in apps/edge.
+  root_redirect:
+    stalwart: stalwart-root-to-admin
 
 ingress_intent:
   kubernetes_backends:

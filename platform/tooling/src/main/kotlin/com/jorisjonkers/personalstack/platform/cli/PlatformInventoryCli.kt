@@ -416,6 +416,7 @@ private fun PlatformFleet.toTraefikIngressRoutesYaml(
                         backend = backend,
                         ingressClassName = ingressClassName,
                         ingressDnsTarget = ingressDnsTargetOverrides[route.service] ?: ingressDnsTarget,
+                        rootRedirectMiddleware = accessIntent.rootRedirect[route.service],
                     )
                 }
             }
@@ -495,6 +496,7 @@ private fun EdgeRouteCatalogEntry.toIngressRouteYaml(
     backend: KubernetesIngressBackend,
     ingressClassName: String,
     ingressDnsTarget: IngressDnsTarget? = null,
+    rootRedirectMiddleware: String? = null,
 ): String =
     buildString {
         appendLine("apiVersion: traefik.io/v1alpha1")
@@ -514,10 +516,19 @@ private fun EdgeRouteCatalogEntry.toIngressRouteYaml(
         appendLine("  routes:")
         appendLine("    - kind: Rule")
         appendLine("      match: ${toYamlSingleQuotedString(toTraefikMatch())}")
-        if (access == "sso_protected") {
+        // Root-redirect runs before forward-auth so the bare host
+        // normalises to its sub-path; the sub-path is still SSO-gated.
+        val middlewares =
+            buildList {
+                rootRedirectMiddleware?.let(::add)
+                if (access == "sso_protected") add("forward-auth")
+            }
+        if (middlewares.isNotEmpty()) {
             appendLine("      middlewares:")
-            appendLine("        - name: forward-auth")
-            appendLine("          namespace: edge-system")
+            middlewares.forEach { middleware ->
+                appendLine("        - name: ${middleware}")
+                appendLine("          namespace: edge-system")
+            }
         }
         appendLine("      services:")
         appendLine("        - name: ${backend.serviceName}")

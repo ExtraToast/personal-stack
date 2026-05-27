@@ -8,6 +8,7 @@ resources:
   - edge-route-catalog-configmap.yaml
   - traefik-default-tls.yaml
   - traefik-forward-auth-middleware.yaml
+  - traefik-stalwart-root-redirect-middleware.yaml
   - traefik-ingressroutes.yaml
   - traefik-lan-ingressroutes.yaml
   - traefik-dashboard-ingressroute.yaml

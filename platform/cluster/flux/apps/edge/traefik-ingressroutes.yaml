@@ -572,6 +572,8 @@ spec:
     - kind: Rule
       match: 'Host(`stalwart.jorisjonkers.dev`)'
       middlewares:
+        - name: stalwart-root-to-admin
+          namespace: edge-system
         - name: forward-auth
           namespace: edge-system
       services:

@@ -131,6 +131,11 @@ data class AccessIntent(
     val ssoProtected: List<String> = emptyList(),
     @param:JsonProperty("host_labels")
     val hostLabels: Map<String, String> = emptyMap(),
+    // service -> Traefik Middleware name that redirects the bare host
+    // root to a sub-path (e.g. stalwart's webadmin lives at /admin/ and
+    // the root path 404s, so the host redirects "/" to "/admin/").
+    @param:JsonProperty("root_redirect")
+    val rootRedirect: Map<String, String> = emptyMap(),
 )
 
 data class IngressIntent(
