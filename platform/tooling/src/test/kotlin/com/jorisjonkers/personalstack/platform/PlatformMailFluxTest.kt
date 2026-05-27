@@ -27,18 +27,21 @@ class PlatformMailFluxTest {
     @Test
     fun `stalwart runs v0_16 in frankfurt with declarative config and mail service ports`() {
         val base = "platform/cluster/flux/apps/mail/stalwart"
+        val infra = "infra/stalwart"
         val kustomization = repositoryRoot.resolve("$base/kustomization.yaml").toFile().readText()
         val configJson = repositoryRoot.resolve("$base/config-json-configmap.yaml").toFile().readText()
-        val planTemplate = repositoryRoot.resolve("$base/plan.ndjson.tmpl").toFile().readText()
-        val applyScript = repositoryRoot.resolve("$base/apply.sh").toFile().readText()
+        val planTemplate = repositoryRoot.resolve("$infra/plan.ndjson.tmpl").toFile().readText()
+        val applyScript = repositoryRoot.resolve("$infra/apply.sh").toFile().readText()
+        val dockerfile = repositoryRoot.resolve("$infra/Dockerfile").toFile().readText()
         val manifest = repositoryRoot.resolve("$base/deployment.yaml").toFile().readText()
 
+        // platform/ holds only k8s manifests; the reconcile script, plans
+        // and accounts live in the stalwart-tools image (infra/stalwart).
         assertThat(kustomization)
             .contains("config-json-configmap.yaml")
             .contains("vault-static-secrets.yaml")
             .contains("deployment.yaml")
-            .contains("apply.sh")
-            .contains("plan.ndjson.tmpl")
+            .doesNotContain("configMapGenerator")
 
         assertThat(configJson)
             .contains("name: stalwart-config-json")
@@ -58,7 +61,11 @@ class PlatformMailFluxTest {
             .contains("stalwart-cli")
             .contains("CF_DNS_API_TOKEN")
             .contains("DnsServer")
-            .contains("AUTH_MAIL_PASSWORD")
+            .contains("reconcile_accounts")
+
+        assertThat(dockerfile)
+            .contains("infra/stalwart/apply.sh")
+            .contains("/opt/stalwart-tools/")
 
         assertThat(manifest)
             .contains("kind: ServiceAccount")
@@ -68,6 +75,9 @@ class PlatformMailFluxTest {
             .contains("name: stalwart-data")
             .contains("kind: Deployment")
             .contains("stalwartlabs/stalwart:v0.16.6")
+            .contains("ghcr.io/extratoast/personal-stack/stalwart-tools:latest")
+            .contains("/opt/stalwart-tools/apply.sh")
+            .contains("keel.sh/policy: force")
             .contains("mountPath: /etc/stalwart/config.json")
             .contains("mountPath: /var/lib/stalwart")
             .contains("name: STALWART_RECOVERY_ADMIN")

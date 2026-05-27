@@ -1,19 +1,11 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+# Pure Kubernetes manifests. The reconcile script, plan templates and
+# account manifest live in the stalwart-tools image (source under
+# infra/stalwart), not in a ConfigMap — Keel rolls the Deployment when a
+# new image is published.
 resources:
   - config-json-configmap.yaml
   - vault-static-secrets.yaml
   - deployment.yaml
-
-# Content-hashed ConfigMap holding the apply sidecar script and the
-# settings plan template. A change to either rotates the hashed name,
-# which rolls the stalwart Deployment so the new script/plan takes
-# effect (ConfigMap volume updates alone do not restart pods).
-configMapGenerator:
-  - name: stalwart-apply
-    namespace: mail-system
-    files:
-      - apply.sh
-      - plan.ndjson.tmpl
-      - accounts.json

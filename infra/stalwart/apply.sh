@@ -18,8 +18,8 @@ set -eu
 : "${STALWART_HOSTNAME:?}"
 : "${CF_DNS_API_TOKEN:?}"
 : "${STALWART_CLI_VERSION:=1.0.7}"
-: "${PLAN_TEMPLATE:=/apply/plan.ndjson.tmpl}"
-: "${ACCOUNTS_FILE:=/apply/accounts.json}"
+: "${PLAN_TEMPLATE:=/opt/stalwart-tools/plan.ndjson.tmpl}"
+: "${ACCOUNTS_FILE:=/opt/stalwart-tools/accounts.json}"
 
 export STALWART_URL STALWART_USER STALWART_PASSWORD
 

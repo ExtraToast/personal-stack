@@ -143,7 +143,7 @@ jobs:
           [[ "$AUTH_API_KOTLIN"      == "true" ]] && CHANGED_SERVICES+=" auth-api"
           [[ "$ASSISTANT_API_KOTLIN" == "true" ]] && CHANGED_SERVICES+=" assistant-api"
           [[ "$KNOWLEDGE_API_KOTLIN" == "true" ]] && CHANGED_SERVICES+=" knowledge-api"
-          CHANGED_SERVICES+=" auth-ui assistant-ui app-ui"
+          CHANGED_SERVICES+=" auth-ui assistant-ui app-ui stalwart-tools"
           CHANGED_SERVICES="${CHANGED_SERVICES# }"
 
           echo "any-kotlin=$ANY_KOTLIN" >> "$GITHUB_OUTPUT"

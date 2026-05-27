@@ -10,7 +10,7 @@ set -eu
 : "${STALWART_URL:=http://stalwart:8080}"
 : "${STALWART_USER:=admin}"
 : "${STALWART_PASSWORD:?STALWART_PASSWORD must be set}"
-: "${STALWART_PLAN:=/plan/plan.ndjson}"
+: "${STALWART_PLAN:=/opt/stalwart-tools/plan.dev.ndjson}"
 : "${STALWART_DOMAIN:=jorisjonkers.test}"
 
 export STALWART_URL STALWART_USER STALWART_PASSWORD

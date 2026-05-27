@@ -468,11 +468,13 @@ services:
       - 'traefik.http.routers.stalwart.middlewares=forward-auth@docker,stalwart-security-headers@file'
 
   stalwart-bootstrap:
+    image: personal-stack/stalwart-tools:latest
     build:
-      context: ./infra/stalwart/dev
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: infra/stalwart/Dockerfile
     container_name: personal-stack-stalwart-bootstrap
     restart: 'no'
+    command: ['sh', '/opt/stalwart-tools/bootstrap.sh']
     depends_on:
       stalwart:
         condition: service_healthy

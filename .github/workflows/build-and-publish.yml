@@ -86,6 +86,8 @@ jobs:
               - 'services/assistant-ui/**'
             app-ui:
               - 'services/app-ui/**'
+            stalwart-tools:
+              - 'infra/stalwart/**'
             vue-common:
               - 'libs/vue-common/**'
             frontend-config:
@@ -111,6 +113,7 @@ jobs:
           FILTER_AUTH_UI: ${{ steps.filter.outputs.auth-ui }}
           FILTER_ASSISTANT_UI: ${{ steps.filter.outputs.assistant-ui }}
           FILTER_APP_UI: ${{ steps.filter.outputs.app-ui }}
+          FILTER_STALWART_TOOLS: ${{ steps.filter.outputs.stalwart-tools }}
         run: |
           set -euo pipefail
           any() { for v in "$@"; do [[ "$v" == "true" ]] && echo "true" && return; done; echo "false"; }
@@ -166,6 +169,9 @@ jobs:
           [[ "$(any "$FORCE_ALL" "$FRONTEND_SHARED" "$FILTER_AUTH_UI")"       == "true" ]] && append auth-ui       services/auth-ui/Dockerfile       "$UI_PLATFORMS"
           [[ "$(any "$FORCE_ALL" "$FRONTEND_SHARED" "$FILTER_ASSISTANT_UI")"  == "true" ]] && append assistant-ui  services/assistant-ui/Dockerfile  "$UI_PLATFORMS"
           [[ "$(any "$FORCE_ALL" "$FRONTEND_SHARED" "$FILTER_APP_UI")"        == "true" ]] && append app-ui        services/app-ui/Dockerfile        "$UI_PLATFORMS"
+          # stalwart-tools: small alpine image baking stalwart-cli + the
+          # reconcile scripts/plans/accounts; amd64-only (frankfurt).
+          [[ "$(any "$FORCE_ALL" "$FILTER_WORKFLOW" "$FILTER_STALWART_TOOLS")" == "true" ]] && append stalwart-tools infra/stalwart/Dockerfile "$AMD64"
 
           echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
           if [[ "$MATRIX" == "[]" ]]; then
