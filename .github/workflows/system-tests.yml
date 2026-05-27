@@ -80,7 +80,7 @@ jobs:
           fi
       - name: Log in to ghcr (pull mode)
         if: steps.decide.outputs.mode == 'pull'
-        uses: docker/login-action@v4
+        uses: docker/login-action@v4.1.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
