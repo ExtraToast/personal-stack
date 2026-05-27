@@ -93,6 +93,35 @@ class PlatformTraefikIngressRoutesCliTest {
     }
 
     @Test
+    fun `render-traefik-ingressroutes redirects the stalwart root to the admin middleware before forward-auth`() {
+        val stdout = ByteArrayOutputStream()
+        val stderr = ByteArrayOutputStream()
+
+        val exitCode =
+            PlatformInventoryCli(
+                repositoryRoot = repositoryRoot,
+                stdout = stdout.writer(StandardCharsets.UTF_8),
+                stderr = stderr.writer(StandardCharsets.UTF_8),
+            ).run("render-traefik-ingressroutes")
+
+        assertThat(exitCode).isEqualTo(0)
+        val output = stdout.toString(StandardCharsets.UTF_8)
+
+        val stalwartBlock =
+            output
+                .substringAfter("  name: stalwart\n")
+                .substringBefore("---\n")
+
+        // The redirect must precede forward-auth so the bare host is
+        // normalised to /admin/ first, then SSO-gated.
+        assertThat(stalwartBlock.indexOf("name: stalwart-root-to-admin"))
+            .isGreaterThanOrEqualTo(0)
+            .isLessThan(stalwartBlock.indexOf("name: forward-auth"))
+
+        assertThat(stderr.toString(StandardCharsets.UTF_8)).isBlank()
+    }
+
+    @Test
     fun `render-traefik-ingressroutes honours wan_origin_overrides home_direct`() {
         val stdout = ByteArrayOutputStream()
         val stderr = ByteArrayOutputStream()
