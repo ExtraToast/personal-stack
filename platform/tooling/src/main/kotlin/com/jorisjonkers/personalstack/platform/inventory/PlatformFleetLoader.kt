@@ -141,6 +141,7 @@ class PlatformFleetLoader(
                     }
                 }
             }
+            validateExtraProbes(serviceName, backend.extraProbes)
         }
 
         externallyExposedKubernetesServices.forEach { serviceName ->
@@ -203,6 +204,7 @@ class PlatformFleetLoader(
                     "monitoring health probe_strategy for service $serviceName must be internal (monitoring targets have no external host)"
                 }
             }
+            validateExtraProbes(serviceName, backend.extraProbes)
         }
 
         val lanExposedServices =
@@ -220,6 +222,34 @@ class PlatformFleetLoader(
                 },
             ) {
                 "lan exposed services require at least one active lan ingress node"
+            }
+        }
+    }
+
+    private fun validateExtraProbes(
+        serviceName: String,
+        extraProbes: List<ExtraProbe>,
+    ) {
+        extraProbes.forEach { probe ->
+            require(probe.name.isNotBlank()) {
+                "extra probe for service $serviceName must define a name"
+            }
+            require(probe.port > 0) {
+                "extra probe ${probe.name} for service $serviceName must use a positive port"
+            }
+            require(probe.type in setOf("http", "tcp")) {
+                "extra probe ${probe.name} for service $serviceName must be http or tcp"
+            }
+            if (probe.type == "tcp") {
+                require(probe.path == "/") {
+                    "tcp extra probe ${probe.name} for service $serviceName must not set a path"
+                }
+                require(probe.expectedStatus == null) {
+                    "tcp extra probe ${probe.name} for service $serviceName must not set expected_status"
+                }
+            }
+            require(probe.path.startsWith("/")) {
+                "extra probe ${probe.name} for service $serviceName path must start with /"
             }
         }
     }

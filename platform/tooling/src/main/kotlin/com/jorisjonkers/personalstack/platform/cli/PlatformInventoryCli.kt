@@ -641,6 +641,7 @@ private fun PlatformFleet.toGatusEndpointsDocument(): GatusEndpointsDocument {
                             ),
                         )
                     }
+                    addAll(extraProbeEndpoints(serviceName, group, backend))
                 }
             }
 
@@ -649,14 +650,19 @@ private fun PlatformFleet.toGatusEndpointsDocument(): GatusEndpointsDocument {
             .map { (serviceName, backend) ->
                 val group = groupByService[serviceName] ?: "unspecified"
                 val health = backend.health ?: HealthEndpoint()
-                buildGatusEndpoint(
-                    baseName = serviceName,
-                    group = group,
-                    url = internalUrl(backend, health),
-                    health = health,
-                    suffix = "",
-                )
-            }
+                buildList {
+                    add(
+                        buildGatusEndpoint(
+                            baseName = serviceName,
+                            group = group,
+                            url = internalUrl(backend, health),
+                            health = health,
+                            suffix = "",
+                        ),
+                    )
+                    addAll(extraProbeEndpoints(serviceName, group, backend))
+                }
+            }.flatten()
 
     val endpoints = (ingressEndpoints + monitoringEndpoints).sortedWith(compareBy({ it.group }, { it.name }))
 
@@ -701,6 +707,28 @@ private fun externalUrl(
     host: String,
     health: HealthEndpoint,
 ): String = "https://$host${health.path}"
+
+private fun extraProbeEndpoints(
+    serviceName: String,
+    parentGroup: String,
+    backend: KubernetesIngressBackend,
+): List<GatusEndpoint> =
+    backend.extraProbes.map { probe ->
+        val probeHealth =
+            HealthEndpoint(
+                type = probe.type,
+                path = probe.path,
+                port = probe.port,
+                expectedStatus = probe.expectedStatus,
+            )
+        buildGatusEndpoint(
+            baseName = "$serviceName-${probe.name}",
+            group = probe.group ?: parentGroup,
+            url = internalUrl(backend, probeHealth),
+            health = probeHealth,
+            suffix = "",
+        )
+    }
 
 private fun buildGatusEndpoint(
     baseName: String,

@@ -156,6 +156,22 @@ data class KubernetesIngressBackend(
     val serviceName: String,
     val port: Int,
     val health: HealthEndpoint? = null,
+    // Additional internal probes against other ports of the same
+    // Service (e.g. stalwart's mail ports next to its webadmin). Each
+    // emits its own Gatus endpoint named "<service>-<name>".
+    @param:JsonProperty("extra_probes")
+    val extraProbes: List<ExtraProbe> = emptyList(),
+)
+
+data class ExtraProbe(
+    val name: String,
+    val port: Int,
+    val type: String = "tcp",
+    val path: String = "/",
+    @param:JsonProperty("expected_status")
+    val expectedStatus: Int? = null,
+    // Gatus group label; defaults to the parent service's group.
+    val group: String? = null,
 )
 
 data class HealthEndpoint(
