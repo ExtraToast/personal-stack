@@ -1,0 +1,8 @@
+[
+  {
+    "localPart": "auth",
+    "passwordEnv": "AUTH_MAIL_PASSWORD",
+    "aliases": [],
+    "groups": []
+  }
+]

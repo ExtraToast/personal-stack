@@ -16,3 +16,4 @@ configMapGenerator:
     files:
       - apply.sh
       - plan.ndjson.tmpl
+      - accounts.json

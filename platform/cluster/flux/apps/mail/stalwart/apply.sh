@@ -18,9 +18,8 @@ set -eu
 : "${STALWART_HOSTNAME:?}"
 : "${CF_DNS_API_TOKEN:?}"
 : "${STALWART_CLI_VERSION:=1.0.7}"
-: "${PLAN_TEMPLATE:=/plan/plan.ndjson.tmpl}"
-: "${AUTH_MAIL_USERNAME:=auth}"
-: "${AUTH_MAIL_PASSWORD:?}"
+: "${PLAN_TEMPLATE:=/apply/plan.ndjson.tmpl}"
+: "${ACCOUNTS_FILE:=/apply/accounts.json}"
 
 export STALWART_URL STALWART_USER STALWART_PASSWORD
 
@@ -99,19 +98,64 @@ reconcile() {
   printf '{"@type":"update","object":"DnsServer","id":"%s","value":{"secret":{"@type":"Value","secret":"%s"}}}\n' \
     "$dns" "$CF_DNS_API_TOKEN" | sc apply --file /dev/stdin
 
-  # 5. auth-api SMTP submission account (replaces the v0.15 principal job).
-  # credentials is an objectList, encoded by the apply API as an
-  # index-keyed map, not a JSON array.
-  acct="$(id_by_email "${AUTH_MAIL_USERNAME}@${STALWART_DOMAIN}")"
-  if [ -z "$acct" ]; then
-    printf '{"@type":"create","object":"Account","value":{"acct-auth":{"@type":"User","name":"%s","domainId":"%s","credentials":{"0":{"@type":"Password","secret":"%s"}}}}}\n' \
-      "$AUTH_MAIL_USERNAME" "$dom" "$AUTH_MAIL_PASSWORD" | sc apply --file /dev/stdin
-  else
-    printf '{"@type":"update","object":"Account","id":"%s","value":{"credentials":{"0":{"@type":"Password","secret":"%s"}}}}\n' \
-      "$acct" "$AUTH_MAIL_PASSWORD" | sc apply --file /dev/stdin
-  fi
+  # 5. Reconcile Vault-managed accounts (passwords, aliases, group
+  #    memberships) from accounts.json. Update-only for accounts that
+  #    already exist — never delete and never recreate — so the mailbox
+  #    a migrated account links to (restore-<id>) is never disturbed.
+  #    Only list accounts whose full alias/group set is declared here and
+  #    whose password lives in Vault; user-managed mailboxes must NOT
+  #    appear, or their state would be overwritten on every boot.
+  reconcile_accounts "$dom"
 
   echo "apply: reconcile complete"
+}
+
+# objectList/set values are encoded by the apply API as index-keyed maps,
+# not JSON arrays.
+reconcile_accounts() {
+  # $1 is the Domain object id (used for domainId references); email
+  # addresses are formed from the domain NAME in $STALWART_DOMAIN.
+  dom="$1"
+  count="$(jq 'length' "$ACCOUNTS_FILE")"
+  i=0
+  while [ "$i" -lt "$count" ]; do
+    entry="$(jq -c ".[$i]" "$ACCOUNTS_FILE")"
+    i=$((i + 1))
+    lp="$(printf '%s' "$entry" | jq -r '.localPart')"
+    pwenv="$(printf '%s' "$entry" | jq -r '.passwordEnv')"
+    pw="$(eval printf '%s' "\"\${$pwenv:-}\"")"
+    if [ -z "$pw" ]; then
+      echo "apply: skipping ${lp}: \$${pwenv} is empty" >&2
+      continue
+    fi
+
+    aliases="$(printf '%s' "$entry" | jq -c --arg dom "$dom" \
+      '.aliases // [] | to_entries
+        | map({(.key|tostring): {name:(.value|split("@")[0]), domainId:$dom, enabled:true}})
+        | add // {}')"
+
+    gids='{}'
+    for g in $(printf '%s' "$entry" | jq -r '.groups[]? // empty'); do
+      gid="$(id_by_email "${g}@${STALWART_DOMAIN}")"
+      [ -n "$gid" ] && gids="$(printf '%s' "$gids" | jq -c --arg id "$gid" '. + {($id):true}')"
+    done
+
+    fields="$(jq -nc --arg pw "$pw" --argjson aliases "$aliases" --argjson gids "$gids" \
+      '{credentials:{"0":{"@type":"Password",secret:$pw}}, aliases:$aliases, memberGroupIds:$gids}')"
+
+    acct="$(id_by_email "${lp}@${STALWART_DOMAIN}")"
+    if [ -z "$acct" ]; then
+      echo "apply: creating account ${lp}@${STALWART_DOMAIN}"
+      jq -nc --arg lp "$lp" --arg dom "$dom" --argjson f "$fields" \
+        '{"@type":"create","object":"Account","value":{"acct":({"@type":"User",name:$lp,domainId:$dom}+$f)}}' \
+        | sc apply --file /dev/stdin
+    else
+      echo "apply: updating account ${lp}@${STALWART_DOMAIN}"
+      jq -nc --arg id "$acct" --argjson f "$fields" \
+        '{"@type":"update","object":"Account",id:$id,value:$f}' \
+        | sc apply --file /dev/stdin
+    fi
+  done
 }
 
 install_cli
