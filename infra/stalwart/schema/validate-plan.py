@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Validate a stalwart-cli `apply` NDJSON plan against the server config
-schema (schema.json in this directory).
+schema (schema.min.json in this directory).
 
 The schema is the same artifact stalwart-cli downloads and caches from the
 server; it describes every management object (x:* JMAP types), their fields,
