@@ -154,6 +154,18 @@ spec:
                 secretKeyRef:
                   name: stalwart-auth-mail
                   key: AUTH_MAIL_PASSWORD
+            - name: ACCOUNT_MAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: stalwart-mail
+                  key: ACCOUNT_MAIL_PASSWORD
+                  optional: true
+            - name: N8N_MAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: stalwart-mail
+                  key: N8N_MAIL_PASSWORD
+                  optional: true
           volumeMounts:
             - name: stalwart-apply
               mountPath: /apply

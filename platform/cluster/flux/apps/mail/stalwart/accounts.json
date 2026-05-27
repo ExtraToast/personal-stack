@@ -4,5 +4,17 @@
     "passwordEnv": "AUTH_MAIL_PASSWORD",
     "aliases": [],
     "groups": []
+  },
+  {
+    "localPart": "account",
+    "passwordEnv": "ACCOUNT_MAIL_PASSWORD",
+    "aliases": [],
+    "groups": []
+  },
+  {
+    "localPart": "n8n",
+    "passwordEnv": "N8N_MAIL_PASSWORD",
+    "aliases": [],
+    "groups": []
   }
 ]
