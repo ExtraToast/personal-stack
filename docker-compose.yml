@@ -450,7 +450,7 @@ services:
     container_name: personal-stack-stalwart
     volumes:
       - stalwart-data:/var/lib/stalwart
-      - ./infra/stalwart/config.json:/etc/stalwart/config.json:ro
+      - ./infra/stalwart/dev/config.json:/etc/stalwart/config.json:ro
     environment:
       STALWART_RECOVERY_ADMIN: admin:stalwart-dev-admin
     healthcheck:
@@ -469,8 +469,8 @@ services:
 
   stalwart-bootstrap:
     build:
-      context: ./infra/stalwart
-      dockerfile: Dockerfile.bootstrap
+      context: ./infra/stalwart/dev
+      dockerfile: Dockerfile
     container_name: personal-stack-stalwart-bootstrap
     restart: 'no'
     depends_on:

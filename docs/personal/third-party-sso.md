@@ -14,7 +14,8 @@ reuse the existing auth session and complete login without a separate password p
 - RabbitMQ management: native OAuth/OIDC resource server and management UI integration, exposed directly
   instead of being pre-gated by forward-auth.
 - Stalwart: uses internal directory for account management (no OIDC integration).
-  Admin access to the webadmin uses the fallback-admin credentials (see `infra/stalwart/config.toml`).
+  Admin access to the webadmin uses the recovery-admin credentials injected from Vault
+  (`secret/platform/mail`) via the `stalwart-mail` VaultStaticSecret.
 - n8n: configured through the custom external hook in `infra/n8n/hooks.js` so it can delegate login to
   the auth service without a separate Traefik auth gate.
 - Uptime Kuma: intentionally left outside this SSO work.
