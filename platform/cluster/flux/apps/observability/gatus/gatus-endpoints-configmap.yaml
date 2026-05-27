@@ -130,6 +130,30 @@ data:
       conditions:
       - "[STATUS] == 200"
       - "[RESPONSE_TIME] < 1500"
+    - name: "stalwart-imaps"
+      group: "mail"
+      url: "tcp://stalwart.mail-system.svc.cluster.local:993"
+      interval: "60s"
+      conditions:
+      - "[CONNECTED] == true"
+    - name: "stalwart-smtp"
+      group: "mail"
+      url: "tcp://stalwart.mail-system.svc.cluster.local:25"
+      interval: "60s"
+      conditions:
+      - "[CONNECTED] == true"
+    - name: "stalwart-smtps"
+      group: "mail"
+      url: "tcp://stalwart.mail-system.svc.cluster.local:465"
+      interval: "60s"
+      conditions:
+      - "[CONNECTED] == true"
+    - name: "stalwart-submission"
+      group: "mail"
+      url: "tcp://stalwart.mail-system.svc.cluster.local:587"
+      interval: "60s"
+      conditions:
+      - "[CONNECTED] == true"
     - name: "adguard"
       group: "public-apps"
       url: "http://adguard.utility-system.svc.cluster.local:3000/"
@@ -222,7 +246,7 @@ data:
       - "[RESPONSE_TIME] < 1500"
     - name: "stalwart"
       group: "public-apps"
-      url: "http://stalwart.mail-system.svc.cluster.local:8080/"
+      url: "http://stalwart.mail-system.svc.cluster.local:8080/admin/"
       interval: "60s"
       conditions:
       - "[STATUS] == 200"

@@ -59,4 +59,35 @@ class PlatformGatusConfigMapCliTest {
             .contains("https://jorisjonkers.dev/")
         assertThat(stderr.toString(StandardCharsets.UTF_8)).isBlank()
     }
+
+    @Test
+    fun `render-gatus-configmap probes the stalwart webadmin path and mail ports`() {
+        val stdout = ByteArrayOutputStream()
+        val stderr = ByteArrayOutputStream()
+
+        val exitCode =
+            PlatformInventoryCli(
+                repositoryRoot = repositoryRoot,
+                stdout = stdout.writer(StandardCharsets.UTF_8),
+                stderr = stderr.writer(StandardCharsets.UTF_8),
+            ).run("render-gatus-configmap")
+
+        assertThat(exitCode).isEqualTo(0)
+        val output = stdout.toString(StandardCharsets.UTF_8)
+        assertThat(output)
+            // The webadmin lives at /admin/; the bare root 404s in v0.16.
+            .contains("http://stalwart.mail-system.svc.cluster.local:8080/admin/")
+            .doesNotContain("http://stalwart.mail-system.svc.cluster.local:8080/\n")
+            // Mail-transport ports grouped under "mail", TCP-connect probes.
+            .contains("\"stalwart-smtp\"")
+            .contains("tcp://stalwart.mail-system.svc.cluster.local:25")
+            .contains("\"stalwart-submission\"")
+            .contains("tcp://stalwart.mail-system.svc.cluster.local:587")
+            .contains("\"stalwart-smtps\"")
+            .contains("tcp://stalwart.mail-system.svc.cluster.local:465")
+            .contains("\"stalwart-imaps\"")
+            .contains("tcp://stalwart.mail-system.svc.cluster.local:993")
+            .contains("\"mail\"")
+        assertThat(stderr.toString(StandardCharsets.UTF_8)).isBlank()
+    }
 }

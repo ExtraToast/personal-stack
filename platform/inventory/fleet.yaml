@@ -439,6 +439,29 @@ ingress_intent:
       namespace: mail-system
       service: stalwart
       port: 8080
+      # Stalwart v0.16 serves its webadmin at /admin/ and 404s the root.
+      health:
+        path: /admin/
+      # Mail-transport ports on the same Service. Probed internally
+      # (TCP connect) since a real off-cluster SMTP/IMAP handshake would
+      # need a probe we don't run.
+      extra_probes:
+        - name: smtp
+          port: 25
+          type: tcp
+          group: mail
+        - name: submission
+          port: 587
+          type: tcp
+          group: mail
+        - name: smtps
+          port: 465
+          type: tcp
+          group: mail
+        - name: imaps
+          port: 993
+          type: tcp
+          group: mail
     gatus:
       namespace: observability
       service: gatus
