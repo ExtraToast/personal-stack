@@ -205,6 +205,40 @@ way back.
 - Remove the `config.local-keys` workaround from PR #440 (no TOML exists).
 - Update `CLAUDE.md` mail notes to the v0.16 declarative model.
 
+## Account reconciliation + mailbox retention
+
+Mailboxes (and the accounts that own them) are preserved by the
+migration, not by the sidecar. `migrate_v016.py` carries every v0.15
+account — `account@`, `auth@`, `joris.jonkers@` (+ its alias), `n8n@` —
+into `export.json`, and the recovery-mode `apply` recreates each with its
+original id (`restore-<id>`) so it re-links to the on-disk mail. Aliases
+and group memberships the script carries are restored the same way.
+
+On top of that, the `stalwart-apply` sidecar reconciles the accounts
+listed in `accounts.json` on every boot: password (from a Vault-synced
+env var), email aliases, and group memberships. It is **update-only** for
+accounts that already exist — never delete, never recreate — so it cannot
+disturb a mailbox. A Vault password rotation re-syncs the
+`VaultStaticSecret`, rolls the pod, and the sidecar writes the new
+password to the account on the next boot.
+
+Rules for `accounts.json`:
+
+- List only accounts whose password lives in Vault and whose full alias +
+  group set is declared here (the sidecar is authoritative for listed
+  accounts — an empty `aliases`/`groups` clears them).
+- **Do not list user-managed mailboxes** (e.g. `joris.jonkers@`): their
+  passwords are not in Vault and the migration already preserves them.
+  Listing them would overwrite their password/aliases on every boot.
+- To bring a new account under management: add its password to Vault, add
+  a `VaultStaticSecret` (with `rolloutRestartTargets` → the stalwart
+  Deployment) that projects it into an env var, wire that env var on the
+  `stalwart-apply` container, and add the entry to `accounts.json`.
+
+Today only `auth@` is listed (its password is `secret/data/auth-api`).
+`account@`, `joris.jonkers@`, `n8n@` are preserved by the migration and
+left unmanaged until their Vault paths are decided.
+
 ## Open items to confirm during the prod window
 
 - Confirm the recovery-mode boot + `export.json` replay is the path for
