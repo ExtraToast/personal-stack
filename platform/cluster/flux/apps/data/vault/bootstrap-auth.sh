@@ -176,6 +176,19 @@ path "secret/data/platform/edge" {
   capabilities = ["read"]
 }
 
+# mail-system: stalwart projects the cloudflare DNS-01 token
+# (platform/edge, above), its admin credentials (platform/mail), and
+# the auth-api SMTP submission credentials (auth-api) through
+# VaultStaticSecrets. rolloutRestartTargets roll the stalwart
+# Deployment when any of these rotate.
+path "secret/data/platform/mail" {
+  capabilities = ["read"]
+}
+
+path "secret/data/auth-api" {
+  capabilities = ["read"]
+}
+
 path "secret/data/platform/observability" {
   capabilities = ["read"]
 }
@@ -294,7 +307,7 @@ vault write auth/kubernetes/role/stalwart-bootstrap \
 
 vault write auth/kubernetes/role/vso \
   bound_service_account_names="vault-secrets-operator" \
-  bound_service_account_namespaces="vso-system,cert-manager,external-dns,observability,automation-system,utility-system,knowledge-system,data-system,media-system" \
+  bound_service_account_namespaces="vso-system,cert-manager,external-dns,observability,automation-system,utility-system,knowledge-system,data-system,media-system,mail-system" \
   policies="vso" \
   ttl="1h"
 

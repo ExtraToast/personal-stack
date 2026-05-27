@@ -97,86 +97,119 @@ Validation performed: clean-boot apply (4 ops), idempotent re-run
 (guarded skip), bootstrap image built and run twice against a real
 container, prod-style plan with `#`-references applied cleanly.
 
-## Phase B — production manifests (NOT YET APPLIED)
+## Phase B — production manifests (IMPLEMENTED, NOT YET CUT OVER)
 
-New/changed files under `platform/cluster/flux/apps/mail/stalwart/`:
+Live files under `platform/cluster/flux/apps/mail/stalwart/`:
 
-1. **`config-json-configmap.yaml`** — replaces `config-template-configmap.yaml`.
-   Holds `config.json` (rocksdb at `/var/lib/stalwart`).
-2. **`plan-template-configmap.yaml`** — holds `plan.prod.ndjson.tmpl`.
-   Content-hashed via `configMapGenerator` so a plan change forces the
-   apply Job to re-run.
-3. **`deployment.yaml`** — image → `stalwartlabs/stalwart:0.16.x`
-   (pinned, Keel manages point bumps under `match-tag: "true"`); mounts
-   → `/etc/stalwart/config.json` + `stalwart-data:/var/lib/stalwart`;
-   drop the `cp`/`set -a . env` entrypoint shim (v0.16 reads `config.json`
-   - env directly); keep the Vault Agent injector. Note the hostPort
-     list must add 587/143/110 only if the plan creates those listeners.
-     Outbound HTTPS to github must be allowed for the webui download.
-4. **`apply-plan-job.yaml`** — Job (one per plan-template hash, with
-   `kustomize.toolkit.fluxcd.io/force: enabled`). Init container runs
-   `envsubst < plan.prod.ndjson.tmpl > /shared/plan.ndjson` using the
-   Vault-injected `STALWART_HOSTNAME`, `STALWART_DOMAIN`,
-   `CF_DNS_API_TOKEN`; main container runs `stalwart-cli apply` against
-   `http://stalwart.mail-system.svc.cluster.local:8080`. Built from
-   `Dockerfile.bootstrap`.
-5. **Rewrite `principal-bootstrap.sh`** — the v0.15 REST call
-   (`POST /api/principal/auth`) is dead. Replace with a
-   `stalwart-cli apply` that creates `Account` `auth@jorisjonkers.dev`
-   (User variant, password credential from Vault) so auth-api can submit
-   over SMTP AUTH on 587. Account names are now full email addresses.
-6. **`PlatformMailFluxTest`** — update assertions: no more
-   `config.toml`/`acme."letsencrypt"` strings; assert on the new
-   ConfigMaps, the apply Job, and the v0.16 image tag.
+1. **`config-json-configmap.yaml`** (`stalwart-config-json`) — datastore
+   only: `{"@type":"RocksDb","path":"/var/lib/stalwart/data"}`. The path
+   matches the rocksdb the v0.15 PVC already holds under `data/` once the
+   PVC is remounted at `/var/lib/stalwart`, and matches the
+   `--patch-paths /opt/stalwart=/var/lib/stalwart` output of the migration
+   script. The existing PVC is reused; no data copy.
+2. **`plan.ndjson.tmpl`** — the settings the migration does NOT carry:
+   the Cloudflare `DnsServer` (token `${CF_DNS_API_TOKEN}`), the Let's
+   Encrypt `AcmeProvider` (DNS-01), and the plaintext submission/IMAP/POP3
+   listeners v0.16 drops by default. Validated against
+   `infra/stalwart/schema.json` by `infra/stalwart/validate-plan.py`.
+3. **`apply.sh`** + **`kustomization.yaml` `configMapGenerator`
+   (`stalwart-apply`)** — content-hashed so a script/plan edit rolls the
+   Deployment.
+4. **`deployment.yaml`** — `stalwartlabs/stalwart:v0.16.6`, mounts
+   `/etc/stalwart/config.json` + `stalwart-data:/var/lib/stalwart`, the
+   v0.15 entrypoint shim removed. A **`stalwart-apply` sidecar** (alpine +
+   downloaded `stalwart-cli`) waits for the webadmin then reconciles on
+   every boot: applies the settings plan when absent, wires the migrated
+   domain to automatic ACME + Cloudflare DNS, sets the hostname, **renews
+   the CF DNS-01 token** in the `DnsServer` object, and ensures the
+   `auth@jorisjonkers.dev` SMTP account. Idempotent (validated live).
+5. **`vault-static-secrets.yaml`** — three `VaultStaticSecret`s
+   (`stalwart-edge` → CF token, `stalwart-mail` → admin + composite
+   `STALWART_RECOVERY_ADMIN`, `stalwart-auth-mail` → auth-api SMTP creds),
+   each with `rolloutRestartTargets` → the `stalwart` Deployment. **This
+   is the "restart on secret change" mechanism**: VSO re-syncs on
+   rotation, the k8s Secret changes, VSO rolls the Deployment, and the
+   sidecar re-applies the fresh value on the next boot. Requires the
+   `vault-secrets-operator` SA in `mail-system` (created here) plus the
+   `bootstrap-auth.sh` edits: `secret/data/platform/mail` +
+   `secret/data/auth-api` added to the `vso` policy, `mail-system` added
+   to the `vso` role's bound namespaces.
+6. **`principal-bootstrap-job.yaml` + `principal-bootstrap.sh` removed** —
+   the v0.15 REST call (`POST /api/principal/auth`) is gone; the auth
+   account is now provisioned by the apply sidecar. `config-template-configmap.yaml`
+   removed (no TOML).
+7. **`PlatformMailFluxTest`** updated to the new shape (all green).
 
-## Phase C — data migration + cutover (destructive; scheduled window)
+The committed manifests are the _steady state_. They do not perform the
+one-time data migration in Phase C — applying them against the current
+v0.15 PVC would have v0.16 wipe-then-bootstrap a fresh datastore. **Do
+not let Flux reconcile these to prod until Phase C has run in a window.**
+Keep `apps-mail` suspended (`flux suspend kustomization apps-mail`) while
+this PR merges, until the cutover.
 
-The storage layer (mail, calendars, contacts) is untouched. The wipe
-hits the directory + settings subspaces only. Sequence:
+## Phase C — one-time data-preserving cutover (scheduled window)
 
-1. **Pre-flight (no downtime)**: on the workstation, run
-   `migrate_v016.py dump` against the live v0.15.5 admin API to produce
-   `settings.json` + `principals.json`, then `convert` with
-   `--patch-paths /opt/stalwart=/var/lib/stalwart` to emit `config.json`
-   - `export.json`. Review both. The script migrates accounts, domains,
-     stores, DKIM, and issued certificates — **not** listeners, ACME,
-     routing, spam, or logging (those come from `plan.prod.ndjson.tmpl`).
-     Script: <https://raw.githubusercontent.com/stalwartlabs/stalwart/main/resources/scripts/migrate_v016.py>.
-2. **Backup**: `kubectl scale deploy/stalwart -n mail-system --replicas=0`,
-   then tar `/var/lib/stalwart` (currently `/opt/stalwart/data`) off the
-   PVC to a safe location. This is the only path back to v0.15.
-3. **Recovery-mode apply**: bring up a throwaway v0.16 pod/container with
-   `STALWART_RECOVERY_MODE=1` + `STALWART_RECOVERY_ADMIN`, pointed at the
-   migrated data. It wipes the incompatible subspaces and exposes 8080.
-   `stalwart-cli apply --file export.json`, then
-   `stalwart-cli apply --file <rendered plan.prod.ndjson>` for the
-   settings the script does not carry (listeners, ACME, hostname).
-4. **Normal start**: tear down the recovery pod; apply Phase B manifests
-   so Flux runs the real Deployment (no `STALWART_RECOVERY_MODE`) + the
-   apply Job. Verify: webadmin Network→Hostname shows
-   `mail.jorisjonkers.dev` (not a macro literal), ACME DNS-01 issues a
-   cert via Cloudflare, SMTP/IMAP reachable, auth-api can submit mail.
-5. **Post-migration**: trigger "Recalculate disk quotas" from the
-   webadmin Tasks panel (quotas are reset to zero by the wipe).
+Mail/calendar/contact data is preserved: the v0.16 first boot deletes only
+the directory + settings _records_, and `export.json` recreates each
+account with its original id (`restore-<id>`) so it re-links to the
+on-disk mail. Sequence:
 
-**Rollback**: scale to 0, restore the `/var/lib/stalwart` tar, redeploy
-the v0.15.5 image + the old config-template ConfigMap. The v0.16 binary
-refuses to start twice against an already-migrated store, so the backup
-is the only way back.
+1. **`flux suspend kustomization apps-mail`** so Flux does not race the
+   manual steps.
+2. **Pre-flight (no downtime)**: from the workstation, port-forward the
+   live v0.15 admin API and run the migration script:
+   ```
+   python migrate_v016.py dump --url http://127.0.0.1:8080 \
+     --username "$ADMIN" --password "$PW" \
+     --settings settings.json --principals principals.json
+   python migrate_v016.py convert \
+     --settings settings.json --principals principals.json \
+     --config config.json --output export.json \
+     --patch-paths /opt/stalwart=/var/lib/stalwart
+   ```
+   Review `config.json` (should match `config-json-configmap.yaml`) and
+   `export.json`. Script:
+   <https://raw.githubusercontent.com/stalwartlabs/stalwart/main/resources/scripts/migrate_v016.py>.
+3. **Backup**: `kubectl scale deploy/stalwart -n mail-system --replicas=0`,
+   then tar the PVC contents off-node. Only path back to v0.15.
+4. **Recovery-mode apply**: run a throwaway v0.16.6 pod with
+   `STALWART_RECOVERY_MODE=1` + `STALWART_RECOVERY_ADMIN`, the existing PVC
+   mounted at `/var/lib/stalwart`, and the migrated `config.json`. It
+   wipes the incompatible subspaces and exposes 8080. Then, with
+   `stalwart-cli` v1.0.7+:
+   ```
+   stalwart-cli apply --file export.json     # accounts/domains/stores
+   ```
+   The listeners/ACME/hostname/auth-account come from the steady-state
+   sidecar, so no separate settings apply is needed here.
+5. **Normal start**: delete the recovery pod, then
+   `flux resume kustomization apps-mail`. Flux applies Phase B; the
+   Deployment starts normally and the `stalwart-apply` sidecar reconciles
+   settings + renews the CF token. Verify: webadmin Network→Hostname shows
+   `mail.jorisjonkers.dev` (no macro literal), ACME DNS-01 issues a cert
+   via Cloudflare, SMTP/IMAP reachable, auth-api submits mail.
+6. **Post-migration**: trigger "Recalculate disk quotas" in the webadmin
+   Tasks panel (quotas reset to zero by the wipe).
+
+**Rollback**: scale to 0, restore the PVC tar, revert this PR (v0.15.5
+image + the old config-template ConfigMap). The v0.16 binary refuses to
+start twice against an already-migrated store, so the backup is the only
+way back.
 
 ## Phase D — cleanup (after a week stable on v0.16)
 
-- Delete `config-template-configmap.yaml` and remove the
-  `config.local-keys` workaround from PR #440 (no TOML exists anymore).
+- Retire the now-unused `stalwart` and `stalwart-bootstrap` Vault roles +
+  policies in `bootstrap-auth.sh` (the deployment uses VSO now, not the
+  Vault Agent). Left in place during cutover to avoid touching auth the
+  rollback might need.
+- Remove the `config.local-keys` workaround from PR #440 (no TOML exists).
 - Update `CLAUDE.md` mail notes to the v0.16 declarative model.
 
 ## Open items to confirm during the prod window
 
-- Whether v0.16 auto-migrates the existing rocksdb store on first
-  recovery-mode boot, or whether `export.json` replay is the only path
-  for the directory records (the script + recovery mode are designed for
-  the latter; confirm no double-migration).
-- The exact hostPort set to publish — only add 587/143/110 if the prod
-  plan keeps those listeners and mail clients still need plaintext+STARTTLS.
-- Whether to stage the webui bundle internally rather than depend on a
-  github fetch at every boot on the Frankfurt VPS.
+- Confirm the recovery-mode boot + `export.json` replay is the path for
+  directory records (no auto-migration double-run).
+- Consider staging the webui bundle internally rather than fetching from
+  github on every boot on the Frankfurt VPS; the `stalwart-apply` sidecar
+  likewise downloads `stalwart-cli` from github each boot — a baked
+  toolbox image pushed to ghcr would remove both runtime fetches.

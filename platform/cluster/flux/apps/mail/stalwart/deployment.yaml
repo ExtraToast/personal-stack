@@ -32,42 +32,33 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: stalwart
-      annotations:
-        vault.hashicorp.com/agent-inject: 'true'
-        vault.hashicorp.com/agent-inject-token: 'true'
-        vault.hashicorp.com/agent-pre-populate-only: 'true'
-        vault.hashicorp.com/role: stalwart
-        vault.hashicorp.com/agent-inject-secret-stalwart.env: secret/data/platform/mail
-        vault.hashicorp.com/agent-inject-template-stalwart.env: |
-          STALWART_ADMIN_USER={{ with secret "secret/data/platform/mail" }}{{ index .Data.data "stalwart.admin_user" }}{{ end }}
-          STALWART_ADMIN_SECRET={{ with secret "secret/data/platform/mail" }}{{ index .Data.data "stalwart.admin_password" }}{{ end }}
-          CF_DNS_API_TOKEN={{ with secret "secret/data/platform/edge" }}{{ index .Data.data "cloudflare.dns_api_token" }}{{ end }}
-          STALWART_HOSTNAME=mail.jorisjonkers.dev
-          STALWART_DOMAIN=jorisjonkers.dev
     spec:
       serviceAccountName: stalwart
       nodeSelector:
         personal-stack/site: frankfurt
       containers:
+        # v0.16 reads only the datastore from /etc/stalwart/config.json;
+        # everything else is reconciled by the stalwart-apply sidecar.
+        # The webui bundle is fetched from github.com on first boot, so
+        # this node needs outbound HTTPS.
         - name: stalwart
-          image: stalwartlabs/stalwart:latest
+          image: stalwartlabs/stalwart:v0.16.6
           imagePullPolicy: IfNotPresent
-          command:
-            - /bin/sh
-            - -ec
-            - |
-              set -a
-              . /vault/secrets/stalwart.env
-              set +a
-              mkdir -p /opt/stalwart/etc
-              cp /config/config.toml /opt/stalwart/etc/config.toml
-              exec /usr/local/bin/entrypoint.sh /usr/local/bin/stalwart
-          # Mail protocols are raw TCP (SMTP, IMAP, POP3, ManageSieve) and
-          # cannot traverse Cloudflare's HTTP proxy, so mail.jorisjonkers.dev
-          # is a non-proxied A record pointing directly at 167.86.79.203.
-          # Bind each mail port on the frankfurt host via hostPort so the
-          # stalwart pod actually answers on the VPS. The admin UI (http,
-          # 8080) stays internal — it's fronted by traefik ingress.
+          env:
+            # Seeds a known admin (user:password) so the sidecar can
+            # authenticate and the webadmin is reachable behind
+            # forward-auth. Rotating the admin secret rolls the pod via
+            # the stalwart-mail VaultStaticSecret rolloutRestartTarget.
+            - name: STALWART_RECOVERY_ADMIN
+              valueFrom:
+                secretKeyRef:
+                  name: stalwart-mail
+                  key: STALWART_RECOVERY_ADMIN
+          # Mail protocols are raw TCP and cannot traverse Cloudflare's
+          # HTTP proxy, so mail.jorisjonkers.dev is a non-proxied A
+          # record at 167.86.79.203. Each mail port is bound on the
+          # frankfurt host via hostPort. The admin UI (8080) stays
+          # internal, fronted by traefik ingress.
           ports:
             - containerPort: 25
               hostPort: 25
@@ -96,17 +87,23 @@ spec:
             - containerPort: 8080
               name: http
           readinessProbe:
-            tcpSocket:
+            httpGet:
+              path: /admin/
               port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 30
           livenessProbe:
             tcpSocket:
               port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
           volumeMounts:
             - name: stalwart-data
-              mountPath: /opt/stalwart
-            - name: stalwart-config-template
-              mountPath: /config/config.toml
-              subPath: config.toml
+              mountPath: /var/lib/stalwart
+            - name: stalwart-config-json
+              mountPath: /etc/stalwart/config.json
+              subPath: config.json
           resources:
             requests:
               cpu: 1000m
@@ -114,13 +111,70 @@ spec:
             limits:
               cpu: 2000m
               memory: 3Gi
+        # Reconciles the declarative settings migrate_v016.py does not
+        # carry and renews the Cloudflare DNS-01 token in stalwart's
+        # database on every pod start. Idles after a successful pass.
+        - name: stalwart-apply
+          image: alpine:3.21
+          command:
+            - sh
+            - -ec
+            - |
+              apk add --no-cache curl jq gettext tar xz >/dev/null
+              exec sh /apply/apply.sh
+          env:
+            - name: STALWART_URL
+              value: http://127.0.0.1:8080
+            - name: STALWART_HOSTNAME
+              value: mail.jorisjonkers.dev
+            - name: STALWART_DOMAIN
+              value: jorisjonkers.dev
+            - name: STALWART_USER
+              valueFrom:
+                secretKeyRef:
+                  name: stalwart-mail
+                  key: STALWART_ADMIN_USER
+            - name: STALWART_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: stalwart-mail
+                  key: STALWART_ADMIN_SECRET
+            - name: CF_DNS_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: stalwart-edge
+                  key: CF_DNS_API_TOKEN
+            - name: AUTH_MAIL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: stalwart-auth-mail
+                  key: AUTH_MAIL_USERNAME
+            - name: AUTH_MAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: stalwart-auth-mail
+                  key: AUTH_MAIL_PASSWORD
+          volumeMounts:
+            - name: stalwart-apply
+              mountPath: /apply
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
       volumes:
         - name: stalwart-data
           persistentVolumeClaim:
             claimName: stalwart-data
-        - name: stalwart-config-template
+        - name: stalwart-config-json
           configMap:
-            name: stalwart-config-template
+            name: stalwart-config-json
+        - name: stalwart-apply
+          configMap:
+            name: stalwart-apply
+            defaultMode: 493
 ---
 apiVersion: v1
 kind: Service
