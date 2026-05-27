@@ -215,6 +215,7 @@ class JooqUserRepositoryIntegrationTest : IntegrationTestBase() {
 
         userRepository.update(user.copy(role = Role.ADMIN))
 
+        awaitByIdCacheEvicted(user.id)
         val refreshed = userRepository.findById(user.id)!!
         assertThat(refreshed.role).isEqualTo(Role.ADMIN)
     }
@@ -247,8 +248,27 @@ class JooqUserRepositoryIntegrationTest : IntegrationTestBase() {
 
         userRepository.saveServicePermissions(user.id, setOf(ServicePermission.VAULT))
 
+        awaitByIdCacheEvicted(user.id)
         val refreshed = userRepository.findById(user.id)!!
         assertThat(refreshed.servicePermissions).containsExactly(ServicePermission.VAULT)
+    }
+
+    /**
+     * The mutators evict the byId cache with a synchronous Redis DEL,
+     * but under CI load the DEL has occasionally not been observable by
+     * the immediately-following `findById` — which then re-caches the
+     * stale row for the full TTL and fails the assertion. Polling the
+     * cache entry directly (a GET that, unlike `findById`, never
+     * re-populates) absorbs that sub-second window; a genuinely missed
+     * eviction keeps the entry past the budget and still fails. See #442.
+     */
+    private fun awaitByIdCacheEvicted(id: UserId) {
+        val cache = cacheManager.getCache(CACHE_USERS_BY_ID)!!
+        val deadline = System.currentTimeMillis() + 5_000
+        while (cache.get(id.value) != null && System.currentTimeMillis() < deadline) {
+            Thread.sleep(50)
+        }
+        assertThat(cache.get(id.value)).describedAs("byId cache entry for %s", id.value).isNull()
     }
 
     @Test
