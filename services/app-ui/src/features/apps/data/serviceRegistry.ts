@@ -38,7 +38,8 @@ export const SERVICE_REGISTRY: ServiceEntry[] = [
   {
     permission: 'MAIL',
     label: 'Stalwart',
-    url: buildServiceUrl('stalwart'),
+    // v0.16 serves the webadmin at /admin (root returns 404).
+    url: buildServiceUrl('stalwart', '/admin/'),
     iconUrl: '/icons/stalwart.svg',
     description: 'Mail server',
   },

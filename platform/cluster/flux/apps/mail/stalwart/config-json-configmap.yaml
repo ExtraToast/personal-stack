@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: stalwart-config-json
+  namespace: mail-system
+data:
+  # v0.16 reads only the datastore from disk; everything else is a JMAP
+  # object reconciled by the stalwart-apply sidecar. The path points at
+  # the rocksdb directory preserved from the v0.15 deployment: the PVC
+  # mounted at /opt/stalwart held its store under data/, and is now
+  # mounted at /var/lib/stalwart, so the store is at
+  # /var/lib/stalwart/data (the same path migrate_v016.py writes when
+  # invoked with --patch-paths /opt/stalwart=/var/lib/stalwart).
+  config.json: |
+    {
+      "@type": "RocksDb",
+      "path": "/var/lib/stalwart/data"
+    }

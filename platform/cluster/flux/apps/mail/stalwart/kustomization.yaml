@@ -1,18 +1,11 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+# Pure Kubernetes manifests. The reconcile script, plan templates and
+# account manifest live in the stalwart-tools image (source under
+# infra/stalwart), not in a ConfigMap — Keel rolls the Deployment when a
+# new image is published.
 resources:
-  - config-template-configmap.yaml
+  - config-json-configmap.yaml
+  - vault-static-secrets.yaml
   - deployment.yaml
-  - principal-bootstrap-job.yaml
-
-# Content-hashed ConfigMap holding the principal-bootstrap script.
-# Editing the .sh changes the hashed name, which paired with the
-# `kustomize.toolkit.fluxcd.io/force: enabled` annotation on the
-# Job triggers a delete+recreate every time the script changes —
-# Job.spec.template is immutable otherwise.
-configMapGenerator:
-  - name: stalwart-principal-bootstrap
-    namespace: mail-system
-    files:
-      - principal-bootstrap.sh

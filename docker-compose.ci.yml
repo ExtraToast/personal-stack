@@ -59,6 +59,10 @@ services:
     image: personal-stack/app-ui:ci
     pull_policy: never
 
+  stalwart-bootstrap:
+    image: personal-stack/stalwart-tools:ci
+    pull_policy: never
+
   # ── CI-specific credentials ──────────────────────────────────────
   postgres:
     environment:

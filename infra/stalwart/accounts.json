@@ -1,0 +1,14 @@
+[
+  {
+    "localPart": "auth",
+    "passwordEnv": "AUTH_MAIL_PASSWORD"
+  },
+  {
+    "localPart": "accounts",
+    "passwordEnv": "ACCOUNT_MAIL_PASSWORD"
+  },
+  {
+    "localPart": "n8n",
+    "passwordEnv": "N8N_MAIL_PASSWORD"
+  }
+]

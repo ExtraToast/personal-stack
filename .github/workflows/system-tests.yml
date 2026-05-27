@@ -19,7 +19,7 @@ on:
           on the branch. Defaults to all five services for callers that
           haven't computed a narrower set.
         type: string
-        default: 'auth-api assistant-api auth-ui assistant-ui app-ui'
+        default: 'auth-api assistant-api auth-ui assistant-ui app-ui stalwart-tools'
 
 concurrency:
   group: system-tests-${{ github.ref }}
@@ -56,6 +56,9 @@ jobs:
           - name: app-ui
             dockerfile: services/app-ui/Dockerfile
             build_arg: VITE_AUTH_URL=https://auth.jorisjonkers.test
+          - name: stalwart-tools
+            dockerfile: infra/stalwart/Dockerfile
+            build_arg: ''
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v4
@@ -153,8 +156,6 @@ jobs:
       - name: Start Docker Compose stack
         timeout-minutes: 6
         run: bash .github/scripts/start-system-test-stack.sh
-      - name: Seed stalwart mail account
-        run: bash .github/scripts/seed-stalwart-ci.sh
       - name: Verify database migrations ran
         run: bash .github/scripts/verify-system-test-migrations.sh
       - name: Wait for Traefik routes to stabilize
