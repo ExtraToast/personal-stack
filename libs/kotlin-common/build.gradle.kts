@@ -70,7 +70,7 @@ dependencies {
     // compile-only here keeps kotlin-common consumers without jOOQ unaffected.
     compileOnly("org.jooq:jooq:3.21.4")
 
-    testImplementation("org.junit.jupiter:junit-jupiter:6.0.3")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("io.mockk:mockk:1.14.9")
     testImplementation("org.assertj:assertj-core:3.27.7")

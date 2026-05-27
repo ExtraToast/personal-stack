@@ -38,7 +38,7 @@ dependencies {
     // log lines so Loki↔Tempo correlation works.
     runtimeOnly("io.micrometer:micrometer-tracing-bridge-otel")
     runtimeOnly("io.opentelemetry:opentelemetry-exporter-otlp")
-    implementation("dev.turingcomplete:kotlin-onetimepassword:2.4.1")
+    implementation("dev.turingcomplete:kotlin-onetimepassword:3.0.0")
     implementation("commons-codec:commons-codec")
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.testcontainers:testcontainers-postgresql")
