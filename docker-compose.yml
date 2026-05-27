@@ -474,6 +474,10 @@ services:
       dockerfile: infra/stalwart/Dockerfile
     container_name: personal-stack-stalwart-bootstrap
     restart: 'no'
+    # One-shot init: excluded from the default `up --wait` (which would
+    # fail when this container exits) and run explicitly via the bootstrap
+    # profile, like vault-oidc-init.
+    profiles: [bootstrap]
     command: ['sh', '/opt/stalwart-tools/bootstrap.sh']
     depends_on:
       stalwart:
