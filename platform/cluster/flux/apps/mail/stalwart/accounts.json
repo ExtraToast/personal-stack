@@ -1,20 +1,14 @@
 [
   {
     "localPart": "auth",
-    "passwordEnv": "AUTH_MAIL_PASSWORD",
-    "aliases": [],
-    "groups": []
+    "passwordEnv": "AUTH_MAIL_PASSWORD"
   },
   {
-    "localPart": "account",
-    "passwordEnv": "ACCOUNT_MAIL_PASSWORD",
-    "aliases": [],
-    "groups": []
+    "localPart": "accounts",
+    "passwordEnv": "ACCOUNT_MAIL_PASSWORD"
   },
   {
     "localPart": "n8n",
-    "passwordEnv": "N8N_MAIL_PASSWORD",
-    "aliases": [],
-    "groups": []
+    "passwordEnv": "N8N_MAIL_PASSWORD"
   }
 ]

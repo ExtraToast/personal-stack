@@ -129,19 +129,27 @@ reconcile_accounts() {
       continue
     fi
 
-    aliases="$(printf '%s' "$entry" | jq -c --arg dom "$dom" \
-      '.aliases // [] | to_entries
-        | map({(.key|tostring): {name:(.value|split("@")[0]), domainId:$dom, enabled:true}})
-        | add // {}')"
+    # Always set the password. aliases/memberGroupIds are only touched
+    # when the entry explicitly declares them, so password-only entries
+    # never clear aliases/groups that the migration (or the webadmin) set.
+    fields="$(jq -nc --arg pw "$pw" '{credentials:{"0":{"@type":"Password",secret:$pw}}}')"
 
-    gids='{}'
-    for g in $(printf '%s' "$entry" | jq -r '.groups[]? // empty'); do
-      gid="$(id_by_email "${g}@${STALWART_DOMAIN}")"
-      [ -n "$gid" ] && gids="$(printf '%s' "$gids" | jq -c --arg id "$gid" '. + {($id):true}')"
-    done
+    if printf '%s' "$entry" | jq -e 'has("aliases")' >/dev/null; then
+      aliases="$(printf '%s' "$entry" | jq -c --arg dom "$dom" \
+        '.aliases | to_entries
+          | map({(.key|tostring): {name:(.value|split("@")[0]), domainId:$dom, enabled:true}})
+          | add // {}')"
+      fields="$(printf '%s' "$fields" | jq -c --argjson a "$aliases" '. + {aliases:$a}')"
+    fi
 
-    fields="$(jq -nc --arg pw "$pw" --argjson aliases "$aliases" --argjson gids "$gids" \
-      '{credentials:{"0":{"@type":"Password",secret:$pw}}, aliases:$aliases, memberGroupIds:$gids}')"
+    if printf '%s' "$entry" | jq -e 'has("groups")' >/dev/null; then
+      gids='{}'
+      for g in $(printf '%s' "$entry" | jq -r '.groups[]? // empty'); do
+        gid="$(id_by_email "${g}@${STALWART_DOMAIN}")"
+        [ -n "$gid" ] && gids="$(printf '%s' "$gids" | jq -c --arg id "$gid" '. + {($id):true}')"
+      done
+      fields="$(printf '%s' "$fields" | jq -c --argjson g "$gids" '. + {memberGroupIds:$g}')"
+    fi
 
     acct="$(id_by_email "${lp}@${STALWART_DOMAIN}")"
     if [ -z "$acct" ]; then
