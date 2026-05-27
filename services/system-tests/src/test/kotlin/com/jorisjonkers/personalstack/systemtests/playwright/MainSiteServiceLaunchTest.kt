@@ -66,7 +66,7 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
         page.waitForLoadState()
         page.waitForTimeout(2000.0)
 
-        val card = page.locator("a[href='https://stalwart.jorisjonkers.test/']").first()
+        val card = page.locator("a[href='https://stalwart.jorisjonkers.test/admin/']").first()
         assertThat(card).isVisible()
 
         val seenUrls = mutableListOf<String>()
