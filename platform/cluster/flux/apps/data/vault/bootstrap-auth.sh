@@ -149,21 +149,6 @@ path "secret/data/platform/edge" {
 }
 EOF
 
-# A separate role for the one-shot Job that provisions the `auth`
-# principal in Stalwart after every rollout. The Job needs the
-# Stalwart admin credentials (`secret/data/platform/mail`) AND the
-# auth-api mail credentials (`secret/data/auth-api`) to keep the
-# principal's password in lockstep with what auth-api uses.
-cat <<'EOF' >/tmp/stalwart-bootstrap.hcl
-path "secret/data/platform/mail" {
-  capabilities = ["read"]
-}
-
-path "secret/data/auth-api" {
-  capabilities = ["read"]
-}
-EOF
-
 # Vault Secrets Operator (VSO) reads here to mint k8s Secrets in
 # the namespaces of the apps that need them:
 # - platform/edge: cloudflare DNS-01 API token (cert-manager,
@@ -253,7 +238,6 @@ vault policy write postgres /tmp/postgres.hcl
 vault policy write rabbitmq /tmp/rabbitmq.hcl
 vault policy write downloads /tmp/downloads.hcl
 vault policy write stalwart /tmp/stalwart.hcl
-vault policy write stalwart-bootstrap /tmp/stalwart-bootstrap.hcl
 vault policy write vso /tmp/vso.hcl
 vault policy write knowledge-api /tmp/knowledge-api.hcl
 
@@ -297,12 +281,6 @@ vault write auth/kubernetes/role/stalwart \
   bound_service_account_names="stalwart" \
   bound_service_account_namespaces="mail-system" \
   policies="stalwart" \
-  ttl="1h"
-
-vault write auth/kubernetes/role/stalwart-bootstrap \
-  bound_service_account_names="stalwart-principal-bootstrap" \
-  bound_service_account_namespaces="mail-system" \
-  policies="stalwart-bootstrap" \
   ttl="1h"
 
 vault write auth/kubernetes/role/vso \
