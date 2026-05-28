@@ -218,7 +218,6 @@ jobs:
             postgres
             rabbitmq
             stalwart
-            stalwart-bootstrap
             vso
           )
           missing=()

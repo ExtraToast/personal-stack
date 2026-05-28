@@ -120,9 +120,10 @@ spec:
             limits:
               cpu: 2000m
               memory: 3Gi
-        # Reconciles the declarative settings migrate_v016.py does not
-        # carry and renews the Cloudflare DNS-01 token in stalwart's
-        # database on every pod start. Idles after a successful pass.
+        # Reconciles the declarative settings stalwart stores in its
+        # datastore (listeners, domain wiring, ACME/DNS providers,
+        # Vault-managed accounts) and renews the Cloudflare DNS-01
+        # token on every pod start. Idles after a successful pass.
         - name: stalwart-apply
           image: ghcr.io/extratoast/personal-stack/stalwart-tools:latest
           command: ['sh', '/opt/stalwart-tools/apply.sh']

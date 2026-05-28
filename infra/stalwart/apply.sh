@@ -1,14 +1,15 @@
 #!/bin/sh
-# stalwart-apply sidecar: reconciles the declarative settings that
-# migrate_v016.py does not carry, and renews secret-bearing values
-# (the Cloudflare DNS-01 token) on every pod start. Runs alongside the
+# stalwart-apply sidecar: reconciles the declarative settings stalwart
+# stores in its datastore (listeners, domain wiring, ACME/DNS providers,
+# Vault-managed accounts) and renews secret-bearing values (the
+# Cloudflare DNS-01 token) on every pod start. Runs alongside the
 # stalwart container; a VaultStaticSecret rolloutRestartTarget restarts
 # the pod when a secret rotates, so this re-runs with the fresh value.
 #
 # Idempotent: pure-create settings come from the plan template and are
 # applied only when absent; the domain wiring, hostname, CF token and
 # auth account are reconciled with query-then-update so they converge
-# regardless of the server-assigned ids the migration produced.
+# regardless of the server-assigned ids in the datastore.
 set -eu
 
 : "${STALWART_URL:=http://127.0.0.1:8080}"
@@ -82,7 +83,7 @@ reconcile() {
   dns="$(first_id DnsServer)"
 
   if [ -z "$dom" ]; then
-    echo "apply: domain ${STALWART_DOMAIN} not found; migration export not yet applied" >&2
+    echo "apply: domain ${STALWART_DOMAIN} not found in the datastore" >&2
     return 1
   fi
 
@@ -90,7 +91,7 @@ reconcile() {
   printf '{"@type":"update","object":"SystemSettings","value":{"defaultHostname":"%s","defaultDomainId":"%s"}}\n' \
     "$STALWART_HOSTNAME" "$dom" | sc apply --file /dev/stdin
 
-  # 3. Wire the migrated domain to automatic ACME + Cloudflare DNS.
+  # 3. Wire the domain to automatic ACME + Cloudflare DNS-01.
   printf '{"@type":"update","object":"Domain","id":"%s","value":{"certificateManagement":{"@type":"Automatic","acmeProviderId":"%s"},"dnsManagement":{"@type":"Automatic","dnsServerId":"%s"}}}\n' \
     "$dom" "$acme" "$dns" | sc apply --file /dev/stdin
 
@@ -101,10 +102,10 @@ reconcile() {
   # 5. Reconcile Vault-managed accounts (passwords, aliases, group
   #    memberships) from accounts.json. Update-only for accounts that
   #    already exist — never delete and never recreate — so the mailbox
-  #    a migrated account links to (restore-<id>) is never disturbed.
-  #    Only list accounts whose full alias/group set is declared here and
-  #    whose password lives in Vault; user-managed mailboxes must NOT
-  #    appear, or their state would be overwritten on every boot.
+  #    an account already links to is never disturbed. Only list
+  #    accounts whose full alias/group set is declared here and whose
+  #    password lives in Vault; user-managed mailboxes must NOT appear,
+  #    or their state would be overwritten on every boot.
   reconcile_accounts "$dom"
 
   echo "apply: reconcile complete"
@@ -131,7 +132,7 @@ reconcile_accounts() {
 
     # Always set the password. aliases/memberGroupIds are only touched
     # when the entry explicitly declares them, so password-only entries
-    # never clear aliases/groups that the migration (or the webadmin) set.
+    # never clear aliases/groups that the webadmin set.
     fields="$(jq -nc --arg pw "$pw" '{credentials:{"0":{"@type":"Password",secret:$pw}}}')"
 
     if printf '%s' "$entry" | jq -e 'has("aliases")' >/dev/null; then
