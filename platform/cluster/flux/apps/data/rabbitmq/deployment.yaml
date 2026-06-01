@@ -90,7 +90,7 @@ spec:
               subPath: enabled_plugins
           resources:
             requests:
-              cpu: 400m
+              cpu: 200m
               memory: 768Mi
             limits:
               cpu: 800m
