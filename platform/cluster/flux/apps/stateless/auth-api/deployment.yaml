@@ -92,6 +92,17 @@ spec:
           # stalwart auth-provisioning Job used to maintain. The account
           # address is the MAIL_FROM identity, set as a plain env below.
           MAIL_PASSWORD={{ with secret "secret/data/platform/mail" }}{{ index .Data.data "account.password" }}{{ end }}
+          # Datasource credential. The Spring Cloud Vault database backend
+          # (dynamic creds via database/creds/auth-api) is still enabled and
+          # is the preferred source — when it engages it overrides these.
+          # But it is currently not binding the datasource in this image, so
+          # without an explicit credential the connection falls back to the
+          # application.yml defaults (auth_user/auth_password) and Flyway
+          # fails with "password authentication failed for user auth_user".
+          # Supplying the real auth_user credential from the single source of
+          # truth (secret/platform/postgres) makes the static path correct.
+          DB_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "auth.user" }}{{ end }}
+          DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "auth.password" }}{{ end }}
           {{ with secret "rabbitmq/creds/app-consumer" }}
           SPRING_RABBITMQ_USERNAME={{ .Data.username }}
           SPRING_RABBITMQ_PASSWORD={{ .Data.password }}
