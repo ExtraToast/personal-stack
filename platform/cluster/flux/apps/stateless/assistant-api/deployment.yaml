@@ -219,7 +219,12 @@ spec:
               memory: 1792Mi
             limits:
               cpu: 1000m
-              memory: 2304Mi
+              # 3Gi (was 2304Mi) for the same cold-start peak headroom as
+              # auth-api: the ~1.27 GiB heap (MaxRAMPercentage=55) plus the
+              # OTel + Pyroscope javaagents' native footprint plus JIT and
+              # metaspace peaked over the old limit and OOMKilled the pod.
+              # Request stays 1792Mi — no added scheduling reservation.
+              memory: 3Gi
           volumeMounts:
             - name: pyroscope-agent
               mountPath: /pyroscope

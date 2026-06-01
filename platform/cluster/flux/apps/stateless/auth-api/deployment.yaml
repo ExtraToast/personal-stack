@@ -322,7 +322,16 @@ spec:
               memory: 2Gi
             limits:
               cpu: 1000m
-              memory: 3Gi
+              # 4Gi (was 3Gi) to cover the transient cold-start memory
+              # peak. Measured steady state is ~1 GiB, but during JVM
+              # warmup the ~1.65 GiB heap (MaxRAMPercentage=55) plus the
+              # native footprint of the two javaagents — OTel + Pyroscope
+              # (continuous CPU + alloc profiling) — plus JIT scratch and
+              # metaspace briefly crossed 3 GiB and the kernel OOMKilled
+              # the container (exit 137) before it reached Ready. The
+              # request stays 2Gi, so this adds no scheduling reservation;
+              # the node has ample free memory for the transient peak.
+              memory: 4Gi
           volumeMounts:
             - name: pyroscope-agent
               mountPath: /pyroscope
