@@ -71,8 +71,16 @@ spec:
         app.kubernetes.io/name: ollama
     spec:
       serviceAccountName: ollama
-      # No runtimeClassName / no GPU node selector — CPU-only.
-      # Land where the scheduler finds memory headroom.
+      # CPU-only (no runtimeClassName / GPU request), but pinned to the
+      # laptop: the `ollama-models` PVC is ReadWriteOnce local-path and
+      # its PV is node-affined to enschede-gtx-960m-1, so the pod can
+      # only ever bind there anyway. Pinning makes that explicit and
+      # keeps the light fallback off the frankfurt VPS and off the
+      # intermittently-powered desktop (enschede-rx7900xtx-1) — the
+      # laptop is the always-on home for the light model, the desktop
+      # hosts the heavy qwen3:32b model behind the ollama-heavy Service.
+      nodeSelector:
+        personal-stack/node: enschede-gtx-960m-1
       volumes:
         - name: models
           persistentVolumeClaim:
@@ -92,34 +100,27 @@ spec:
               ollama serve &
               SERVE_PID=$!
               until ollama list >/dev/null 2>&1; do sleep 2; done
-              ollama pull qwen2.5:7b-instruct
-              # qwen3:8b is the curator's new chat model — native
-              # structured-output (Qwen2.5 needed Ollama's grammar
-              # overlay), better reasoning, same ~5 GiB Q4 footprint
-              # as the 7b it replaces. Pulled alongside qwen2.5:7b
-              # during the cutover window so a config flip
-              # (`OLLAMA_CHAT_MODEL=qwen2.5:7b-instruct`) reverts
-              # without a deploy. Drop Qwen2.5 in a follow-up once
-              # the curator has run on Qwen3 for a full week without
-              # JSON-validity regressions.
-              ollama pull qwen3:8b
-              ollama pull nomic-embed-text
-              # qwen3-embedding:0.6b feeds the recall path's pgvector
-              # ANN leg (knowledge-api V9 schema). Matryoshka-native,
-              # multilingual, ~1 GiB on disk. Pulled alongside nomic
-              # for the cutover window — the backfill CronJob picks
-              # up rows whose `embedding_model` still reads
-              # `nomic-embed-text` and re-embeds them. Drop nomic in
-              # a follow-up PR once `kb_notes.embedding_model =
-              # 'nomic-embed-text'` count hits zero.
-              ollama pull qwen3-embedding:0.6b
-              # qwen3-reranker:0.6b backs `mode=deep` listwise rerank on
-              # the knowledge-api side (`OllamaListwiseReranker`). ~1 GiB
-              # on disk; with `OLLAMA_MAX_LOADED_MODELS=1` it swaps in
-              # only when a deep-mode recall fires. Beats
-              # bge-reranker-v2-m3 on MMTEB at the smallest size in the
-              # purpose-built reranker family.
-              ollama pull qwen3-reranker:0.6b
+              # Pre-pull is best-effort. A missing/renamed tag or a
+              # transient registry 404 on any one model must never fail
+              # the init container — that is exactly what kept this pod
+              # in Init:CrashLoopBackOff: `ollama pull qwen3-reranker:0.6b`
+              # 404s because no `qwen3-reranker` model exists in the
+              # Ollama library, and under `set -e` the non-zero exit
+              # crash-looped the whole light backend, taking the
+              # knowledge fallback offline whenever the heavy desktop
+              # host was down. Each pull is now independently non-fatal.
+              #   qwen2.5:7b-instruct — previous curator chat model, kept
+              #     for one-flip rollback during the qwen3 cutover.
+              #   qwen3:8b            — current curator chat model.
+              #   nomic-embed-text    — legacy embeddings, retired once
+              #     the backfill drains kb_notes.embedding_model rows.
+              #   qwen3-embedding:0.6b — recall pgvector ANN embeddings.
+              # The deep-mode listwise reranker is best-effort at request
+              # time (OllamaListwiseReranker falls back to input order),
+              # so its model is intentionally not pre-pulled here.
+              for m in qwen2.5:7b-instruct qwen3:8b nomic-embed-text qwen3-embedding:0.6b; do
+                ollama pull "$m" || echo "warn: pre-pull of $m failed, continuing"
+              done
               kill $SERVE_PID
               wait $SERVE_PID 2>/dev/null || true
           env:
