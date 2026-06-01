@@ -23,47 +23,30 @@ metadata:
     keel.sh/trigger: poll
     keel.sh/pollSchedule: '@every 2m'
 spec:
-  # Two replicas because auth-api is on the forward-auth path for
-  # nearly every public service. A 1-replica rollout takes the whole
-  # cluster's auth surface offline for the JVM warmup window — and
-  # that window is not the 10–15 s the original comment assumed.
-  # Cold start on Spring Boot 4 with the OTel agent + Pyroscope agent
-  # + kotlin-common's per-method tracing aspect runs ~3–5 minutes on
-  # Frankfurt at request==limit==1000m; the 600 s startupProbe budget
-  # exists precisely to cover that. During the warm-up window every
-  # sign-in (`GET /api/v1/auth/me`) and every forward-auth-protected
-  # request 503s because the Service has zero ready endpoints.
+  # Single replica with surge-based zero-downtime deploys. auth-api is on
+  # the forward-auth path, so a rollout must never drop to zero ready
+  # endpoints — but a second always-on replica is not required to achieve
+  # that. maxSurge=1 + maxUnavailable=0 brings a new pod to Ready *before*
+  # the old one terminates, so forward-auth keeps a live endpoint across
+  # every Keel-driven rollout, at one replica's steady-state cost.
   #
-  # PR #320 swept this from 2 → 1 along with the other stateless apps
-  # on the VPS for CPU budget reasons. The sweep was correct for
-  # services that are not on the forward-auth hot path, but for
-  # auth-api the cost is a full sign-in outage on every Keel-driven
-  # rollout. With replicas=2 + maxSurge=0 + maxUnavailable=1 the
-  # partner stays Ready for the whole rollout and Traefik
-  # forward-auth keeps a live endpoint.
+  # This is viable now that CPU requests are right-sized (request 400m,
+  # not 1000m): the transient surge pod needs only ~400m, which the
+  # freed Frankfurt budget has many times over — the old maxSurge=0 note
+  # about the node being "chronically near 91% requested" no longer holds.
   #
-  # Frankfurt currently has ~1500m CPU request budget free at 1000m
-  # per replica, so the second replica schedules without preempting
-  # anything; if that changes the Deployment becomes Available with
-  # 1 pod (maxUnavailable=1 → desired-1 = 1 minimum) and the spare
-  # schedules opportunistically.
-  replicas: 2
-  # Long deadline so a Pending second replica doesn't flip the
-  # HelmRelease to Failed (chart default is 600s = 10 min).
+  # Trade-off: a single replica means a pod or node *failure* (as opposed
+  # to a deploy) causes a brief gap until the pod restarts. That is an
+  # accepted trade for the reclaimed core; deploys stay zero-downtime.
+  replicas: 1
+  # Long deadline so a slow cold start doesn't flip the HelmRelease to
+  # Failed (chart default is 600s = 10 min).
   progressDeadlineSeconds: 1800
-  # Kill the old pod before creating the new one. Default maxSurge=1
-  # requires 1500m free CPU on frankfurt-contabo-1 for the overlap,
-  # but the node is chronically near 91% requested — so a surge
-  # rollout blocks in `Pending` indefinitely. Do NOT lower the CPU
-  # request — the perf PR #160 raised it to 1500m specifically to
-  # avoid CFS throttling during JVM class loading. With replicas=2
-  # the surge=0 still gives zero downtime: one of the two is always
-  # serving while the other is being replaced.
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 0
-      maxUnavailable: 1
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app.kubernetes.io/name: auth-api
@@ -308,20 +291,21 @@ spec:
               port: http
             timeoutSeconds: 5
           resources:
-            # request == cpu limit so Linux CFS doesn't throttle JVM class
-            # loading during cold start. Lowered from 1500m to 1000m once
-            # PR #245's AppCDS archive halved the cold-start class-load
-            # cost (assistant-api Spring context refresh fell from ~85 s
-            # at 750m to ~37 s at 1000m + AppCDS in production); auth-api
-            # carries more startup wiring than assistant-api, so we keep
-            # 1000m rather than dropping further. This is what finally
-            # fits two replicas inside the Frankfurt CPU-request budget
-            # so rolling updates don't deadlock on maxUnavailable=1.
+            # CPU request sized to measured steady state (~60m) + headroom,
+            # not the cold-start peak. The old request==limit==1000m
+            # reserved a full core while the pod idles at ~60m — that
+            # reservation is what kept Frankfurt's budget "full" and starved
+            # the scheduler. The cold-start CPU need is transient and the
+            # node has abundant real CPU, so the limit is raised to 2000m
+            # to let class loading burst higher (faster cold start) while
+            # the 400m request frees the reservation. Under genuine node
+            # contention CFS throttles toward the request; steady-state
+            # usage makes that moot.
             requests:
-              cpu: 1000m
+              cpu: 400m
               memory: 2Gi
             limits:
-              cpu: 1000m
+              cpu: 2000m
               # 4Gi (was 3Gi) to cover the transient cold-start memory
               # peak. Measured steady state is ~1 GiB, but during JVM
               # warmup the ~1.65 GiB heap (MaxRAMPercentage=55) plus the

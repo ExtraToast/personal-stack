@@ -205,20 +205,16 @@ spec:
               port: http
             timeoutSeconds: 5
           resources:
-            # request == cpu limit; see auth-api deployment.yaml for the
-            # rationale (eliminates CFS throttling during JVM class load).
-            # Lower than auth-api's 1500m because steady-state usage is
-            # ~100m and assistant-api isn't on the cluster's forward-auth
-            # critical path. Set to 1000m (down from 1200m) after 750m
-            # was found to push Spring/Flyway startup past the 300s
-            # startupProbe window, killing the pod mid-roll. 1000m keeps
-            # cold start under ~3 min while still saving ~400m × 2 of
-            # Frankfurt CPU headroom for safe auth-api rollouts.
+            # CPU request sized to measured steady state (~50m) + headroom,
+            # not the cold-start peak — see auth-api for the full rationale.
+            # The 400m request frees the reservation that kept Frankfurt
+            # "full"; the 2000m limit lets class loading burst on the idle
+            # node for a fast cold start.
             requests:
-              cpu: 1000m
+              cpu: 400m
               memory: 1792Mi
             limits:
-              cpu: 1000m
+              cpu: 2000m
               # 3Gi (was 2304Mi) for the same cold-start peak headroom as
               # auth-api: the ~1.27 GiB heap (MaxRAMPercentage=55) plus the
               # OTel + Pyroscope javaagents' native footprint plus JIT and
