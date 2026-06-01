@@ -49,6 +49,7 @@ spec:
           RABBITMQ_PASSWORD={{ with secret "secret/data/platform/rabbitmq" }}{{ index .Data.data "rabbitmq.password" }}{{ end }}
     spec:
       serviceAccountName: knowledge-api
+      priorityClassName: platform-critical-app
       nodeSelector:
         personal-stack/site: frankfurt
       containers:

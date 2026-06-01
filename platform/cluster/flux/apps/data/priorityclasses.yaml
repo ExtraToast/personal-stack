@@ -1,0 +1,34 @@
+# Scheduling priority for the personal-stack workloads. The Frankfurt
+# VPS has 8 cores and runs the whole stack plus the k3s control plane;
+# when a node drops (e.g. the intermittent desktop) and many pods
+# reschedule at once, their combined CPU *requests* exceed the node and
+# the scheduler deadlocks — a crash-looping app can then hold the CPU
+# the database needs to start, and neither makes progress. These classes
+# give the scheduler an order to resolve that: the data tier always wins
+# (preempting an app pod if necessary), critical request-path services
+# win over best-effort workloads, and everything else yields.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: platform-data
+value: 1000000
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority
+description: >-
+  Stateful data tier (postgres, rabbitmq, valkey, vault). Outranks every
+  application pod so the data layer always schedules — preempting a
+  lower-priority pod when the VPS is CPU-saturated — rather than
+  deadlocking behind crash-looping consumers that depend on it.
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: platform-critical-app
+value: 100000
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority
+description: >-
+  Critical request-path services (auth-api, assistant-api, knowledge-api).
+  Ranked below the data tier but above the default so login and core APIs
+  keep scheduling when the VPS is tight, while non-essential workloads
+  (automation, media) yield.

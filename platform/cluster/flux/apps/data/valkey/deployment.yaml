@@ -27,6 +27,7 @@ spec:
       labels:
         app.kubernetes.io/name: valkey
     spec:
+      priorityClassName: platform-data
       nodeSelector:
         personal-stack/site: frankfurt
       containers:

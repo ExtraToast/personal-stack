@@ -48,6 +48,7 @@ spec:
           {{ end }}
     spec:
       serviceAccountName: assistant-api
+      priorityClassName: platform-critical-app
       nodeSelector:
         personal-stack/site: frankfurt
       initContainers:
