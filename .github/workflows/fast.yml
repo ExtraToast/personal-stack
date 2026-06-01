@@ -230,7 +230,7 @@ jobs:
         working-directory: services/knowledge-ingest-worker
     steps:
       - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v7
         with:
           version: '0.4.30'
       - run: uv sync --python 3.12 --frozen
@@ -247,7 +247,7 @@ jobs:
         working-directory: services/knowledge-ingest-worker
     steps:
       - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v7
         with:
           version: '0.4.30'
       - run: uv sync --python 3.12 --frozen
@@ -264,7 +264,7 @@ jobs:
         working-directory: services/knowledge-curator
     steps:
       - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v7
         with:
           version: '0.4.30'
       - run: uv sync --python 3.12 --frozen
@@ -281,7 +281,7 @@ jobs:
         working-directory: services/knowledge-curator
     steps:
       - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v7
         with:
           version: '0.4.30'
       - run: uv sync --python 3.12 --frozen
