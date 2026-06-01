@@ -42,6 +42,17 @@ spec:
         vault.hashicorp.com/role: assistant-api
         vault.hashicorp.com/agent-inject-secret-assistant-api.env: rabbitmq/creds/app-consumer
         vault.hashicorp.com/agent-inject-template-assistant-api.env: |
+          # Datasource credential. The Spring Cloud Vault database backend
+          # (dynamic creds via database/creds/assistant-api) is preferred
+          # and overrides these when it engages, but it is not binding the
+          # datasource in the current image, so without an explicit
+          # credential the connection falls back to the application.yml
+          # defaults (assistant_user/assistant_password) and Flyway fails
+          # with "password authentication failed for user assistant_user".
+          # Supply the real assistant_user credential from the single
+          # source of truth (secret/platform/postgres). See auth-api.
+          DB_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "assistant.user" }}{{ end }}
+          DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "assistant.password" }}{{ end }}
           {{ with secret "rabbitmq/creds/app-consumer" }}
           SPRING_RABBITMQ_USERNAME={{ .Data.username }}
           SPRING_RABBITMQ_PASSWORD={{ .Data.password }}

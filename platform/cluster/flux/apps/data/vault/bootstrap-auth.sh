@@ -97,6 +97,13 @@ path "secret/data/assistant-api/*" {
   capabilities = ["read"]
 }
 
+# Static datasource credential (assistant_user), read by the vault-agent
+# template as DB_USER/DB_PASSWORD. Fallback for when the dynamic database
+# backend (database/creds/assistant-api below) does not bind — see auth-api.
+path "secret/data/platform/postgres" {
+  capabilities = ["read"]
+}
+
 # Deploy keys for the agents subsystem land under these two paths
 # (see VaultDeployKeyStore.kt):
 #   secret/data/agents/repositories/<repositoryId>   (current)
