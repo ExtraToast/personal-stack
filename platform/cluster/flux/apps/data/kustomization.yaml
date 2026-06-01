@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
+  - priorityclasses.yaml
   - postgres
   - rabbitmq
   - valkey

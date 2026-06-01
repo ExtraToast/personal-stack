@@ -91,6 +91,7 @@ spec:
           {{ end }}
     spec:
       serviceAccountName: auth-api
+      priorityClassName: platform-critical-app
       nodeSelector:
         personal-stack/site: frankfurt
       initContainers:

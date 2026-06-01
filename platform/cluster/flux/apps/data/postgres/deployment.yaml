@@ -50,6 +50,7 @@ spec:
           KB_DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "kb.password" }}{{ end }}
     spec:
       serviceAccountName: postgres
+      priorityClassName: platform-data
       nodeSelector:
         personal-stack/site: frankfurt
       containers:

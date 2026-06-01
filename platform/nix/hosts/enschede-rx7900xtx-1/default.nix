@@ -37,5 +37,16 @@
     "personal-stack/gpu-model-rx7900xtx" = "true";
     "personal-stack/gpu-class-render-compute" = "true";
   };
+
+  # This desktop is powered off frequently — it is the opportunistic
+  # heavy-LLM host (host-native ROCm Ollama), not a general worker. Taint
+  # it NoSchedule so no general workload lands here and gets stranded (or
+  # strands a local-path PVC) when the box goes offline; the cluster must
+  # stay healthy on the always-on nodes alone. Pods that genuinely belong
+  # here add a matching toleration.
+  personalStack.k3sNodeTaints = [
+    "personal-stack/intermittent=true:NoSchedule"
+  ];
+
   system.stateVersion = "25.05";
 }

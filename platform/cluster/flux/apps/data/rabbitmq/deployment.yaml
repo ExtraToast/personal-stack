@@ -43,6 +43,7 @@ spec:
           RABBITMQ_DEFAULT_PASS={{ with secret "secret/data/platform/rabbitmq" }}{{ index .Data.data "rabbitmq.password" }}{{ end }}
     spec:
       serviceAccountName: rabbitmq
+      priorityClassName: platform-data
       nodeSelector:
         personal-stack/site: frankfurt
       containers:
