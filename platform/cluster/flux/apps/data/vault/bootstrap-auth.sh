@@ -63,6 +63,14 @@ path "secret/data/platform/mail" {
   capabilities = ["read"]
 }
 
+# Static datasource credential (auth_user) read by the vault-agent
+# template as DB_USER/DB_PASSWORD. Preferred path is the dynamic
+# database backend (database/creds/auth-api below); this is the
+# fallback the datasource uses when the dynamic backend does not bind.
+path "secret/data/platform/postgres" {
+  capabilities = ["read"]
+}
+
 path "rabbitmq/creds/app-consumer" {
   capabilities = ["read"]
 }
