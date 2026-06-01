@@ -56,6 +56,13 @@ path "secret/data/auth-api/*" {
   capabilities = ["read"]
 }
 
+# SMTP submission password. Stalwart owns the account; auth-api reads
+# the same account.password stalwart provisions the principal with,
+# so the credential has a single source of truth under platform/mail.
+path "secret/data/platform/mail" {
+  capabilities = ["read"]
+}
+
 path "rabbitmq/creds/app-consumer" {
   capabilities = ["read"]
 }
