@@ -76,13 +76,14 @@ spec:
               . /vault/secrets/assistant-api.env
               set +a
               # See auth-api deployment.yaml for the rationale behind these
-              # JVM flags (MaxRAMPercentage for cgroup-aware heap sizing,
-              # ZGC for sub-ms pauses). AppCDS args were dropped together
-              # with the image switch to BellSoft Liberica CRaC; CRaC
-              # restore (next PR in the stack) supersedes AppCDS.
+              # JVM flags. MaxRAMPercentage=55 (down from 75) leaves native
+              # headroom under the 2304 MiB limit for the two javaagents +
+              # tracing aspect, avoiding the OOMKills the 75 % heap caused
+              # during cold start. ZGC for sub-ms pauses. AppCDS args were
+              # dropped with the BellSoft Liberica CRaC image switch.
               exec java \
                 -XX:+UseZGC \
-                -XX:MaxRAMPercentage=75 \
+                -XX:MaxRAMPercentage=55 \
                 -javaagent:/app/otel-javaagent.jar \
                 -javaagent:/pyroscope/pyroscope.jar \
                 -jar /app/app.jar

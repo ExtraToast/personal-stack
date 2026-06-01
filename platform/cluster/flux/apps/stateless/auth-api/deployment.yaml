@@ -129,9 +129,15 @@ spec:
               set -a
               . /vault/secrets/auth-api.env
               set +a
-              # -XX:MaxRAMPercentage=75: size the JVM heap off the container
-              # memory limit so cgroup-aware autosizing uses the room we
-              # actually give it (1.5 GiB of the 2 GiB request → ~1.5 GiB heap).
+              # -XX:MaxRAMPercentage=55: cgroup-aware heap sizing off the
+              # 3 GiB limit → ~1.65 GiB heap, leaving ~1.35 GiB for native
+              # memory. 75 % (the prior value) left only ~768 MiB of native
+              # headroom under the limit — not enough for the two javaagents
+              # (otel + Pyroscope) plus kotlin-common's per-method tracing
+              # aspect plus metaspace/threads/direct buffers, so the JVM was
+              # OOMKilled (exit 137) during the agent-heavy cold start. The
+              # old comment assumed 75 % of the 2 GiB request (~1.5 GiB heap),
+              # but the JVM sizes off the 3 GiB limit, so it took ~2.25 GiB.
               # ZGC: sub-ms pauses under cache-warm loads + better throughput
               # than G1 on workloads that touch many short-lived objects (jOOQ
               # row mappers, Jackson, OAuth2 token responses).
@@ -143,7 +149,7 @@ spec:
               # (~250–300 s); the 600 s startupProbe budget covers it.
               exec java \
                 -XX:+UseZGC \
-                -XX:MaxRAMPercentage=75 \
+                -XX:MaxRAMPercentage=55 \
                 -javaagent:/app/otel-javaagent.jar \
                 -javaagent:/pyroscope/pyroscope.jar \
                 -jar /app/app.jar
