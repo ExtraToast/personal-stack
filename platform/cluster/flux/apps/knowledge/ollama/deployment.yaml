@@ -57,7 +57,16 @@ metadata:
     # 0.13.0-0.13.2 (LightRAG #2495 embedding regression).
     keel.sh/policy: never
 spec:
-  replicas: 1
+  # Scaled to 0 by request: this in-cluster light Ollama is pinned to the
+  # gtx960m laptop (its model PVC is node-local there), and running LLM
+  # inference on that node spins its fans up audibly. Heavy chat is served
+  # by the host-native Ollama on the desktop (ollama-heavy) when it is
+  # online. NOTE: while this is 0, the knowledge recall embedding path
+  # (qwen3-embedding) and the light chat fallback have no backend — recall
+  # degrades when the heavy host is also offline. The durable fix is to
+  # relocate this Deployment to an always-on, out-of-earshot node
+  # (e.g. t1000) rather than leave it disabled; tracked separately.
+  replicas: 0
   progressDeadlineSeconds: 1800
   strategy:
     # RWO model PVC; old pod must release before new pod can mount.
