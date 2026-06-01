@@ -83,8 +83,15 @@ spec:
           AUTH_CLIENTS_GRAFANA_SECRET={{ with secret "secret/data/auth-api" }}{{ index .Data.data "auth.clients.grafana.secret" }}{{ end }}
           AUTH_CLIENTS_N8N_SECRET={{ with secret "secret/data/auth-api" }}{{ index .Data.data "auth.clients.n8n.secret" }}{{ end }}
           AUTH_CLIENTS_VAULT_SECRET={{ with secret "secret/data/auth-api" }}{{ index .Data.data "auth.clients.vault.secret" }}{{ end }}
-          MAIL_USERNAME={{ with secret "secret/data/auth-api" }}{{ index .Data.data "mail.username" }}{{ end }}
-          MAIL_PASSWORD={{ with secret "secret/data/auth-api" }}{{ index .Data.data "mail.password" }}{{ end }}
+          # SMTP submission account. Stalwart owns this account and its
+          # password lives in secret/platform/mail (account.password) —
+          # the same value stalwart's accounts.json provisions the
+          # principal with. Sourcing it here (instead of a duplicated
+          # mail.username/mail.password under secret/auth-api) keeps a
+          # single source of truth and removes the lock-step the
+          # stalwart auth-provisioning Job used to maintain. The account
+          # address is the MAIL_FROM identity, set as a plain env below.
+          MAIL_PASSWORD={{ with secret "secret/data/platform/mail" }}{{ index .Data.data "account.password" }}{{ end }}
           {{ with secret "rabbitmq/creds/app-consumer" }}
           SPRING_RABBITMQ_USERNAME={{ .Data.username }}
           SPRING_RABBITMQ_PASSWORD={{ .Data.password }}
@@ -166,6 +173,11 @@ spec:
               value: '5672'
             - name: MAIL_HOST
               value: stalwart.mail-system.svc.cluster.local
+            # SMTP submission account address (the MAIL_FROM identity).
+            # Matches the principal stalwart provisions; password comes
+            # from secret/platform/mail via the vault-agent template.
+            - name: MAIL_USERNAME
+              value: auth@jorisjonkers.dev
             - name: MAIL_PORT
               value: '587'
             - name: AUTH_LOGIN_URL
