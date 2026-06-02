@@ -19,6 +19,7 @@ const term = {
     onResizeCb = cb
   }),
   focus: vi.fn(),
+  reset: vi.fn(),
   dispose: vi.fn(),
 }
 vi.mock('@xterm/xterm', () => ({
@@ -29,6 +30,7 @@ vi.mock('@xterm/xterm', () => ({
     onData = term.onData
     onResize = term.onResize
     focus = term.focus
+    reset = term.reset
     dispose = term.dispose
   },
 }))
@@ -43,13 +45,17 @@ const socket = {
   send: vi.fn(),
   sendKey: vi.fn(),
   sendResize: vi.fn(),
+  setReconnect: vi.fn(),
+  reconnectNow: vi.fn(),
   close: vi.fn(),
   readyState: vi.fn(() => 1),
 }
 let capturedOnOutput: ((text: string) => void) | undefined
+let capturedOnReopen: (() => void) | undefined
 vi.mock('../services/sessionSocket', () => ({
-  attachSessionSocket: vi.fn((opts: { onOutput: (t: string) => void }) => {
+  attachSessionSocket: vi.fn((opts: { onOutput: (t: string) => void; onReopen?: () => void }) => {
     capturedOnOutput = opts.onOutput
+    capturedOnReopen = opts.onReopen
     return socket
   }),
 }))
@@ -60,6 +66,7 @@ describe('sessionTerminal', () => {
     Object.values(socket).forEach((m) => m.mockClear())
     vi.mocked(attachSessionSocket).mockClear()
     capturedOnOutput = undefined
+    capturedOnReopen = undefined
     onDataCb = undefined
     onResizeCb = undefined
   })
@@ -129,5 +136,26 @@ describe('sessionTerminal', () => {
     // tear it down or open a new one.
     expect(attachSessionSocket).toHaveBeenCalledTimes(1)
     expect(socket.close).not.toHaveBeenCalled()
+  })
+
+  it('only keeps the socket warm while the tab is active', async () => {
+    const wrapper = mountTerminal({ active: false })
+    // Hidden at mount -> reconnect disabled so it does not pin the runner.
+    expect(socket.setReconnect).toHaveBeenLastCalledWith(false)
+
+    await wrapper.setProps({ active: true })
+    // Shown -> reconnect enabled and an immediate reconnect kicked off
+    // so a socket that lapsed while hidden comes back without a keystroke.
+    expect(socket.setReconnect).toHaveBeenLastCalledWith(true)
+    expect(socket.reconnectNow).toHaveBeenCalled()
+
+    await wrapper.setProps({ active: false })
+    expect(socket.setReconnect).toHaveBeenLastCalledWith(false)
+  })
+
+  it('resets the terminal on reconnect so the attach snapshot repaints cleanly', () => {
+    mountTerminal({ active: true })
+    capturedOnReopen?.()
+    expect(term.reset).toHaveBeenCalled()
   })
 })

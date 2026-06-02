@@ -41,7 +41,15 @@ onMounted(() => {
   socket = attachSessionSocket({
     sessionId: props.sessionId,
     onOutput: (text) => term?.write(text),
+    // A reconnect re-attaches and the gateway resends a current-screen
+    // snapshot; reset first so it repaints cleanly instead of stacking
+    // under the stale buffer.
+    onReopen: () => term?.reset(),
   })
+  // Only the visible terminal keeps its socket warm; a hidden tab is
+  // allowed to lapse so it does not pin its runner against the idle
+  // reaper, then reconnects when shown again.
+  socket.setReconnect(props.active ?? false)
 
   // xterm emits raw keystroke bytes (incl. "\r"); the gateway's
   // send-keys -l passes them literally, so enter is always false.
@@ -71,7 +79,13 @@ function revealAndFocus(): void {
 watch(
   () => props.active,
   (isActive) => {
-    if (isActive) revealAndFocus()
+    socket?.setReconnect(isActive ?? false)
+    if (isActive) {
+      // Returning to a tab whose socket lapsed while hidden: bring it
+      // back immediately rather than waiting for a keystroke to notice.
+      socket?.reconnectNow()
+      revealAndFocus()
+    }
   },
 )
 
