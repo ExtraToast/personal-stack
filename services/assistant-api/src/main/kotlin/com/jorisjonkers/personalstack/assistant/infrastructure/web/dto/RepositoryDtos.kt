@@ -12,6 +12,25 @@ data class CreateRepositoryRequest(
     val defaultBranch: String = "main",
 )
 
+data class AccessVerificationResponse(
+    val read: Boolean?,
+    val write: Boolean?,
+    val defaultBranchProtected: Boolean?,
+    val checkedAt: Instant?,
+    val messages: List<String>,
+) {
+    companion object {
+        fun of(v: com.jorisjonkers.personalstack.assistant.domain.model.AccessVerification) =
+            AccessVerificationResponse(
+                read = v.read,
+                write = v.write,
+                defaultBranchProtected = v.defaultBranchProtected,
+                checkedAt = v.checkedAt,
+                messages = v.messages,
+            )
+    }
+}
+
 data class RepositoryResponse(
     val id: UUID,
     val name: String,
@@ -22,6 +41,7 @@ data class RepositoryResponse(
     val deployKeyAddedAt: Instant?,
     val createdAt: Instant,
     val updatedAt: Instant,
+    val verification: AccessVerificationResponse?,
 ) {
     companion object {
         fun of(r: Repository) =
@@ -35,6 +55,7 @@ data class RepositoryResponse(
                 deployKeyAddedAt = r.deployKeyAddedAt,
                 createdAt = r.createdAt,
                 updatedAt = r.updatedAt,
+                verification = r.verification?.let(AccessVerificationResponse::of),
             )
     }
 }

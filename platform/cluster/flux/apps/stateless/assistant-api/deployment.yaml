@@ -182,6 +182,18 @@ spec:
             # Runner Pods must co-locate with the credential PVCs.
             - name: AGENT_RUNTIME_NODE
               value: enschede-gtx-960m-1
+            # Read-only GitHub token for the deploy-key branch-protection
+            # check. Sourced from the github-api-token Secret (key
+            # `token`), which a VaultStaticSecret projects from Vault —
+            # both are provisioned separately (ops). `optional: true`
+            # keeps the pod starting when the Secret is absent; the
+            # branch-protection check then degrades to null.
+            - name: GITHUB_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: github-api-token
+                  key: token
+                  optional: true
           ports:
             - containerPort: 8082
               name: http

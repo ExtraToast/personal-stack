@@ -31,4 +31,15 @@ data class AgentRuntimeProperties(
     val nodeSelector: Map<String, String> = mapOf("personal-stack/node" to "enschede-gtx-960m-1"),
     val gatewayConnectTimeoutMs: Long = 5_000,
     val gatewayReadTimeoutMs: Long = 60_000,
+    // Base URL of the standing agent-gateway used for the
+    // workspace-independent `/git/verify` deploy-key probe at
+    // attach/create time (the per-workspace gateway sidecar only
+    // exists once a runner Pod is up). Empty => verify is skipped and
+    // the stored result degrades to read=write=null.
+    val verifyGatewayBaseUrl: String = "",
+    // Read-only GitHub API token for the branch-protection check.
+    // Empty => branch protection reports null (never a hard failure).
+    val githubApiToken: String = "",
+    // GitHub REST base — overridable for tests / GitHub Enterprise.
+    val githubApiBaseUrl: String = "https://api.github.com",
 )

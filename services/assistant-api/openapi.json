@@ -219,6 +219,33 @@
         }
       }
     },
+    "/api/v1/repositories/{id}/verify" : {
+      "post" : {
+        "tags" : [ "repository-controller" ],
+        "operationId" : "verify",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RepositoryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/repositories/{id}/key" : {
       "post" : {
         "tags" : [ "repository-controller" ],
@@ -1202,6 +1229,31 @@
         },
         "required" : [ "defaultBranch", "name", "repoUrl" ]
       },
+      "AccessVerificationResponse" : {
+        "type" : "object",
+        "properties" : {
+          "read" : {
+            "type" : [ "boolean", "null" ]
+          },
+          "write" : {
+            "type" : [ "boolean", "null" ]
+          },
+          "defaultBranchProtected" : {
+            "type" : [ "boolean", "null" ]
+          },
+          "checkedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "messages" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "messages" ]
+      },
       "RepositoryResponse" : {
         "type" : "object",
         "properties" : {
@@ -1235,6 +1287,13 @@
           "updatedAt" : {
             "type" : "string",
             "format" : "date-time"
+          },
+          "verification" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/AccessVerificationResponse"
+            }, {
+              "type" : "null"
+            } ]
           }
         },
         "required" : [ "createdAt", "defaultBranch", "id", "name", "repoUrl", "updatedAt", "vaultKeyPath" ]

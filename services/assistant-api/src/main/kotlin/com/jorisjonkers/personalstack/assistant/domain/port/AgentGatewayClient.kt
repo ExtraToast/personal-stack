@@ -17,6 +17,29 @@ interface AgentGatewayClient {
         val cwd: String,
     )
 
+    /**
+     * Result of the gateway's `/git/verify` probe. `read` proves the
+     * staged deploy key can `git ls-remote`; `write` is a
+     * non-destructive throwaway-ref push/delete against an existing
+     * commit. `detail` carries the gateway's human-readable message.
+     */
+    data class AccessVerification(
+        val read: Boolean,
+        val write: Boolean,
+        val detail: String,
+    )
+
+    /**
+     * Ask the standing agent-gateway to verify deploy-key access to
+     * [repoUrl] on [branch] (HEAD when null). Returns null when no
+     * gateway base URL is configured or the call is inconclusive —
+     * callers degrade gracefully rather than fail hard.
+     */
+    fun verifyAccess(
+        repoUrl: String,
+        branch: String?,
+    ): AccessVerification?
+
     fun spawnAgent(
         workspace: Workspace,
         kind: WorkspaceAgentKind,

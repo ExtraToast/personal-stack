@@ -92,6 +92,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/repositories/{id}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["verify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/repositories/{id}/key": {
         parameters: {
             query?: never;
@@ -474,6 +490,14 @@ export interface components {
             repoUrl: string;
             defaultBranch: string;
         };
+        AccessVerificationResponse: {
+            read?: boolean | null;
+            write?: boolean | null;
+            defaultBranchProtected?: boolean | null;
+            /** Format: date-time */
+            checkedAt?: string | null;
+            messages: string[];
+        };
         RepositoryResponse: {
             /** Format: uuid */
             id: string;
@@ -488,6 +512,7 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+            verification?: components["schemas"]["AccessVerificationResponse"] | null;
         };
         AttachRepositoryDeployKeyRequest: {
             privateKeyOpenssh: string;
@@ -774,6 +799,28 @@ export interface operations {
                 "application/json": components["schemas"]["CreateRepositoryRequest"];
             };
         };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RepositoryResponse"];
+                };
+            };
+        };
+    };
+    verify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {

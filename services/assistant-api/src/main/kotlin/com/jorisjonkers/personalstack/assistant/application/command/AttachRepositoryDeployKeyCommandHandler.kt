@@ -1,5 +1,6 @@
 package com.jorisjonkers.personalstack.assistant.application.command
 
+import com.jorisjonkers.personalstack.assistant.application.VerifyRepositoryAccess
 import com.jorisjonkers.personalstack.assistant.domain.port.DeployKeyStore
 import com.jorisjonkers.personalstack.assistant.domain.port.RepositoryRepository
 import com.jorisjonkers.personalstack.common.command.CommandHandler
@@ -30,21 +31,22 @@ private val GITHUB_KNOWN_HOSTS_FALLBACK =
 class AttachRepositoryDeployKeyCommandHandler(
     private val repositories: RepositoryRepository,
     private val deployKeysProvider: ObjectProvider<DeployKeyStore>,
+    private val verifyAccess: VerifyRepositoryAccess,
 ) : CommandHandler<AttachRepositoryDeployKeyCommand> {
     @Transactional
     override fun handle(command: AttachRepositoryDeployKeyCommand) {
         val repository =
             repositories.findById(command.repositoryId)
                 ?: error("repository not found: ${command.repositoryId}")
-        require(command.privateKeyOpenssh.startsWith("-----BEGIN OPENSSH PRIVATE KEY-----")) {
-            "private key must be OpenSSH-format (starts with `-----BEGIN OPENSSH PRIVATE KEY-----`)"
-        }
-        require(command.publicKeyOpenssh.matches(Regex("^ssh-(ed25519|rsa)\\s.+", RegexOption.DOT_MATCHES_ALL))) {
-            "public key must be an OpenSSH single-line key (ssh-ed25519 / ssh-rsa preferred)"
-        }
+        validateKeyMaterial(command)
         val deployKeys =
             deployKeysProvider.ifAvailable
                 ?: error("vault disabled — deploy-key storage adapter is not loaded")
+        // Re-running attach IS the key-replacement path: the Vault
+        // store overwrites the secret at the repository's fixed path
+        // (DeployKeyStore.store does an unconditional writeSecret), the
+        // fingerprint mirror below replaces the old one, and the
+        // verification re-runs against the new key.
         val stored =
             deployKeys.store(
                 repositoryId = repository.id,
@@ -52,13 +54,24 @@ class AttachRepositoryDeployKeyCommandHandler(
                 publicKeyOpenssh = command.publicKeyOpenssh,
                 knownHosts = command.knownHosts?.takeIf { it.isNotBlank() } ?: GITHUB_KNOWN_HOSTS_FALLBACK,
             )
+        val result = verifyAccess.verify(repository.repoUrl, repository.defaultBranch)
         repositories.save(
             repository.copy(
                 vaultKeyPath = stored.vaultPath,
                 deployKeyFingerprint = stored.fingerprint,
                 deployKeyAddedAt = Instant.now(),
                 updatedAt = Instant.now(),
+                verification = result.toAccessVerification(),
             ),
         )
+    }
+
+    private fun validateKeyMaterial(command: AttachRepositoryDeployKeyCommand) {
+        require(command.privateKeyOpenssh.startsWith("-----BEGIN OPENSSH PRIVATE KEY-----")) {
+            "private key must be OpenSSH-format (starts with `-----BEGIN OPENSSH PRIVATE KEY-----`)"
+        }
+        require(command.publicKeyOpenssh.matches(Regex("^ssh-(ed25519|rsa)\\s.+", RegexOption.DOT_MATCHES_ALL))) {
+            "public key must be an OpenSSH single-line key (ssh-ed25519 / ssh-rsa preferred)"
+        }
     }
 }

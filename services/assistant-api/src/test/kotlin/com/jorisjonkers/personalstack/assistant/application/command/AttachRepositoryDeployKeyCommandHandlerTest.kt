@@ -1,5 +1,6 @@
 package com.jorisjonkers.personalstack.assistant.application.command
 
+import com.jorisjonkers.personalstack.assistant.application.VerifyRepositoryAccess
 import com.jorisjonkers.personalstack.assistant.domain.model.Repository
 import com.jorisjonkers.personalstack.assistant.domain.model.RepositoryId
 import com.jorisjonkers.personalstack.assistant.domain.port.DeployKeyStore
@@ -20,7 +21,18 @@ class AttachRepositoryDeployKeyCommandHandlerTest {
         mockk<org.springframework.beans.factory.ObjectProvider<DeployKeyStore>> {
             every { ifAvailable } returns deployKeys
         }
-    private val handler = AttachRepositoryDeployKeyCommandHandler(repositories, deployKeysProvider)
+    private val verifyAccess =
+        mockk<VerifyRepositoryAccess> {
+            every { verify(any(), any()) } returns
+                VerifyRepositoryAccess.Result(
+                    read = true,
+                    write = true,
+                    defaultBranchProtected = true,
+                    checkedAt = Instant.now(),
+                    messages = emptyList(),
+                )
+        }
+    private val handler = AttachRepositoryDeployKeyCommandHandler(repositories, deployKeysProvider, verifyAccess)
 
     private val sampleRepo =
         Repository(
@@ -69,6 +81,41 @@ class AttachRepositoryDeployKeyCommandHandlerTest {
         assertThat(saved.captured.deployKeyFingerprint).isEqualTo("SHA256:abcdef")
         assertThat(saved.captured.deployKeyAddedAt).isNotNull
         verify { deployKeys.store(sampleRepo.id, validPrivate, validPublic, any()) }
+    }
+
+    @Test
+    fun `handle re-verifies and persists the verification outcome onto the row`() {
+        every { repositories.findById(sampleRepo.id) } returns sampleRepo
+        every {
+            deployKeys.store(any<RepositoryId>(), any(), any(), any())
+        } returns DeployKeyStore.StoredKey("SHA256:abcdef", sampleRepo.vaultKeyPath)
+        every { verifyAccess.verify(sampleRepo.repoUrl, sampleRepo.defaultBranch) } returns
+            VerifyRepositoryAccess.Result(
+                read = true,
+                write = false,
+                defaultBranchProtected = false,
+                checkedAt = Instant.now(),
+                messages = listOf("deploy key is read-only — agent commits/pushes will fail: denied"),
+            )
+        val saved = slot<Repository>()
+        every { repositories.save(capture(saved)) } answers { saved.captured }
+
+        handler.handle(
+            AttachRepositoryDeployKeyCommand(
+                repositoryId = sampleRepo.id,
+                privateKeyOpenssh = validPrivate,
+                publicKeyOpenssh = validPublic,
+                knownHosts = null,
+            ),
+        )
+
+        val v = saved.captured.verification
+        assertThat(v).isNotNull
+        assertThat(v!!.read).isTrue
+        assertThat(v.write).isFalse
+        assertThat(v.defaultBranchProtected).isFalse
+        assertThat(v.messages).anyMatch { it.contains("read-only") }
+        verify { verifyAccess.verify(sampleRepo.repoUrl, sampleRepo.defaultBranch) }
     }
 
     @Test
