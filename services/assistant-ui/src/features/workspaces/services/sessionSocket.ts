@@ -4,6 +4,7 @@
  * handler speaks two envelope shapes:
  *
  *   inbound  -> `{ "input": "...", "enter": true }`
+ *   inbound  -> `{ "resize": { "cols": <int>, "rows": <int> } }`
  *   outbound -> `{ "output": "...bytes-as-utf8..." }`
  *
  * This wrapper hides the JSON encoding from the store and emits
@@ -18,6 +19,7 @@ export interface SessionSocketOptions {
 export interface SessionSocket {
   send: (input: string, enter?: boolean) => void
   sendKey: (key: string) => void
+  sendResize: (cols: number, rows: number) => void
   close: () => void
   readyState: () => number
 }
@@ -49,6 +51,11 @@ export function attachSessionSocket(opts: SessionSocketOptions): SessionSocket {
     sendKey(key) {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ input: key, enter: false }))
+      }
+    },
+    sendResize(cols, rows) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ resize: { cols, rows } }))
       }
     },
     close() {
