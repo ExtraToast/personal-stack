@@ -17,6 +17,8 @@ import com.jorisjonkers.personalstack.knowledge.domain.KbRelation
 import com.jorisjonkers.personalstack.knowledge.domain.RecallHit
 import com.jorisjonkers.personalstack.knowledge.domain.ScopeSummary
 import com.jorisjonkers.personalstack.knowledge.domain.SourceSummary
+import com.jorisjonkers.personalstack.knowledge.domain.TagCandidateCluster
+import com.jorisjonkers.personalstack.knowledge.domain.TagCandidateMember
 import com.jorisjonkers.personalstack.knowledge.domain.TagSummary
 import com.jorisjonkers.personalstack.knowledge.domain.TopicStats
 import com.jorisjonkers.personalstack.knowledge.domain.TopicSummary
@@ -138,6 +140,35 @@ class McpToolsTest {
         assertThat(rows[0]["target_kind"]).isEqualTo("note")
         assertThat(rows[0]["after_json"]).isEqualTo("""{"title":"scannable claim"}""")
         assertThat(rows[0]["at"]).isEqualTo("2026-05-19T13:00:00Z")
+    }
+
+    @Test
+    fun `list_tag_candidates projects each cluster with its members and canonical`() {
+        every { tagClusterService.listTagCandidates(any(), any(), any()) } returns
+            listOf(
+                TagCandidateCluster(
+                    members = listOf(TagCandidateMember("kotlin", 10), TagCandidateMember("Kotlin", 3)),
+                    suggestedCanonical = "kotlin",
+                    averageSimilarity = 0.97,
+                ),
+            )
+
+        val out =
+            tools.call(
+                "knowledge.list_tag_candidates",
+                mapper.readTree("""{"min_count":2,"threshold":0.9,"max_tags":50}"""),
+            )!!
+
+        @Suppress("UNCHECKED_CAST")
+        val clusters = out["clusters"] as List<Map<String, Any?>>
+        assertThat(clusters).hasSize(1)
+        assertThat(clusters[0]["suggested_canonical"]).isEqualTo("kotlin")
+        assertThat(clusters[0]["average_similarity"]).isEqualTo(0.97)
+
+        @Suppress("UNCHECKED_CAST")
+        val members = clusters[0]["members"] as List<Map<String, Any?>>
+        assertThat(members.map { it["tag"] }).containsExactly("kotlin", "Kotlin")
+        assertThat(members.map { it["count"] }).containsExactly(10, 3)
     }
 
     @Test
