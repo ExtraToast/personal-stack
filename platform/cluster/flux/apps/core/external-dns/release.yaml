@@ -13,6 +13,16 @@ spec:
         name: external-dns
         namespace: external-dns
   values:
+    # Pin to the Frankfurt VPS so Cloudflare API calls egress from the
+    # VPS public IP (167.86.79.203). The Cloudflare token is IP-filtered
+    # to that address; when external-dns was rescheduled onto an Enschede
+    # node its calls came from the home egress IP and Cloudflare rejected
+    # them with 403 code 9109 ("Cannot use the access token from location
+    # …"). external-dns is a single cluster-wide controller — the node it
+    # runs on only determines the API-caller IP, not which records it
+    # manages (that is set by the annotation/domain filters below).
+    nodeSelector:
+      personal-stack/site: frankfurt
     provider:
       name: cloudflare
     sources:
