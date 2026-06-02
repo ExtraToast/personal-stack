@@ -177,6 +177,15 @@ class Fabric8AgentRunnerOrchestratorIntegrationTest {
         val mcpVol = pod.spec.volumes.single { it.name == "mcp-config" }
         assertThat(mcpVol.configMap.name).isEqualTo("agents-mcp-servers")
         assertThat(mcpVol.configMap.optional).isTrue()
+
+        // A startup probe must gate liveness so the gateway's JVM cold
+        // start is not killed mid-boot (which re-provisioned the runner
+        // and 503'd start-session).
+        val container = pod.spec.containers.single()
+        assertThat(container.startupProbe).isNotNull
+        assertThat(container.startupProbe.httpGet.path).isEqualTo("/healthz")
+        assertThat(container.startupProbe.failureThreshold).isEqualTo(60)
+        assertThat(container.livenessProbe).isNotNull
     }
 
     @Test

@@ -280,6 +280,20 @@ class Fabric8AgentRunnerOrchestrator(
             .withPorts(ContainerPortBuilder().withName("gateway").withContainerPort(props.gatewayPort).build())
             .withEnv(podEnv(workspace))
             .withVolumeMounts(podVolumeMounts())
+            // Startup probe gates liveness + readiness until the gateway's
+            // JVM has finished its cold start. Without it the liveness probe
+            // (failureThreshold 3 x 10s ~= 30s, no initial delay) killed the
+            // booting Spring Boot gateway before it bound :8090, which
+            // re-provisioned the runner in a loop and 503'd every
+            // start-session. 60 x 5s = 5 min of boot headroom.
+            .withNewStartupProbe()
+            .withNewHttpGet()
+            .withPath("/healthz")
+            .withNewPort("gateway")
+            .endHttpGet()
+            .withPeriodSeconds(STARTUP_PERIOD_SECONDS)
+            .withFailureThreshold(STARTUP_FAILURE_THRESHOLD)
+            .endStartupProbe()
             .withNewReadinessProbe()
             .withNewHttpGet()
             .withPath("/healthz")
@@ -464,9 +478,12 @@ class Fabric8AgentRunnerOrchestrator(
         private const val CPU_LIMIT = "2000m"
         private const val MEMORY_LIMIT = "3Gi"
 
-        // Probe cadence. Readiness loops 60×5s = 5 min so even a
-        // slow first clone + JIT warmup completes before kubelet
-        // restarts the container.
+        // Probe cadence. The startup probe loops 60×5s = 5 min so the
+        // gateway's JVM cold start (slower on a fresh image pull)
+        // completes before liveness can fire; readiness shares the same
+        // budget as a backstop.
+        private const val STARTUP_PERIOD_SECONDS = 5
+        private const val STARTUP_FAILURE_THRESHOLD = 60
         private const val READINESS_PERIOD_SECONDS = 5
         private const val READINESS_FAILURE_THRESHOLD = 60
         private const val LIVENESS_PERIOD_SECONDS = 10
