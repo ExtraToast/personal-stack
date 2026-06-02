@@ -101,8 +101,8 @@ class AgentSessionManager(
 
     private fun commandFor(kind: AgentKind): List<String> =
         when (kind) {
-            AgentKind.CLAUDE -> listOf(props.cli.claude)
-            AgentKind.CODEX -> listOf(props.cli.codex)
+            AgentKind.CLAUDE -> listOf(props.cli.claude) + props.cli.claudeArgs
+            AgentKind.CODEX -> listOf(props.cli.codex) + props.cli.codexArgs
             AgentKind.SHELL -> listOf("/bin/bash", "-l")
         }
 }

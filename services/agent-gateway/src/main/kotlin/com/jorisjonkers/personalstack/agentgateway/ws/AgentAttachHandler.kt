@@ -1,5 +1,6 @@
 package com.jorisjonkers.personalstack.agentgateway.ws
 
+import com.jorisjonkers.personalstack.agentgateway.config.GatewayProperties
 import com.jorisjonkers.personalstack.agentgateway.tmux.AgentSessionManager
 import com.jorisjonkers.personalstack.agentgateway.tmux.LogTailer
 import org.slf4j.LoggerFactory
@@ -24,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap
 class AgentAttachHandler(
     private val sessions: AgentSessionManager,
     private val mapper: ObjectMapper,
+    private val props: GatewayProperties,
 ) : TextWebSocketHandler() {
     private val log = LoggerFactory.getLogger(AgentAttachHandler::class.java)
     private val tailers = ConcurrentHashMap<String, LogTailer>()
@@ -49,7 +51,7 @@ class AgentAttachHandler(
         synchronized(session) { session.sendMessage(TextMessage(snapshotMsg)) }
 
         val tailer =
-            LogTailer(agent.logFile) { bytes ->
+            LogTailer(agent.logFile, intervalMs = props.tmux.tailIntervalMs) { bytes ->
                 if (session.isOpen) {
                     val msg = mapper.writeValueAsString(mapOf("output" to String(bytes)))
                     synchronized(session) { session.sendMessage(TextMessage(msg)) }

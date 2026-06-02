@@ -1,5 +1,6 @@
 package com.jorisjonkers.personalstack.agentgateway.ws
 
+import com.jorisjonkers.personalstack.agentgateway.config.GatewayProperties
 import com.jorisjonkers.personalstack.agentgateway.tmux.AgentKind
 import com.jorisjonkers.personalstack.agentgateway.tmux.AgentSession
 import com.jorisjonkers.personalstack.agentgateway.tmux.AgentSessionManager
@@ -20,7 +21,14 @@ import java.time.Instant
 class AgentAttachHandlerTest {
     private val sessions = mockk<AgentSessionManager>(relaxed = true)
     private val mapper = ObjectMapper()
-    private val handler = AgentAttachHandler(sessions, mapper)
+    private val props =
+        GatewayProperties(
+            workspaceRoot = "/workspace",
+            tmux = GatewayProperties.Tmux(socketName = "agent-gw", stateDir = "/tmp"),
+            cli = GatewayProperties.Cli(claude = "claude", codex = "codex"),
+            git = GatewayProperties.Git(deployKeyDir = "/x"),
+        )
+    private val handler = AgentAttachHandler(sessions, mapper, props)
 
     private fun agent(
         id: String,

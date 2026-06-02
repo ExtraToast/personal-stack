@@ -34,9 +34,19 @@ agent-gateway:
   tmux:
     socket-name: agent-gw
     state-dir: /tmp/agent-gateway
+    # ~40ms keeps streamed output feeling live. Per-keystroke
+    # send-keys is a separate, smaller latency source.
+    tail-interval-ms: 40
   cli:
     claude: ${CLAUDE_BIN:claude}
     codex: ${CODEX_BIN:codex}
+    # The runner container is the sandbox, so agents launch with all
+    # approval/permission/sandbox prompts bypassed. Listed here so an
+    # upstream flag rename is a config flip, not an image rebuild.
+    claude-args:
+      - --dangerously-skip-permissions
+    codex-args:
+      - --dangerously-bypass-approvals-and-sandbox
   git:
     # The deploy-key Secret is mounted into the Pod at this path by
     # assistant-api when it creates the runner Pod (Step 3).

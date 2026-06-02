@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicLong
  */
 class LogTailer(
     private val file: Path,
-    private val intervalMs: Long = 250,
+    private val intervalMs: Long = 40,
     private val onBytes: (ByteArray) -> Unit,
 ) : AutoCloseable {
     private val log = LoggerFactory.getLogger(LogTailer::class.java)
