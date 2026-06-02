@@ -58,7 +58,7 @@ async function handleSubmit(): Promise<void> {
   <div class="space-y-6" data-testid="attach-key-wizard">
     <section class="rounded-lg border border-[var(--color-surface-border)] bg-[var(--color-surface-card)] p-4">
       <h3 class="text-lg font-semibold">Generate a key</h3>
-      <p class="mt-2 text-sm text-gray-400">Run this on your laptop:</p>
+      <p class="mt-2 text-sm text-[var(--color-text-muted)]">Run this on your laptop:</p>
       <pre
         class="mt-2 overflow-x-auto rounded border border-[var(--color-surface-border)] bg-black/40 px-3 py-2 text-xs"
       ><code>ssh-keygen -t ed25519 \
@@ -67,7 +67,7 @@ async function handleSubmit(): Promise<void> {
   -N ""
 cat ./ps-{{ props.repository.name }}.pub      # public key
 cat ./ps-{{ props.repository.name }}          # private key</code></pre>
-      <p class="mt-3 text-sm text-gray-400">
+      <p class="mt-3 text-sm text-[var(--color-text-muted)]">
         Add the <em>public</em> key as a deploy key on GitHub at
         <code class="text-[var(--color-terminal-cyan)]">{{ props.repository.repoUrl }}</code> → Settings → Deploy keys →
         Add deploy key. Tick "Allow write access" only if the agent should push.

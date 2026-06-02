@@ -38,7 +38,7 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside))
 <template>
   <div ref="dropdownRef" class="relative">
     <button
-      class="rounded-md px-3 py-1 font-mono text-xs text-gray-400 transition-colors hover:bg-surface-elevated hover:text-terminal-green"
+      class="rounded-md px-3 py-1 font-mono text-xs text-[var(--color-text-muted)] transition-colors hover:bg-surface-elevated hover:text-terminal-green"
       data-testid="nav-profile"
       @click="toggle"
     >
@@ -50,14 +50,14 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside))
       class="absolute right-0 z-50 mt-1 min-w-[140px] rounded-md border border-surface-border/50 bg-surface-elevated shadow-lg"
     >
       <button
-        class="block w-full px-4 py-2 text-left font-mono text-xs text-gray-300 transition-colors hover:bg-surface-card hover:text-terminal-green"
+        class="block w-full px-4 py-2 text-left font-mono text-xs text-[var(--color-text-primary)] transition-colors hover:bg-surface-card hover:text-terminal-green"
         data-testid="dropdown-my-apps"
         @click="navigate('apps')"
       >
         {{ t('nav.myApps') }}
       </button>
       <button
-        class="block w-full px-4 py-2 text-left font-mono text-xs text-gray-300 transition-colors hover:bg-surface-card hover:text-terminal-green"
+        class="block w-full px-4 py-2 text-left font-mono text-xs text-[var(--color-text-primary)] transition-colors hover:bg-surface-card hover:text-terminal-green"
         data-testid="dropdown-account"
         @click="navigate('account')"
       >
@@ -65,7 +65,7 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside))
       </button>
       <button
         v-if="authStore.isAdmin"
-        class="block w-full px-4 py-2 text-left font-mono text-xs text-gray-300 transition-colors hover:bg-surface-card hover:text-terminal-green"
+        class="block w-full px-4 py-2 text-left font-mono text-xs text-[var(--color-text-primary)] transition-colors hover:bg-surface-card hover:text-terminal-green"
         data-testid="dropdown-admin"
         @click="navigate('admin')"
       >
@@ -73,7 +73,7 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside))
       </button>
       <div class="border-t border-surface-border/30" />
       <button
-        class="block w-full px-4 py-2 text-left font-mono text-xs text-gray-400 transition-colors hover:bg-surface-card hover:text-red-400"
+        class="block w-full px-4 py-2 text-left font-mono text-xs text-[var(--color-text-muted)] transition-colors hover:bg-surface-card hover:text-red-400"
         data-testid="dropdown-logout"
         @click="logout"
       >

@@ -59,13 +59,13 @@ async function onVerify(code: string): Promise<void> {
           <div class="h-2.5 w-2.5 rounded-full bg-terminal-amber/60" />
           <div class="h-2.5 w-2.5 rounded-full bg-terminal-green/60" />
         </div>
-        <span class="font-mono text-xs text-gray-600"> ~/auth/totp-setup </span>
+        <span class="font-mono text-xs text-[var(--color-text-subtle)]"> ~/auth/totp-setup </span>
       </div>
 
-      <h1 class="mb-2 text-xl font-bold text-gray-100">Set up two-factor authentication</h1>
-      <p class="mb-6 text-sm text-gray-500">Protect your account with a TOTP authenticator app.</p>
+      <h1 class="mb-2 text-xl font-bold text-[var(--color-text-primary)]">Set up two-factor authentication</h1>
+      <p class="mb-6 text-sm text-[var(--color-text-muted)]">Protect your account with a TOTP authenticator app.</p>
 
-      <div v-if="isLoading" class="py-8 text-center font-mono text-sm text-gray-500">Loading...</div>
+      <div v-if="isLoading" class="py-8 text-center font-mono text-sm text-[var(--color-text-muted)]">Loading...</div>
 
       <div v-else-if="enrollError" class="py-8 text-center">
         <p class="text-sm text-red-400">{{ enrollError }}</p>
@@ -74,7 +74,9 @@ async function onVerify(code: string): Promise<void> {
       <template v-else-if="totpData">
         <TotpQrCode :qr-uri="totpData.qrUri" :secret="totpData.secret" />
         <div class="mt-6">
-          <p class="mb-3 text-sm font-medium text-gray-400">After scanning, enter the 6-digit code to confirm:</p>
+          <p class="mb-3 text-sm font-medium text-[var(--color-text-muted)]">
+            After scanning, enter the 6-digit code to confirm:
+          </p>
           <TotpVerifyForm @submit="onVerify" />
           <p v-if="verifyError" class="mt-2 text-sm text-red-400">
             {{ verifyError }}

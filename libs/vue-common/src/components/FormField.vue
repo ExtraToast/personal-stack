@@ -38,7 +38,7 @@ const describedBy = computed(() => {
 
 <template>
   <div class="space-y-1" data-testid="form-field">
-    <label :for="inputId" class="block text-sm font-medium text-gray-200">
+    <label :for="inputId" class="block text-sm font-medium text-[var(--color-text-primary)]">
       {{ label }}
       <span v-if="required" class="text-red-400" aria-label="required">*</span>
     </label>
@@ -46,6 +46,6 @@ const describedBy = computed(() => {
     <p v-if="error" :id="errorId" class="text-sm text-red-400" data-testid="form-field-error">
       {{ error }}
     </p>
-    <p v-else-if="hint" :id="hintId" class="text-xs text-gray-500">{{ hint }}</p>
+    <p v-else-if="hint" :id="hintId" class="text-xs text-[var(--color-text-muted)]">{{ hint }}</p>
   </div>
 </template>

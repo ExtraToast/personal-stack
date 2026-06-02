@@ -11,7 +11,7 @@ function kindClasses(kind: 'success' | 'error' | 'info'): string {
       return 'border-red-500 text-red-200'
     case 'info':
     default:
-      return 'border-[var(--color-accent)] text-gray-200'
+      return 'border-[var(--color-accent)] text-[var(--color-text-primary)]'
   }
 }
 </script>
@@ -37,14 +37,14 @@ function kindClasses(kind: 'success' | 'error' | 'info'): string {
             <p class="text-sm font-medium">{{ t.title }}</p>
             <button
               type="button"
-              class="text-xs text-gray-400 hover:text-gray-200"
+              class="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
               aria-label="Dismiss notification"
               @click="toast.dismiss(t.id)"
             >
               ×
             </button>
           </div>
-          <p v-if="t.body" class="mt-1 whitespace-pre-line text-xs text-gray-400">{{ t.body }}</p>
+          <p v-if="t.body" class="mt-1 whitespace-pre-line text-xs text-[var(--color-text-muted)]">{{ t.body }}</p>
         </div>
       </TransitionGroup>
     </div>

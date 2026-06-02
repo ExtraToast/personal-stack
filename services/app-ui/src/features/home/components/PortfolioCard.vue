@@ -21,15 +21,15 @@ defineProps<{
         <div class="h-2.5 w-2.5 rounded-full bg-terminal-amber/60" />
         <div class="h-2.5 w-2.5 rounded-full bg-terminal-green/60" />
       </div>
-      <span class="font-mono text-xs text-gray-600"
+      <span class="font-mono text-xs text-[var(--color-text-subtle)]"
         >~/projects/{{ project.title.toLowerCase().replace(/\s+/g, '-') }}</span
       >
     </div>
 
-    <h3 class="text-lg font-semibold text-gray-100 group-hover:text-accent-light">
+    <h3 class="text-lg font-semibold text-[var(--color-text-primary)] group-hover:text-accent-light">
       {{ project.title }}
     </h3>
-    <p class="mt-2 flex-1 text-sm leading-relaxed text-gray-400">
+    <p class="mt-2 flex-1 text-sm leading-relaxed text-[var(--color-text-muted)]">
       {{ project.description }}
     </p>
     <div class="mt-4 flex flex-wrap gap-2">
@@ -45,7 +45,7 @@ defineProps<{
       <a
         v-if="project.githubUrl"
         :href="project.githubUrl"
-        class="text-gray-400 transition-colors hover:text-terminal-green"
+        class="text-[var(--color-text-muted)] transition-colors hover:text-terminal-green"
         rel="noopener noreferrer"
         target="_blank"
       >
@@ -54,7 +54,7 @@ defineProps<{
       <a
         v-if="project.liveUrl"
         :href="project.liveUrl"
-        class="text-gray-400 transition-colors hover:text-terminal-cyan"
+        class="text-[var(--color-text-muted)] transition-colors hover:text-terminal-cyan"
         rel="noopener noreferrer"
         target="_blank"
       >

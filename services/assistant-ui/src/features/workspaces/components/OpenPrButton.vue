@@ -42,31 +42,31 @@ async function submit(): Promise<void> {
       {{ open ? 'Cancel PR' : 'Open PR' }}
     </button>
 
-    <div v-if="open" class="mt-3 rounded border border-gray-700 bg-surface-darker p-4 space-y-3">
+    <div v-if="open" class="mt-3 rounded border border-[var(--color-surface-border)] bg-surface-darker p-4 space-y-3">
       <input
         v-model="title"
         type="text"
         placeholder="PR title"
-        class="w-full rounded border border-gray-700 bg-black/30 px-3 py-2 text-sm"
+        class="w-full rounded border border-[var(--color-surface-border)] bg-black/30 px-3 py-2 text-sm"
       />
       <textarea
         v-model="body"
         rows="5"
         placeholder="PR body (markdown)"
-        class="w-full rounded border border-gray-700 bg-black/30 px-3 py-2 text-sm font-mono"
+        class="w-full rounded border border-[var(--color-surface-border)] bg-black/30 px-3 py-2 text-sm font-mono"
       />
       <div class="flex gap-2">
         <input
           v-model="repoDir"
           type="text"
           placeholder="repo dir"
-          class="flex-1 rounded border border-gray-700 bg-black/30 px-3 py-2 text-sm font-mono"
+          class="flex-1 rounded border border-[var(--color-surface-border)] bg-black/30 px-3 py-2 text-sm font-mono"
         />
         <input
           v-model="base"
           type="text"
           placeholder="base branch"
-          class="w-32 rounded border border-gray-700 bg-black/30 px-3 py-2 text-sm"
+          class="w-32 rounded border border-[var(--color-surface-border)] bg-black/30 px-3 py-2 text-sm"
         />
       </div>
       <button
@@ -77,7 +77,7 @@ async function submit(): Promise<void> {
       >
         {{ busy ? 'Submitting…' : 'Submit' }}
       </button>
-      <p v-if="message" class="text-xs text-gray-400">{{ message }}</p>
+      <p v-if="message" class="text-xs text-[var(--color-text-muted)]">{{ message }}</p>
     </div>
   </div>
 </template>

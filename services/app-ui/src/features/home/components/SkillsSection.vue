@@ -4,25 +4,36 @@ import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 
 const languages = [
+  { name: 'JavaScript / TypeScript', years: 6 },
+  { name: 'Java', years: 6 },
   { name: 'Python', years: 6 },
-  { name: 'JavaScript / TypeScript', years: 5 },
-  { name: 'Java', years: 5 },
-  { name: 'Ruby', years: 3 },
+  { name: 'Ruby', years: 4 },
+  { name: 'Kotlin', years: 2 },
   { name: 'MATLAB', years: 2 },
-  { name: 'Kotlin', years: 1 },
 ]
 
 const frameworks = [
-  { name: 'Ruby on Rails', years: 3 },
+  { name: 'Ruby on Rails', years: 4 },
+  { name: 'Docker', years: 4 },
   { name: 'Angular', years: 3 },
-  { name: 'Docker', years: 2 },
+  { name: 'Vue.js', years: 3 },
+  { name: 'Spring Boot', years: 3 },
   { name: 'PyTorch', years: 2 },
-  { name: 'Vue.js', years: 2 },
-  { name: 'Spring Boot', years: 2 },
-  { name: 'Nomad', years: '<1' },
+  { name: 'Nomad', years: 1 },
 ]
 
-const tools = ['GitHub Actions', 'Consul', 'JSON:API', 'Traefik', 'React Native', 'PostgreSQL', 'Vault']
+const tools = [
+  'Kubernetes (k3s)',
+  'NixOS',
+  'Flux CD',
+  'Kustomize',
+  'Keel',
+  'Traefik',
+  'Vault',
+  'PostgreSQL',
+  'Grafana',
+  'GitHub Actions',
+]
 
 const softSkills = ['Project Management', 'Public Relations', 'Communication', 'Critical Thinking']
 
@@ -38,10 +49,10 @@ function barWidth(years: number | string): string {
   <section id="skills" class="px-4 py-12 sm:px-6 sm:py-24">
     <div class="mx-auto max-w-4xl">
       <h2 class="font-mono text-sm font-semibold uppercase tracking-widest text-terminal-green">
-        <span class="text-gray-600">04.</span>
+        <span class="text-[var(--color-text-subtle)]">04.</span>
         {{ t('skills.title') }}
       </h2>
-      <p class="mt-3 text-gray-500">
+      <p class="mt-3 text-[var(--color-text-muted)]">
         {{ t('skills.subtitle') }}
       </p>
 
@@ -54,8 +65,8 @@ function barWidth(years: number | string): string {
           <ul class="space-y-3">
             <li v-for="lang in languages" :key="lang.name">
               <div class="flex items-center justify-between font-mono text-sm">
-                <span class="text-gray-300">{{ lang.name }}</span>
-                <span class="text-gray-600">{{ lang.years }}y</span>
+                <span class="text-[var(--color-text-primary)]">{{ lang.name }}</span>
+                <span class="text-[var(--color-text-subtle)]">{{ lang.years }}y</span>
               </div>
               <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-elevated">
                 <div
@@ -75,8 +86,8 @@ function barWidth(years: number | string): string {
           <ul class="space-y-3">
             <li v-for="fw in frameworks" :key="fw.name">
               <div class="flex items-center justify-between font-mono text-sm">
-                <span class="text-gray-300">{{ fw.name }}</span>
-                <span class="text-gray-600">{{ fw.years }}y</span>
+                <span class="text-[var(--color-text-primary)]">{{ fw.name }}</span>
+                <span class="text-[var(--color-text-subtle)]">{{ fw.years }}y</span>
               </div>
               <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-elevated">
                 <div

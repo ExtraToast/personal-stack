@@ -37,7 +37,7 @@ async function onCreateSuccess(created: Repository): Promise<void> {
     <header class="mb-6 flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-bold">Repositories</h1>
-        <p class="mt-1 text-sm text-gray-400">
+        <p class="mt-1 text-sm text-[var(--color-text-muted)]">
           A repository is one GitHub repo plus its deploy key. Projects below combine repositories — you can reuse the
           same repository in multiple projects without uploading the key twice.
         </p>
@@ -54,13 +54,13 @@ async function onCreateSuccess(created: Repository): Promise<void> {
 
     <p v-if="store.error" class="mb-4 text-sm text-red-400">{{ store.error }}</p>
 
-    <div v-if="store.isLoading && store.items.length === 0" class="text-gray-400">Loading…</div>
+    <div v-if="store.isLoading && store.items.length === 0" class="text-[var(--color-text-muted)]">Loading…</div>
 
     <div
       v-else-if="store.items.length === 0"
       class="rounded-lg border border-dashed border-[var(--color-surface-border)] p-8 text-center"
     >
-      <p class="text-gray-400">
+      <p class="text-[var(--color-text-muted)]">
         No repositories yet.
         <button class="text-[var(--color-accent-light)] underline" @click="showCreate = true">Add one</button> to get
         started.
@@ -84,8 +84,8 @@ async function onCreateSuccess(created: Repository): Promise<void> {
               </span>
             </div>
           </template>
-          <p class="font-mono text-xs text-gray-400">{{ r.repoUrl }}</p>
-          <p class="mt-1 text-xs text-gray-500">default: {{ r.defaultBranch }}</p>
+          <p class="font-mono text-xs text-[var(--color-text-muted)]">{{ r.repoUrl }}</p>
+          <p class="mt-1 text-xs text-[var(--color-text-muted)]">default: {{ r.defaultBranch }}</p>
         </Card>
       </li>
     </ul>

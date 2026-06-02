@@ -116,7 +116,7 @@ async function onSubmit(): Promise<void> {
 
 <template>
   <div v-if="open" class="space-y-6" data-testid="create-workspace-wizard">
-    <ol class="flex items-center gap-2 text-xs text-gray-500">
+    <ol class="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
       <li :class="step === 'pick-project' ? 'text-[var(--color-accent-light)]' : ''">1. Project</li>
       <span>→</span>
       <li :class="step === 'pick-repo' ? 'text-[var(--color-accent-light)]' : ''">2. Repository</li>
@@ -125,7 +125,7 @@ async function onSubmit(): Promise<void> {
     </ol>
 
     <section v-if="step === 'pick-project'" class="space-y-3">
-      <p class="text-sm text-gray-400">
+      <p class="text-sm text-[var(--color-text-muted)]">
         Pick the project this workspace belongs to. The next step shows that project's repository pool.
       </p>
       <ul v-if="projects.projects.length > 0" class="space-y-2 max-h-72 overflow-y-auto">
@@ -142,12 +142,12 @@ async function onSubmit(): Promise<void> {
             />
             <div class="flex-1">
               <p class="font-semibold">{{ p.name }}</p>
-              <p class="font-mono text-xs text-gray-500">project:{{ p.slug }}</p>
+              <p class="font-mono text-xs text-[var(--color-text-muted)]">project:{{ p.slug }}</p>
             </div>
           </label>
         </li>
       </ul>
-      <p v-else class="text-sm text-gray-500 italic">
+      <p v-else class="text-sm text-[var(--color-text-muted)] italic">
         No projects yet.
         <RouterLink to="/projects" class="text-[var(--color-accent-light)] underline">Create one</RouterLink>
         then come back.
@@ -165,7 +165,7 @@ async function onSubmit(): Promise<void> {
     </section>
 
     <section v-else-if="step === 'pick-repo'" class="space-y-3">
-      <p class="text-sm text-gray-400">
+      <p class="text-sm text-[var(--color-text-muted)]">
         Pick a repository from the project's pool. Need a different one?
         <RouterLink to="/repositories" class="text-[var(--color-accent-light)] underline">
           Add a repository
@@ -190,12 +190,12 @@ async function onSubmit(): Promise<void> {
                 <span v-if="!r.deployKeyFingerprint" class="text-xs text-amber-400">no key yet</span>
                 <span v-else class="text-xs text-emerald-400">key attached</span>
               </div>
-              <p class="font-mono text-xs text-gray-500">{{ r.repoUrl }}</p>
+              <p class="font-mono text-xs text-[var(--color-text-muted)]">{{ r.repoUrl }}</p>
             </div>
           </label>
         </li>
       </ul>
-      <p v-else class="text-sm text-gray-500 italic">No repositories linked to this project yet.</p>
+      <p v-else class="text-sm text-[var(--color-text-muted)] italic">No repositories linked to this project yet.</p>
 
       <div
         v-if="selectedRepo && !keyAttached"

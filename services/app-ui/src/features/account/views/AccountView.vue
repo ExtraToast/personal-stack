@@ -43,7 +43,7 @@ const passwordStrengthLabel = computed(() => {
     case 'fair':
       return 'fair'
     case 'weak':
-      return 'weak — min. 8 characters'
+      return 'weak, min. 8 characters'
     default:
       return ''
   }
@@ -58,7 +58,7 @@ const passwordStrengthClass = computed(() => {
     case 'weak':
       return 'text-red-400'
     default:
-      return 'text-gray-500'
+      return 'text-[var(--color-text-muted)]'
   }
 })
 
@@ -148,7 +148,7 @@ watch(passwordMsg, (v) => {
 
 <template>
   <div class="mx-auto max-w-2xl px-4 py-12">
-    <h1 class="mb-8 font-mono text-2xl font-bold text-gray-100">Account</h1>
+    <h1 class="mb-8 font-mono text-2xl font-bold text-[var(--color-text-primary)]">Account</h1>
 
     <!-- Profile Section -->
     <section class="mb-8 rounded-lg border border-surface-border/50 bg-surface-elevated p-6">
@@ -158,10 +158,10 @@ watch(passwordMsg, (v) => {
           <div class="h-2 w-2 rounded-full bg-terminal-amber/60" />
           <div class="h-2 w-2 rounded-full bg-terminal-green/60" />
         </div>
-        <span class="font-mono text-xs text-gray-600">~/account/profile</span>
+        <span class="font-mono text-xs text-[var(--color-text-subtle)]">~/account/profile</span>
       </div>
 
-      <h2 class="mb-4 font-mono text-lg font-semibold text-gray-200">Profile</h2>
+      <h2 class="mb-4 font-mono text-lg font-semibold text-[var(--color-text-primary)]">Profile</h2>
 
       <!-- Loading skeleton: shown until fetchProfile resolves, so the first paint
            is a plausible form shape instead of a blank card. -->
@@ -176,9 +176,9 @@ watch(passwordMsg, (v) => {
 
       <div v-else class="space-y-4">
         <div>
-          <label class="block font-mono text-xs font-medium text-gray-500">Username</label>
+          <label class="block font-mono text-xs font-medium text-[var(--color-text-muted)]">Username</label>
           <div
-            class="mt-1 rounded-md border border-surface-border/30 bg-surface-dark px-3 py-2 font-mono text-sm text-gray-400"
+            class="mt-1 rounded-md border border-surface-border/30 bg-surface-dark px-3 py-2 font-mono text-sm text-[var(--color-text-muted)]"
             data-testid="account-username"
           >
             {{ profile?.username ?? '...' }}
@@ -186,9 +186,9 @@ watch(passwordMsg, (v) => {
         </div>
 
         <div>
-          <label class="block font-mono text-xs font-medium text-gray-500">Email</label>
+          <label class="block font-mono text-xs font-medium text-[var(--color-text-muted)]">Email</label>
           <div
-            class="mt-1 rounded-md border border-surface-border/30 bg-surface-dark px-3 py-2 font-mono text-sm text-gray-400"
+            class="mt-1 rounded-md border border-surface-border/30 bg-surface-dark px-3 py-2 font-mono text-sm text-[var(--color-text-muted)]"
             data-testid="account-email"
           >
             {{ profile?.email ?? '...' }}
@@ -197,20 +197,24 @@ watch(passwordMsg, (v) => {
 
         <div class="flex gap-4">
           <div class="flex-1">
-            <label class="block font-mono text-xs font-medium text-gray-400" for="firstName">First name</label>
+            <label class="block font-mono text-xs font-medium text-[var(--color-text-muted)]" for="firstName"
+              >First name</label
+            >
             <input
               id="firstName"
               v-model="firstName"
-              class="mt-1 block w-full rounded-md border border-surface-border bg-surface-dark px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              class="mt-1 block w-full rounded-md border border-surface-border bg-surface-dark px-3 py-2 font-mono text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-subtle)] focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               type="text"
             />
           </div>
           <div class="flex-1">
-            <label class="block font-mono text-xs font-medium text-gray-400" for="lastName">Last name</label>
+            <label class="block font-mono text-xs font-medium text-[var(--color-text-muted)]" for="lastName"
+              >Last name</label
+            >
             <input
               id="lastName"
               v-model="lastName"
-              class="mt-1 block w-full rounded-md border border-surface-border bg-surface-dark px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              class="mt-1 block w-full rounded-md border border-surface-border bg-surface-dark px-3 py-2 font-mono text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-subtle)] focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               type="text"
             />
           </div>
@@ -259,32 +263,34 @@ watch(passwordMsg, (v) => {
           <div class="h-2 w-2 rounded-full bg-terminal-amber/60" />
           <div class="h-2 w-2 rounded-full bg-terminal-green/60" />
         </div>
-        <span class="font-mono text-xs text-gray-600">~/account/password</span>
+        <span class="font-mono text-xs text-[var(--color-text-subtle)]">~/account/password</span>
       </div>
 
-      <h2 class="mb-4 font-mono text-lg font-semibold text-gray-200">Change password</h2>
+      <h2 class="mb-4 font-mono text-lg font-semibold text-[var(--color-text-primary)]">Change password</h2>
 
       <div class="space-y-4">
         <div>
-          <label class="block font-mono text-xs font-medium text-gray-400" for="currentPassword"
+          <label class="block font-mono text-xs font-medium text-[var(--color-text-muted)]" for="currentPassword"
             >Current password</label
           >
           <input
             id="currentPassword"
             v-model="currentPassword"
             autocomplete="current-password"
-            class="mt-1 block w-full rounded-md border border-surface-border bg-surface-dark px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+            class="mt-1 block w-full rounded-md border border-surface-border bg-surface-dark px-3 py-2 font-mono text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-subtle)] focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             type="password"
           />
         </div>
 
         <div>
-          <label class="block font-mono text-xs font-medium text-gray-400" for="newPassword">New password</label>
+          <label class="block font-mono text-xs font-medium text-[var(--color-text-muted)]" for="newPassword"
+            >New password</label
+          >
           <input
             id="newPassword"
             v-model="newPassword"
             autocomplete="new-password"
-            class="mt-1 block w-full rounded-md border border-surface-border bg-surface-dark px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+            class="mt-1 block w-full rounded-md border border-surface-border bg-surface-dark px-3 py-2 font-mono text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-subtle)] focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             placeholder="Min. 8 characters"
             type="password"
           />
@@ -299,14 +305,14 @@ watch(passwordMsg, (v) => {
         </div>
 
         <div>
-          <label class="block font-mono text-xs font-medium text-gray-400" for="confirmPassword"
+          <label class="block font-mono text-xs font-medium text-[var(--color-text-muted)]" for="confirmPassword"
             >Confirm new password</label
           >
           <input
             id="confirmPassword"
             v-model="confirmPassword"
             autocomplete="new-password"
-            class="mt-1 block w-full rounded-md border border-surface-border bg-surface-dark px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+            class="mt-1 block w-full rounded-md border border-surface-border bg-surface-dark px-3 py-2 font-mono text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-subtle)] focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             type="password"
           />
         </div>

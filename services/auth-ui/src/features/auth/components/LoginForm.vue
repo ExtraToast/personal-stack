@@ -177,24 +177,24 @@ async function onTotpSubmit(): Promise<void> {
         <div class="h-2.5 w-2.5 rounded-full bg-terminal-amber/60" />
         <div class="h-2.5 w-2.5 rounded-full bg-terminal-green/60" />
       </div>
-      <span class="font-mono text-xs text-gray-600"> ~/auth/login </span>
+      <span class="font-mono text-xs text-[var(--color-text-subtle)]"> ~/auth/login </span>
     </div>
 
-    <h1 class="text-2xl font-bold text-gray-100">
+    <h1 class="text-2xl font-bold text-[var(--color-text-primary)]">
       {{ authStore.totpRequired ? 'Two-factor authentication' : 'Sign in' }}
     </h1>
 
     <!-- TOTP challenge step -->
     <template v-if="authStore.totpRequired">
-      <p class="text-sm text-gray-400">Enter the 6-digit code from your authenticator app.</p>
+      <p class="text-sm text-[var(--color-text-muted)]">Enter the 6-digit code from your authenticator app.</p>
       <div>
-        <label class="block font-mono text-xs font-medium text-gray-400" for="totp-code"> Code </label>
+        <label class="block font-mono text-xs font-medium text-[var(--color-text-muted)]" for="totp-code"> Code </label>
         <input
           id="totp-code"
           ref="totpInput"
           v-model="totpCode"
           autocomplete="one-time-code"
-          class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 text-center font-mono text-lg tracking-widest text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 text-center font-mono text-lg tracking-widest text-[var(--color-text-primary)] placeholder-[var(--color-text-subtle)] focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
           inputmode="numeric"
           maxlength="6"
           pattern="\d{6}"
@@ -207,12 +207,14 @@ async function onTotpSubmit(): Promise<void> {
     <!-- Login step -->
     <template v-else>
       <div>
-        <label class="block font-mono text-xs font-medium text-gray-400" for="username"> Username </label>
+        <label class="block font-mono text-xs font-medium text-[var(--color-text-muted)]" for="username">
+          Username
+        </label>
         <input
           id="username"
           v-model="form.username"
           autocomplete="username"
-          class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-subtle)] focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
           placeholder="your-username"
           type="text"
         />
@@ -222,12 +224,14 @@ async function onTotpSubmit(): Promise<void> {
       </div>
 
       <div>
-        <label class="block font-mono text-xs font-medium text-gray-400" for="password"> Password </label>
+        <label class="block font-mono text-xs font-medium text-[var(--color-text-muted)]" for="password">
+          Password
+        </label>
         <input
           id="password"
           v-model="form.password"
           autocomplete="current-password"
-          class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-subtle)] focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
           placeholder="••••••••"
           type="password"
         />
@@ -243,10 +247,10 @@ async function onTotpSubmit(): Promise<void> {
 
     <!-- Resend confirmation when email not confirmed -->
     <div v-if="isEmailNotConfirmed" class="space-y-3 rounded-md border border-surface-border bg-surface-elevated p-4">
-      <p class="text-sm text-gray-400">Enter your email to receive a new confirmation link.</p>
+      <p class="text-sm text-[var(--color-text-muted)]">Enter your email to receive a new confirmation link.</p>
       <input
         v-model="resendEmail"
-        class="block w-full rounded-md border border-surface-border bg-surface-dark px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        class="block w-full rounded-md border border-surface-border bg-surface-dark px-3 py-2 font-mono text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-subtle)] focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
         placeholder="you@example.com"
         type="email"
       />
@@ -277,7 +281,7 @@ async function onTotpSubmit(): Promise<void> {
       {{ authStore.isLoading || sessionLoginLoading ? 'Verifying...' : authStore.totpRequired ? 'Verify' : 'Sign in' }}
     </button>
 
-    <p v-if="!authStore.totpRequired" class="text-center text-sm text-gray-500">
+    <p v-if="!authStore.totpRequired" class="text-center text-sm text-[var(--color-text-muted)]">
       Don't have an account?
       <router-link class="font-medium text-accent-light hover:underline" to="/register"> Register </router-link>
     </p>

@@ -57,18 +57,20 @@ async function onSubmit(): Promise<void> {
         <div class="h-2.5 w-2.5 rounded-full bg-terminal-amber/60" />
         <div class="h-2.5 w-2.5 rounded-full bg-terminal-green/60" />
       </div>
-      <span class="font-mono text-xs text-gray-600"> ~/auth/register </span>
+      <span class="font-mono text-xs text-[var(--color-text-subtle)]"> ~/auth/register </span>
     </div>
 
-    <h1 class="text-2xl font-bold text-gray-100">Create account</h1>
+    <h1 class="text-2xl font-bold text-[var(--color-text-primary)]">Create account</h1>
 
     <div>
-      <label class="block font-mono text-xs font-medium text-gray-400" for="username"> Username </label>
+      <label class="block font-mono text-xs font-medium text-[var(--color-text-muted)]" for="username">
+        Username
+      </label>
       <input
         id="username"
         v-model="form.username"
         autocomplete="username"
-        class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-subtle)] focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
         placeholder="your-username"
         type="text"
       />
@@ -78,12 +80,12 @@ async function onSubmit(): Promise<void> {
     </div>
 
     <div>
-      <label class="block font-mono text-xs font-medium text-gray-400" for="email"> Email </label>
+      <label class="block font-mono text-xs font-medium text-[var(--color-text-muted)]" for="email"> Email </label>
       <input
         id="email"
         v-model="form.email"
         autocomplete="email"
-        class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-subtle)] focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
         placeholder="you@example.com"
         type="email"
       />
@@ -94,12 +96,14 @@ async function onSubmit(): Promise<void> {
 
     <div class="flex gap-4">
       <div class="flex-1">
-        <label class="block font-mono text-xs font-medium text-gray-400" for="firstName"> First name </label>
+        <label class="block font-mono text-xs font-medium text-[var(--color-text-muted)]" for="firstName">
+          First name
+        </label>
         <input
           id="firstName"
           v-model="form.firstName"
           autocomplete="given-name"
-          class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-subtle)] focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
           placeholder="First"
           type="text"
         />
@@ -108,12 +112,14 @@ async function onSubmit(): Promise<void> {
         </p>
       </div>
       <div class="flex-1">
-        <label class="block font-mono text-xs font-medium text-gray-400" for="lastName"> Last name </label>
+        <label class="block font-mono text-xs font-medium text-[var(--color-text-muted)]" for="lastName">
+          Last name
+        </label>
         <input
           id="lastName"
           v-model="form.lastName"
           autocomplete="family-name"
-          class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-subtle)] focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
           placeholder="Last"
           type="text"
         />
@@ -124,12 +130,14 @@ async function onSubmit(): Promise<void> {
     </div>
 
     <div>
-      <label class="block font-mono text-xs font-medium text-gray-400" for="password"> Password </label>
+      <label class="block font-mono text-xs font-medium text-[var(--color-text-muted)]" for="password">
+        Password
+      </label>
       <input
         id="password"
         v-model="form.password"
         autocomplete="new-password"
-        class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-subtle)] focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
         placeholder="Min. 8 characters"
         type="password"
       />
@@ -139,12 +147,14 @@ async function onSubmit(): Promise<void> {
     </div>
 
     <div>
-      <label class="block font-mono text-xs font-medium text-gray-400" for="confirmPassword"> Confirm password </label>
+      <label class="block font-mono text-xs font-medium text-[var(--color-text-muted)]" for="confirmPassword">
+        Confirm password
+      </label>
       <input
         id="confirmPassword"
         v-model="form.confirmPassword"
         autocomplete="new-password"
-        class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-subtle)] focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
         placeholder="••••••••"
         type="password"
       />
@@ -165,7 +175,7 @@ async function onSubmit(): Promise<void> {
       {{ authStore.isLoading ? 'Creating account...' : 'Create account' }}
     </button>
 
-    <p class="text-center text-sm text-gray-500">
+    <p class="text-center text-sm text-[var(--color-text-muted)]">
       Already have an account?
       <router-link class="font-medium text-accent-light hover:underline" to="/login"> Sign in </router-link>
     </p>

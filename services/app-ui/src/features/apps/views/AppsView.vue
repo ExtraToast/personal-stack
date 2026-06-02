@@ -23,7 +23,7 @@ onMounted(async () => {
     <AppsGrid />
     <div
       v-if="authStore.isAuthenticated && authStore.servicePermissions.length === 0"
-      class="mx-auto max-w-6xl px-6 py-12 font-mono text-sm text-gray-500"
+      class="mx-auto max-w-6xl px-6 py-12 font-mono text-sm text-[var(--color-text-muted)]"
     >
       No services have been granted yet.
     </div>

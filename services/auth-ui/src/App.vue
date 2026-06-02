@@ -6,7 +6,7 @@ useTheme()
 </script>
 
 <template>
-  <div class="min-h-screen bg-surface-dark text-gray-200">
+  <div class="min-h-screen bg-surface-dark text-[var(--color-text-primary)]">
     <RouterView />
   </div>
 </template>

@@ -36,7 +36,7 @@ function onSubmit(): void {
 <template>
   <form class="space-y-4" @submit.prevent="onSubmit">
     <div>
-      <label class="block font-mono text-xs font-medium text-gray-400" for="totp-code">
+      <label class="block font-mono text-xs font-medium text-[var(--color-text-muted)]" for="totp-code">
         6-digit code from your authenticator app
       </label>
       <input
@@ -44,7 +44,7 @@ function onSubmit(): void {
         ref="codeInput"
         v-model="code"
         autocomplete="one-time-code"
-        class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 text-center font-mono text-xl tracking-widest text-gray-200 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        class="mt-1 block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 text-center font-mono text-xl tracking-widest text-[var(--color-text-primary)] focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
         inputmode="numeric"
         maxlength="6"
         pattern="\d{6}"

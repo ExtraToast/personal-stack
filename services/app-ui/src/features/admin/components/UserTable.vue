@@ -67,7 +67,7 @@ async function confirmDelete(): Promise<void> {
 
     <p
       v-if="props.users.length === 0"
-      class="rounded-md border border-surface-border/50 bg-surface-elevated p-6 text-center font-mono text-xs text-gray-500"
+      class="rounded-md border border-surface-border/50 bg-surface-elevated p-6 text-center font-mono text-xs text-[var(--color-text-muted)]"
     >
       No users match this filter.
     </p>
@@ -84,13 +84,15 @@ async function confirmDelete(): Promise<void> {
         <div class="flex items-center justify-between border-b border-surface-border/50 bg-surface-dark/40 px-4 py-3">
           <div class="min-w-0">
             <div class="flex items-center gap-2">
-              <span class="truncate font-mono text-sm font-bold text-gray-200">{{ user.username }}</span>
+              <span class="truncate font-mono text-sm font-bold text-[var(--color-text-primary)]">{{
+                user.username
+              }}</span>
               <span
                 class="rounded-sm border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider"
                 :class="
                   user.role === 'ADMIN'
                     ? 'border-terminal-green/40 bg-terminal-green/10 text-terminal-green'
-                    : 'border-surface-border text-gray-500'
+                    : 'border-surface-border text-[var(--color-text-muted)]'
                 "
               >
                 {{ user.role }}
@@ -102,7 +104,7 @@ async function confirmDelete(): Promise<void> {
                 unconfirmed
               </span>
             </div>
-            <div class="truncate font-mono text-xs text-gray-500">{{ user.email }}</div>
+            <div class="truncate font-mono text-xs text-[var(--color-text-muted)]">{{ user.email }}</div>
           </div>
           <div class="flex items-center gap-3">
             <RoleSelector
@@ -125,7 +127,9 @@ async function confirmDelete(): Promise<void> {
              padding + label so it's obviously a sub-section rather than
              a continuation of the header controls. -->
         <div class="px-4 py-3">
-          <div class="mb-2 font-mono text-[10px] uppercase tracking-wider text-gray-600">Service permissions</div>
+          <div class="mb-2 font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-subtle)]">
+            Service permissions
+          </div>
           <ServicePermissionsEditor
             :model-value="user.servicePermissions"
             :disabled="saving === user.id"

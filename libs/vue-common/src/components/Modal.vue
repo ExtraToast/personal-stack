@@ -86,7 +86,7 @@ onBeforeUnmount(() => {
             <h2 id="modal-title" class="text-lg font-semibold">{{ title }}</h2>
             <button
               type="button"
-              class="rounded p-1 text-gray-400 hover:bg-[var(--color-surface-elevated)] hover:text-gray-200"
+              class="rounded p-1 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-text-primary)]"
               aria-label="Close dialog"
               data-testid="modal-close"
               @click="emit('close')"
