@@ -6,6 +6,7 @@ import com.jorisjonkers.personalstack.assistant.application.command.StartChatSes
 import com.jorisjonkers.personalstack.assistant.application.query.ChatSessionQueryService
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatMessageId
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatSessionId
+import com.jorisjonkers.personalstack.assistant.domain.model.ChatSessionKind
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.AppendChatMessageRequest
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.ChatMessageResponse
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.ChatSessionResponse
@@ -42,7 +43,7 @@ class ChatSessionController(
                 sessionId = sessionId,
                 userId = userUuid,
                 title = req.title,
-                kind = req.kind,
+                kind = req.kind ?: ChatSessionKind.PLAIN,
             ),
         )
         val detail =

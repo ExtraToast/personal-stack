@@ -11,7 +11,10 @@ import java.util.UUID
 
 data class StartChatSessionRequest(
     @field:Size(max = 120) val title: String? = null,
-    val kind: ChatSessionKind = ChatSessionKind.PLAIN,
+    // Nullable so an absent field deserializes to null on any Jackson
+    // setup (a non-null Kotlin default is not honored for a missing
+    // property); the controller coalesces null to PLAIN.
+    val kind: ChatSessionKind? = null,
 )
 
 data class ChatSessionResponse(

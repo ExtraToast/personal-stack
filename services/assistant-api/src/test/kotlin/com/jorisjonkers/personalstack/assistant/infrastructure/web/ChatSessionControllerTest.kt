@@ -57,9 +57,10 @@ class ChatSessionControllerTest {
                 post("/api/v1/chat-sessions")
                     .header("X-User-Id", s.userId.toString())
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(mapOf("title" to "x"))),
+                    .content(objectMapper.writeValueAsString(mapOf("title" to "x", "kind" to "PLAIN"))),
             ).andExpect(status().isCreated)
             .andExpect(jsonPath("$.status").value("ACTIVE"))
+            .andExpect(jsonPath("$.kind").value("PLAIN"))
         verify { commandBus.dispatch(any()) }
     }
 
