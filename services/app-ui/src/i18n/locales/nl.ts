@@ -7,6 +7,7 @@ export default {
     contact: 'Contact',
     myApps: 'Mijn Apps',
     admin: 'Beheer',
+    account: 'Account',
     login: 'Inloggen',
     logout: 'Uitloggen',
   },
