@@ -1,6 +1,5 @@
 package com.jorisjonkers.personalstack.agentgateway.web
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.jorisjonkers.personalstack.agentgateway.tmux.AgentKind
 import com.jorisjonkers.personalstack.agentgateway.tmux.AgentSession
 import com.jorisjonkers.personalstack.agentgateway.tmux.AgentSessionManager
@@ -15,6 +14,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
+import tools.jackson.databind.ObjectMapper
 import java.nio.file.Path
 import java.time.Instant
 

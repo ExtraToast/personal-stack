@@ -1,6 +1,5 @@
 package com.jorisjonkers.personalstack.agentgateway.ws
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.jorisjonkers.personalstack.agentgateway.tmux.AgentSessionManager
 import com.jorisjonkers.personalstack.agentgateway.tmux.LogTailer
 import org.slf4j.LoggerFactory
@@ -9,6 +8,7 @@ import org.springframework.web.socket.CloseStatus
 import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketSession
 import org.springframework.web.socket.handler.TextWebSocketHandler
+import tools.jackson.databind.ObjectMapper
 import java.util.concurrent.ConcurrentHashMap
 
 /**
