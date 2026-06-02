@@ -8,6 +8,7 @@ export type {
   CreateRepositoryInput,
   Repository,
   RepositoryDetail,
+  RepositoryVerifyResult,
 } from './types'
 export { default as RepositoriesView } from './views/RepositoriesView.vue'
 export { default as RepositoryView } from './views/RepositoryView.vue'

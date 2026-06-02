@@ -12,9 +12,13 @@ interface Props {
    * for the user to fix + retry.
    */
   onSubmit: (input: AttachDeployKeyInput) => Promise<void>
+  // Rotating an existing key vs attaching the first one. Only changes
+  // copy + the submit-success toast; the backend overwrite-on-reattach
+  // is the same write path either way.
+  replacing?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), { replacing: false })
 
 const emit = defineEmits<{
   success: []
@@ -46,7 +50,9 @@ async function handleSubmit(): Promise<void> {
   if (trimmedHosts) payload.knownHosts = knownHosts.value
   try {
     await submit.run(() => props.onSubmit(payload))
-    toast.success('Deploy key attached', `${props.repository.name} can now clone + push.`)
+    if (props.replacing)
+      toast.success('Deploy key replaced', `${props.repository.name}'s key was rotated; verifying access.`)
+    else toast.success('Deploy key attached', `${props.repository.name} can now clone + push.`)
     emit('success')
   } catch (e) {
     toast.errorFromCatch('Could not attach the deploy key', e)
@@ -56,6 +62,34 @@ async function handleSubmit(): Promise<void> {
 
 <template>
   <div class="space-y-6" data-testid="attach-key-wizard">
+    <p
+      v-if="props.replacing"
+      class="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-300"
+      data-testid="attach-key-replace-notice"
+    >
+      Replacing the deploy key rotates it: the new key overwrites the one stored in Vault and the old key stops working
+      once this completes.
+    </p>
+
+    <section
+      class="rounded-lg border border-[var(--color-surface-border)] bg-[var(--color-surface-card)] p-4"
+      data-testid="attach-key-protection-notice"
+    >
+      <h3 class="text-lg font-semibold">Before adding the key on GitHub</h3>
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-[var(--color-text-muted)]">
+        <li>
+          Enable <strong>branch protection</strong> on the default branch (<code
+            class="text-[var(--color-terminal-cyan)]"
+            >{{ props.repository.defaultBranch }}</code
+          >) and block both force-push and deletion, so a misbehaving agent cannot rewrite or destroy history.
+        </li>
+        <li>
+          Tick <strong>"Allow write access"</strong> on the GitHub deploy key only if the agent should push; leave it
+          off for read-only clones.
+        </li>
+      </ul>
+    </section>
+
     <section class="rounded-lg border border-[var(--color-surface-border)] bg-[var(--color-surface-card)] p-4">
       <h3 class="text-lg font-semibold">Generate a key</h3>
       <p class="mt-2 text-sm text-[var(--color-text-muted)]">Run this on your laptop:</p>

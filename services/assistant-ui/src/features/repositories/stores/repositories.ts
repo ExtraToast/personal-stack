@@ -1,4 +1,10 @@
-import type { AttachDeployKeyInput, CreateRepositoryInput, Repository, RepositoryDetail } from '../types'
+import type {
+  AttachDeployKeyInput,
+  CreateRepositoryInput,
+  Repository,
+  RepositoryDetail,
+  RepositoryVerifyResult,
+} from '../types'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import {
@@ -7,6 +13,7 @@ import {
   deleteRepository as deleteApi,
   getRepository as getApi,
   listRepositories as listApi,
+  verifyRepositoryAccess as verifyApi,
 } from '../services/repositoriesService'
 
 export const useRepositoriesStore = defineStore('repositories', () => {
@@ -52,6 +59,13 @@ export const useRepositoriesStore = defineStore('repositories', () => {
     await loadDetail(id)
   }
 
+  async function verify(id: string): Promise<RepositoryVerifyResult> {
+    const result = await verifyApi(id)
+    const detail = detailById.value[id]
+    if (detail) detailById.value[id] = { ...detail, verify: result }
+    return result
+  }
+
   async function destroy(id: string): Promise<void> {
     await deleteApi(id)
     items.value = items.value.filter((r) => r.id !== id)
@@ -68,6 +82,7 @@ export const useRepositoriesStore = defineStore('repositories', () => {
     loadDetail,
     create,
     attachKey,
+    verify,
     destroy,
   }
 })

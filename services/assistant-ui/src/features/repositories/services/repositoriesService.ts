@@ -1,4 +1,10 @@
-import type { AttachDeployKeyInput, CreateRepositoryInput, Repository, RepositoryDetail } from '../types'
+import type {
+  AttachDeployKeyInput,
+  CreateRepositoryInput,
+  Repository,
+  RepositoryDetail,
+  RepositoryVerifyResult,
+} from '../types'
 import { useApiWithAuth } from '@personal-stack/vue-common'
 
 function api(): ReturnType<typeof useApiWithAuth> {
@@ -23,4 +29,8 @@ export async function attachDeployKey(id: string, input: AttachDeployKeyInput): 
 
 export async function deleteRepository(id: string): Promise<void> {
   await api().del(`/repositories/${id}`)
+}
+
+export async function verifyRepositoryAccess(id: string): Promise<RepositoryVerifyResult> {
+  return api().post<RepositoryVerifyResult>(`/repositories/${id}/verify`, {})
 }
