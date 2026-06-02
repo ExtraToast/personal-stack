@@ -251,6 +251,15 @@ path "secret/data/knowledge-system/*" {
 path "secret/data/platform/media/*" {
   capabilities = ["read"]
 }
+
+# agents-system: the shared GitHub deploy key + per-project deploy keys
+# the agent-runner subsystem projects via VaultStaticSecrets
+# (agents-github-deploy-key, agents-kb-bearer, and the per-project keys
+# under agents/repositories/*). Wildcard so new projects don't need a
+# policy edit; VSO's namespace-scoped VSS resources gate actual access.
+path "secret/data/agents/*" {
+  capabilities = ["read"]
+}
 EOF
 
 vault policy write auth-api /tmp/auth-api.hcl
@@ -307,7 +316,7 @@ vault write auth/kubernetes/role/stalwart \
 
 vault write auth/kubernetes/role/vso \
   bound_service_account_names="vault-secrets-operator" \
-  bound_service_account_namespaces="vso-system,cert-manager,external-dns,observability,automation-system,utility-system,knowledge-system,data-system,media-system,mail-system" \
+  bound_service_account_namespaces="vso-system,cert-manager,external-dns,observability,automation-system,utility-system,knowledge-system,data-system,media-system,mail-system,agents-system" \
   policies="vso" \
   ttl="1h"
 
