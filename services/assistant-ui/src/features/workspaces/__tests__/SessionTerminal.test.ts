@@ -18,6 +18,7 @@ const term = {
   onResize: vi.fn((cb: (e: { cols: number; rows: number }) => void) => {
     onResizeCb = cb
   }),
+  focus: vi.fn(),
   dispose: vi.fn(),
 }
 vi.mock('@xterm/xterm', () => ({
@@ -27,6 +28,7 @@ vi.mock('@xterm/xterm', () => ({
     open = term.open
     onData = term.onData
     onResize = term.onResize
+    focus = term.focus
     dispose = term.dispose
   },
 }))
@@ -66,7 +68,7 @@ describe('sessionTerminal', () => {
     vi.stubGlobal('ResizeObserver', undefined)
   })
 
-  function mountTerminal() {
+  function mountTerminal(props: { sessionId?: string; active?: boolean } = {}) {
     vi.stubGlobal(
       'ResizeObserver',
       class {
@@ -74,7 +76,7 @@ describe('sessionTerminal', () => {
         disconnect() {}
       },
     )
-    return mount(SessionTerminal, { props: { sessionId: 'sess-1' } })
+    return mount(SessionTerminal, { props: { sessionId: 'sess-1', ...props } })
   }
 
   it('writes inbound output frames to the terminal', () => {
@@ -103,5 +105,29 @@ describe('sessionTerminal', () => {
     wrapper.unmount()
     expect(socket.close).toHaveBeenCalled()
     expect(term.dispose).toHaveBeenCalled()
+  })
+
+  it('focuses the terminal when mounted active', () => {
+    mountTerminal({ active: true })
+    expect(term.focus).toHaveBeenCalled()
+  })
+
+  it('does not focus the terminal when mounted inactive', () => {
+    mountTerminal({ active: false })
+    expect(term.focus).not.toHaveBeenCalled()
+  })
+
+  it('focuses the terminal when it becomes active without re-attaching the socket', async () => {
+    const wrapper = mountTerminal({ active: false })
+    expect(attachSessionSocket).toHaveBeenCalledTimes(1)
+    expect(term.focus).not.toHaveBeenCalled()
+
+    await wrapper.setProps({ active: true })
+
+    expect(term.focus).toHaveBeenCalled()
+    // The socket is attached once at mount; toggling active must not
+    // tear it down or open a new one.
+    expect(attachSessionSocket).toHaveBeenCalledTimes(1)
+    expect(socket.close).not.toHaveBeenCalled()
   })
 })

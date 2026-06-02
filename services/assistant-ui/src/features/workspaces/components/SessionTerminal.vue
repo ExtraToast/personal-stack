@@ -2,11 +2,11 @@
 import type { SessionSocket } from '../services/sessionSocket'
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { attachSessionSocket } from '../services/sessionSocket'
 import '@xterm/xterm/css/xterm.css'
 
-const props = defineProps<{ sessionId: string }>()
+const props = defineProps<{ sessionId: string; active?: boolean }>()
 
 const container = ref<HTMLDivElement | null>(null)
 
@@ -54,7 +54,26 @@ onMounted(() => {
   resizeObserver = new ResizeObserver(() => fitAndReportSize())
   resizeObserver.observe(el)
   window.addEventListener('resize', fitAndReportSize)
+
+  if (props.active) revealAndFocus()
 })
+
+// While a terminal is hidden via `display:none` (v-show on an
+// inactive tab) xterm cannot measure its container, so fit() computed
+// against the previous tab's geometry. Re-fit and focus once the tab
+// becomes visible again so the PTY size matches the viewport.
+function revealAndFocus(): void {
+  if (!term) return
+  fitAndReportSize()
+  term.focus()
+}
+
+watch(
+  () => props.active,
+  (isActive) => {
+    if (isActive) revealAndFocus()
+  },
+)
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', fitAndReportSize)
