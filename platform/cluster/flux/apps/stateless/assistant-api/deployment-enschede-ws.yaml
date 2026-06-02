@@ -1,0 +1,287 @@
+# Enschede-pinned assistant-api replica that terminates the agent
+# terminal WebSocket close to the runner. The browser-to-runner attach
+# WS otherwise detours browser(Enschede) -> edge/api(Frankfurt) ->
+# runner(Enschede), adding a cross-site round trip to every keystroke.
+# A *-lan ingress on assistant-ws.jorisjonkers.dev routes that WS to
+# this replica (split-DNS sends on-site clients straight here), so the
+# per-keystroke hop stays Enschede-local; the REST API + its Postgres
+# stay in Frankfurt. Same image/env/ServiceAccount/Vault role as the
+# Frankfurt deployment — keep this file in sync with deployment.yaml;
+# only the name, pod labels, and site nodeSelector differ.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: assistant-api-ws
+  namespace: assistant-system
+  annotations:
+    keel.sh/policy: force
+    keel.sh/match-tag: 'true'
+    keel.sh/trigger: poll
+    keel.sh/pollSchedule: '@every 2m'
+spec:
+  # Single replica, zero-downtime rollout (mirrors auth-api):
+  # maxSurge=1 + maxUnavailable=0. On a new image the surge pod is
+  # created and must reach Ready before the old pod is torn down, so a
+  # cutover never leaves zero pods serving — critical here because a
+  # cold start is slow (~5 min: Spring + Vault init on the tight
+  # Frankfurt VPS). The previous maxSurge=0/maxUnavailable=1 with a
+  # single replica killed the only pod first and left the service down
+  # for the whole startup window. Briefly runs 2 pods (~800m CPU
+  # requested) during the roll; progressDeadlineSeconds covers the
+  # slow start.
+  replicas: 1
+  progressDeadlineSeconds: 1800
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: assistant-api-ws
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: assistant-api-ws
+      annotations:
+        vault.hashicorp.com/agent-inject: 'true'
+        vault.hashicorp.com/agent-inject-token: 'true'
+        vault.hashicorp.com/agent-pre-populate-only: 'true'
+        vault.hashicorp.com/role: assistant-api
+        vault.hashicorp.com/agent-inject-secret-assistant-api.env: rabbitmq/creds/app-consumer
+        vault.hashicorp.com/agent-inject-template-assistant-api.env: |
+          # Datasource credential. The Spring Cloud Vault database backend
+          # (dynamic creds via database/creds/assistant-api) is preferred
+          # and overrides these when it engages, but it is not binding the
+          # datasource in the current image, so without an explicit
+          # credential the connection falls back to the application.yml
+          # defaults (assistant_user/assistant_password) and Flyway fails
+          # with "password authentication failed for user assistant_user".
+          # Supply the real assistant_user credential from the single
+          # source of truth (secret/platform/postgres). See auth-api.
+          DB_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "assistant.user" }}{{ end }}
+          DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "assistant.password" }}{{ end }}
+          {{ with secret "rabbitmq/creds/app-consumer" }}
+          SPRING_RABBITMQ_USERNAME={{ .Data.username }}
+          SPRING_RABBITMQ_PASSWORD={{ .Data.password }}
+          {{ end }}
+    spec:
+      serviceAccountName: assistant-api
+      priorityClassName: platform-critical-app
+      nodeSelector:
+        personal-stack/site: enschede
+      initContainers:
+        - name: download-pyroscope-agent
+          image: curlimages/curl:8.10.1
+          command:
+            - sh
+            - -ec
+            - |
+              curl -fsSL -o /agent/pyroscope.jar \
+                https://github.com/grafana/pyroscope-java/releases/download/v0.16.0/pyroscope.jar
+          volumeMounts:
+            - name: pyroscope-agent
+              mountPath: /agent
+      containers:
+        - name: assistant-api
+          image: ghcr.io/extratoast/personal-stack/assistant-api:latest
+          imagePullPolicy: Always
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              export SPRING_CLOUD_VAULT_TOKEN="$(cat /vault/secrets/token)"
+              set -a
+              . /vault/secrets/assistant-api.env
+              set +a
+              # See auth-api deployment.yaml for the rationale behind these
+              # JVM flags. MaxRAMPercentage=55 (down from 75) leaves native
+              # headroom under the 2304 MiB limit for the two javaagents +
+              # tracing aspect, avoiding the OOMKills the 75 % heap caused
+              # during cold start. ZGC for sub-ms pauses. AppCDS args were
+              # dropped with the BellSoft Liberica CRaC image switch.
+              exec java \
+                -XX:+UseZGC \
+                -XX:MaxRAMPercentage=55 \
+                -javaagent:/app/otel-javaagent.jar \
+                -javaagent:/pyroscope/pyroscope.jar \
+                -jar /app/app.jar
+          env:
+            - name: SERVER_PORT
+              value: '8082'
+            - name: SPRING_PROFILES_ACTIVE
+              value: prod
+            - name: SPRING_CONFIG_IMPORT
+              value: vault://
+            - name: VAULT_ENABLED
+              value: 'true'
+            - name: VAULT_ADDR
+              value: http://vault.data-system.svc.cluster.local:8200
+            - name: VAULT_DB_ENABLED
+              value: 'true'
+            - name: DB_HOST
+              value: postgres.data-system.svc.cluster.local
+            - name: DB_PORT
+              value: '5432'
+            - name: VALKEY_HOST
+              value: valkey.data-system.svc.cluster.local
+            - name: VALKEY_PORT
+              value: '6379'
+            - name: SPRING_RABBITMQ_HOST
+              value: rabbitmq.data-system.svc.cluster.local
+            - name: SPRING_RABBITMQ_PORT
+              value: '5672'
+            - name: DEPLOYMENT_ENVIRONMENT
+              value: production
+            # SERVICE_VERSION is baked into the image by the build pipeline.
+            # See auth-api deployment.yaml for the rationale.
+            - name: OTEL_SERVICE_NAME
+              value: assistant-api
+            # entrypoint.sh composes OTEL_RESOURCE_ATTRIBUTES from
+            # SERVICE_VERSION + DEPLOYMENT_ENVIRONMENT at container start.
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://alloy.observability.svc.cluster.local:4318
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: http/protobuf
+            - name: OTEL_LOGS_EXPORTER
+              value: none
+            - name: OTEL_METRICS_EXPORTER
+              value: none
+            - name: OTEL_TRACES_EXPORTER
+              value: otlp
+            # See auth-api deployment.yaml for the rationale behind
+            # these OTel tunings (agent-default sampling, 5s exporter
+            # timeout + batch schedule, bounded queue).
+            - name: OTEL_EXPORTER_OTLP_TIMEOUT
+              value: '5000'
+            - name: OTEL_BSP_SCHEDULE_DELAY
+              value: '5000'
+            # See auth-api deployment.yaml — same rationale.
+            - name: OTEL_BSP_MAX_QUEUE_SIZE
+              value: '16384'
+            - name: OTEL_BSP_MAX_EXPORT_BATCH_SIZE
+              value: '2048'
+            - name: PYROSCOPE_APPLICATION_NAME
+              value: assistant-api
+            - name: PYROSCOPE_SERVER_ADDRESS
+              value: http://pyroscope.observability.svc.cluster.local:4040
+            - name: PYROSCOPE_FORMAT
+              value: jfr
+            - name: PYROSCOPE_PROFILER_EVENT
+              value: cpu
+            - name: PYROSCOPE_PROFILER_ALLOC
+              value: '524288'
+            - name: PYROSCOPE_PROFILER_LOCK
+              value: 10ms
+            - name: PYROSCOPE_LABELS
+              value: service.name=assistant-api,deployment.environment=production
+            # Agent runtime — per-workspace runner Pod orchestration.
+            # All values live in application.yml's defaults; overrides
+            # here cover environment specifics (site selector, image
+            # tag pinning if needed).
+            - name: AGENT_RUNTIME_NAMESPACE
+              value: agents-system
+            - name: AGENT_RUNTIME_IMAGE
+              value: ghcr.io/extratoast/personal-stack/agent-runner:latest
+            # Runner Pods must co-locate with the credential PVCs.
+            - name: AGENT_RUNTIME_NODE
+              value: enschede-gtx-960m-1
+            # Read-only GitHub token for the deploy-key branch-protection
+            # check. Sourced from the github-api-token Secret (key
+            # `token`), which a VaultStaticSecret projects from Vault —
+            # both are provisioned separately (ops). `optional: true`
+            # keeps the pod starting when the Secret is absent; the
+            # branch-protection check then degrades to null.
+            - name: GITHUB_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: github-api-token
+                  key: token
+                  optional: true
+            # GitHub App used to mint short-lived, repo-scoped installation
+            # tokens for the runner's `gh` (PR comments + Actions re-runs).
+            # Sourced from the github-app Secret a VaultStaticSecret
+            # projects from `secret/agents/github-app`. All `optional: true`
+            # so the pod starts when the App is not yet provisioned; minting
+            # then stays disabled and the internal endpoint returns 503.
+            - name: GITHUB_APP_ID
+              valueFrom:
+                secretKeyRef:
+                  name: github-app
+                  key: app-id
+                  optional: true
+            - name: GITHUB_APP_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: github-app
+                  key: private-key
+                  optional: true
+            - name: GITHUB_APP_TOKEN_BEARER
+              valueFrom:
+                secretKeyRef:
+                  name: github-app
+                  key: token-bearer
+                  optional: true
+          ports:
+            - containerPort: 8082
+              name: http
+          startupProbe:
+            httpGet:
+              path: /api/actuator/health/liveness
+              port: http
+            periodSeconds: 5
+            # 600 s (120 × 5 s) window matches auth-api's PR #250 — the 300 s
+            # budget had no margin for cold-start variance and got crossed
+            # the moment a rebuild forced the second replica to roll, sending
+            # the pod into an exit-137 / restart loop. Cold start under
+            # AppCDS at 1000m typically lands around 150–200 s, so 600 s is
+            # ample headroom without altering the steady-state liveness
+            # budget below.
+            failureThreshold: 120
+          readinessProbe:
+            httpGet:
+              path: /api/actuator/health/readiness
+              port: http
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/actuator/health/liveness
+              port: http
+            timeoutSeconds: 5
+          resources:
+            # CPU request sized to measured steady state (~50m) + headroom,
+            # not the cold-start peak — see auth-api for the full rationale.
+            # The 400m request frees the reservation that kept Frankfurt
+            # "full"; the 2000m limit lets class loading burst on the idle
+            # node for a fast cold start.
+            requests:
+              cpu: 400m
+              memory: 1792Mi
+            limits:
+              cpu: 2000m
+              # 3Gi (was 2304Mi) for the same cold-start peak headroom as
+              # auth-api: the ~1.27 GiB heap (MaxRAMPercentage=55) plus the
+              # OTel + Pyroscope javaagents' native footprint plus JIT and
+              # metaspace peaked over the old limit and OOMKilled the pod.
+              # Request stays 1792Mi — no added scheduling reservation.
+              memory: 3Gi
+          volumeMounts:
+            - name: pyroscope-agent
+              mountPath: /pyroscope
+              readOnly: true
+      volumes:
+        - name: pyroscope-agent
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: assistant-api-ws
+  namespace: assistant-system
+spec:
+  selector:
+    app.kubernetes.io/name: assistant-api-ws
+  ports:
+    - name: http
+      port: 8082
+      targetPort: http
