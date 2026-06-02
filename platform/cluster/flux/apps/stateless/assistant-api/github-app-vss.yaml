@@ -1,0 +1,17 @@
+# App id + private key (token minting) + the shared bearer (verifying
+# the runner's calls). assistant-api reads all three as env. Projected
+# from secret/agents/github-app.
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: github-app
+  namespace: assistant-system
+spec:
+  vaultAuthRef: vso-system/default
+  type: kv-v2
+  mount: secret
+  path: agents/github-app
+  destination:
+    name: github-app
+    create: true
+  refreshAfter: 1h
