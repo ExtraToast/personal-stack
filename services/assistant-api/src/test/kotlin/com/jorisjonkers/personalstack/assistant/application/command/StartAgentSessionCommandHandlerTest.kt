@@ -9,6 +9,7 @@ import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSessi
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceStatus
 import com.jorisjonkers.personalstack.assistant.domain.port.AgentGatewayClient
+import com.jorisjonkers.personalstack.assistant.domain.port.AgentRunnerOrchestrator
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceAgentSessionRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepository
 import io.mockk.every
@@ -24,9 +25,11 @@ class StartAgentSessionCommandHandlerTest {
     private val workspaces = mockk<WorkspaceRepository>()
     private val sessions = mockk<WorkspaceAgentSessionRepository>()
     private val gateway = mockk<AgentGatewayClient>()
+    private val orchestrator = mockk<AgentRunnerOrchestrator>()
 
     /** `backoffInitialMs = 0` so the retry-exhaustion test doesn't burn 6 s. */
-    private val handler = StartAgentSessionCommandHandler(workspaces, sessions, gateway, backoffInitialMs = 0)
+    private val handler =
+        StartAgentSessionCommandHandler(workspaces, sessions, gateway, orchestrator, backoffInitialMs = 0)
 
     @Test
     fun `handle spawns gateway agent and persists binding when runner is ready`() {
@@ -74,15 +77,81 @@ class StartAgentSessionCommandHandlerTest {
     }
 
     @Test
-    fun `handle throws AgentRunnerUnavailable with status=NotReady when isReady returns false`() {
-        // Regression: production hits `Connection refused` to the runner
-        // Pod's Service because the Pod hasn't passed its readiness
-        // probe yet. The probe is checked first so the caller gets a
-        // typed 503 with `Retry-After`, not a leaky 500 wrapping a
-        // ResourceAccessException.
+    fun `handle does not touch the orchestrator when the runner is already ready`() {
+        // A healthy runner must never be destroyed: the self-heal path
+        // is gated entirely behind a failing /healthz, so a Ready
+        // runner provisions nothing and spawns straight away.
+        val ws = workspace()
+        every { workspaces.findById(ws.id) } returns ws
+        every { gateway.isReady(ws) } returns true
+        every { sessions.save(any()) } answers { firstArg() }
+        every { gateway.spawnAgent(ws, WorkspaceAgentKind.CLAUDE) } returns
+            AgentGatewayClient.GatewayAgent(id = "ok", kind = WorkspaceAgentKind.CLAUDE, cwd = "/workspace")
+
+        handler.handle(
+            StartAgentSessionCommand(
+                sessionId = WorkspaceAgentSessionId.random(),
+                workspaceId = ws.id,
+                kind = WorkspaceAgentKind.CLAUDE,
+            ),
+        )
+
+        verify(exactly = 0) { orchestrator.destroy(any()) }
+        verify(exactly = 0) { orchestrator.provision(any()) }
+    }
+
+    @Test
+    fun `handle re-provisions a fresh Pod when the runner is missing or crash-looping`() {
+        // Regression: a workspace whose Pod was evicted / built against
+        // an older image answers nothing on /healthz forever. Instead
+        // of a permanent 503, the runner is re-provisioned (destroy +
+        // provision lands a fresh Pod on the current image), the
+        // workspace is re-pointed at the new endpoint, and the fresh
+        // Pod passes /healthz on the next gate.
+        val ws = workspace()
+        every { workspaces.findById(ws.id) } returns ws
+        // First gate fails (stale/missing Pod); after re-provision the
+        // fresh Pod answers.
+        every { gateway.isReady(any()) } returnsMany listOf(false, true)
+        every { orchestrator.destroy(ws) } returns Unit
+        every { orchestrator.provision(ws) } returns
+            AgentRunnerOrchestrator.RunnerHandle(
+                podName = "agent-runner-fresh001",
+                pvcName = "workspace-abcdef01",
+                gatewayEndpoint = "http://fresh:8090",
+            )
+        val saved = mutableListOf<Workspace>()
+        every { workspaces.save(capture(saved)) } answers { firstArg() }
+        every { sessions.save(any()) } answers { firstArg() }
+        every { gateway.spawnAgent(any(), WorkspaceAgentKind.CLAUDE) } returns
+            AgentGatewayClient.GatewayAgent(id = "ok", kind = WorkspaceAgentKind.CLAUDE, cwd = "/workspace")
+
+        handler.handle(
+            StartAgentSessionCommand(
+                sessionId = WorkspaceAgentSessionId.random(),
+                workspaceId = ws.id,
+                kind = WorkspaceAgentKind.CLAUDE,
+            ),
+        )
+
+        verify(exactly = 1) { orchestrator.destroy(ws) }
+        verify(exactly = 1) { orchestrator.provision(ws) }
+        // The re-pointed workspace is persisted and spawned against.
+        assertThat(saved.single().podName).isEqualTo("agent-runner-fresh001")
+        assertThat(saved.single().gatewayEndpoint).isEqualTo("http://fresh:8090")
+        verify { gateway.spawnAgent(match { it.gatewayEndpoint == "http://fresh:8090" }, WorkspaceAgentKind.CLAUDE) }
+    }
+
+    @Test
+    fun `handle surfaces ReprovisionFailed 503 when provision throws`() {
+        // If re-provision itself can't land a Pod, there is nothing to
+        // spawn against — surface a typed 503 carrying the provision
+        // failure as the cause, and never create a session row.
         val ws = workspace()
         every { workspaces.findById(ws.id) } returns ws
         every { gateway.isReady(ws) } returns false
+        every { orchestrator.destroy(ws) } returns Unit
+        every { orchestrator.provision(ws) } throws IllegalStateException("k8s apply rejected")
 
         val ex =
             assertThrows<AgentRunnerUnavailableException> {
@@ -94,9 +163,42 @@ class StartAgentSessionCommandHandlerTest {
                     ),
                 )
             }
-        assertThat(ex.workspaceId).isEqualTo(ws.id)
+        assertThat(ex.runnerStatus).isEqualTo("ReprovisionFailed")
+        assertThat(ex.cause).isInstanceOf(IllegalStateException::class.java)
+        verify(exactly = 0) { sessions.save(any()) }
+        verify(exactly = 0) { gateway.spawnAgent(any(), any()) }
+    }
+
+    @Test
+    fun `handle surfaces NotReady 503 when the fresh Pod never passes healthz within the budget`() {
+        // Re-provision succeeded but the fresh Pod stays NotReady for
+        // the whole retry budget — surface a NotReady 503 so the client
+        // backs off, without spawning against a Pod that can't answer.
+        val ws = workspace()
+        every { workspaces.findById(ws.id) } returns ws
+        every { gateway.isReady(any()) } returns false
+        every { orchestrator.destroy(ws) } returns Unit
+        every { orchestrator.provision(ws) } returns
+            AgentRunnerOrchestrator.RunnerHandle(
+                podName = "agent-runner-fresh001",
+                pvcName = "workspace-abcdef01",
+                gatewayEndpoint = "http://fresh:8090",
+            )
+        every { workspaces.save(any()) } answers { firstArg() }
+
+        val ex =
+            assertThrows<AgentRunnerUnavailableException> {
+                handler.handle(
+                    StartAgentSessionCommand(
+                        sessionId = WorkspaceAgentSessionId.random(),
+                        workspaceId = ws.id,
+                        kind = WorkspaceAgentKind.CLAUDE,
+                    ),
+                )
+            }
         assertThat(ex.runnerStatus).isEqualTo("NotReady")
         assertThat(ex.retryAfterSeconds).isEqualTo(AgentRunnerUnavailableException.DEFAULT_RETRY_AFTER_SECONDS)
+        verify(exactly = 1) { orchestrator.provision(ws) }
         verify(exactly = 0) { sessions.save(any()) }
         verify(exactly = 0) { gateway.spawnAgent(any(), any()) }
     }
