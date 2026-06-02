@@ -11,6 +11,8 @@ const newTitle = ref('')
 
 const send = useMutationState<void>()
 const create = useMutationState<void>()
+const archive = useMutationState<void>()
+const deletingId = ref<string | null>(null)
 
 const active = computed(() => {
   const id = store.activeSessionId
@@ -74,6 +76,28 @@ async function onSelect(id: string): Promise<void> {
     toast.errorFromCatch('Could not open the chat', e)
   }
 }
+
+async function onArchive(id: string, title: string): Promise<void> {
+  // See ProjectView for the rationale on using window.confirm.
+  // eslint-disable-next-line no-alert
+  const confirmed = window.confirm(
+    `Delete chat "${title}"? Its messages are removed from the list. This cannot be undone.`,
+  )
+  if (!confirmed) {
+    return
+  }
+  deletingId.value = id
+  try {
+    await archive.run(async () => {
+      await store.archive(id)
+    })
+    toast.success('Chat deleted')
+  } catch (e) {
+    toast.errorFromCatch('Could not delete the chat', e)
+  } finally {
+    deletingId.value = null
+  }
+}
 </script>
 
 <template>
@@ -96,10 +120,10 @@ async function onSelect(id: string): Promise<void> {
       </p>
 
       <ul v-else class="space-y-2" data-testid="chat-sessions-list">
-        <li v-for="s in store.sessions" :key="s.id">
+        <li v-for="s in store.sessions" :key="s.id" class="flex items-stretch gap-1">
           <button
             type="button"
-            class="w-full rounded border px-3 py-2 text-left text-sm transition-colors"
+            class="flex-1 rounded border px-3 py-2 text-left text-sm transition-colors"
             :class="[
               s.id === store.activeSessionId
                 ? 'border-[var(--color-accent)] bg-[var(--color-surface-elevated)]'
@@ -111,6 +135,14 @@ async function onSelect(id: string): Promise<void> {
             <p class="font-medium">{{ s.title ?? 'Untitled chat' }}</p>
             <p class="text-xs text-gray-500">{{ new Date(s.updatedAt).toLocaleString() }}</p>
           </button>
+          <SubmitButton
+            type="button"
+            variant="danger"
+            label="Delete"
+            :status="deletingId === s.id ? archive.status.value : 'idle'"
+            :data-testid="`chat-delete-${s.id}`"
+            @click="onArchive(s.id, s.title ?? 'Untitled chat')"
+          />
         </li>
       </ul>
     </aside>

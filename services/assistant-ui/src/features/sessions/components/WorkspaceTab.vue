@@ -1,17 +1,42 @@
 <script setup lang="ts">
-import { Card, Modal, SubmitButton } from '@personal-stack/vue-common'
+import { Card, Modal, SubmitButton, useMutationState, useToast } from '@personal-stack/vue-common'
 import { computed, onMounted, ref } from 'vue'
 import { useWorkspacesStore } from '@/features/workspaces'
 import CreateWorkspaceWizard from './CreateWorkspaceWizard.vue'
 
 const store = useWorkspacesStore()
+const toast = useToast()
 const showWizard = ref(false)
+const destroy = useMutationState<void>()
+const deletingId = ref<string | null>(null)
 
 const repoBackedWorkspaces = computed(() => store.workspaces.filter((w) => w.kind === 'REPO_BACKED'))
 
 onMounted(() => {
   void store.loadAll()
 })
+
+async function onDestroy(id: string, name: string): Promise<void> {
+  // See ProjectView for the rationale on using window.confirm.
+  // eslint-disable-next-line no-alert
+  const confirmed = window.confirm(
+    `Delete workspace "${name}"? Its Pod, volume, and agent sessions are torn down. This cannot be undone.`,
+  )
+  if (!confirmed) {
+    return
+  }
+  deletingId.value = id
+  try {
+    await destroy.run(async () => {
+      await store.destroy(id)
+    })
+    toast.success('Workspace deleted')
+  } catch (e) {
+    toast.errorFromCatch('Could not delete the workspace', e)
+  } finally {
+    deletingId.value = null
+  }
+}
 </script>
 
 <template>
@@ -41,6 +66,16 @@ onMounted(() => {
           </template>
           <p v-if="w.repoUrl" class="font-mono text-xs text-gray-400">{{ w.repoUrl }}</p>
           <p v-if="w.branch" class="text-xs text-gray-500">branch: {{ w.branch }}</p>
+          <div class="mt-3 flex justify-end">
+            <SubmitButton
+              type="button"
+              variant="danger"
+              label="Delete"
+              :status="deletingId === w.id ? destroy.status.value : 'idle'"
+              :data-testid="`workspace-delete-${w.id}`"
+              @click.stop.prevent="onDestroy(w.id, w.name)"
+            />
+          </div>
         </Card>
       </li>
     </ul>
