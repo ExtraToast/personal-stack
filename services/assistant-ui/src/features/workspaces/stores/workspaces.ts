@@ -20,6 +20,9 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
   const turns = ref<Turn[]>([])
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  // True while a new session's runner is cold-starting (start-session
+  // is polling through the runner's not-ready 503 window).
+  const startingSession = ref(false)
 
   async function loadAll(): Promise<void> {
     isLoading.value = true
@@ -71,10 +74,17 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
   async function newSession(kind: AgentKind): Promise<string | null> {
     const ws = activeWorkspace.value
     if (!ws) return null
-    const { sessionId } = await startSession(ws.id, kind)
-    activeSessionId.value = sessionId
-    await open(ws.id)
-    return sessionId
+    startingSession.value = true
+    try {
+      const { sessionId } = await startSession(ws.id, kind, () => {
+        startingSession.value = true
+      })
+      activeSessionId.value = sessionId
+      await open(ws.id)
+      return sessionId
+    } finally {
+      startingSession.value = false
+    }
   }
 
   async function endSession(sessionId: string): Promise<void> {
@@ -126,6 +136,7 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
     turns,
     isLoading,
     error,
+    startingSession,
     loadAll,
     open,
     create,
