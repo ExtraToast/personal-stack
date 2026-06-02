@@ -14,7 +14,7 @@ data class GatewayProperties(
         val stateDir: String,
         // Poll cadence for the pipe-pane log tailer. Lower = more
         // responsive streamed output at the cost of more wakeups.
-        val tailIntervalMs: Long = 40,
+        val tailIntervalMs: Long = 15,
     )
 
     data class Cli(

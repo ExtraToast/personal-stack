@@ -36,7 +36,7 @@ agent-gateway:
     state-dir: /tmp/agent-gateway
     # ~40ms keeps streamed output feeling live. Per-keystroke
     # send-keys is a separate, smaller latency source.
-    tail-interval-ms: 40
+    tail-interval-ms: 15
   cli:
     claude: ${CLAUDE_BIN:claude}
     codex: ${CODEX_BIN:codex}

@@ -46,7 +46,18 @@ class AgentAttachHandler(
         // One current-screen snapshot (with ANSI) so the TUI renders
         // immediately; the EOF-based tailer then streams only new bytes,
         // so nothing in the snapshot gets replayed from the log.
-        val snapshot = runCatching { sessions.captureWithEscapes(agentId) }.getOrDefault("")
+        //
+        // capture-pane joins pane rows with bare "\n"; the xterm runs
+        // with convertEol off (correct for the live PTY stream, which
+        // already emits CR), so each "\n" in the snapshot would drop a
+        // row without returning to column 0 — the banner staircases to
+        // the right. Normalise the snapshot's line ends to CRLF so it
+        // repaints flush-left. Existing CRLF is left intact.
+        val snapshot =
+            runCatching { sessions.captureWithEscapes(agentId) }
+                .getOrDefault("")
+                .replace("\r\n", "\n")
+                .replace("\n", "\r\n")
         val snapshotMsg = mapper.writeValueAsString(mapOf("output" to snapshot))
         synchronized(session) { session.sendMessage(TextMessage(snapshotMsg)) }
 

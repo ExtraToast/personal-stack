@@ -55,6 +55,17 @@ class TmuxClient(
                 cwd,
             ) + command
         runner.run(argv, env = env)
+        // No client ever attaches to this session (the gateway tails the
+        // pipe-pane log instead), so tmux's default client-driven sizing
+        // never runs and a resize-window from the browser would be
+        // recomputed away. window-size=manual makes the browser's resize
+        // frames the sole authority over the pane geometry, so the TUI
+        // renders at the xterm's real width instead of the 200x50
+        // bootstrap size.
+        runner.run(
+            listOf("tmux", "-L", props.tmux.socketName, "set-option", "-t", name, "window-size", "manual"),
+            checked = false,
+        )
         log.info("tmux session {} created in {}", name, cwd)
     }
 
