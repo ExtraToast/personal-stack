@@ -138,6 +138,14 @@ class Fabric8AgentRunnerOrchestratorIntegrationTest {
         assertThat(bearer.value).isNull()
         assertThat(bearer.valueFrom.secretKeyRef.name).isEqualTo("agents-kb-bearer")
         assertThat(bearer.valueFrom.secretKeyRef.key).isEqualTo("bearer")
+
+        // IS_SANDBOX tells Claude Code it is sandboxed so it skips the
+        // bypass-permissions warning/acceptance.
+        assertThat(env.single { it.name == "IS_SANDBOX" }.value).isEqualTo("1")
+        // REPO_URL + REPO_BRANCH drive the entrypoint's boot-time clone
+        // (adHocWorkspace is repo-backed with a branch).
+        assertThat(env.single { it.name == "REPO_URL" }.value).isEqualTo("git@github.com:example/repo.git")
+        assertThat(env.single { it.name == "REPO_BRANCH" }.value).isEqualTo("main")
     }
 
     @Test
