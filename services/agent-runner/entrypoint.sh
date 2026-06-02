@@ -98,6 +98,23 @@ if [ -f /var/run/secrets/agents/github-deploy-key/private_key ]; then
   fi
 fi
 
+# Clone the repo into the workspace at boot. The orchestrator passes
+# REPO_URL (+ optional REPO_BRANCH) for repo-backed workspaces. Cloning
+# here — with the deploy key staged above — avoids the race that left
+# repo-backed workspaces empty: the old create-time gateway.clone fired
+# before this gateway was up and was lost. Idempotent — only clones into
+# an empty workspace, so a Pod restart on a populated PVC never re-clones.
+# Failure is non-fatal so the gateway still starts and the repo can be
+# cloned by hand.
+if [ -n "${REPO_URL:-}" ] && [ -z "$(ls -A "$WORKSPACE_ROOT" 2>/dev/null || true)" ]; then
+  export GIT_SSH_COMMAND="ssh -i /tmp/agent-deploy-key -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=${HOME}/.ssh/known_hosts"
+  if [ -n "${REPO_BRANCH:-}" ]; then
+    git clone --branch "$REPO_BRANCH" "$REPO_URL" "$WORKSPACE_ROOT" || echo "[entrypoint] WARN: clone of $REPO_URL failed; starting gateway anyway"
+  else
+    git clone "$REPO_URL" "$WORKSPACE_ROOT" || echo "[entrypoint] WARN: clone of $REPO_URL failed; starting gateway anyway"
+  fi
+fi
+
 exec java \
   -XX:+UseZGC \
   -XX:MaxRAMPercentage=75 \

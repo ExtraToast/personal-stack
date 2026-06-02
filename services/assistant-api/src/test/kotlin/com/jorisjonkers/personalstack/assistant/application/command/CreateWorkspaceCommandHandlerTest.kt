@@ -10,7 +10,6 @@ import com.jorisjonkers.personalstack.assistant.domain.model.RepositoryId
 import com.jorisjonkers.personalstack.assistant.domain.model.Workspace
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceKind
-import com.jorisjonkers.personalstack.assistant.domain.port.AgentGatewayClient
 import com.jorisjonkers.personalstack.assistant.domain.port.AgentRunnerOrchestrator
 import com.jorisjonkers.personalstack.assistant.domain.port.GithubLinkRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.RepositoryRepository
@@ -29,7 +28,6 @@ import java.time.Instant
 class CreateWorkspaceCommandHandlerTest {
     private val workspaces = mockk<WorkspaceRepository>()
     private val orchestrator = mockk<AgentRunnerOrchestrator>()
-    private val gateway = mockk<AgentGatewayClient>()
     private val githubLinks = mockk<GithubLinkRepository>()
     private val linkProvider =
         mockk<ObjectProvider<GithubLinkRepository>> {
@@ -57,14 +55,13 @@ class CreateWorkspaceCommandHandlerTest {
         CreateWorkspaceCommandHandler(
             workspaces,
             orchestrator,
-            gateway,
             linkProvider,
             repositoryProvider,
             verifyAccess,
         )
 
     @Test
-    fun `handle persists workspace, provisions Pod, and clones when repo is provided`() {
+    fun `handle persists workspace and provisions Pod when repo is provided`() {
         val saved = slot<Workspace>()
         every { workspaces.save(capture(saved)) } answers { saved.captured }
         every { orchestrator.provision(any()) } returns
@@ -73,7 +70,6 @@ class CreateWorkspaceCommandHandlerTest {
                 pvcName = "workspace-deadbeef",
                 gatewayEndpoint = "http://agent-runner-deadbeef.agents-system.svc.cluster.local:8090",
             )
-        every { gateway.clone(any(), any(), any()) } returns "/workspace/repo"
 
         val id = WorkspaceId.random()
         handler.handle(
@@ -86,12 +82,11 @@ class CreateWorkspaceCommandHandlerTest {
         )
 
         verify { orchestrator.provision(any()) }
-        verify { gateway.clone(any(), "git@github.com:owner/repo.git", null) }
         verify(exactly = 2) { workspaces.save(any()) }
     }
 
     @Test
-    fun `handle without repo skips the clone call`() {
+    fun `handle without repo still provisions a Pod`() {
         every { workspaces.save(any()) } answers { firstArg() }
         every { orchestrator.provision(any()) } returns
             AgentRunnerOrchestrator.RunnerHandle(
@@ -109,24 +104,7 @@ class CreateWorkspaceCommandHandlerTest {
             ),
         )
 
-        verify(exactly = 0) { gateway.clone(any(), any(), any()) }
-    }
-
-    @Test
-    fun `clone failure does not propagate`() {
-        every { workspaces.save(any()) } answers { firstArg() }
-        every { orchestrator.provision(any()) } returns
-            AgentRunnerOrchestrator.RunnerHandle("p", "v", "http://p.svc:8090")
-        every { gateway.clone(any(), any(), any()) } throws RuntimeException("offline")
-
-        handler.handle(
-            CreateWorkspaceCommand(
-                workspaceId = WorkspaceId.random(),
-                name = "demo",
-                repoUrl = "git@github.com:owner/repo.git",
-                branch = null,
-            ),
-        )
+        verify { orchestrator.provision(any()) }
     }
 
     @Test
@@ -150,7 +128,6 @@ class CreateWorkspaceCommandHandlerTest {
         every { workspaces.save(capture(saved)) } answers { firstArg() }
         every { orchestrator.provision(any()) } returns
             AgentRunnerOrchestrator.RunnerHandle("p", "v", "http://p.svc:8090")
-        every { gateway.clone(any(), any(), any()) } returns "/workspace/personal-stack"
 
         handler.handle(
             CreateWorkspaceCommand(
@@ -165,7 +142,6 @@ class CreateWorkspaceCommandHandlerTest {
         assertThat(saved.first().repoUrl).isEqualTo("git@github.com:ExtraToast/personal-stack.git")
         assertThat(saved.first().branch).isEqualTo("main")
         assertThat(saved.first().githubLinkId).isEqualTo(linkId)
-        verify { gateway.clone(any(), "git@github.com:ExtraToast/personal-stack.git", "main") }
     }
 
     @Test
@@ -204,7 +180,6 @@ class CreateWorkspaceCommandHandlerTest {
         every { workspaces.save(capture(saved)) } answers { firstArg() }
         every { orchestrator.provision(any()) } returns
             AgentRunnerOrchestrator.RunnerHandle("p", "v", "http://p.svc:8090")
-        every { gateway.clone(any(), any(), any()) } returns "/workspace/personal-stack"
 
         handler.handle(
             CreateWorkspaceCommand(
@@ -220,7 +195,6 @@ class CreateWorkspaceCommandHandlerTest {
         assertThat(saved.first().branch).isEqualTo("trunk")
         assertThat(saved.first().repositoryId).isEqualTo(repoId)
         assertThat(saved.first().githubLinkId?.value).isEqualTo(repoId.value)
-        verify { gateway.clone(any(), "git@github.com:ExtraToast/personal-stack.git", "trunk") }
     }
 
     @Test
@@ -252,7 +226,6 @@ class CreateWorkspaceCommandHandlerTest {
         every { workspaces.save(capture(saved)) } answers { firstArg() }
         every { orchestrator.provision(any()) } returns
             AgentRunnerOrchestrator.RunnerHandle("p", "v", "http://p.svc:8090")
-        every { gateway.clone(any(), any(), any()) } returns "/workspace/personal-stack"
 
         handler.handle(
             CreateWorkspaceCommand(
@@ -270,7 +243,7 @@ class CreateWorkspaceCommandHandlerTest {
     }
 
     @Test
-    fun `handle SCRATCH kind ignores repoUrl and skips clone`() {
+    fun `handle SCRATCH kind ignores repoUrl`() {
         every { workspaces.save(any()) } answers { firstArg() }
         every { orchestrator.provision(any()) } returns
             AgentRunnerOrchestrator.RunnerHandle("p", "v", "http://p.svc:8090")
@@ -287,7 +260,7 @@ class CreateWorkspaceCommandHandlerTest {
             ),
         )
 
-        verify(exactly = 0) { gateway.clone(any(), any(), any()) }
+        verify { orchestrator.provision(any()) }
         assertThat(saved.first().repoUrl).isNull()
         assertThat(saved.first().kind).isEqualTo(WorkspaceKind.SCRATCH)
     }
@@ -415,7 +388,6 @@ class CreateWorkspaceCommandHandlerTest {
         every { workspaces.save(capture(saved)) } answers { firstArg() }
         every { orchestrator.provision(any()) } returns
             AgentRunnerOrchestrator.RunnerHandle("p", "v", "http://p.svc:8090")
-        every { gateway.clone(any(), any(), any()) } returns "/workspace/x"
         val unrelatedLinkId = GithubLinkId.random()
 
         handler.handle(
@@ -477,7 +449,6 @@ class CreateWorkspaceCommandHandlerTest {
         every { workspaces.save(any()) } answers { firstArg() }
         every { orchestrator.provision(any()) } returns
             AgentRunnerOrchestrator.RunnerHandle("p", "v", "http://p.svc:8090")
-        every { gateway.clone(any(), any(), any()) } returns "/workspace/repo"
 
         handler.handle(
             CreateWorkspaceCommand(
@@ -489,7 +460,6 @@ class CreateWorkspaceCommandHandlerTest {
         )
 
         verify { orchestrator.provision(any()) }
-        verify { gateway.clone(any(), any(), any()) }
     }
 
     @Test
@@ -505,7 +475,6 @@ class CreateWorkspaceCommandHandlerTest {
         every { workspaces.save(any()) } answers { firstArg() }
         every { orchestrator.provision(any()) } returns
             AgentRunnerOrchestrator.RunnerHandle("p", "v", "http://p.svc:8090")
-        every { gateway.clone(any(), any(), any()) } returns "/workspace/repo"
 
         handler.handle(
             CreateWorkspaceCommand(
@@ -532,7 +501,6 @@ class CreateWorkspaceCommandHandlerTest {
         every { workspaces.save(any()) } answers { firstArg() }
         every { orchestrator.provision(any()) } returns
             AgentRunnerOrchestrator.RunnerHandle("p", "v", "http://p.svc:8090")
-        every { gateway.clone(any(), any(), any()) } returns "/workspace/repo"
 
         handler.handle(
             CreateWorkspaceCommand(
