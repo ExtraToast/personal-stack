@@ -28,4 +28,22 @@ class LogTailerTest {
             assertThat(received.joinToString("")).contains("hello world")
         }
     }
+
+    @Test
+    fun `tailer starts at EOF and ignores bytes written before start`(
+        @TempDir tmp: Path,
+    ) {
+        val file = tmp.resolve("agent.log")
+        Files.writeString(file, "OLD HISTORY THAT MUST NOT REPLAY\n")
+        val received = CopyOnWriteArrayList<String>()
+        LogTailer(file, intervalMs = 50) { received.add(String(it)) }.use { tailer ->
+            tailer.start()
+            Files.writeString(file, "fresh bytes\n", StandardOpenOption.APPEND)
+            await().atMost(Duration.ofSeconds(2)).until {
+                received.joinToString("").contains("fresh bytes")
+            }
+            assertThat(received.joinToString("")).contains("fresh bytes")
+            assertThat(received.joinToString("")).doesNotContain("OLD HISTORY")
+        }
+    }
 }

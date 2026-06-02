@@ -133,6 +133,48 @@ class TmuxClient(
                 ),
             ).stdout
 
+    /**
+     * Visible screen only, WITH ANSI escapes (`-e`), no `-S` history.
+     * This is the one-shot snapshot a WS client renders on attach so a
+     * full-screen TUI shows up immediately without replaying the log.
+     */
+    fun captureWithEscapes(session: String): String =
+        runner
+            .run(
+                listOf(
+                    "tmux",
+                    "-L",
+                    props.tmux.socketName,
+                    "capture-pane",
+                    "-e",
+                    "-p",
+                    "-t",
+                    "$session:0.0",
+                ),
+            ).stdout
+
+    fun resize(
+        session: String,
+        cols: Int,
+        rows: Int,
+    ) {
+        runner.run(
+            listOf(
+                "tmux",
+                "-L",
+                props.tmux.socketName,
+                "resize-window",
+                "-t",
+                "$session:0.0",
+                "-x",
+                cols.toString(),
+                "-y",
+                rows.toString(),
+            ),
+            checked = false,
+        )
+    }
+
     fun listSessions(): List<String> {
         val result =
             runner.run(
