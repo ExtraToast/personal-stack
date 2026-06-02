@@ -386,33 +386,23 @@ class Fabric8AgentRunnerOrchestrator(
                 .withMountPath("/var/run/secrets/agents/github-deploy-key")
                 .withReadOnly(true)
                 .build(),
+            // Declarative MCP server set; the entrypoint seeds it into
+            // ~/.claude.json. Optional volume, so an absent ConfigMap
+            // leaves the runner with no managed MCP servers.
+            VolumeMountBuilder()
+                .withName("mcp-config")
+                .withMountPath("/etc/agent-mcp")
+                .withReadOnly(true)
+                .build(),
         )
 
     private fun podVolumes(
         workspacePvc: String,
         deployKeySecret: String,
     ) = listOf(
-        io.fabric8.kubernetes.api.model
-            .VolumeBuilder()
-            .withName("workspace")
-            .withNewPersistentVolumeClaim()
-            .withClaimName(workspacePvc)
-            .endPersistentVolumeClaim()
-            .build(),
-        io.fabric8.kubernetes.api.model
-            .VolumeBuilder()
-            .withName("claude-credentials")
-            .withNewPersistentVolumeClaim()
-            .withClaimName(props.claudeCredentialsPvc)
-            .endPersistentVolumeClaim()
-            .build(),
-        io.fabric8.kubernetes.api.model
-            .VolumeBuilder()
-            .withName("codex-credentials")
-            .withNewPersistentVolumeClaim()
-            .withClaimName(props.codexCredentialsPvc)
-            .endPersistentVolumeClaim()
-            .build(),
+        pvcVolume("workspace", workspacePvc),
+        pvcVolume("claude-credentials", props.claudeCredentialsPvc),
+        pvcVolume("codex-credentials", props.codexCredentialsPvc),
         io.fabric8.kubernetes.api.model
             .VolumeBuilder()
             .withName("github-deploy-key")
@@ -420,7 +410,26 @@ class Fabric8AgentRunnerOrchestrator(
             .withSecretName(deployKeySecret)
             .endSecret()
             .build(),
+        io.fabric8.kubernetes.api.model
+            .VolumeBuilder()
+            .withName("mcp-config")
+            .withNewConfigMap()
+            .withName(props.mcpServersConfigMap)
+            .withOptional(true)
+            .endConfigMap()
+            .build(),
     )
+
+    private fun pvcVolume(
+        name: String,
+        claim: String,
+    ) = io.fabric8.kubernetes.api.model
+        .VolumeBuilder()
+        .withName(name)
+        .withNewPersistentVolumeClaim()
+        .withClaimName(claim)
+        .endPersistentVolumeClaim()
+        .build()
 
     private fun service(
         name: String,

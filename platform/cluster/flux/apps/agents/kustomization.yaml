@@ -5,6 +5,7 @@ resources:
   - namespace.yaml
   - vault-secrets-operator-sa.yaml
   - credentials
+  - mcp
   - auth-bootstrap
   - refresh-ping
   - kb-install

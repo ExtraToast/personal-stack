@@ -67,6 +67,31 @@ else
   rm -f "$claude_tmp"
 fi
 
+# Register MCP servers into Claude Code from the declarative ConfigMap
+# (agents-mcp-servers, mounted at /etc/agent-mcp). The file is the
+# mcpServers object with @KB_URL@/@KB_BEARER_TOKEN@ placeholders filled
+# from the Pod env, so no secret is baked into the ConfigMap. The
+# managed servers win for their own keys; any hand-added server already
+# in the config is preserved. Absent mount (feature off) => no-op.
+MCP_SERVERS_FILE="${AGENT_MCP_SERVERS_FILE:-/etc/agent-mcp/claude-mcp-servers.json}"
+if [ -f "$MCP_SERVERS_FILE" ]; then
+  mcp_rendered=$(mktemp)
+  sed -e "s|@KB_URL@|${KB_URL:-}|g" \
+      -e "s|@KB_BEARER_TOKEN@|${KB_BEARER_TOKEN:-}|g" \
+      "$MCP_SERVERS_FILE" > "$mcp_rendered"
+  mcp_merged=$(mktemp)
+  if jq -s '
+        .[0] as $cfg | .[1] as $servers
+        | $cfg + { mcpServers: (($cfg.mcpServers // {}) * $servers) }
+      ' "$HOME/.claude.json" "$mcp_rendered" > "$mcp_merged" 2>/dev/null; then
+    mv "$mcp_merged" "$HOME/.claude.json"
+  else
+    echo "[entrypoint] WARN: failed to merge MCP servers from $MCP_SERVERS_FILE"
+    rm -f "$mcp_merged"
+  fi
+  rm -f "$mcp_rendered"
+fi
+
 # Trust the workspace for Codex the same way. ~/.codex sits on the
 # codex-credentials PVC (CODEX_HOME), so auth.json persists, but a
 # fresh checkout of the workspace dir is "untrusted" until the

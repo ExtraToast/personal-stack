@@ -159,6 +159,24 @@ class Fabric8AgentRunnerOrchestratorIntegrationTest {
         assertThat(appBearer.valueFrom.secretKeyRef.name).isEqualTo("github-app")
         assertThat(appBearer.valueFrom.secretKeyRef.key).isEqualTo("token-bearer")
         assertThat(appBearer.valueFrom.secretKeyRef.optional).isTrue()
+
+        // The agents-mcp-servers ConfigMap is mounted (optionally) at
+        // /etc/agent-mcp so the entrypoint can seed Claude's mcpServers.
+        val pod =
+            admin
+                .pods()
+                .inNamespace(K3sTestSupport.AGENTS_NAMESPACE)
+                .withName("agent-runner-${workspace.id.short()}")
+                .get()
+        val mcpMount =
+            pod.spec.containers
+                .single()
+                .volumeMounts
+                .single { it.name == "mcp-config" }
+        assertThat(mcpMount.mountPath).isEqualTo("/etc/agent-mcp")
+        val mcpVol = pod.spec.volumes.single { it.name == "mcp-config" }
+        assertThat(mcpVol.configMap.name).isEqualTo("agents-mcp-servers")
+        assertThat(mcpVol.configMap.optional).isTrue()
     }
 
     @Test
