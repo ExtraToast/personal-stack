@@ -35,22 +35,32 @@ ENV SERVICE_VERSION=${GIT_SHA}
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Base tools. `gh` from the official apt source; node 22 LTS via the
-# nodesource one-liner; jdk + python + golang from Debian (the
-# versions there are fine for general-purpose agent work).
+# nodesource one-liner; Temurin JDK 21 from the Adoptium apt source;
+# python from Debian.
+#
+# Java must be 21, not Debian bookworm's `default-jdk` — that resolves
+# to openjdk-17, and the gateway jar is compiled to Java 21 bytecode
+# (class file 65.0), so a 17 runtime dies at boot with
+# `UnsupportedClassVersionError ... only ... up to 61.0` and every
+# runner Pod crash-loops. openjdk-21 is in neither bookworm main nor
+# backports, so the Adoptium Temurin build is the source.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl gnupg jq tini \
       bash zsh tmux git openssh-client \
       build-essential \
       python3 python3-pip python3-venv \
-      default-jdk-headless \
       ripgrep fd-find bat less \
       bubblewrap \
     && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
        | gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
        > /etc/apt/sources.list.d/github-cli.list \
+    && curl -fsSL https://packages.adoptium.net/artifactory/api/gpg/key/public \
+       | gpg --dearmor -o /usr/share/keyrings/adoptium.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb bookworm main" \
+       > /etc/apt/sources.list.d/adoptium.list \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y --no-install-recommends gh nodejs \
+    && apt-get install -y --no-install-recommends gh nodejs temurin-21-jdk \
     && rm -rf /var/lib/apt/lists/*
 
 # Claude Code + Codex CLIs. Both ship via npm; pin to the versions
@@ -63,9 +73,8 @@ RUN npm install -g \
       @openai/codex \
     && npm cache clean --force
 
-# Java 21 runtime for the gateway jar — Debian's default-jdk gives
-# us a bigger JDK than needed but keeps one toolchain story for the
-# whole image. ZGC tuned the same way every other service uses it.
+# The gateway jar runs on the Temurin 21 JDK installed above; the
+# entrypoint launches it with ZGC the same way every other service does.
 COPY --from=gateway-build /app/services/agent-gateway/build/libs/*.jar /opt/agent-gateway.jar
 COPY services/agent-runner/entrypoint.sh /opt/entrypoint.sh
 RUN chmod +x /opt/entrypoint.sh
