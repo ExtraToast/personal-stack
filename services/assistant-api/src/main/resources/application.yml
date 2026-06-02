@@ -110,6 +110,9 @@ agent-runtime:
   claude-credentials-pvc: ${AGENT_RUNTIME_CLAUDE_PVC:claude-credentials}
   codex-credentials-pvc: ${AGENT_RUNTIME_CODEX_PVC:codex-credentials}
   github-deploy-key-secret: ${AGENT_RUNTIME_GH_KEY_SECRET:agents-github-deploy-key}
+  knowledge-base-url: ${AGENT_RUNTIME_KB_URL:http://knowledge-api.knowledge-system.svc.cluster.local:8080}
+  knowledge-bearer-secret: ${AGENT_RUNTIME_KB_BEARER_SECRET:agents-kb-bearer}
+  knowledge-bearer-secret-key: ${AGENT_RUNTIME_KB_BEARER_SECRET_KEY:bearer}
   # Pinning to a single node is mandatory because the shared
   # credential PVCs (claude-credentials / codex-credentials) are
   # backed by local-path RWO — every runner Pod must land on the
