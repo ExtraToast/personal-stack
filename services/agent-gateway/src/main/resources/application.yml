@@ -4,6 +4,20 @@ spring:
   threads:
     virtual:
       enabled: true
+  # spring-cloud-starter-vault-config is on the runtime classpath via the
+  # shared spring-conventions plugin, but the gateway holds no secrets — it
+  # only drives tmux + the CLIs over a WS/REST plane. Left enabled, the
+  # actuator health registry eagerly instantiates the Vault health
+  # contributor (vaultTemplate -> vaultSessionManager -> clientAuthentication)
+  # at context init; with no token in a runner Pod that throws a fatal
+  # BeanCreationException before Tomcat ever binds. Disable the integration.
+  cloud:
+    vault:
+      enabled: false
+  autoconfigure:
+    exclude:
+      - org.springframework.cloud.vault.config.VaultAutoConfiguration
+      - org.springframework.cloud.vault.config.VaultReactiveAutoConfiguration
 
 server:
   port: 8090
@@ -40,6 +54,13 @@ management:
       group:
         liveness:
           include: ping
+  health:
+    # No Vault, no datasource — keep the gateway's health registry from
+    # instantiating contributors for infrastructure it never wires.
+    vault:
+      enabled: false
+    db:
+      enabled: false
   metrics:
     tags:
       application: ${spring.application.name}
