@@ -35,6 +35,57 @@ if [ ! -f "$HOME/.claude.json" ] && [ -d "$HOME/.claude/backups" ]; then
   fi
 fi
 
+# Suppress Claude's first-run prompts without clobbering a restored
+# config. The OAuth token persists on the claude-credentials PVC, but
+# the per-user flags that record "theme chosen / onboarding done /
+# directory trusted" live in ~/.claude.json, which is lost on every
+# fresh Pod unless a backup happened to exist. A logged-in CLI that
+# still has theme==undefined or hasCompletedOnboarding!=true re-runs
+# the onboarding wizard (which is also where the theme picker lives),
+# and an untrusted project dir re-shows the trust dialog — both block
+# the non-interactive tmux session. `jq //=` fills only the missing
+# keys, so a real restored config (its own theme, oauthAccount, the
+# project history array) is preserved verbatim. WORKSPACE_ROOT keys
+# the per-project trust entry to the dir the gateway launches the CLI
+# in (AgentSessionManager defaults cwd to the gateway's workspace-root).
+WORKSPACE_ROOT="${WORKSPACE_ROOT:-/workspace}"
+if [ ! -f "$HOME/.claude.json" ]; then
+  echo '{}' > "$HOME/.claude.json"
+fi
+claude_tmp=$(mktemp)
+if jq --arg ws "$WORKSPACE_ROOT" '
+      (.theme //= "dark")
+      | (.hasCompletedOnboarding //= true)
+      | (.bypassPermissionsModeAccepted //= true)
+      | (.projects //= {})
+      | (.projects[$ws] //= {})
+      | (.projects[$ws].hasTrustDialogAccepted //= true)
+      | (.projects[$ws].hasCompletedProjectOnboarding //= true)
+    ' "$HOME/.claude.json" > "$claude_tmp"; then
+  mv "$claude_tmp" "$HOME/.claude.json"
+else
+  rm -f "$claude_tmp"
+fi
+
+# Trust the workspace for Codex the same way. ~/.codex sits on the
+# codex-credentials PVC (CODEX_HOME), so auth.json persists, but a
+# fresh checkout of the workspace dir is "untrusted" until the
+# interactive trust prompt is answered, and the default approval
+# policy stops to ask before each command — both stall the tmux
+# session. Seeding global non-interactive approval/sandbox plus a
+# per-project trusted entry removes every prompt. Only created when
+# absent so a hand-edited config on the PVC is never overwritten.
+if [ ! -f "$CODEX_HOME/config.toml" ]; then
+  mkdir -p "$CODEX_HOME"
+  cat > "$CODEX_HOME/config.toml" <<EOF
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+
+[projects."$WORKSPACE_ROOT"]
+trust_level = "trusted"
+EOF
+fi
+
 # Stage the deploy key into /tmp with restrictive perms. The gateway
 # does the same dance defensively, but doing it once at boot makes
 # manual debugging from the shell less surprising.
