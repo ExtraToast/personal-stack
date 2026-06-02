@@ -7,6 +7,7 @@ import {
   deleteRepository,
   getRepository,
   listRepositories,
+  verifyRepositoryAccess,
 } from '../services/repositoriesService'
 import { useRepositoriesStore } from '../stores/repositories'
 
@@ -16,6 +17,7 @@ vi.mock('../services/repositoriesService', () => ({
   createRepository: vi.fn(),
   attachDeployKey: vi.fn(),
   deleteRepository: vi.fn(),
+  verifyRepositoryAccess: vi.fn(),
 }))
 
 const mocked = {
@@ -24,6 +26,7 @@ const mocked = {
   createRepository: vi.mocked(createRepository),
   attachDeployKey: vi.mocked(attachDeployKey),
   deleteRepository: vi.mocked(deleteRepository),
+  verifyRepositoryAccess: vi.mocked(verifyRepositoryAccess),
 }
 
 function fakeRepo(over: Partial<Repository> = {}): Repository {
@@ -103,6 +106,37 @@ describe('repositories store', () => {
     })
     expect(mocked.attachDeployKey).toHaveBeenCalledOnce()
     expect(mocked.getRepository).toHaveBeenCalledOnce()
+  })
+
+  it('verify stores the result onto the cached detail', async () => {
+    const repo = fakeRepo({ deployKeyFingerprint: 'SHA256:x' })
+    mocked.getRepository.mockResolvedValue({ repository: repo, attachedProjects: [] })
+    mocked.verifyRepositoryAccess.mockResolvedValue({
+      read: true,
+      write: false,
+      defaultBranchProtected: null,
+      checkedAt: '2026-05-21T10:00:00Z',
+      messages: ['no GitHub token configured'],
+    })
+    const store = useRepositoriesStore()
+    await store.loadDetail(repo.id)
+    const result = await store.verify(repo.id)
+    expect(result.read).toBe(true)
+    expect(store.detailById[repo.id]!.verify).toEqual(result)
+  })
+
+  it('verify is a no-op on the cache when no detail is loaded for the id', async () => {
+    mocked.verifyRepositoryAccess.mockResolvedValue({
+      read: true,
+      write: true,
+      defaultBranchProtected: true,
+      checkedAt: '2026-05-21T10:00:00Z',
+      messages: [],
+    })
+    const store = useRepositoriesStore()
+    const result = await store.verify('missing-id')
+    expect(result.write).toBe(true)
+    expect(store.detailById['missing-id']).toBeUndefined()
   })
 
   it('destroy removes from items + detailById', async () => {

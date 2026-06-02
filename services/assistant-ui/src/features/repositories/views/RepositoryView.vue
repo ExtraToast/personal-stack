@@ -3,6 +3,7 @@ import type { AttachDeployKeyInput } from '../types'
 import { Modal, SubmitButton, useMutationState, useToast } from '@personal-stack/vue-common'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import AccessStatusBadge from '../components/AccessStatusBadge.vue'
 import AttachKeyWizard from '../components/AttachKeyWizard.vue'
 import { useRepositoriesStore } from '../stores/repositories'
 
@@ -13,8 +14,13 @@ const toast = useToast()
 
 const id = computed(() => String(route.params.id))
 const detail = computed(() => store.detailById[id.value])
+const verify = computed(() => detail.value?.verify)
 const showKeyWizard = ref(false)
+// Whether the open wizard is rotating an existing key vs attaching a
+// first one — only the rotate path auto-verifies on success.
+const replacingKey = ref(false)
 const destroy = useMutationState<void>()
+const verifyState = useMutationState<void>()
 
 onMounted(async () => {
   try {
@@ -30,6 +36,35 @@ onMounted(async () => {
 // wizard emits `success` and the view closes the modal below.
 async function onAttachKey(input: AttachDeployKeyInput): Promise<void> {
   await store.attachKey(id.value, input)
+}
+
+function openReplaceKey(): void {
+  replacingKey.value = true
+  showKeyWizard.value = true
+}
+
+function openAttachKey(): void {
+  replacingKey.value = false
+  showKeyWizard.value = true
+}
+
+async function onWizardSuccess(): Promise<void> {
+  const wasReplacing = replacingKey.value
+  showKeyWizard.value = false
+  replacingKey.value = false
+  // A rotated key may have changed read/write scope; re-verify so the
+  // badge reflects the new key without a manual click.
+  if (wasReplacing) await runVerify()
+}
+
+async function runVerify(): Promise<void> {
+  try {
+    await verifyState.run(async () => {
+      await store.verify(id.value)
+    })
+  } catch (e) {
+    toast.errorFromCatch('Could not verify repository access', e)
+  }
 }
 
 async function onDestroy(): Promise<void> {
@@ -73,10 +108,14 @@ async function onDestroy(): Promise<void> {
           type="button"
           class="mt-3 text-xs text-[var(--color-accent-light)] underline"
           data-testid="repository-replace-key"
-          @click="showKeyWizard = true"
+          @click="openReplaceKey"
         >
           Replace key
         </button>
+        <p class="mt-1 text-xs text-[var(--color-text-muted)]">
+          Rotates the deploy key: paste a new key pair and the old one in Vault is overwritten. Access is re-verified
+          automatically afterwards.
+        </p>
       </div>
       <div v-else class="mt-2">
         <p class="text-sm text-amber-400">No deploy key yet — the agent can't clone or push without one.</p>
@@ -85,8 +124,51 @@ async function onDestroy(): Promise<void> {
           label="Attach key"
           class="mt-3"
           data-testid="repository-attach-key"
-          @click="showKeyWizard = true"
+          @click="openAttachKey"
         />
+      </div>
+    </section>
+
+    <section class="mb-6 rounded-lg border border-[var(--color-surface-border)] bg-[var(--color-surface-card)] p-4">
+      <div class="flex items-baseline justify-between">
+        <h2 class="text-lg font-semibold">Access</h2>
+        <SubmitButton
+          type="button"
+          variant="secondary"
+          label="Verify access"
+          :status="verifyState.status.value"
+          :disabled="!detail.repository.deployKeyFingerprint"
+          data-testid="repository-verify"
+          @click="runVerify"
+        />
+      </div>
+      <div class="mt-3">
+        <AccessStatusBadge :verify="verify" />
+        <p v-if="verify" class="mt-2 text-xs text-[var(--color-text-muted)]" data-testid="repository-verify-checked-at">
+          Last checked {{ new Date(verify.checkedAt).toLocaleString() }}
+        </p>
+        <ul
+          v-if="verify && verify.messages.length > 0"
+          class="mt-2 space-y-1 text-xs text-[var(--color-text-muted)]"
+          data-testid="repository-verify-messages"
+        >
+          <li v-for="(msg, i) in verify.messages" :key="i">{{ msg }}</li>
+        </ul>
+        <p
+          v-if="verify && verify.defaultBranchProtected === false"
+          class="mt-2 text-xs text-amber-400"
+          data-testid="repository-protection-warning"
+        >
+          The default branch is unprotected. Enable branch protection (block force-push + deletion) on GitHub so the
+          agent cannot rewrite or delete history.
+        </p>
+        <p
+          v-else-if="verify && verify.defaultBranchProtected === null"
+          class="mt-2 text-xs text-[var(--color-text-muted)]"
+          data-testid="repository-protection-unknown"
+        >
+          Branch protection could not be checked — no GitHub API token is configured.
+        </p>
       </div>
     </section>
 
@@ -108,11 +190,16 @@ async function onDestroy(): Promise<void> {
       </p>
     </section>
 
-    <Modal :open="showKeyWizard" title="Attach deploy key" @close="showKeyWizard = false">
+    <Modal
+      :open="showKeyWizard"
+      :title="replacingKey ? 'Replace deploy key' : 'Attach deploy key'"
+      @close="showKeyWizard = false"
+    >
       <AttachKeyWizard
         :repository="detail.repository"
+        :replacing="replacingKey"
         :on-submit="onAttachKey"
-        @success="showKeyWizard = false"
+        @success="onWizardSuccess"
         @cancel="showKeyWizard = false"
       />
     </Modal>
