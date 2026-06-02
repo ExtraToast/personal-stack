@@ -41,6 +41,8 @@ const socket = {
   send: vi.fn(),
   sendKey: vi.fn(),
   sendResize: vi.fn(),
+  setReconnect: vi.fn(),
+  reconnectNow: vi.fn(),
   close: vi.fn(),
   readyState: vi.fn(() => 1),
 }
