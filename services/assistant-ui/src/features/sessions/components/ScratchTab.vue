@@ -30,9 +30,10 @@ onMounted(() => {
 async function onDestroy(id: string, label: string): Promise<void> {
   // See ProjectView for the rationale on using window.confirm.
   // eslint-disable-next-line no-alert
-  if (
-    !window.confirm(`Delete scratch workspace "${label}"? Its Pod and volume are torn down. This cannot be undone.`)
-  ) {
+  const confirmed = window.confirm(
+    `Delete scratch workspace "${label}"? Its Pod and volume are torn down. This cannot be undone.`,
+  )
+  if (!confirmed) {
     return
   }
   deletingId.value = id

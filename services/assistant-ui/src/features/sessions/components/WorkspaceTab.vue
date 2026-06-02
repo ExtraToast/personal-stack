@@ -19,11 +19,10 @@ onMounted(() => {
 async function onDestroy(id: string, name: string): Promise<void> {
   // See ProjectView for the rationale on using window.confirm.
   // eslint-disable-next-line no-alert
-  if (
-    !window.confirm(
-      `Delete workspace "${name}"? Its Pod, volume, and agent sessions are torn down. This cannot be undone.`,
-    )
-  ) {
+  const confirmed = window.confirm(
+    `Delete workspace "${name}"? Its Pod, volume, and agent sessions are torn down. This cannot be undone.`,
+  )
+  if (!confirmed) {
     return
   }
   deletingId.value = id

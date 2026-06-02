@@ -80,7 +80,10 @@ async function onSelect(id: string): Promise<void> {
 async function onArchive(id: string, title: string): Promise<void> {
   // See ProjectView for the rationale on using window.confirm.
   // eslint-disable-next-line no-alert
-  if (!window.confirm(`Delete chat "${title}"? Its messages are removed from the list. This cannot be undone.`)) {
+  const confirmed = window.confirm(
+    `Delete chat "${title}"? Its messages are removed from the list. This cannot be undone.`,
+  )
+  if (!confirmed) {
     return
   }
   deletingId.value = id
