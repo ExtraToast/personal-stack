@@ -33,7 +33,12 @@ async function onStopSession(id: string): Promise<void> {
 </script>
 
 <template>
-  <div class="flex flex-col h-screen">
+  <!-- Fill the viewport BELOW the fixed AppShell nav (h-14 / 3.5rem),
+       not a full 100vh: a full-height child inside the shell's pt-14
+       main overflowed by the nav height, so the page scrolled on top
+       of the terminal's own scroll. Sizing to the remaining space keeps
+       a single scroll region (the xterm viewport). -->
+  <div class="flex flex-col h-[calc(100vh-3.5rem)] overflow-hidden">
     <header class="border-b border-[var(--color-surface-border)] px-6 py-3 flex items-center justify-between">
       <div>
         <button
