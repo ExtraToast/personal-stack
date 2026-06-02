@@ -5,7 +5,6 @@ import com.jorisjonkers.personalstack.assistant.domain.model.RepositoryId
 import com.jorisjonkers.personalstack.assistant.domain.model.Workspace
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceKind
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceStatus
-import com.jorisjonkers.personalstack.assistant.domain.port.AgentGatewayClient
 import com.jorisjonkers.personalstack.assistant.domain.port.AgentRunnerOrchestrator
 import com.jorisjonkers.personalstack.assistant.domain.port.GithubLinkRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.RepositoryRepository
@@ -18,11 +17,13 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
 /**
- * Creates the workspace record, provisions the runner Pod, and (if a
- * repo URL was supplied) issues a clone via the gateway. The clone
- * step is best-effort — it can fail after the Pod is up without
- * leaving the workspace in a dead state; the user can retry by
- * issuing a clone command from the UI.
+ * Creates the workspace record and provisions the runner Pod. For a
+ * repo-backed workspace the clone happens inside the runner at boot
+ * (the orchestrator passes REPO_URL/REPO_BRANCH and the entrypoint
+ * clones into /workspace with the mounted deploy key) — not from here.
+ * An earlier create-time `gateway.clone` raced the runner's startup:
+ * it fired before the gateway was up, failed, and was swallowed,
+ * leaving the workspace empty.
  *
  * Repo resolution prefers [CreateWorkspaceCommand.repositoryId]
  * (the new shape). If only the legacy [CreateWorkspaceCommand.githubLinkId]
@@ -35,7 +36,6 @@ import java.time.Instant
 class CreateWorkspaceCommandHandler(
     private val workspaces: WorkspaceRepository,
     private val orchestrator: AgentRunnerOrchestrator,
-    private val gateway: AgentGatewayClient,
     /**
      * Optional — present only when the Projects feature is wired
      * (Vault enabled). When absent, every CreateWorkspace must
@@ -71,10 +71,6 @@ class CreateWorkspaceCommandHandler(
         }
         val workspace = persistInitial(command)
         val withPod = provisionAndUpdate(workspace)
-        if (withPod.repoUrl != null && command.kind == WorkspaceKind.REPO_BACKED) {
-            runCatching { gateway.clone(withPod, withPod.repoUrl, withPod.branch) }
-                .onFailure { log.warn("initial clone failed for {}: {}", workspace.id, it.message) }
-        }
         log.info("workspace {} provisioned as pod {}", workspace.id, withPod.podName)
     }
 

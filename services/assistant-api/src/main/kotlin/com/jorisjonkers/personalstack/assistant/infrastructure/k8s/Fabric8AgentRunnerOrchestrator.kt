@@ -278,7 +278,7 @@ class Fabric8AgentRunnerOrchestrator(
             .withImage(props.image)
             .withImagePullPolicy(props.imagePullPolicy)
             .withPorts(ContainerPortBuilder().withName("gateway").withContainerPort(props.gatewayPort).build())
-            .withEnv(podEnv())
+            .withEnv(podEnv(workspace))
             .withVolumeMounts(podVolumeMounts())
             .withNewReadinessProbe()
             .withNewHttpGet()
@@ -311,32 +311,50 @@ class Fabric8AgentRunnerOrchestrator(
             "agent-runner/workspace-id" to workspace.id.short(),
         )
 
-    private fun podEnv() =
-        listOf(
-            EnvVarBuilder().withName("HOME").withValue("/home/agent").build(),
-            EnvVarBuilder().withName("CODEX_HOME").withValue("/home/agent/.codex").build(),
-            EnvVarBuilder().withName("DEPLOYMENT_ENVIRONMENT").withValue("production").build(),
-            EnvVarBuilder().withName("OTEL_SERVICE_NAME").withValue("agent-gateway").build(),
-            EnvVarBuilder()
-                .withName("OTEL_EXPORTER_OTLP_ENDPOINT")
-                .withValue("http://alloy.observability.svc.cluster.local:4318")
-                .build(),
-            EnvVarBuilder().withName("OTEL_EXPORTER_OTLP_PROTOCOL").withValue("http/protobuf").build(),
+    private fun podEnv(workspace: Workspace) =
+        buildList {
+            add(EnvVarBuilder().withName("HOME").withValue("/home/agent").build())
+            add(EnvVarBuilder().withName("CODEX_HOME").withValue("/home/agent/.codex").build())
+            add(EnvVarBuilder().withName("DEPLOYMENT_ENVIRONMENT").withValue("production").build())
+            add(EnvVarBuilder().withName("OTEL_SERVICE_NAME").withValue("agent-gateway").build())
+            add(
+                EnvVarBuilder()
+                    .withName("OTEL_EXPORTER_OTLP_ENDPOINT")
+                    .withValue("http://alloy.observability.svc.cluster.local:4318")
+                    .build(),
+            )
+            add(EnvVarBuilder().withName("OTEL_EXPORTER_OTLP_PROTOCOL").withValue("http/protobuf").build())
+            // The runner Pod is the sandbox (unprivileged, no host access,
+            // only its deploy key). IS_SANDBOX tells Claude Code so that
+            // --dangerously-skip-permissions runs without the bypass-mode
+            // warning + acceptance prompt.
+            add(EnvVarBuilder().withName("IS_SANDBOX").withValue("1").build())
             // KB_URL + KB_BEARER_TOKEN are the exact names the
             // knowledge-system install.sh hooks read; without the
             // bearer every hook short-circuits to a no-op and the
             // knowledge.* MCP tools are unreachable from the runner.
-            EnvVarBuilder().withName("KB_URL").withValue(props.knowledgeBaseUrl).build(),
-            EnvVarBuilder()
-                .withName("KB_BEARER_TOKEN")
-                .withNewValueFrom()
-                .withNewSecretKeyRef()
-                .withName(props.knowledgeBearerSecret)
-                .withKey(props.knowledgeBearerSecretKey)
-                .endSecretKeyRef()
-                .endValueFrom()
-                .build(),
-        )
+            add(EnvVarBuilder().withName("KB_URL").withValue(props.knowledgeBaseUrl).build())
+            add(
+                EnvVarBuilder()
+                    .withName("KB_BEARER_TOKEN")
+                    .withNewValueFrom()
+                    .withNewSecretKeyRef()
+                    .withName(props.knowledgeBearerSecret)
+                    .withKey(props.knowledgeBearerSecretKey)
+                    .endSecretKeyRef()
+                    .endValueFrom()
+                    .build(),
+            )
+            // REPO_URL/REPO_BRANCH drive the entrypoint's boot-time clone
+            // into /workspace. Cloning in the runner removes the race that
+            // left repo-backed workspaces empty: the old create-time
+            // gateway.clone fired before the runner gateway was up and was
+            // swallowed. Only repo-backed workspaces carry a repoUrl.
+            workspace.repoUrl?.let { url ->
+                add(EnvVarBuilder().withName("REPO_URL").withValue(url).build())
+                workspace.branch?.let { add(EnvVarBuilder().withName("REPO_BRANCH").withValue(it).build()) }
+            }
+        }
 
     private fun podVolumeMounts() =
         listOf(
