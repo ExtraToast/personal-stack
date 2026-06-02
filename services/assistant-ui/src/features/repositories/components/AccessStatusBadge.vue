@@ -25,11 +25,11 @@ const pills = computed<Pill[]>(() => {
       : { testid: 'access-read', label: 'Read failed', tone: 'fail' },
   )
 
+  // read-only is the safe default, not an error.
   out.push(
     v.write
       ? { testid: 'access-write', label: 'Write OK', tone: 'ok' }
-      : // read-only is the safe default, not an error.
-        { testid: 'access-write', label: 'Read-only', tone: 'warn' },
+      : { testid: 'access-write', label: 'Read-only', tone: 'warn' },
   )
 
   if (v.defaultBranchProtected === true)
