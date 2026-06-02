@@ -28,12 +28,13 @@
     # for the KV cache at the curator's typical 4–6 k context. Native
     # structured-output mode (no Ollama grammar overlay needed —
     # Qwen2.5 required one). Throughput is ~8–12 tok/s on this card;
-    # plenty for the 5-min curator cadence + bursty digest calls.
-    # Pre-pulling at activation guarantees the model is resident
-    # before the first /chat/completions hits, so a fresh deploy
-    # doesn't surface the ~19 GiB download as latency. The cluster-
-    # side resolver (#406 / #407) keeps qwen3:8b on the in-cluster
-    # CPU Ollama as the fallback whenever this node is offline.
+    # plenty for the hourly curator cadence + bursty digest calls.
+    # Pre-pulling at activation downloads the ~19 GiB weights to disk
+    # so a fresh deploy doesn't surface the download as first-request
+    # latency; residency itself is governed by OLLAMA_KEEP_ALIVE below,
+    # which now unloads the model when idle. The cluster-side resolver
+    # (#406 / #407) keeps qwen3:8b on the in-cluster CPU Ollama as the
+    # fallback whenever this node is offline.
     loadModels = [
       "qwen3:32b"
     ];
@@ -41,12 +42,17 @@
       # Surface ROCm visible devices explicitly; with a single
       # 7900 XTX the index is 0.
       HIP_VISIBLE_DEVICES = "0";
-      # Keep the resident 32B from being evicted between bursts —
-      # curator + digest + future maintenance jobs share the one
-      # model slot, and a cold reload from disk costs ~30 s on this
-      # card. 60 m covers the gap between every consumer's longest
-      # idle window.
-      OLLAMA_KEEP_ALIVE = "60m";
+      # Unload the 32B shortly after the last call so the card idles
+      # its fans and clocks down between work. The old 60 m value, with
+      # the curator probing every 5 minutes, held the weights resident
+      # in VRAM around the clock — the RX 7900 XTX ran hot and loud
+      # 24/7 to serve a workload that is bursty by nature. 5 m keeps the
+      # model warm across a single curator pass's sequential per-note
+      # calls and across a short interactive digest session, then frees
+      # the GPU. The curator now runs hourly (see cronjob.yaml), so each
+      # pass pays one ~30 s cold reload — negligible against ~55 idle
+      # minutes per hour, and well inside the 300 s request timeout.
+      OLLAMA_KEEP_ALIVE = "5m";
       # Single parallel slot. The 32B model + KV cache sits near
       # the 24 GiB ceiling; two concurrent contexts would OOM.
       # Concurrent callers serialize at Ollama's request queue
