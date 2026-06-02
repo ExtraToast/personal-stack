@@ -112,6 +112,35 @@ class Fabric8AgentRunnerOrchestratorIntegrationTest {
     }
 
     @Test
+    @DisplayName("provisioned Pod carries KB_URL + KB_BEARER_TOKEN so the knowledge hooks can authenticate")
+    fun `provisioned pod carries knowledge mcp env`() {
+        K3sTestSupport.applyProductionRbac(admin)
+        saScoped = K3sTestSupport.createServiceAccountScopedClient(k3s, admin)
+        val orchestrator = orchestrator(saScoped, deployKeysProvider = empty(), githubLinks = empty())
+        val workspace = adHocWorkspace()
+
+        orchestrator.provision(workspace)
+
+        val env =
+            admin
+                .pods()
+                .inNamespace(K3sTestSupport.AGENTS_NAMESPACE)
+                .withName("agent-runner-${workspace.id.short()}")
+                .get()
+                .spec
+                .containers
+                .single()
+                .env
+        val kbUrl = env.single { it.name == "KB_URL" }
+        assertThat(kbUrl.value).isEqualTo("http://knowledge-api.knowledge-system.svc.cluster.local:8080")
+        val bearer = env.single { it.name == "KB_BEARER_TOKEN" }
+        // Sourced from the Secret, never hard-coded as a literal value.
+        assertThat(bearer.value).isNull()
+        assertThat(bearer.valueFrom.secretKeyRef.name).isEqualTo("agents-kb-bearer")
+        assertThat(bearer.valueFrom.secretKeyRef.key).isEqualTo("bearer")
+    }
+
+    @Test
     @DisplayName("provision with pre-#372 restricted RBAC fails with PVC patch-forbidden")
     fun `provision with pre #372 restricted RBAC fails with patch forbidden on pvc`() {
         K3sTestSupport.applyPre372RestrictedRbac(admin)

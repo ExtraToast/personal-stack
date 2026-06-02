@@ -322,6 +322,20 @@ class Fabric8AgentRunnerOrchestrator(
                 .withValue("http://alloy.observability.svc.cluster.local:4318")
                 .build(),
             EnvVarBuilder().withName("OTEL_EXPORTER_OTLP_PROTOCOL").withValue("http/protobuf").build(),
+            // KB_URL + KB_BEARER_TOKEN are the exact names the
+            // knowledge-system install.sh hooks read; without the
+            // bearer every hook short-circuits to a no-op and the
+            // knowledge.* MCP tools are unreachable from the runner.
+            EnvVarBuilder().withName("KB_URL").withValue(props.knowledgeBaseUrl).build(),
+            EnvVarBuilder()
+                .withName("KB_BEARER_TOKEN")
+                .withNewValueFrom()
+                .withNewSecretKeyRef()
+                .withName(props.knowledgeBearerSecret)
+                .withKey(props.knowledgeBearerSecretKey)
+                .endSecretKeyRef()
+                .endValueFrom()
+                .build(),
         )
 
     private fun podVolumeMounts() =
