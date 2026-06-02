@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.jorisjonkers.personalstack.assistant.application.query.ChatSessionQueryService
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatSession
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatSessionId
+import com.jorisjonkers.personalstack.assistant.domain.model.ChatSessionKind
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatSessionStatus
 import com.jorisjonkers.personalstack.common.command.CommandBus
 import com.jorisjonkers.personalstack.common.web.GlobalExceptionHandler
@@ -44,7 +45,7 @@ class ChatSessionControllerTest {
         userId: UUID = UUID.randomUUID(),
     ): ChatSession {
         val now = Instant.now()
-        return ChatSession(id, userId, "x", ChatSessionStatus.ACTIVE, now, now)
+        return ChatSession(id, userId, "x", ChatSessionStatus.ACTIVE, ChatSessionKind.PLAIN, now, now)
     }
 
     @Test

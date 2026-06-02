@@ -3,6 +3,7 @@ package com.jorisjonkers.personalstack.assistant.persistence
 import com.jorisjonkers.personalstack.assistant.IntegrationTestBase
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatSession
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatSessionId
+import com.jorisjonkers.personalstack.assistant.domain.model.ChatSessionKind
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatSessionStatus
 import com.jorisjonkers.personalstack.assistant.domain.port.ChatSessionRepository
 import org.assertj.core.api.Assertions.assertThat
@@ -18,14 +19,23 @@ class JooqChatSessionRepositoryIntegrationTest : IntegrationTestBase() {
     private fun newSession(
         userId: UUID = UUID.randomUUID(),
         title: String? = "x",
+        kind: ChatSessionKind = ChatSessionKind.PLAIN,
     ) = ChatSession(
         id = ChatSessionId.random(),
         userId = userId,
         title = title,
         status = ChatSessionStatus.ACTIVE,
+        kind = kind,
         createdAt = Instant.now(),
         updatedAt = Instant.now(),
     )
+
+    @Test
+    fun `save and findById round-trip the kind`() {
+        val s = newSession(kind = ChatSessionKind.KNOWLEDGE)
+        sessions.save(s)
+        assertThat(sessions.findById(s.id)!!.kind).isEqualTo(ChatSessionKind.KNOWLEDGE)
+    }
 
     @Test
     fun `save and findById round-trip with null title`() {

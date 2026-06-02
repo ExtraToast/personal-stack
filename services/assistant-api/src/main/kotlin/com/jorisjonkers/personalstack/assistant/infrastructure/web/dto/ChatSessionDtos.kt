@@ -3,6 +3,7 @@ package com.jorisjonkers.personalstack.assistant.infrastructure.web.dto
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatMessage
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatMessageRole
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatSession
+import com.jorisjonkers.personalstack.assistant.domain.model.ChatSessionKind
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
 import java.time.Instant
@@ -10,6 +11,7 @@ import java.util.UUID
 
 data class StartChatSessionRequest(
     @field:Size(max = 120) val title: String? = null,
+    val kind: ChatSessionKind = ChatSessionKind.PLAIN,
 )
 
 data class ChatSessionResponse(
@@ -17,6 +19,7 @@ data class ChatSessionResponse(
     val userId: UUID,
     val title: String?,
     val status: String,
+    val kind: String,
     val createdAt: Instant,
     val updatedAt: Instant,
 ) {
@@ -27,6 +30,7 @@ data class ChatSessionResponse(
                 userId = s.userId,
                 title = s.title,
                 status = s.status.name,
+                kind = s.kind.name,
                 createdAt = s.createdAt,
                 updatedAt = s.updatedAt,
             )

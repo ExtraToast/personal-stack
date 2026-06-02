@@ -42,6 +42,7 @@ class ChatSessionController(
                 sessionId = sessionId,
                 userId = userUuid,
                 title = req.title,
+                kind = req.kind,
             ),
         )
         val detail =

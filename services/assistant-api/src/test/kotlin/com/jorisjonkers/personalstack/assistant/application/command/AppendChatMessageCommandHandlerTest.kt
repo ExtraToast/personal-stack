@@ -5,6 +5,7 @@ import com.jorisjonkers.personalstack.assistant.domain.model.ChatMessageId
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatMessageRole
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatSession
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatSessionId
+import com.jorisjonkers.personalstack.assistant.domain.model.ChatSessionKind
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatSessionStatus
 import com.jorisjonkers.personalstack.assistant.domain.port.ChatMessageRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.ChatSessionRepository
@@ -30,6 +31,7 @@ class AppendChatMessageCommandHandlerTest {
             userId = UUID.randomUUID(),
             title = "x",
             status = ChatSessionStatus.ACTIVE,
+            kind = ChatSessionKind.PLAIN,
             createdAt = Instant.now(),
             updatedAt = Instant.now(),
         )

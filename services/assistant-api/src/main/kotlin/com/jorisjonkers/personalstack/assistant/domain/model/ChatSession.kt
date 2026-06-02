@@ -16,6 +16,7 @@ data class ChatSession(
     val userId: UUID,
     val title: String?,
     val status: ChatSessionStatus,
+    val kind: ChatSessionKind,
     val createdAt: Instant,
     val updatedAt: Instant,
 )
