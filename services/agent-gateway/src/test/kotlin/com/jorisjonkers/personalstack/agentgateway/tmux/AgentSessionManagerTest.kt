@@ -17,7 +17,13 @@ class AgentSessionManagerTest {
             GatewayProperties(
                 workspaceRoot = "/workspace",
                 tmux = GatewayProperties.Tmux(socketName = "agent-gw", stateDir = tmp.toString()),
-                cli = GatewayProperties.Cli(claude = "/usr/local/bin/claude", codex = "/usr/local/bin/codex"),
+                cli =
+                    GatewayProperties.Cli(
+                        claude = "/usr/local/bin/claude",
+                        codex = "/usr/local/bin/codex",
+                        claudeArgs = listOf("--dangerously-skip-permissions"),
+                        codexArgs = listOf("--dangerously-bypass-approvals-and-sandbox"),
+                    ),
                 git = GatewayProperties.Git(deployKeyDir = "/x"),
             )
         every { tmux.ensureStateDir() } returns tmp
@@ -34,10 +40,55 @@ class AgentSessionManagerTest {
         assertThat(s.tmuxSession).isEqualTo("agent-${s.id}")
         assertThat(s.cwd).isEqualTo("/workspace/repo")
         assertThat(s.logFile.parent).isEqualTo(tmp)
-        verify { tmux.newSession(s.tmuxSession, listOf("/usr/local/bin/claude"), "/workspace/repo") }
+        verify {
+            tmux.newSession(
+                s.tmuxSession,
+                listOf("/usr/local/bin/claude", "--dangerously-skip-permissions"),
+                "/workspace/repo",
+            )
+        }
         verify { tmux.startPipeToFile(s.tmuxSession, s.logFile) }
         assertThat(mgr.get(s.id)).isEqualTo(s)
         assertThat(mgr.list()).hasSize(1)
+    }
+
+    @Test
+    fun `spawn launches claude in full-trust mode with configured flags`(
+        @TempDir tmp: Path,
+    ) {
+        val mgr = manager(tmp)
+        val s = mgr.spawn(AgentKind.CLAUDE)
+        verify {
+            tmux.newSession(
+                s.tmuxSession,
+                listOf("/usr/local/bin/claude", "--dangerously-skip-permissions"),
+                "/workspace",
+            )
+        }
+    }
+
+    @Test
+    fun `spawn launches codex with approval+sandbox bypass flag`(
+        @TempDir tmp: Path,
+    ) {
+        val mgr = manager(tmp)
+        val s = mgr.spawn(AgentKind.CODEX)
+        verify {
+            tmux.newSession(
+                s.tmuxSession,
+                listOf("/usr/local/bin/codex", "--dangerously-bypass-approvals-and-sandbox"),
+                "/workspace",
+            )
+        }
+    }
+
+    @Test
+    fun `spawn launches shell bare with no trust flags`(
+        @TempDir tmp: Path,
+    ) {
+        val mgr = manager(tmp)
+        val s = mgr.spawn(AgentKind.SHELL)
+        verify { tmux.newSession(s.tmuxSession, listOf("/bin/bash", "-l"), "/workspace") }
     }
 
     @Test

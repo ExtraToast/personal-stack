@@ -12,6 +12,15 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 class LogTailerTest {
     @Test
+    fun `tailer defaults to a low-latency 40ms poll interval`(
+        @TempDir tmp: Path,
+    ) {
+        val tailer = LogTailer(tmp.resolve("agent.log")) { }
+        val field = LogTailer::class.java.getDeclaredField("intervalMs").apply { isAccessible = true }
+        assertThat(field.getLong(tailer)).isEqualTo(40L)
+    }
+
+    @Test
     fun `tailer emits bytes appended to the file`(
         @TempDir tmp: Path,
     ) {
