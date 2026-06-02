@@ -28,6 +28,10 @@ data class AgentRuntimeProperties(
     // from Vault by the agents-kb-bearer VaultStaticSecret.
     val knowledgeBearerSecret: String = "agents-kb-bearer",
     val knowledgeBearerSecretKey: String = "bearer",
+    // ConfigMap (mounted at /etc/agent-mcp) whose claude-mcp-servers.json
+    // the entrypoint seeds into Claude Code's mcpServers. Optional mount,
+    // so an absent ConfigMap just means no managed MCP servers.
+    val mcpServersConfigMap: String = "agents-mcp-servers",
     val nodeSelector: Map<String, String> = mapOf("personal-stack/node" to "enschede-gtx-960m-1"),
     val gatewayConnectTimeoutMs: Long = 5_000,
     val gatewayReadTimeoutMs: Long = 60_000,

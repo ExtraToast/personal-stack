@@ -1,0 +1,31 @@
+# Declarative set of MCP servers seeded into every runner's Claude Code
+# config (~/.claude.json .mcpServers) by the entrypoint. Adding or
+# removing a server is a change here — no image rebuild. The entrypoint
+# substitutes @KB_URL@ / @KB_BEARER_TOKEN@ from the Pod env (injected by
+# the orchestrator) before merging, so no secret is baked into the
+# ConfigMap. Servers listed here win over hand-added entries with the
+# same key; other hand-added entries are preserved.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agents-mcp-servers
+  namespace: agents-system
+data:
+  # Claude Code (~/.claude.json .mcpServers). @KB_URL@/@KB_BEARER_TOKEN@
+  # are filled from the Pod env by the entrypoint.
+  claude-mcp-servers.json: |
+    {
+      "knowledge": {
+        "type": "http",
+        "url": "@KB_URL@/mcp",
+        "headers": { "Authorization": "Bearer @KB_BEARER_TOKEN@" }
+      }
+    }
+  # Codex (~/.codex/config.toml). Codex reads remote HTTP MCP servers
+  # natively; the bearer is taken at request time from the
+  # KB_BEARER_TOKEN env var (bearer_token_env_var), so no secret is
+  # written into config.toml — only @KB_URL@ is substituted.
+  codex-mcp-servers.toml: |
+    [mcp_servers.knowledge]
+    url = "@KB_URL@/mcp"
+    bearer_token_env_var = "KB_BEARER_TOKEN"
