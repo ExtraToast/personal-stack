@@ -194,6 +194,30 @@ spec:
                   name: github-api-token
                   key: token
                   optional: true
+            # GitHub App used to mint short-lived, repo-scoped installation
+            # tokens for the runner's `gh` (PR comments + Actions re-runs).
+            # Sourced from the github-app Secret a VaultStaticSecret
+            # projects from `secret/agents/github-app`. All `optional: true`
+            # so the pod starts when the App is not yet provisioned; minting
+            # then stays disabled and the internal endpoint returns 503.
+            - name: GITHUB_APP_ID
+              valueFrom:
+                secretKeyRef:
+                  name: github-app
+                  key: app-id
+                  optional: true
+            - name: GITHUB_APP_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: github-app
+                  key: private-key
+                  optional: true
+            - name: GITHUB_APP_TOKEN_BEARER
+              valueFrom:
+                secretKeyRef:
+                  name: github-app
+                  key: token-bearer
+                  optional: true
           ports:
             - containerPort: 8082
               name: http

@@ -55,4 +55,14 @@ data class AgentRuntimeProperties(
     // internal endpoint is fail-closed (rejects every request) so an
     // unconfigured deployment never exposes token minting unauthed.
     val githubAppTokenBearer: String = "",
+    // In-cluster URL of this service's installation-token endpoint,
+    // injected into runner Pods so the `gh` wrapper can mint tokens.
+    val githubAppTokenUrl: String =
+        "http://assistant-api.assistant-system.svc.cluster.local:8082/api/v1/internal/github/installation-token",
+    // Secret (in the runner's namespace) the runner's
+    // GITHUB_APP_TOKEN_BEARER is sourced from; same value as
+    // [githubAppTokenBearer]. optional => absent secret keeps the Pod
+    // starting with the `gh` wrapper degrading to a no-op.
+    val githubAppBearerSecret: String = "github-app",
+    val githubAppBearerSecretKey: String = "token-bearer",
 )

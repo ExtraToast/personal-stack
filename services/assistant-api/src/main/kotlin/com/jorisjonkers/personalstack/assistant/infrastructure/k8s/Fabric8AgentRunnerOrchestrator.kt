@@ -329,22 +329,8 @@ class Fabric8AgentRunnerOrchestrator(
             // --dangerously-skip-permissions runs without the bypass-mode
             // warning + acceptance prompt.
             add(EnvVarBuilder().withName("IS_SANDBOX").withValue("1").build())
-            // KB_URL + KB_BEARER_TOKEN are the exact names the
-            // knowledge-system install.sh hooks read; without the
-            // bearer every hook short-circuits to a no-op and the
-            // knowledge.* MCP tools are unreachable from the runner.
-            add(EnvVarBuilder().withName("KB_URL").withValue(props.knowledgeBaseUrl).build())
-            add(
-                EnvVarBuilder()
-                    .withName("KB_BEARER_TOKEN")
-                    .withNewValueFrom()
-                    .withNewSecretKeyRef()
-                    .withName(props.knowledgeBearerSecret)
-                    .withKey(props.knowledgeBearerSecretKey)
-                    .endSecretKeyRef()
-                    .endValueFrom()
-                    .build(),
-            )
+            addAll(knowledgeEnv())
+            addAll(githubAppTokenEnv())
             // REPO_URL/REPO_BRANCH drive the entrypoint's boot-time clone
             // into /workspace. Cloning in the runner removes the race that
             // left repo-backed workspaces empty: the old create-time
@@ -355,6 +341,40 @@ class Fabric8AgentRunnerOrchestrator(
                 workspace.branch?.let { add(EnvVarBuilder().withName("REPO_BRANCH").withValue(it).build()) }
             }
         }
+
+    // KB_URL + KB_BEARER_TOKEN are the exact names the knowledge-system
+    // install.sh hooks read; without the bearer every hook short-circuits
+    // to a no-op and the knowledge.* MCP tools are unreachable.
+    private fun knowledgeEnv() =
+        listOf(
+            EnvVarBuilder().withName("KB_URL").withValue(props.knowledgeBaseUrl).build(),
+            EnvVarBuilder()
+                .withName("KB_BEARER_TOKEN")
+                .withNewValueFrom()
+                .withNewSecretKeyRef()
+                .withName(props.knowledgeBearerSecret)
+                .withKey(props.knowledgeBearerSecretKey)
+                .endSecretKeyRef()
+                .endValueFrom()
+                .build(),
+        )
+
+    // The bearer is an optional Secret ref: an absent github-app Secret
+    // keeps the Pod starting and the `gh` wrapper degrades to a no-op.
+    private fun githubAppTokenEnv() =
+        listOf(
+            EnvVarBuilder().withName("GITHUB_APP_TOKEN_URL").withValue(props.githubAppTokenUrl).build(),
+            EnvVarBuilder()
+                .withName("GITHUB_APP_TOKEN_BEARER")
+                .withNewValueFrom()
+                .withNewSecretKeyRef()
+                .withName(props.githubAppBearerSecret)
+                .withKey(props.githubAppBearerSecretKey)
+                .withOptional(true)
+                .endSecretKeyRef()
+                .endValueFrom()
+                .build(),
+        )
 
     private fun podVolumeMounts() =
         listOf(
