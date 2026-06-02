@@ -1,6 +1,7 @@
 package com.jorisjonkers.personalstack.assistant.persistence
 
 import com.jorisjonkers.personalstack.assistant.IntegrationTestBase
+import com.jorisjonkers.personalstack.assistant.domain.model.AccessVerification
 import com.jorisjonkers.personalstack.assistant.domain.model.Project
 import com.jorisjonkers.personalstack.assistant.domain.model.ProjectId
 import com.jorisjonkers.personalstack.assistant.domain.model.Repository
@@ -9,9 +10,11 @@ import com.jorisjonkers.personalstack.assistant.domain.port.ProjectRepositoryRep
 import com.jorisjonkers.personalstack.assistant.domain.port.ProjectsRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.RepositoryRepository
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.within
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 class JooqRepositoryRepositoryIntegrationTest : IntegrationTestBase() {
@@ -99,6 +102,73 @@ class JooqRepositoryRepositoryIntegrationTest : IntegrationTestBase() {
         val attached = repositories.findAllByProjectId(project.id)
 
         assertThat(attached.map { it.id }).containsExactlyInAnyOrder(r1.id, r2.id)
+    }
+
+    @Test
+    fun `freshly saved repository has a null verification until a probe runs`() {
+        val r = newRepository()
+        repositories.save(r)
+        assertThat(repositories.findById(r.id)!!.verification).isNull()
+    }
+
+    @Test
+    fun `verification round-trips through the V11 columns including multi-line messages`() {
+        val r = newRepository()
+        repositories.save(r)
+        val checkedAt = Instant.now()
+        val withVerification =
+            r.copy(
+                updatedAt = Instant.now(),
+                verification =
+                    AccessVerification(
+                        read = true,
+                        write = false,
+                        defaultBranchProtected = false,
+                        checkedAt = checkedAt,
+                        messages =
+                            listOf(
+                                "deploy key is read-only — agent commits/pushes will fail: denied",
+                                "default branch 'main' is NOT protected on GitHub",
+                            ),
+                    ),
+            )
+        repositories.save(withVerification)
+
+        val loaded = repositories.findById(r.id)!!.verification
+        assertThat(loaded).isNotNull
+        assertThat(loaded!!.read).isTrue
+        assertThat(loaded.write).isFalse
+        assertThat(loaded.defaultBranchProtected).isFalse
+        assertThat(loaded.checkedAt).isCloseTo(checkedAt, within(1, ChronoUnit.SECONDS))
+        assertThat(loaded.messages).hasSize(2)
+        assertThat(loaded.messages).anyMatch { it.contains("read-only") }
+        assertThat(loaded.messages).anyMatch { it.contains("NOT protected") }
+    }
+
+    @Test
+    fun `null booleans with a checkedAt still load as an inconclusive verification`() {
+        val r = newRepository()
+        repositories.save(r)
+        repositories.save(
+            r.copy(
+                updatedAt = Instant.now(),
+                verification =
+                    AccessVerification(
+                        read = null,
+                        write = null,
+                        defaultBranchProtected = null,
+                        checkedAt = Instant.now(),
+                        messages = listOf("deploy-key access could not be verified (verify gateway unavailable)"),
+                    ),
+            ),
+        )
+
+        val loaded = repositories.findById(r.id)!!.verification
+        assertThat(loaded).isNotNull
+        assertThat(loaded!!.read).isNull()
+        assertThat(loaded.write).isNull()
+        assertThat(loaded.defaultBranchProtected).isNull()
+        assertThat(loaded.messages).anyMatch { it.contains("could not be verified") }
     }
 
     @Test

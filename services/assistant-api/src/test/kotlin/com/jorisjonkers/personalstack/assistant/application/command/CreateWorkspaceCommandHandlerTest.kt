@@ -1,5 +1,7 @@
 package com.jorisjonkers.personalstack.assistant.application.command
 
+import com.jorisjonkers.personalstack.assistant.application.VerifyRepositoryAccess
+import com.jorisjonkers.personalstack.assistant.application.exception.RepositoryAccessDeniedException
 import com.jorisjonkers.personalstack.assistant.domain.model.GithubLink
 import com.jorisjonkers.personalstack.assistant.domain.model.GithubLinkId
 import com.jorisjonkers.personalstack.assistant.domain.model.ProjectId
@@ -38,8 +40,28 @@ class CreateWorkspaceCommandHandlerTest {
         mockk<ObjectProvider<RepositoryRepository>> {
             every { ifAvailable } returns repositories
         }
+    private val verifyAccess =
+        mockk<VerifyRepositoryAccess> {
+            // Default: read-write + protected so existing happy-path
+            // tests don't have to opt in. Individual tests override.
+            every { verify(any(), any()) } returns
+                VerifyRepositoryAccess.Result(
+                    read = true,
+                    write = true,
+                    defaultBranchProtected = true,
+                    checkedAt = Instant.now(),
+                    messages = emptyList(),
+                )
+        }
     private val handler =
-        CreateWorkspaceCommandHandler(workspaces, orchestrator, gateway, linkProvider, repositoryProvider)
+        CreateWorkspaceCommandHandler(
+            workspaces,
+            orchestrator,
+            gateway,
+            linkProvider,
+            repositoryProvider,
+            verifyAccess,
+        )
 
     @Test
     fun `handle persists workspace, provisions Pod, and clones when repo is provided`() {
@@ -412,5 +434,134 @@ class CreateWorkspaceCommandHandlerTest {
         // would have resolved differently) was never consulted.
         assertThat(saved.first().repoUrl).isEqualTo(repository.repoUrl)
         verify(exactly = 0) { githubLinks.findById(unrelatedLinkId) }
+    }
+
+    @Test
+    fun `REPO_BACKED create fails with RepositoryAccessDeniedException when read is false`() {
+        every { verifyAccess.verify(any(), any()) } returns
+            VerifyRepositoryAccess.Result(
+                read = false,
+                write = false,
+                defaultBranchProtected = null,
+                checkedAt = Instant.now(),
+                messages = listOf("deploy key cannot read the repository: Permission denied (publickey)"),
+            )
+
+        val ex =
+            assertThrows<RepositoryAccessDeniedException> {
+                handler.handle(
+                    CreateWorkspaceCommand(
+                        workspaceId = WorkspaceId.random(),
+                        name = "demo",
+                        repoUrl = "git@github.com:owner/repo.git",
+                        branch = null,
+                    ),
+                )
+            }
+        assertThat(ex.message).contains("Permission denied")
+        // No workspace row, no Pod — the create aborted before persist.
+        verify(exactly = 0) { workspaces.save(any()) }
+        verify(exactly = 0) { orchestrator.provision(any()) }
+    }
+
+    @Test
+    fun `REPO_BACKED create proceeds when write is false (read-only key is a warning, not a block)`() {
+        every { verifyAccess.verify(any(), any()) } returns
+            VerifyRepositoryAccess.Result(
+                read = true,
+                write = false,
+                defaultBranchProtected = true,
+                checkedAt = Instant.now(),
+                messages = listOf("deploy key is read-only — agent commits/pushes will fail: denied"),
+            )
+        every { workspaces.save(any()) } answers { firstArg() }
+        every { orchestrator.provision(any()) } returns
+            AgentRunnerOrchestrator.RunnerHandle("p", "v", "http://p.svc:8090")
+        every { gateway.clone(any(), any(), any()) } returns "/workspace/repo"
+
+        handler.handle(
+            CreateWorkspaceCommand(
+                workspaceId = WorkspaceId.random(),
+                name = "demo",
+                repoUrl = "git@github.com:owner/repo.git",
+                branch = null,
+            ),
+        )
+
+        verify { orchestrator.provision(any()) }
+        verify { gateway.clone(any(), any(), any()) }
+    }
+
+    @Test
+    fun `REPO_BACKED create proceeds when default branch is unprotected (loud warning, not a block)`() {
+        every { verifyAccess.verify(any(), any()) } returns
+            VerifyRepositoryAccess.Result(
+                read = true,
+                write = true,
+                defaultBranchProtected = false,
+                checkedAt = Instant.now(),
+                messages = listOf("default branch 'main' is NOT protected on GitHub"),
+            )
+        every { workspaces.save(any()) } answers { firstArg() }
+        every { orchestrator.provision(any()) } returns
+            AgentRunnerOrchestrator.RunnerHandle("p", "v", "http://p.svc:8090")
+        every { gateway.clone(any(), any(), any()) } returns "/workspace/repo"
+
+        handler.handle(
+            CreateWorkspaceCommand(
+                workspaceId = WorkspaceId.random(),
+                name = "demo",
+                repoUrl = "git@github.com:owner/repo.git",
+                branch = null,
+            ),
+        )
+
+        verify { orchestrator.provision(any()) }
+    }
+
+    @Test
+    fun `REPO_BACKED create proceeds when verify is inconclusive (read null, gateway unavailable)`() {
+        every { verifyAccess.verify(any(), any()) } returns
+            VerifyRepositoryAccess.Result(
+                read = null,
+                write = null,
+                defaultBranchProtected = null,
+                checkedAt = Instant.now(),
+                messages = listOf("deploy-key access could not be verified (verify gateway unavailable)"),
+            )
+        every { workspaces.save(any()) } answers { firstArg() }
+        every { orchestrator.provision(any()) } returns
+            AgentRunnerOrchestrator.RunnerHandle("p", "v", "http://p.svc:8090")
+        every { gateway.clone(any(), any(), any()) } returns "/workspace/repo"
+
+        handler.handle(
+            CreateWorkspaceCommand(
+                workspaceId = WorkspaceId.random(),
+                name = "demo",
+                repoUrl = "git@github.com:owner/repo.git",
+                branch = null,
+            ),
+        )
+
+        verify { orchestrator.provision(any()) }
+    }
+
+    @Test
+    fun `SCRATCH create never invokes verify`() {
+        every { workspaces.save(any()) } answers { firstArg() }
+        every { orchestrator.provision(any()) } returns
+            AgentRunnerOrchestrator.RunnerHandle("p", "v", "http://p.svc:8090")
+
+        handler.handle(
+            CreateWorkspaceCommand(
+                workspaceId = WorkspaceId.random(),
+                name = "playground",
+                repoUrl = "git@github.com:owner/repo.git",
+                branch = "main",
+                kind = WorkspaceKind.SCRATCH,
+            ),
+        )
+
+        verify(exactly = 0) { verifyAccess.verify(any(), any()) }
     }
 }

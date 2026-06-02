@@ -1,5 +1,7 @@
 package com.jorisjonkers.personalstack.assistant.application.command
 
+import com.jorisjonkers.personalstack.assistant.application.VerifyRepositoryAccess
+import com.jorisjonkers.personalstack.assistant.application.exception.RepositoryAccessDeniedException
 import com.jorisjonkers.personalstack.assistant.domain.model.GithubLinkId
 import com.jorisjonkers.personalstack.assistant.domain.model.RepositoryId
 import com.jorisjonkers.personalstack.assistant.domain.model.Workspace
@@ -48,6 +50,7 @@ class CreateWorkspaceCommandHandler(
      * tests that disable Vault.
      */
     private val repositories: ObjectProvider<RepositoryRepository>,
+    private val verifyAccess: VerifyRepositoryAccess,
 ) : CommandHandler<CreateWorkspaceCommand> {
     private val log = LoggerFactory.getLogger(CreateWorkspaceCommandHandler::class.java)
 
@@ -69,7 +72,11 @@ class CreateWorkspaceCommandHandler(
                 command.githubLinkId,
             )
         }
-        val workspace = persistInitial(command)
+        val resolved = resolveRepo(command)
+        if (command.kind == WorkspaceKind.REPO_BACKED && resolved.repoUrl != null) {
+            verifyOrFail(resolved.repoUrl, resolved.branch, resolved.repositoryId)
+        }
+        val workspace = persistInitial(command, resolved)
         val withPod = provisionAndUpdate(workspace)
         if (withPod.repoUrl != null && command.kind == WorkspaceKind.REPO_BACKED) {
             runCatching { gateway.clone(withPod, withPod.repoUrl, withPod.branch) }
@@ -78,9 +85,36 @@ class CreateWorkspaceCommandHandler(
         log.info("workspace {} provisioned as pod {}", workspace.id, withPod.podName)
     }
 
-    private fun persistInitial(command: CreateWorkspaceCommand): Workspace {
+    private fun verifyOrFail(
+        repoUrl: String,
+        branch: String?,
+        repositoryId: RepositoryId?,
+    ) {
+        val effectiveBranch = branch?.takeIf { it.isNotBlank() } ?: "main"
+        val result = verifyAccess.verify(repoUrl, effectiveBranch)
+        // read == false is an explicit "auth ok but no read" or an
+        // unauthenticated reject — either way the runner could never
+        // clone, so fail loudly instead of leaving a dead workspace.
+        // read == null (gateway unavailable) is NOT fatal: it degrades
+        // to a warning so a verify-gateway outage can't block the
+        // whole create flow.
+        if (result.read == false) {
+            throw RepositoryAccessDeniedException(
+                repositoryId = repositoryId ?: RepositoryId.random(),
+                reason = result.messages.joinToString("; ").ifBlank { "read access denied" },
+            )
+        }
+        // write == false / unprotected main / inconclusive checks are
+        // loud warnings only — the operator sets branch protection on
+        // GitHub, and a read-only key is recorded so the UI can prompt.
+        result.messages.forEach { log.warn("workspace create verify warning [{}]: {}", repoUrl, it) }
+    }
+
+    private fun persistInitial(
+        command: CreateWorkspaceCommand,
+        resolved: ResolvedRepo,
+    ): Workspace {
         val now = Instant.now()
-        val resolved = resolveRepo(command)
         val workspace =
             Workspace(
                 id = command.workspaceId,

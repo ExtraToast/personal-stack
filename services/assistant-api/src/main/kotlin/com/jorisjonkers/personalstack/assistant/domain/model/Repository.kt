@@ -24,6 +24,21 @@ data class Repository(
     val deployKeyAddedAt: Instant?,
     val createdAt: Instant,
     val updatedAt: Instant,
+    val verification: AccessVerification? = null,
 ) {
     val isKeyAttached: Boolean get() = deployKeyFingerprint != null
 }
+
+/**
+ * Cached outcome of the last deploy-key verification probe. Each
+ * boolean is three-valued: null = not yet checked / inconclusive,
+ * distinct from an explicit false. Mirrored onto the repositories row
+ * so the UI renders without a live probe.
+ */
+data class AccessVerification(
+    val read: Boolean?,
+    val write: Boolean?,
+    val defaultBranchProtected: Boolean?,
+    val checkedAt: Instant?,
+    val messages: List<String>,
+)

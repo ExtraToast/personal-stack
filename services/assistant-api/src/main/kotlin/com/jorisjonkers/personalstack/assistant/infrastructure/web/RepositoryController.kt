@@ -1,5 +1,6 @@
 package com.jorisjonkers.personalstack.assistant.infrastructure.web
 
+import com.jorisjonkers.personalstack.assistant.application.RepositoryVerificationService
 import com.jorisjonkers.personalstack.assistant.application.command.AttachRepositoryDeployKeyCommand
 import com.jorisjonkers.personalstack.assistant.application.command.CreateRepositoryCommand
 import com.jorisjonkers.personalstack.assistant.application.command.DeleteRepositoryCommand
@@ -27,6 +28,7 @@ import java.util.UUID
 class RepositoryController(
     private val commandBus: CommandBus,
     private val repositoryQuery: RepositoryQueryService,
+    private val verificationService: RepositoryVerificationService,
 ) {
     @PostMapping
     fun create(
@@ -77,6 +79,14 @@ class RepositoryController(
             ),
         )
         return ResponseEntity.accepted().build()
+    }
+
+    @PostMapping("/{id}/verify")
+    fun verify(
+        @PathVariable id: UUID,
+    ): ResponseEntity<RepositoryResponse> {
+        val updated = verificationService.reverify(RepositoryId(id)) ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok(RepositoryResponse.of(updated))
     }
 
     @DeleteMapping("/{id}")

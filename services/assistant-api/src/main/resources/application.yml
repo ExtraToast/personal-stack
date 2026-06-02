@@ -135,3 +135,12 @@ agent-runtime:
   # `idle-sweep-period-ms` intervals.
   idle-after-seconds: ${AGENT_RUNTIME_IDLE_AFTER_SECONDS:1800}
   idle-sweep-period-ms: ${AGENT_RUNTIME_IDLE_SWEEP_PERIOD_MS:300000}
+  # Standing agent-gateway used for the workspace-independent
+  # `/git/verify` deploy-key probe at attach/create time. Empty =>
+  # the probe is skipped and the stored read/write degrade to null.
+  verify-gateway-base-url: ${AGENT_RUNTIME_VERIFY_GATEWAY_URL:}
+  # Read-only GitHub token for the branch-protection lookup, projected
+  # from the github-api-token Secret. Empty => protection reports null
+  # (never a hard failure).
+  github-api-token: ${GITHUB_API_TOKEN:}
+  github-api-base-url: ${GITHUB_API_BASE_URL:https://api.github.com}

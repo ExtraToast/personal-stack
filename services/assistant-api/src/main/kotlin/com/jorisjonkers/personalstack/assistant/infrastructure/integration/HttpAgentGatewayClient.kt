@@ -1,8 +1,10 @@
 package com.jorisjonkers.personalstack.assistant.infrastructure.integration
 
+import com.jorisjonkers.personalstack.assistant.config.AgentRuntimeProperties
 import com.jorisjonkers.personalstack.assistant.domain.model.Workspace
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentKind
 import com.jorisjonkers.personalstack.assistant.domain.port.AgentGatewayClient
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatusCode
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
@@ -16,7 +18,10 @@ import org.springframework.web.client.RestClient
 @Component
 class HttpAgentGatewayClient(
     private val restClient: RestClient,
+    private val props: AgentRuntimeProperties,
 ) : AgentGatewayClient {
+    private val log = LoggerFactory.getLogger(HttpAgentGatewayClient::class.java)
+
     private data class GatewayAgentDto(
         val id: String,
         val kind: WorkspaceAgentKind,
@@ -49,6 +54,17 @@ class HttpAgentGatewayClient(
     private data class GitResult(
         val ok: Boolean,
         val output: String,
+    )
+
+    private data class VerifyBody(
+        val repoUrl: String,
+        val branch: String? = null,
+    )
+
+    private data class VerifyResult(
+        val read: Boolean = false,
+        val write: Boolean = false,
+        val detail: String = "",
     )
 
     private fun endpoint(workspace: Workspace): String =
@@ -143,6 +159,30 @@ class HttpAgentGatewayClient(
                 .body(GitResult::class.java)
                 ?: error("empty response from gateway")
         return resp.output
+    }
+
+    override fun verifyAccess(
+        repoUrl: String,
+        branch: String?,
+    ): AgentGatewayClient.AccessVerification? {
+        val base = props.verifyGatewayBaseUrl.trim().trimEnd('/')
+        if (base.isEmpty()) {
+            log.info("verifyAccess skipped — no verify-gateway-base-url configured")
+            return null
+        }
+        return runCatching {
+            restClient
+                .post()
+                .uri("$base/git/verify")
+                .body(VerifyBody(repoUrl = repoUrl, branch = branch))
+                .retrieve()
+                .body(VerifyResult::class.java)
+                ?: error("empty response from gateway /git/verify")
+        }.map {
+            AgentGatewayClient.AccessVerification(read = it.read, write = it.write, detail = it.detail)
+        }.onFailure {
+            log.warn("verifyAccess for {} failed: {}", repoUrl, it.message)
+        }.getOrNull()
     }
 
     override fun isReady(workspace: Workspace): Boolean =
