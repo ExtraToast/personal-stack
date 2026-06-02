@@ -30,6 +30,7 @@ import tools.jackson.databind.JsonNode
  * verbose — the MCP `tools/list` payload is the agent-facing API,
  * and the description text is part of that contract.
  */
+@Suppress("TooManyFunctions") // Admin tool surface lives here by design — one descriptor + handler per tool.
 @Component
 class AdminMcpTools(
     private val topicRepository: TopicRepository,
