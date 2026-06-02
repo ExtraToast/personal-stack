@@ -136,8 +136,17 @@ spec:
               value: qwen3:32b
             - name: OLLAMA_HEAVY_PROBE_TIMEOUT_MS
               value: '2000'
+            # 30 minutes. The resolver only re-probes on this cadence,
+            # so the value bounds how stale the heavy/light choice can
+            # be — irrelevant for a best-effort digest router that
+            # falls back cleanly. The old 120 s polled the GPU host
+            # /v1/models endpoint 720x/day around the clock purely to
+            # keep the cache fresh; 30 min cuts that to 48x/day. The
+            # /digest path is user-triggered and infrequent, so a
+            # half-hour-stale endpoint choice costs at most one digest
+            # served by the wrong-sized model before the next refresh.
             - name: OLLAMA_HEAVY_PROBE_CACHE_SECONDS
-              value: '120'
+              value: '1800'
           ports:
             - containerPort: 8080
               name: http
