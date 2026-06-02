@@ -14,6 +14,11 @@ const store = useWorkspacesStore()
 const workspaceId = computed(() => String(route.params.id))
 const pickerKind = ref<AgentKind>('CLAUDE')
 
+// Only sessions with a live PTY get a mounted terminal. A session
+// dropping out of this set (STOPPED/FAILED) unmounts its
+// SessionTerminal, which closes the socket and disposes xterm.
+const liveSessions = computed(() => store.sessions.filter((s) => s.status === 'STARTING' || s.status === 'RUNNING'))
+
 onMounted(async () => {
   await store.open(workspaceId.value)
 })
@@ -65,8 +70,18 @@ async function onStopSession(id: string): Promise<void> {
     />
 
     <main class="flex flex-col flex-1 overflow-hidden p-4 gap-3">
-      <SessionTerminal v-if="store.activeSessionId" :key="store.activeSessionId" :session-id="store.activeSessionId" />
-      <div v-else class="text-center text-[var(--color-text-muted)] italic py-4">
+      <!-- One terminal per live session, all kept mounted; v-show (not
+           v-if/:key) so switching tabs preserves each xterm buffer and
+           its WebSocket. A session leaving the live set (stopped/failed)
+           unmounts, which disposes its terminal + socket. -->
+      <SessionTerminal
+        v-for="s in liveSessions"
+        v-show="s.id === store.activeSessionId"
+        :key="s.id"
+        :session-id="s.id"
+        :active="s.id === store.activeSessionId"
+      />
+      <div v-if="liveSessions.length === 0" class="text-center text-[var(--color-text-muted)] italic py-4">
         Pick an agent kind above and click "New agent" to start.
       </div>
     </main>
