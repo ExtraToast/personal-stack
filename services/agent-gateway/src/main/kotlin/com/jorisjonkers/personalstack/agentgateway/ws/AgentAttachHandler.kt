@@ -40,6 +40,14 @@ class AgentAttachHandler(
                 return
             }
         log.info("ws attach to agent {} (tmux={})", agentId, agent.tmuxSession)
+
+        // One current-screen snapshot (with ANSI) so the TUI renders
+        // immediately; the EOF-based tailer then streams only new bytes,
+        // so nothing in the snapshot gets replayed from the log.
+        val snapshot = runCatching { sessions.captureWithEscapes(agentId) }.getOrDefault("")
+        val snapshotMsg = mapper.writeValueAsString(mapOf("output" to snapshot))
+        synchronized(session) { session.sendMessage(TextMessage(snapshotMsg)) }
+
         val tailer =
             LogTailer(agent.logFile) { bytes ->
                 if (session.isOpen) {
@@ -62,9 +70,24 @@ class AgentAttachHandler(
                     log.warn("bad ws payload: {}", message.payload.take(120))
                     return
                 }
-        val input = payload["input"] as? String ?: return
-        val enter = payload["enter"] as? Boolean ?: true
-        sessions.send(agentId, input, enter)
+        val resize = payload["resize"] as? Map<*, *>
+        if (resize != null) {
+            handleResize(agentId, resize)
+        } else {
+            val input = payload["input"] as? String ?: return
+            val enter = payload["enter"] as? Boolean ?: true
+            sessions.send(agentId, input, enter)
+        }
+    }
+
+    private fun handleResize(
+        agentId: String,
+        resize: Map<*, *>,
+    ) {
+        val cols = (resize["cols"] as? Number)?.toInt() ?: return
+        val rows = (resize["rows"] as? Number)?.toInt() ?: return
+        runCatching { sessions.resize(agentId, cols, rows) }
+            .onFailure { log.warn("resize of agent {} failed: {}", agentId, it.message) }
     }
 
     override fun afterConnectionClosed(

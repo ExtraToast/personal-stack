@@ -85,6 +85,20 @@ class AgentSessionManager(
         return tmux.capture(session.tmuxSession, historyLines)
     }
 
+    fun captureWithEscapes(id: String): String {
+        val session = sessions[id] ?: error("unknown agent: $id")
+        return tmux.captureWithEscapes(session.tmuxSession)
+    }
+
+    fun resize(
+        id: String,
+        cols: Int,
+        rows: Int,
+    ) {
+        val session = sessions[id] ?: error("unknown agent: $id")
+        tmux.resize(session.tmuxSession, cols, rows)
+    }
+
     private fun commandFor(kind: AgentKind): List<String> =
         when (kind) {
             AgentKind.CLAUDE -> listOf(props.cli.claude)

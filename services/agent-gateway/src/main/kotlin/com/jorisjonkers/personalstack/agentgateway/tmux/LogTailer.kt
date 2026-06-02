@@ -15,8 +15,10 @@ import java.util.concurrent.atomic.AtomicLong
  * a fifo or a JNI tmux library.
  *
  * Single-tailer-per-file model: each WS attach gets its own tailer
- * starting at byte 0, so a freshly-attached client sees full history
- * + live output without coordinating offsets with anyone else.
+ * starting at the current end of file, so a freshly-attached client
+ * streams only new bytes. The whole-screen snapshot that gives the
+ * client its initial state is sent separately on attach; replaying the
+ * entire pipe-pane history here would double-render every prior frame.
  */
 class LogTailer(
     private val file: Path,
@@ -31,8 +33,17 @@ class LogTailer(
         }
 
     fun start() {
+        offset.set(currentLength())
         executor.scheduleWithFixedDelay(::poll, 0, intervalMs, TimeUnit.MILLISECONDS)
     }
+
+    private fun currentLength(): Long =
+        try {
+            RandomAccessFile(file.toFile(), "r").use { it.length() }
+        } catch (e: java.io.IOException) {
+            log.warn("sizing {} failed: {}", file, e.message)
+            0L
+        }
 
     private fun poll() {
         try {

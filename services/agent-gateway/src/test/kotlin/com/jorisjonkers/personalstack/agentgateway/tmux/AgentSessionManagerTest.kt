@@ -87,4 +87,24 @@ class AgentSessionManagerTest {
         every { tmux.capture(s.tmuxSession, 1_000) } returns "screen content"
         assertThat(mgr.capture(s.id)).isEqualTo("screen content")
     }
+
+    @Test
+    fun `captureWithEscapes delegates to tmux captureWithEscapes`(
+        @TempDir tmp: Path,
+    ) {
+        val mgr = manager(tmp)
+        val s = mgr.spawn(AgentKind.CLAUDE)
+        every { tmux.captureWithEscapes(s.tmuxSession) } returns "ansi screen"
+        assertThat(mgr.captureWithEscapes(s.id)).isEqualTo("ansi screen")
+    }
+
+    @Test
+    fun `resize delegates to tmux resize`(
+        @TempDir tmp: Path,
+    ) {
+        val mgr = manager(tmp)
+        val s = mgr.spawn(AgentKind.CLAUDE)
+        mgr.resize(s.id, 100, 30)
+        verify { tmux.resize(s.tmuxSession, 100, 30) }
+    }
 }

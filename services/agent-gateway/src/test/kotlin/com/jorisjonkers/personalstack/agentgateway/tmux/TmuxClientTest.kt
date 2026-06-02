@@ -62,6 +62,35 @@ class TmuxClientTest {
     }
 
     @Test
+    fun `captureWithEscapes captures visible screen with ansi and no history flag`() {
+        val argv = slot<List<String>>()
+        every { runner.run(capture(argv), any(), any(), any(), any()) } returns
+            ProcessRunner.Result(0, "screen with [31mansi[0m", "")
+
+        val out = client.captureWithEscapes("agent-abc")
+
+        assertThat(out).contains("ansi")
+        assertThat(argv.captured).containsSubsequence("tmux", "-L", "agent-gw")
+        assertThat(argv.captured).containsSubsequence("capture-pane", "-e", "-p")
+        assertThat(argv.captured).contains("-t", "agent-abc:0.0")
+        assertThat(argv.captured).doesNotContain("-S")
+    }
+
+    @Test
+    fun `resize invokes tmux resize-window with cols and rows`() {
+        val argv = slot<List<String>>()
+        every { runner.run(capture(argv), any(), any(), any(), any()) } returns
+            ProcessRunner.Result(0, "", "")
+
+        client.resize("agent-abc", 120, 40)
+
+        assertThat(argv.captured).containsSubsequence("tmux", "-L", "agent-gw")
+        assertThat(argv.captured).contains("resize-window", "-t", "agent-abc:0.0")
+        assertThat(argv.captured).containsSubsequence("-x", "120")
+        assertThat(argv.captured).containsSubsequence("-y", "40")
+    }
+
+    @Test
     fun `listSessions parses tmux list-sessions output`() {
         every { runner.run(any(), any(), any(), any(), any()) } returns
             ProcessRunner.Result(0, "agent-abc\nagent-def\n", "")
