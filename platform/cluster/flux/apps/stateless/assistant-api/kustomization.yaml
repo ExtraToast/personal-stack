@@ -5,3 +5,5 @@ resources:
   - deployment.yaml
   - servicemonitor.yaml
   - pdb.yaml
+  - vault-secrets-operator-sa.yaml
+  - github-app-vss.yaml

@@ -316,7 +316,7 @@ vault write auth/kubernetes/role/stalwart \
 
 vault write auth/kubernetes/role/vso \
   bound_service_account_names="vault-secrets-operator" \
-  bound_service_account_namespaces="vso-system,cert-manager,external-dns,observability,automation-system,utility-system,knowledge-system,data-system,media-system,mail-system,agents-system" \
+  bound_service_account_namespaces="vso-system,cert-manager,external-dns,observability,automation-system,utility-system,knowledge-system,data-system,media-system,mail-system,agents-system,assistant-system" \
   policies="vso" \
   ttl="1h"
 
