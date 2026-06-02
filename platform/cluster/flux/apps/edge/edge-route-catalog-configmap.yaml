@@ -42,6 +42,10 @@ data:
       access: "direct"
       excluded_path_prefixes:
       - "/api/"
+    - name: "assistant-ws"
+      service: "assistant-ws"
+      host: "assistant-ws.jorisjonkers.dev"
+      access: "sso_protected"
     - name: "auth-api"
       service: "auth-api"
       host: "auth.jorisjonkers.dev"

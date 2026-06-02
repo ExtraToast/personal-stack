@@ -19,6 +19,7 @@ class ServicePermissionTest {
         "traefik.jorisjonkers.dev, TRAEFIK",
         "traefik.jorisjonkers.test, TRAEFIK",
         "assistant.jorisjonkers.dev, ASSISTANT",
+        "assistant-ws.jorisjonkers.dev, ASSISTANT",
         "status.jorisjonkers.dev, STATUS",
         "jellyfin.jorisjonkers.dev, JELLYFIN",
         "jellyseerr.jorisjonkers.dev, JELLYSEERR",

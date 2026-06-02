@@ -1,6 +1,25 @@
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
+  name: assistant-ws-lan
+  namespace: edge-system
+  annotations:
+    kubernetes.io/ingress.class: traefik-lan
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: 'Host(`assistant-ws.jorisjonkers.dev`)'
+      services:
+        - name: assistant-api-ws
+          namespace: assistant-system
+          port: 8082
+  tls: {}
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
   name: bazarr-lan
   namespace: edge-system
   annotations:

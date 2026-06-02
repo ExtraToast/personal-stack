@@ -112,6 +112,30 @@ spec:
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
+  name: assistant-ws
+  namespace: edge-system
+  annotations:
+    external-dns.alpha.kubernetes.io/target: ingress.jorisjonkers.dev
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: 'true'
+    kubernetes.io/ingress.class: traefik-public
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: 'Host(`assistant-ws.jorisjonkers.dev`)'
+      middlewares:
+        - name: forward-auth
+          namespace: edge-system
+      services:
+        - name: assistant-api-ws
+          namespace: assistant-system
+          port: 8082
+  tls: {}
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
   name: auth-api
   namespace: edge-system
   annotations:

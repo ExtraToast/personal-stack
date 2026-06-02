@@ -47,7 +47,12 @@ const MAX_QUEUED_FRAMES = 200
 
 export function attachSessionSocket(opts: SessionSocketOptions): SessionSocket {
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const url = `${proto}//${window.location.host}/api/v1/ws/sessions/${opts.sessionId}/attach`
+  // The terminal WS uses the dedicated `assistant-ws` host, which a
+  // co-located Enschede assistant-api replica answers (split-DNS keeps
+  // on-site keystrokes local instead of detouring through Frankfurt).
+  // Other hosts (e.g. localhost in dev) are left unchanged.
+  const wsHost = window.location.host.replace(/^assistant\./, 'assistant-ws.')
+  const url = `${proto}//${wsHost}/api/v1/ws/sessions/${opts.sessionId}/attach`
 
   let ws: WebSocket | null = null
   let closedByCaller = false

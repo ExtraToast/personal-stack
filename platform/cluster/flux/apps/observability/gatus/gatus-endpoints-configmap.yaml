@@ -182,6 +182,13 @@ data:
       conditions:
       - "[STATUS] == 200"
       - "[RESPONSE_TIME] < 1500"
+    - name: "assistant-ws"
+      group: "public-apps"
+      url: "http://assistant-api-ws.assistant-system.svc.cluster.local:8082/api/actuator/health/readiness"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
     - name: "auth-api"
       group: "public-apps"
       url: "https://auth.jorisjonkers.dev/api/actuator/health/readiness"
