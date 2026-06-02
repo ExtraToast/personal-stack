@@ -57,16 +57,17 @@ metadata:
     # 0.13.0-0.13.2 (LightRAG #2495 embedding regression).
     keel.sh/policy: never
 spec:
-  # Scaled to 0 by request: this in-cluster light Ollama is pinned to the
-  # gtx960m laptop (its model PVC is node-local there), and running LLM
-  # inference on that node spins its fans up audibly. Heavy chat is served
-  # by the host-native Ollama on the desktop (ollama-heavy) when it is
-  # online. NOTE: while this is 0, the knowledge recall embedding path
-  # (qwen3-embedding) and the light chat fallback have no backend — recall
-  # degrades when the heavy host is also offline. The durable fix is to
-  # relocate this Deployment to an always-on, out-of-earshot node
-  # (e.g. t1000) rather than leave it disabled; tracked separately.
-  replicas: 0
+  # Back to 1: at 0 the knowledge recall embedding path (qwen3-embedding)
+  # had no backend at all — embedding traffic only ever routes to this
+  # light endpoint, never to ollama-heavy — so every curator pass logged
+  # `relation_enrichment.recall_failed: Connection refused` and recall's
+  # vector leg was dead even while the desktop served chat. The curator is
+  # hourly now (not every 5 min), so the laptop only wakes for a brief
+  # embedding burst about once an hour rather than constantly. Pinned to
+  # the gtx960m laptop because the model PVC is node-local there; the
+  # durable noise fix is still to relocate to an always-on, out-of-earshot
+  # node (t1000), tracked separately.
+  replicas: 1
   progressDeadlineSeconds: 1800
   strategy:
     # RWO model PVC; old pod must release before new pod can mount.
