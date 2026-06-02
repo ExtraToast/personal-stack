@@ -31,6 +31,27 @@ The `auth-bootstrap` Pod populates both with one human
 exec-and-paste session each (see `README.md`). The
 `agents-refresh-ping` CronJob exercises both every 6 hours.
 
+OAuth tokens persist on the PVCs, but the per-user flags that
+record "first-run done" do not survive a fresh Pod on their own,
+so the entrypoint seeds them on every boot:
+
+- Claude reads theme + `hasCompletedOnboarding` + per-project
+  `hasTrustDialogAccepted` from `~/.claude.json`, which sits beside
+  (not inside) the `~/.claude` PVC and is otherwise lost on restart.
+  `entrypoint.sh` restores the latest PVC-backed backup, then
+  `jq //=` fills only the missing onboarding/theme/trust keys — a
+  real restored config keeps its own theme, `oauthAccount`, and
+  project history.
+- Codex reads `projects."/workspace".trust_level` plus
+  `approval_policy` / `sandbox_mode` from `~/.codex/config.toml` on
+  the `codex-credentials` PVC. The entrypoint writes a
+  trusted + non-interactive config only when none exists, so a
+  hand-edited file on the PVC is never overwritten.
+
+Without this seeding every fresh session re-shows the theme picker
+and onboarding wizard (Claude) and the directory-trust prompt
+(Codex), all of which block the non-interactive tmux pane.
+
 ## Domain / runtime
 
 - `services/agent-gateway`: `AgentKind` has CLAUDE, CODEX, SHELL;
