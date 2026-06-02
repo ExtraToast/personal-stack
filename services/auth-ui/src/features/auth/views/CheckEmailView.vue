@@ -36,12 +36,12 @@ async function onResend(): Promise<void> {
           <div class="h-2.5 w-2.5 rounded-full bg-terminal-amber/60" />
           <div class="h-2.5 w-2.5 rounded-full bg-terminal-green/60" />
         </div>
-        <span class="font-mono text-xs text-gray-600"> ~/auth/check-email </span>
+        <span class="font-mono text-xs text-[var(--color-text-subtle)]"> ~/auth/check-email </span>
       </div>
 
-      <h1 class="text-2xl font-bold text-gray-100">Check your inbox</h1>
+      <h1 class="text-2xl font-bold text-[var(--color-text-primary)]">Check your inbox</h1>
 
-      <p class="text-sm text-gray-400">
+      <p class="text-sm text-[var(--color-text-muted)]">
         We've sent a confirmation link to
         <span class="font-mono text-accent-light">{{ email }}</span
         >. Click the link to activate your account.
@@ -67,7 +67,7 @@ async function onResend(): Promise<void> {
         {{ resending ? 'Sending...' : 'Resend confirmation email' }}
       </button>
 
-      <p class="text-center text-sm text-gray-500">
+      <p class="text-center text-sm text-[var(--color-text-muted)]">
         <router-link class="font-medium text-accent-light hover:underline" to="/login"> Back to login </router-link>
       </p>
     </div>

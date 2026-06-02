@@ -40,21 +40,23 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll))
         <p
           class="mb-4 inline-block rounded-md border border-surface-border bg-surface-card px-3 py-1 font-mono text-xs text-terminal-green sm:mb-6 sm:px-4 sm:py-1.5 sm:text-sm"
         >
-          <span class="text-gray-600">$</span>
+          <span class="text-[var(--color-text-subtle)]">$</span>
           {{ t('hero.subtitle') }}
         </p>
       </div>
 
       <h1
-        class="animate-fade-in-up delay-200 text-3xl font-bold tracking-tight text-gray-100 opacity-0 sm:text-5xl md:text-7xl"
+        class="animate-fade-in-up delay-200 text-3xl font-bold tracking-tight text-[var(--color-text-primary)] opacity-0 sm:text-5xl md:text-7xl"
       >
         {{ t('hero.name') }}
-        <span class="text-gray-600">
+        <span class="text-[var(--color-text-subtle)]">
           {{ t('hero.degree') }}
         </span>
       </h1>
 
-      <p class="animate-fade-in-up delay-300 mt-4 text-sm leading-relaxed text-gray-400 opacity-0 sm:mt-6 sm:text-lg">
+      <p
+        class="animate-fade-in-up delay-300 mt-4 text-sm leading-relaxed text-[var(--color-text-muted)] opacity-0 sm:mt-6 sm:text-lg"
+      >
         {{ t('hero.tagline') }}
       </p>
 
@@ -68,7 +70,7 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll))
           {{ t('hero.cta.github') }}
         </a>
         <a
-          class="rounded-lg border border-surface-border px-5 py-2.5 font-mono text-xs font-semibold text-gray-300 transition-all hover:border-accent hover:text-white sm:px-6 sm:py-3 sm:text-sm"
+          class="rounded-lg border border-surface-border px-5 py-2.5 font-mono text-xs font-semibold text-[var(--color-text-primary)] transition-all hover:border-accent hover:text-white sm:px-6 sm:py-3 sm:text-sm"
           href="https://www.linkedin.com/in/joris-jonkers-25520293/"
           rel="noopener noreferrer"
           target="_blank"
@@ -76,7 +78,7 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll))
           {{ t('hero.cta.linkedin') }}
         </a>
         <a
-          class="rounded-lg border border-surface-border px-5 py-2.5 font-mono text-xs font-semibold text-gray-300 transition-all hover:border-accent hover:text-white sm:px-6 sm:py-3 sm:text-sm"
+          class="rounded-lg border border-surface-border px-5 py-2.5 font-mono text-xs font-semibold text-[var(--color-text-primary)] transition-all hover:border-accent hover:text-white sm:px-6 sm:py-3 sm:text-sm"
           href="mailto:info@jorisjonkers.dev"
         >
           {{ t('hero.cta.email') }}
@@ -86,7 +88,7 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll))
 
     <!-- Scroll indicator: fixed to bottom of viewport, fades on scroll -->
     <div
-      class="pointer-events-none fixed bottom-8 left-0 right-0 z-10 flex flex-col items-center gap-2 text-gray-600 transition-opacity duration-300"
+      class="pointer-events-none fixed bottom-8 left-0 right-0 z-10 flex flex-col items-center gap-2 text-[var(--color-text-subtle)] transition-opacity duration-300"
       :class="showScroll ? 'opacity-100' : 'opacity-0'"
     >
       <span class="font-mono text-xs uppercase tracking-widest">

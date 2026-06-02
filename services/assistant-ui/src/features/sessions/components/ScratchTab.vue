@@ -71,7 +71,7 @@ async function onCreate(): Promise<void> {
       <template #header>
         <h2 class="text-lg font-semibold">Spin up a scratch workspace</h2>
       </template>
-      <p class="text-sm text-gray-400">
+      <p class="text-sm text-[var(--color-text-muted)]">
         A scratch workspace is a fresh Pod with a shell and the agent CLIs (Claude + Codex) — no git repo cloned. Useful
         for ad-hoc commands, package experiments, or pre-writing scripts before pulling them into a real project.
       </p>
@@ -101,8 +101,8 @@ async function onCreate(): Promise<void> {
     </Card>
 
     <section>
-      <h3 class="mb-3 text-sm font-semibold text-gray-300">Existing scratch workspaces</h3>
-      <p v-if="scratchWorkspaces.length === 0" class="text-sm text-gray-500 italic">
+      <h3 class="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">Existing scratch workspaces</h3>
+      <p v-if="scratchWorkspaces.length === 0" class="text-sm text-[var(--color-text-muted)] italic">
         No scratch workspaces. The one you create above will land here.
       </p>
       <ul v-else class="space-y-2" data-testid="scratch-list">
@@ -111,10 +111,10 @@ async function onCreate(): Promise<void> {
             <template #header>
               <div class="flex items-baseline justify-between">
                 <span class="font-semibold">{{ w.name }}</span>
-                <span class="text-xs text-gray-500">{{ w.status }}</span>
+                <span class="text-xs text-[var(--color-text-muted)]">{{ w.status }}</span>
               </div>
             </template>
-            <p class="text-xs text-gray-500">{{ new Date(w.updatedAt).toLocaleString() }}</p>
+            <p class="text-xs text-[var(--color-text-muted)]">{{ new Date(w.updatedAt).toLocaleString() }}</p>
             <div class="mt-3 flex justify-end">
               <SubmitButton
                 type="button"

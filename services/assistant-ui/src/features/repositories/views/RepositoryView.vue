@@ -54,7 +54,7 @@ async function onDestroy(): Promise<void> {
     <header class="mb-6 flex items-baseline justify-between">
       <div>
         <h1 class="text-2xl font-bold">{{ detail.repository.name }}</h1>
-        <p class="mt-1 font-mono text-xs text-gray-400">{{ detail.repository.repoUrl }}</p>
+        <p class="mt-1 font-mono text-xs text-[var(--color-text-muted)]">{{ detail.repository.repoUrl }}</p>
       </div>
       <SubmitButton type="button" variant="danger" label="Delete" :status="destroy.status.value" @click="onDestroy" />
     </header>
@@ -63,8 +63,10 @@ async function onDestroy(): Promise<void> {
       <h2 class="text-lg font-semibold">Deploy key</h2>
       <div v-if="detail.repository.deployKeyFingerprint" class="mt-2">
         <p class="text-sm text-emerald-400">Attached</p>
-        <p class="mt-1 font-mono text-xs text-gray-400">{{ detail.repository.deployKeyFingerprint }}</p>
-        <p class="mt-1 text-xs text-gray-500">
+        <p class="mt-1 font-mono text-xs text-[var(--color-text-muted)]">
+          {{ detail.repository.deployKeyFingerprint }}
+        </p>
+        <p class="mt-1 text-xs text-[var(--color-text-muted)]">
           since {{ new Date(detail.repository.deployKeyAddedAt ?? detail.repository.createdAt).toLocaleString() }}
         </p>
         <button
@@ -97,11 +99,11 @@ async function onDestroy(): Promise<void> {
             class="text-sm text-[var(--color-accent-light)] hover:underline"
             :data-testid="`linked-project-${p.id}`"
           >
-            {{ p.name }} <span class="text-gray-500 font-mono">project:{{ p.slug }}</span>
+            {{ p.name }} <span class="text-[var(--color-text-muted)] font-mono">project:{{ p.slug }}</span>
           </RouterLink>
         </li>
       </ul>
-      <p v-else class="mt-2 text-sm text-gray-500">
+      <p v-else class="mt-2 text-sm text-[var(--color-text-muted)]">
         Not linked to any project yet. Open a project and add this repository to its pool.
       </p>
     </section>
@@ -115,5 +117,5 @@ async function onDestroy(): Promise<void> {
       />
     </Modal>
   </div>
-  <div v-else class="max-w-4xl mx-auto p-6 text-gray-400">Loading…</div>
+  <div v-else class="max-w-4xl mx-auto p-6 text-[var(--color-text-muted)]">Loading…</div>
 </template>

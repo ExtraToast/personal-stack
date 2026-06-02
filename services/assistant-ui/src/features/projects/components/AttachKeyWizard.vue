@@ -29,7 +29,10 @@ function onSubmit(): void {
 </script>
 
 <template>
-  <div class="rounded-lg border border-gray-700 bg-surface-darker p-4 space-y-6" data-testid="attach-key-wizard">
+  <div
+    class="rounded-lg border border-[var(--color-surface-border)] bg-surface-darker p-4 space-y-6"
+    data-testid="attach-key-wizard"
+  >
     <div>
       <h3 class="text-lg font-semibold mb-3">Setup guide</h3>
       <SetupGuide :project-id="link.projectId" :link-id="link.id" />
@@ -43,7 +46,7 @@ function onSubmit(): void {
           v-model="privateKey"
           rows="10"
           required
-          class="w-full rounded border border-gray-700 bg-black/40 px-3 py-2 font-mono text-xs"
+          class="w-full rounded border border-[var(--color-surface-border)] bg-black/40 px-3 py-2 font-mono text-xs"
           placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;…&#10;-----END OPENSSH PRIVATE KEY-----"
         />
       </div>
@@ -53,7 +56,7 @@ function onSubmit(): void {
           v-model="publicKey"
           type="text"
           required
-          class="w-full rounded border border-gray-700 bg-black/40 px-3 py-2 font-mono text-xs"
+          class="w-full rounded border border-[var(--color-surface-border)] bg-black/40 px-3 py-2 font-mono text-xs"
           placeholder="ssh-ed25519 AAAA… name@laptop"
         />
       </div>
@@ -62,14 +65,20 @@ function onSubmit(): void {
         <textarea
           v-model="knownHosts"
           rows="3"
-          class="w-full rounded border border-gray-700 bg-black/40 px-3 py-2 font-mono text-xs"
+          class="w-full rounded border border-[var(--color-surface-border)] bg-black/40 px-3 py-2 font-mono text-xs"
           placeholder="output of `ssh-keyscan github.com`"
         />
-        <p class="text-xs text-gray-500 mt-1">Leave blank to use the API's bundled GitHub host keys.</p>
+        <p class="text-xs text-[var(--color-text-muted)] mt-1">
+          Leave blank to use the API's bundled GitHub host keys.
+        </p>
       </div>
       <p v-if="error" class="text-red-400 text-sm">{{ error }}</p>
       <div class="flex justify-end gap-2">
-        <button type="button" class="rounded px-4 py-2 text-sm text-gray-300 hover:bg-gray-800" @click="emit('cancel')">
+        <button
+          type="button"
+          class="rounded px-4 py-2 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)]"
+          @click="emit('cancel')"
+        >
           Cancel
         </button>
         <button

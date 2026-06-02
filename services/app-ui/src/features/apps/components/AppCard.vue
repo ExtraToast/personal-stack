@@ -38,10 +38,10 @@ function handleIconError(): void {
       {{ fallbackLabel }}
     </span>
     <div class="min-w-0">
-      <p class="font-mono text-sm font-bold text-gray-200 group-hover:text-terminal-green">
+      <p class="font-mono text-sm font-bold text-[var(--color-text-primary)] group-hover:text-terminal-green">
         {{ service.label }}
       </p>
-      <p class="font-mono text-xs text-gray-500">{{ service.description }}</p>
+      <p class="font-mono text-xs text-[var(--color-text-muted)]">{{ service.description }}</p>
     </div>
   </a>
 </template>

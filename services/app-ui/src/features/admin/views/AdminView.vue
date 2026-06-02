@@ -41,7 +41,7 @@ const totalUsers = computed(() => users.value.length)
 const adminCount = computed(() => users.value.filter((u) => u.role === 'ADMIN').length)
 const confirmedCount = computed(() => users.value.filter((u) => u.emailConfirmed).length)
 const mostRecent = computed<string>(() => {
-  if (users.value.length === 0) return '—'
+  if (users.value.length === 0) return '-'
   const newest = users.value.reduce((a, b) => (a.createdAt > b.createdAt ? a : b))
   return newest.username
 })
@@ -65,25 +65,35 @@ const filtered = computed<AdminUser[]>(() => {
           <div class="h-2 w-2 rounded-full bg-terminal-amber/60" />
           <div class="h-2 w-2 rounded-full bg-terminal-green/60" />
         </div>
-        <span class="font-mono text-xs text-gray-600">~/admin/users</span>
+        <span class="font-mono text-xs text-[var(--color-text-subtle)]">~/admin/users</span>
       </div>
       <h1 class="mb-4 font-mono text-xl font-bold text-terminal-green">User Management</h1>
       <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div>
-          <div class="font-mono text-xs text-gray-500">Total</div>
-          <div class="font-mono text-lg text-gray-200" data-testid="admin-stat-total">{{ totalUsers }}</div>
+          <div class="font-mono text-xs text-[var(--color-text-muted)]">Total</div>
+          <div class="font-mono text-lg text-[var(--color-text-primary)]" data-testid="admin-stat-total">
+            {{ totalUsers }}
+          </div>
         </div>
         <div>
-          <div class="font-mono text-xs text-gray-500">Admins</div>
-          <div class="font-mono text-lg text-gray-200" data-testid="admin-stat-admins">{{ adminCount }}</div>
+          <div class="font-mono text-xs text-[var(--color-text-muted)]">Admins</div>
+          <div class="font-mono text-lg text-[var(--color-text-primary)]" data-testid="admin-stat-admins">
+            {{ adminCount }}
+          </div>
         </div>
         <div>
-          <div class="font-mono text-xs text-gray-500">Confirmed</div>
-          <div class="font-mono text-lg text-gray-200" data-testid="admin-stat-confirmed">{{ confirmedCount }}</div>
+          <div class="font-mono text-xs text-[var(--color-text-muted)]">Confirmed</div>
+          <div class="font-mono text-lg text-[var(--color-text-primary)]" data-testid="admin-stat-confirmed">
+            {{ confirmedCount }}
+          </div>
         </div>
         <div>
-          <div class="font-mono text-xs text-gray-500">Newest</div>
-          <div class="truncate font-mono text-lg text-gray-200" :title="mostRecent" data-testid="admin-stat-newest">
+          <div class="font-mono text-xs text-[var(--color-text-muted)]">Newest</div>
+          <div
+            class="truncate font-mono text-lg text-[var(--color-text-primary)]"
+            :title="mostRecent"
+            data-testid="admin-stat-newest"
+          >
             {{ mostRecent }}
           </div>
         </div>
@@ -93,20 +103,20 @@ const filtered = computed<AdminUser[]>(() => {
     <!-- Filter bar. Pure client-side: tiny user-table, the population never
          gets big enough to justify a server-side search. -->
     <div class="mb-4 flex items-center gap-2">
-      <span class="font-mono text-xs text-gray-600">&gt;</span>
+      <span class="font-mono text-xs text-[var(--color-text-subtle)]">&gt;</span>
       <input
         v-model="query"
-        class="w-full rounded-md border border-surface-border bg-surface-dark px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent sm:w-80"
+        class="w-full rounded-md border border-surface-border bg-surface-dark px-3 py-2 font-mono text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-subtle)] focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent sm:w-80"
         placeholder="Filter by username or email"
         type="search"
         data-testid="admin-filter"
       />
-      <span v-if="query && filtered.length !== users.length" class="font-mono text-xs text-gray-500">
+      <span v-if="query && filtered.length !== users.length" class="font-mono text-xs text-[var(--color-text-muted)]">
         {{ filtered.length }} / {{ users.length }}
       </span>
     </div>
 
-    <div v-if="loading" class="font-mono text-xs text-gray-500">Loading…</div>
+    <div v-if="loading" class="font-mono text-xs text-[var(--color-text-muted)]">Loading…</div>
     <div v-else-if="error" class="font-mono text-xs text-red-400">{{ error }}</div>
     <UserTable v-else :users="filtered" @refresh="loadUsers" />
   </div>

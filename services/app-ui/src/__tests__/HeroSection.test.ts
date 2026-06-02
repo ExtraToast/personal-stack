@@ -44,7 +44,7 @@ describe('heroSection', () => {
 
   it('renders the role subtitle', () => {
     const wrapper = mountHero()
-    expect(wrapper.text()).toContain('Jr. Software Engineer')
+    expect(wrapper.text()).toContain('Medior Software Engineer')
   })
 
   it('uses responsive high-priority hero image markup', () => {

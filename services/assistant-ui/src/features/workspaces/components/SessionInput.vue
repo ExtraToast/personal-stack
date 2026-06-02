@@ -25,7 +25,7 @@ function onKeydown(ev: KeyboardEvent): void {
     <textarea
       v-model="text"
       rows="2"
-      class="flex-1 rounded border border-gray-700 bg-surface-darker px-3 py-2 font-mono text-sm resize-none"
+      class="flex-1 rounded border border-[var(--color-surface-border)] bg-surface-darker px-3 py-2 font-mono text-sm resize-none"
       placeholder="Type a message (Enter to send, Shift+Enter for newline)"
       @keydown="onKeydown"
     />

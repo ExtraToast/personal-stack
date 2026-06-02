@@ -47,16 +47,18 @@ async function onSubmit(): Promise<void> {
 
 <template>
   <div class="space-y-4" data-testid="project-repository-picker">
-    <p class="text-sm text-gray-400">
+    <p class="text-sm text-[var(--color-text-muted)]">
       Pick an existing repository to add to this project. A repository can be in multiple projects without duplicating
       its deploy key. Need a new one?
       <RouterLink to="/repositories" class="text-[var(--color-accent-light)] underline"> Add a repository </RouterLink>
       first.
     </p>
 
-    <div v-if="store.isLoading && store.items.length === 0" class="text-sm text-gray-500">Loading repositories…</div>
+    <div v-if="store.isLoading && store.items.length === 0" class="text-sm text-[var(--color-text-muted)]">
+      Loading repositories…
+    </div>
 
-    <p v-else-if="candidates.length === 0" class="text-sm text-gray-500 italic">
+    <p v-else-if="candidates.length === 0" class="text-sm text-[var(--color-text-muted)] italic">
       Every repository is already linked to this project, or you haven't created any yet.
     </p>
 
@@ -71,7 +73,7 @@ async function onSubmit(): Promise<void> {
               <span class="font-semibold">{{ r.name }}</span>
               <span v-if="!r.deployKeyFingerprint" class="text-xs text-amber-400">no key yet</span>
             </div>
-            <p class="text-xs text-gray-400 font-mono mt-1">{{ r.repoUrl }}</p>
+            <p class="text-xs text-[var(--color-text-muted)] font-mono mt-1">{{ r.repoUrl }}</p>
           </div>
         </label>
       </li>

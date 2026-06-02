@@ -12,7 +12,7 @@ const active = ref<'chat' | 'scratch' | 'workspace'>('chat')
   <div class="max-w-6xl mx-auto p-6">
     <header class="mb-6">
       <h1 class="text-2xl font-bold">Sessions</h1>
-      <p class="mt-1 text-sm text-gray-400">
+      <p class="mt-1 text-sm text-[var(--color-text-muted)]">
         Three flavours: <strong>Chat</strong> is pure LLM Q&A (no Pod), <strong>Scratch</strong> spawns a Pod with a
         shell but no git repo, and <strong>Workspace</strong> clones a project's repository so the agent can edit +
         push.
@@ -29,7 +29,7 @@ const active = ref<'chat' | 'scratch' | 'workspace'>('chat')
           :class="[
             current === 'chat'
               ? 'bg-[var(--color-surface-elevated)] text-white border-b-2 border-[var(--color-accent)]'
-              : 'text-gray-400 hover:text-gray-200',
+              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]',
           ]"
           data-testid="sessions-tab-chat"
           @click="activate('chat')"
@@ -44,7 +44,7 @@ const active = ref<'chat' | 'scratch' | 'workspace'>('chat')
           :class="[
             current === 'scratch'
               ? 'bg-[var(--color-surface-elevated)] text-white border-b-2 border-[var(--color-accent)]'
-              : 'text-gray-400 hover:text-gray-200',
+              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]',
           ]"
           data-testid="sessions-tab-scratch"
           @click="activate('scratch')"
@@ -59,7 +59,7 @@ const active = ref<'chat' | 'scratch' | 'workspace'>('chat')
           :class="[
             current === 'workspace'
               ? 'bg-[var(--color-surface-elevated)] text-white border-b-2 border-[var(--color-accent)]'
-              : 'text-gray-400 hover:text-gray-200',
+              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]',
           ]"
           data-testid="sessions-tab-workspace"
           @click="activate('workspace')"

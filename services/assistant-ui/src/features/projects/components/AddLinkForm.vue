@@ -29,10 +29,10 @@ function onSubmit(): void {
         v-model="name"
         type="text"
         required
-        class="w-full rounded border border-gray-700 bg-surface-darker px-3 py-2"
+        class="w-full rounded border border-[var(--color-surface-border)] bg-surface-darker px-3 py-2"
         placeholder="personal-stack"
       />
-      <p class="text-xs text-gray-500 mt-1">
+      <p class="text-xs text-[var(--color-text-muted)] mt-1">
         Used as the deploy-key file name on your laptop and in the GitHub key title.
       </p>
     </div>
@@ -43,7 +43,7 @@ function onSubmit(): void {
         v-model="repoUrl"
         type="text"
         required
-        class="w-full rounded border border-gray-700 bg-surface-darker px-3 py-2 font-mono"
+        class="w-full rounded border border-[var(--color-surface-border)] bg-surface-darker px-3 py-2 font-mono"
         placeholder="git@github.com:owner/repo.git"
       />
     </div>
@@ -53,11 +53,15 @@ function onSubmit(): void {
         id="link-branch"
         v-model="defaultBranch"
         type="text"
-        class="w-full rounded border border-gray-700 bg-surface-darker px-3 py-2 font-mono"
+        class="w-full rounded border border-[var(--color-surface-border)] bg-surface-darker px-3 py-2 font-mono"
       />
     </div>
     <div class="flex justify-end gap-2">
-      <button type="button" class="rounded px-4 py-2 text-sm text-gray-300 hover:bg-gray-800" @click="emit('cancel')">
+      <button
+        type="button"
+        class="rounded px-4 py-2 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)]"
+        @click="emit('cancel')"
+      >
         Cancel
       </button>
       <button type="submit" class="rounded bg-blue-600 hover:bg-blue-700 px-4 py-2 text-sm text-white">Add link</button>

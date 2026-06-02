@@ -44,14 +44,14 @@ async function onDestroy(id: string, name: string): Promise<void> {
     <header class="flex items-center justify-between">
       <div>
         <h2 class="text-lg font-semibold">Repo-backed workspaces</h2>
-        <p class="mt-1 text-sm text-gray-400">
+        <p class="mt-1 text-sm text-[var(--color-text-muted)]">
           One Pod per workspace, each with the project's repository cloned and the agent CLIs ready to go.
         </p>
       </div>
       <SubmitButton type="button" label="New workspace" data-testid="workspace-new-button" @click="showWizard = true" />
     </header>
 
-    <p v-if="repoBackedWorkspaces.length === 0" class="text-sm text-gray-500 italic">
+    <p v-if="repoBackedWorkspaces.length === 0" class="text-sm text-[var(--color-text-muted)] italic">
       No repo-backed workspaces yet. Open one — the wizard walks you through picking a project + repository.
     </p>
 
@@ -61,11 +61,11 @@ async function onDestroy(id: string, name: string): Promise<void> {
           <template #header>
             <div class="flex items-baseline justify-between">
               <span class="font-semibold">{{ w.name }}</span>
-              <span class="text-xs text-gray-500">{{ w.status }}</span>
+              <span class="text-xs text-[var(--color-text-muted)]">{{ w.status }}</span>
             </div>
           </template>
-          <p v-if="w.repoUrl" class="font-mono text-xs text-gray-400">{{ w.repoUrl }}</p>
-          <p v-if="w.branch" class="text-xs text-gray-500">branch: {{ w.branch }}</p>
+          <p v-if="w.repoUrl" class="font-mono text-xs text-[var(--color-text-muted)]">{{ w.repoUrl }}</p>
+          <p v-if="w.branch" class="text-xs text-[var(--color-text-muted)]">branch: {{ w.branch }}</p>
           <div class="mt-3 flex justify-end">
             <SubmitButton
               type="button"

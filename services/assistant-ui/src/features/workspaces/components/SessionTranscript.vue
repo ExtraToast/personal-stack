@@ -34,7 +34,7 @@ watch(
       :key="turn.id"
       :class="{
         'text-blue-300': turn.role === 'USER',
-        'text-gray-100': turn.role === 'AGENT',
+        'text-[var(--color-text-primary)]': turn.role === 'AGENT',
         'text-yellow-400 italic': turn.role === 'SYSTEM',
       }"
     >
@@ -48,7 +48,7 @@ watch(
       />
       <span v-else class="whitespace-pre-wrap">{{ turn.body }}</span>
     </div>
-    <div v-if="turns.length === 0" class="text-gray-500 italic">
+    <div v-if="turns.length === 0" class="text-[var(--color-text-muted)] italic">
       No transcript yet — type below to start the conversation.
     </div>
   </div>

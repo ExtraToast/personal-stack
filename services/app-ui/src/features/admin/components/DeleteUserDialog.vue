@@ -18,13 +18,13 @@ defineEmits<{
     aria-modal="true"
   >
     <div class="rounded-lg border border-surface-border bg-surface-dark p-6 font-mono shadow-xl">
-      <p class="mb-4 text-sm text-gray-300">
+      <p class="mb-4 text-sm text-[var(--color-text-primary)]">
         Delete user <span class="text-terminal-green">{{ username }}</span
         >? This cannot be undone.
       </p>
       <div class="flex justify-end gap-3">
         <button
-          class="rounded px-3 py-1 text-xs text-gray-400 transition-colors hover:text-gray-200"
+          class="rounded px-3 py-1 text-xs text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-primary)]"
           type="button"
           @click="$emit('cancel')"
         >

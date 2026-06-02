@@ -13,7 +13,7 @@ defineEmits<{
 
 <template>
   <select
-    class="rounded border border-surface-border bg-surface-dark px-2 py-1 font-mono text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-terminal-green disabled:opacity-50"
+    class="rounded border border-surface-border bg-surface-dark px-2 py-1 font-mono text-xs text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-terminal-green disabled:opacity-50"
     :value="modelValue"
     :disabled="disabled"
     @change="$emit('update:modelValue', ($event.target as HTMLSelectElement).value)"

@@ -96,15 +96,19 @@ async function onBlockFormSubmit(value: { sessionId: string; data: Record<string
 
 <template>
   <div class="flex flex-col h-screen">
-    <header class="border-b border-gray-700 px-6 py-3 flex items-center justify-between">
+    <header class="border-b border-[var(--color-surface-border)] px-6 py-3 flex items-center justify-between">
       <div>
-        <button type="button" class="text-sm text-gray-400 hover:text-gray-200 mb-1" @click="router.push('/sessions')">
+        <button
+          type="button"
+          class="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] mb-1"
+          @click="router.push('/sessions')"
+        >
           ← Sessions
         </button>
         <h1 class="text-xl font-bold">
           {{ store.activeWorkspace?.name ?? 'Loading…' }}
         </h1>
-        <p v-if="store.activeWorkspace?.repoUrl" class="text-xs text-gray-400 font-mono">
+        <p v-if="store.activeWorkspace?.repoUrl" class="text-xs text-[var(--color-text-muted)] font-mono">
           {{ store.activeWorkspace.repoUrl }}
         </p>
       </div>
@@ -135,7 +139,7 @@ async function onBlockFormSubmit(value: { sessionId: string; data: Record<string
         @form-submit="onBlockFormSubmit"
       />
       <SessionInput v-if="store.activeSessionId" @submit="onSend" />
-      <div v-else class="text-center text-gray-500 italic py-4">
+      <div v-else class="text-center text-[var(--color-text-muted)] italic py-4">
         Pick an agent kind above and click "New agent" to start.
       </div>
     </main>

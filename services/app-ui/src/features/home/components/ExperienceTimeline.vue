@@ -16,10 +16,10 @@ interface ExperienceEntry {
   <section id="experience" class="px-4 py-12 sm:px-6 sm:py-24">
     <div class="mx-auto max-w-3xl">
       <h2 class="font-mono text-sm font-semibold uppercase tracking-widest text-terminal-green">
-        <span class="text-gray-600">02.</span>
+        <span class="text-[var(--color-text-subtle)]">02.</span>
         {{ t('experience.title') }}
       </h2>
-      <p class="mt-3 text-gray-500">
+      <p class="mt-3 text-[var(--color-text-muted)]">
         {{ t('experience.subtitle') }}
       </p>
 
@@ -43,14 +43,14 @@ interface ExperienceEntry {
             {{ entry.period }}
           </span>
 
-          <h3 class="mt-3 text-lg font-semibold text-gray-100">
+          <h3 class="mt-3 text-lg font-semibold text-[var(--color-text-primary)]">
             {{ entry.role }}
           </h3>
           <p class="font-mono text-sm text-accent-light">
             {{ entry.company }}
           </p>
 
-          <p class="mt-3 text-sm leading-relaxed text-gray-400">
+          <p class="mt-3 text-sm leading-relaxed text-[var(--color-text-muted)]">
             {{ entry.description }}
           </p>
 
@@ -58,7 +58,7 @@ interface ExperienceEntry {
             <span
               v-for="tech in entry.technologies"
               :key="tech"
-              class="rounded-md border border-surface-border bg-surface-elevated px-2.5 py-0.5 font-mono text-xs text-gray-400"
+              class="rounded-md border border-surface-border bg-surface-elevated px-2.5 py-0.5 font-mono text-xs text-[var(--color-text-muted)]"
             >
               {{ tech }}
             </span>

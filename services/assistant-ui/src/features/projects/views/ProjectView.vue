@@ -51,14 +51,19 @@ async function onUnlink(repositoryId: string, repositoryName: string): Promise<v
 
 <template>
   <div class="max-w-5xl mx-auto p-6">
-    <button class="mb-3 text-sm text-gray-400 hover:text-gray-200" @click="router.push('/projects')">← Projects</button>
+    <button
+      class="mb-3 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+      @click="router.push('/projects')"
+    >
+      ← Projects
+    </button>
 
     <header class="mb-6">
       <h1 class="text-2xl font-bold">{{ store.activeProject?.name ?? 'Loading…' }}</h1>
-      <p v-if="store.activeProject" class="mt-1 font-mono text-xs text-gray-500">
+      <p v-if="store.activeProject" class="mt-1 font-mono text-xs text-[var(--color-text-muted)]">
         project:{{ store.activeProject.slug }}
       </p>
-      <p v-if="store.activeProject?.description" class="mt-2 text-sm text-gray-400">
+      <p v-if="store.activeProject?.description" class="mt-2 text-sm text-[var(--color-text-muted)]">
         {{ store.activeProject.description }}
       </p>
     </header>
@@ -67,7 +72,7 @@ async function onUnlink(repositoryId: string, repositoryName: string): Promise<v
       <div class="mb-3 flex items-center justify-between">
         <div>
           <h2 class="text-lg font-semibold">Repositories</h2>
-          <p class="mt-1 text-sm text-gray-400">
+          <p class="mt-1 text-sm text-[var(--color-text-muted)]">
             The pool of GitHub repos this project's workspaces can clone. Reuse repositories across projects — the
             deploy key lives on the repository.
           </p>
@@ -80,7 +85,7 @@ async function onUnlink(repositoryId: string, repositoryName: string): Promise<v
         />
       </div>
 
-      <p v-if="store.repositories.length === 0" class="text-sm text-gray-500 italic">
+      <p v-if="store.repositories.length === 0" class="text-sm text-[var(--color-text-muted)] italic">
         No repositories linked to this project yet.
         <RouterLink to="/repositories" class="text-[var(--color-accent-light)] underline">Add one</RouterLink>
         then come back.
@@ -98,8 +103,8 @@ async function onUnlink(repositoryId: string, repositoryName: string): Promise<v
                 <span v-else class="text-xs text-emerald-400">key attached</span>
               </div>
             </template>
-            <p class="font-mono text-xs text-gray-400">{{ r.repoUrl }}</p>
-            <p class="mt-1 text-xs text-gray-500">default: {{ r.defaultBranch }}</p>
+            <p class="font-mono text-xs text-[var(--color-text-muted)]">{{ r.repoUrl }}</p>
+            <p class="mt-1 text-xs text-[var(--color-text-muted)]">default: {{ r.defaultBranch }}</p>
             <template #footer>
               <div class="flex justify-end">
                 <SubmitButton

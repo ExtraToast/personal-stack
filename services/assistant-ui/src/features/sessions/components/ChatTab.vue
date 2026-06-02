@@ -115,7 +115,7 @@ async function onArchive(id: string, title: string): Promise<void> {
         <SubmitButton label="Start" :status="create.status.value" data-testid="chat-new-submit" />
       </form>
 
-      <p v-if="store.sessions.length === 0" class="text-sm text-gray-500 italic">
+      <p v-if="store.sessions.length === 0" class="text-sm text-[var(--color-text-muted)] italic">
         No chats yet. Start one above — chat sessions have no Pod, just LLM Q&A against the knowledge base.
       </p>
 
@@ -133,7 +133,7 @@ async function onArchive(id: string, title: string): Promise<void> {
             @click="onSelect(s.id)"
           >
             <p class="font-medium">{{ s.title ?? 'Untitled chat' }}</p>
-            <p class="text-xs text-gray-500">{{ new Date(s.updatedAt).toLocaleString() }}</p>
+            <p class="text-xs text-[var(--color-text-muted)]">{{ new Date(s.updatedAt).toLocaleString() }}</p>
           </button>
           <SubmitButton
             type="button"
@@ -155,7 +155,7 @@ async function onArchive(id: string, title: string): Promise<void> {
 
         <div
           v-if="active.messages.length === 0"
-          class="rounded border border-dashed border-[var(--color-surface-border)] p-6 text-center text-sm text-gray-500"
+          class="rounded border border-dashed border-[var(--color-surface-border)] p-6 text-center text-sm text-[var(--color-text-muted)]"
         >
           No messages yet. Say hi.
         </div>
@@ -166,12 +166,12 @@ async function onArchive(id: string, title: string): Promise<void> {
             class="rounded-md px-3 py-2 text-sm"
             :class="[
               m.role === 'USER'
-                ? 'bg-[var(--color-surface-elevated)] text-gray-100'
-                : 'bg-[var(--color-surface-card)] text-gray-200 border border-[var(--color-surface-border)]',
+                ? 'bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)]'
+                : 'bg-[var(--color-surface-card)] text-[var(--color-text-primary)] border border-[var(--color-surface-border)]',
             ]"
             :data-testid="`chat-message-${m.id}`"
           >
-            <p class="text-xs text-gray-500 mb-1">{{ m.role === 'USER' ? 'You' : 'Assistant' }}</p>
+            <p class="text-xs text-[var(--color-text-muted)] mb-1">{{ m.role === 'USER' ? 'You' : 'Assistant' }}</p>
             <p class="whitespace-pre-wrap">{{ m.body }}</p>
           </li>
         </ul>
@@ -197,7 +197,7 @@ async function onArchive(id: string, title: string): Promise<void> {
 
       <div
         v-else
-        class="rounded-lg border border-dashed border-[var(--color-surface-border)] p-8 text-center text-sm text-gray-500"
+        class="rounded-lg border border-dashed border-[var(--color-surface-border)] p-8 text-center text-sm text-[var(--color-text-muted)]"
       >
         Pick a chat from the sidebar — or start a new one to open it.
       </div>

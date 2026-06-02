@@ -12,11 +12,11 @@ export default {
     logout: 'Uitloggen',
   },
   hero: {
-    subtitle: 'Jr. Software Ingenieur',
+    subtitle: 'Medior Software Engineer',
     name: 'Joris Jonkers',
     degree: 'BSc',
     tagline:
-      'Ik bouw robuuste en schaalbare software — van zelfgehoste infrastructuur tot gepolijste gebruikersapplicaties. Gepassioneerd over clean architecture, developer experience en het leveren van duurzame oplossingen.',
+      'Ik bouw robuuste en schaalbare software, van zelfgehoste infrastructuur tot gepolijste gebruikersapplicaties. Gepassioneerd over clean architecture, developer experience en het leveren van duurzame oplossingen.',
     cta: {
       github: 'GitHub',
       linkedin: 'LinkedIn',
@@ -34,17 +34,17 @@ export default {
     education: 'Opleidingen',
     educationEntries: [
       {
-        period: '2024 – Heden',
+        period: '2024 - Heden',
         institution: 'University of Twente',
         degree: 'MSc Software Technology',
       },
       {
-        period: '2020 – 2024',
+        period: '2020 - 2024',
         institution: 'University of Twente',
         degree: 'BSc Technical Computer Science',
       },
       {
-        period: '2010 – 2016',
+        period: '2010 - 2016',
         institution: 'Oscar Romero',
         degree: 'VWO NT/NG',
       },
@@ -55,9 +55,9 @@ export default {
     subtitle: 'Waar ik heb gewerkt en wat ik heb opgeleverd.',
     entries: [
       {
-        role: 'Junior Software Developer',
+        role: 'Medior Software Engineer',
         company: 'Nedap N.V.',
-        period: 'Juni 2025 – Heden',
+        period: 'Juni 2025 - Heden',
         description:
           'Werkzaam aan de migratie van de ONS Plannen & Roosteren zorglogistiekapplicatie van single-tenant naar multi-tenant architectuur, en van bare-metal infrastructuur naar container-orkestratie met Nomad. Verbetert CI/CD-pipelines, onderhoudt Docker-images en voert reguliere Ruby on Rails-ontwikkeltaken uit.',
         technologies: ['Ruby on Rails', 'Nomad', 'Docker', 'CI/CD'],
@@ -65,7 +65,7 @@ export default {
       {
         role: 'Junior Software Ingenieur',
         company: 'DynaLynx B.V.',
-        period: 'Mei 2022 – Juli 2025',
+        period: 'Mei 2022 - Juli 2025',
         description:
           'Software van een transportbedrijf doorontwikkeld en gerefactord, inclusief integraties met overheidsportalen voor wet- en regelgeving. Filtersnelheid verbeterd, testdekking vergroot en dataserialisatie geoptimaliseerd met JSON:API. Een React Native-applicatie door elf versies geüpdatet en bijgedragen aan UI-ontwerp en bedrijfslogica voor een chemo-medicatiemengmachine.',
         technologies: ['Ruby on Rails', 'Angular', 'React Native', '.NET', 'Aurelia'],
@@ -73,10 +73,10 @@ export default {
       {
         role: 'Secretaris & Commissaris Externe Zaken',
         company: 'ESA Blueshell',
-        period: 'September 2024 – September 2025',
+        period: 'September 2024 - September 2025',
         description:
-          'Sponsorbenaderingsproces vernieuwd met webscraping en gerichte mailcampagnes, wat heeft geleid tot contact met meer dan 100 bedrijven. Verantwoordelijk voor officiële communicatie, notulen en maandelijkse nieuwsbrieven. Sinds april 2024 ook de primaire ontwikkelaar van de full-stack verenigingswebsite, gebouwd met Spring Boot 4 (Kotlin) en Vue.js 3 (TypeScript) en uitgerold als Docker Swarm-stack.',
-        technologies: ['Spring Boot', 'Kotlin', 'Vue.js', 'Docker Swarm', 'Traefik'],
+          'Sponsorbenaderingsproces vernieuwd met webscraping en gerichte mailcampagnes, wat heeft geleid tot contact met meer dan 100 bedrijven. Verantwoordelijk voor officiële communicatie, notulen en maandelijkse nieuwsbrieven. Sinds april 2024 ook de primaire ontwikkelaar van de full-stack verenigingswebsite, gebouwd met Spring Boot 4 (Kotlin) en Vue.js 3 (TypeScript) en uitgerold op een k3s-cluster met Flux CD en Kustomize.',
+        technologies: ['Spring Boot', 'Kotlin', 'Vue.js', 'k3s', 'Traefik'],
       },
     ],
   },
@@ -87,15 +87,15 @@ export default {
       {
         title: 'Personal Stack',
         description:
-          'Een zelfgehost infrastructuurplatform op Nomad met Consul, Traefik, Vault en observability tooling. Bevat een auth-service (Spring Authorization Server + TOTP MFA), een AI-assistent en Vue.js-frontends, allemaal gebouwd met hexagonale architectuur en afgedwongen door ArchUnit.',
-        technologies: ['Kotlin', 'Spring Boot', 'Vue.js', 'Nomad', 'Consul', 'Traefik', 'Vault', 'PostgreSQL'],
+          'Een zelfgehost GitOps-platform: een k3s-cluster op NixOS-nodes verspreid over een cloud-VPS en een thuisnetwerk, waarbij alle state vanuit git wordt gereconcilieerd door Flux CD en Kustomize en image-uitrol wordt geautomatiseerd door Keel. Traefik verzorgt ingress, Vault beheert secrets en een stack met Grafana, Tempo en Loki levert observability. Het draait een auth-service (Spring Authorization Server met TOTP MFA), een AI-assistent en Vue.js-frontends, allemaal gebouwd met hexagonale architectuur en afgedwongen door ArchUnit.',
+        technologies: ['Kotlin', 'Spring Boot', 'Vue.js', 'k3s', 'NixOS', 'Flux CD', 'Traefik', 'Vault', 'PostgreSQL'],
         githubUrl: 'https://github.com/ExtraToast/personal-stack',
       },
       {
         title: 'ESA Blueshell Website',
         description:
-          "Full-stack platform voor de grootste studentenesportsvereniging van Nederland. Beheert lidmaatschappen, evenementen, contributies en online inschrijvingen. Uitgerold met Docker Swarm, Traefik, Let's Encrypt TLS en Listmonk voor e-mailbeheer.",
-        technologies: ['Spring Boot 4', 'Kotlin', 'Vue.js 3', 'TypeScript', 'Docker Swarm', 'GitHub Actions'],
+          "Full-stack platform voor de grootste studentenesportsvereniging van Nederland. Beheert lidmaatschappen, evenementen, contributies en online inschrijvingen. Uitgerold op een k3s-cluster met Flux CD, Kustomize en Keel, achter Traefik met Let's Encrypt TLS, plus Stalwart voor e-mail.",
+        technologies: ['Spring Boot 4', 'Kotlin', 'Vue.js 3', 'TypeScript', 'k3s', 'Flux CD'],
         liveUrl: 'https://esa-blueshell.nl',
         githubUrl: 'https://github.com/ESA-Blueshell/website',
       },

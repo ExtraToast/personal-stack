@@ -55,19 +55,19 @@ async function onResend(): Promise<void> {
           <div class="h-2.5 w-2.5 rounded-full bg-terminal-amber/60" />
           <div class="h-2.5 w-2.5 rounded-full bg-terminal-green/60" />
         </div>
-        <span class="font-mono text-xs text-gray-600"> ~/auth/confirm-email </span>
+        <span class="font-mono text-xs text-[var(--color-text-subtle)]"> ~/auth/confirm-email </span>
       </div>
 
       <!-- Loading state -->
       <template v-if="status === 'loading'">
-        <h1 class="text-2xl font-bold text-gray-100">Confirming your email...</h1>
-        <p class="text-sm text-gray-400">Please wait while we verify your confirmation link.</p>
+        <h1 class="text-2xl font-bold text-[var(--color-text-primary)]">Confirming your email...</h1>
+        <p class="text-sm text-[var(--color-text-muted)]">Please wait while we verify your confirmation link.</p>
       </template>
 
       <!-- Success state -->
       <template v-else-if="status === 'success'">
-        <h1 class="text-2xl font-bold text-gray-100">Email confirmed!</h1>
-        <p class="text-sm text-gray-400">Your email has been confirmed. You can now sign in.</p>
+        <h1 class="text-2xl font-bold text-[var(--color-text-primary)]">Email confirmed!</h1>
+        <p class="text-sm text-[var(--color-text-muted)]">Your email has been confirmed. You can now sign in.</p>
         <router-link
           class="glow-accent block w-full rounded-md bg-accent px-4 py-2 text-center font-mono text-sm font-semibold text-white transition-colors hover:bg-accent-light"
           to="/login"
@@ -78,17 +78,17 @@ async function onResend(): Promise<void> {
 
       <!-- Error state -->
       <template v-else>
-        <h1 class="text-2xl font-bold text-gray-100">Confirmation failed</h1>
+        <h1 class="text-2xl font-bold text-[var(--color-text-primary)]">Confirmation failed</h1>
         <p class="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
           {{ errorMessage }}
         </p>
 
         <div class="space-y-3">
-          <p class="text-sm text-gray-400">Enter your email to receive a new confirmation link.</p>
+          <p class="text-sm text-[var(--color-text-muted)]">Enter your email to receive a new confirmation link.</p>
           <div>
             <input
               v-model="resendEmail"
-              class="block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              class="block w-full rounded-md border border-surface-border bg-surface-elevated px-3 py-2 font-mono text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-subtle)] focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               placeholder="you@example.com"
               type="email"
             />
@@ -118,7 +118,7 @@ async function onResend(): Promise<void> {
           </button>
         </div>
 
-        <p class="text-center text-sm text-gray-500">
+        <p class="text-center text-sm text-[var(--color-text-muted)]">
           <router-link class="font-medium text-accent-light hover:underline" to="/login"> Back to login </router-link>
         </p>
       </template>

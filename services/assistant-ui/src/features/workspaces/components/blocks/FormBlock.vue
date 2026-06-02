@@ -78,11 +78,11 @@ function onSubmit(): void {
         {{ spec.title ?? name }}
         <span v-if="required.includes(String(name))" class="text-red-400">*</span>
       </label>
-      <p v-if="spec.description" class="text-xs text-gray-400">{{ spec.description }}</p>
+      <p v-if="spec.description" class="text-xs text-[var(--color-text-muted)]">{{ spec.description }}</p>
       <select
         v-if="spec.enum"
         v-model="values[String(name)]"
-        class="w-full rounded border border-gray-700 bg-black/30 px-2 py-1 text-sm"
+        class="w-full rounded border border-[var(--color-surface-border)] bg-black/30 px-2 py-1 text-sm"
       >
         <option v-for="opt in spec.enum" :key="String(opt)" :value="opt">{{ opt }}</option>
       </select>
@@ -92,13 +92,13 @@ function onSubmit(): void {
         v-model.number="values[String(name)]"
         type="number"
         :step="spec.type === 'integer' ? 1 : 'any'"
-        class="w-full rounded border border-gray-700 bg-black/30 px-2 py-1 text-sm"
+        class="w-full rounded border border-[var(--color-surface-border)] bg-black/30 px-2 py-1 text-sm"
       />
       <input
         v-else
         v-model="values[String(name)]"
         type="text"
-        class="w-full rounded border border-gray-700 bg-black/30 px-2 py-1 text-sm"
+        class="w-full rounded border border-[var(--color-surface-border)] bg-black/30 px-2 py-1 text-sm"
       />
     </div>
     <button type="submit" class="rounded bg-purple-600 hover:bg-purple-700 px-3 py-1.5 text-sm text-white">

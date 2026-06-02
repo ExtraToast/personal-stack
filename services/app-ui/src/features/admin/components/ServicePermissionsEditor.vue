@@ -25,7 +25,7 @@ function toggle(service: string, current: string[]): void {
       :class="
         modelValue.includes(service)
           ? 'bg-terminal-green/20 text-terminal-green'
-          : 'bg-surface-elevated text-gray-500 hover:text-gray-300'
+          : 'bg-surface-elevated text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
       "
       type="button"
       :disabled="disabled"

@@ -25,12 +25,16 @@ watch(() => props.qrUri, renderQr)
 
 <template>
   <div class="space-y-4 text-center">
-    <p class="text-sm text-gray-400">Scan the QR code with Google Authenticator, Authy, or any TOTP app.</p>
+    <p class="text-sm text-[var(--color-text-muted)]">
+      Scan the QR code with Google Authenticator, Authy, or any TOTP app.
+    </p>
 
     <canvas ref="canvas" class="mx-auto rounded-lg border border-surface-border bg-white p-2" />
 
     <details class="text-left">
-      <summary class="cursor-pointer font-mono text-sm text-gray-500 hover:text-gray-300">
+      <summary
+        class="cursor-pointer font-mono text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+      >
         Or enter the key manually
       </summary>
       <code
