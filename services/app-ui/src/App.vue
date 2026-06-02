@@ -2,17 +2,13 @@
 import type { AppShellNavItem } from '@personal-stack/vue-common'
 import { AppShell } from '@personal-stack/vue-common'
 import { useI18n } from 'vue-i18n'
-import { RouterLink, RouterView } from 'vue-router'
+import { RouterView } from 'vue-router'
+import LocaleToggle from './components/LocaleToggle.vue'
 import ProfileDropdown from './features/account/components/ProfileDropdown.vue'
 import { useAuthStore } from './features/auth'
-import { setLocale } from './i18n'
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const authStore = useAuthStore()
-
-function toggleLocale(): void {
-  setLocale(locale.value === 'en' ? 'nl' : 'en')
-}
 
 // Home is a single scrollable layout with section anchors. Each
 // nav link routes back to `/` first so anchors resolve correctly
@@ -32,33 +28,10 @@ const navItems: AppShellNavItem[] = [
     brand-suffix=".dev"
     :brand-to="{ path: '/', hash: '' }"
     :nav-items="navItems"
-    account-href="/account"
+    :show-account-link="false"
   >
     <template #extras>
-      <button
-        type="button"
-        class="font-mono text-xs text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-terminal-cyan)]"
-        data-testid="nav-locale"
-        @click="toggleLocale"
-      >
-        {{ locale === 'en' ? 'NL' : 'EN' }}
-      </button>
-      <RouterLink
-        v-if="authStore.isAuthenticated"
-        :to="{ name: 'apps' }"
-        class="font-mono text-xs text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-terminal-green)]"
-        data-testid="nav-my-apps"
-      >
-        {{ t('nav.myApps') }}
-      </RouterLink>
-      <RouterLink
-        v-if="authStore.isAdmin"
-        to="/admin"
-        class="font-mono text-xs text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-terminal-green)]"
-        data-testid="nav-admin"
-      >
-        {{ t('nav.admin') }}
-      </RouterLink>
+      <LocaleToggle />
       <ProfileDropdown v-if="authStore.isAuthenticated" />
       <button
         v-else

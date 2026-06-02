@@ -118,6 +118,42 @@ describe('appShell', () => {
     expect(wrapper.find('[data-testid="nav-theme-toggle"]').exists()).toBe(false)
   })
 
+  it('renders the theme toggle as an icon (no text label)', () => {
+    const wrapper = mount(AppShell, {
+      props: { navItems, brandMain: 'demo' },
+      global: { plugins: [makeRouter()] },
+    })
+    const toggle = wrapper.find('[data-testid="nav-theme-toggle"]')
+    expect(toggle.exists()).toBe(true)
+    expect(toggle.find('svg').exists()).toBe(true)
+    expect(toggle.text().trim()).toBe('')
+  })
+
+  it('toggling the theme persists an explicit light/dark mode', async () => {
+    const wrapper = mount(AppShell, {
+      props: { navItems, brandMain: 'demo' },
+      global: { plugins: [makeRouter()] },
+    })
+    await wrapper.find('[data-testid="nav-theme-toggle"]').trigger('click')
+    expect(['light', 'dark']).toContain(localStorage.getItem('ps_theme'))
+  })
+
+  it('renders the account link by default', () => {
+    const wrapper = mount(AppShell, {
+      props: { navItems, brandMain: 'demo' },
+      global: { plugins: [makeRouter()] },
+    })
+    expect(wrapper.find('[data-testid="nav-account"]').exists()).toBe(true)
+  })
+
+  it('omits the account link when showAccountLink is false', () => {
+    const wrapper = mount(AppShell, {
+      props: { navItems, brandMain: 'demo', showAccountLink: false },
+      global: { plugins: [makeRouter()] },
+    })
+    expect(wrapper.find('[data-testid="nav-account"]').exists()).toBe(false)
+  })
+
   it('marks the active nav item via class', async () => {
     const router = makeRouter()
     await router.push('/alpha')

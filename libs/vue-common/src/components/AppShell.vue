@@ -11,6 +11,7 @@ interface Props {
   brandTo?: string | object
   accountHref?: string
   showThemeToggle?: boolean
+  showAccountLink?: boolean
 }
 
 withDefaults(defineProps<Props>(), {
@@ -19,10 +20,11 @@ withDefaults(defineProps<Props>(), {
   brandTo: '/',
   accountHref: '/account',
   showThemeToggle: true,
+  showAccountLink: true,
 })
 
 const route = useRoute()
-const { mode, setTheme } = useTheme()
+const { isDark, setTheme } = useTheme()
 
 const activeBase = computed(() => `/${(route.path.split('/')[1] ?? '').toLowerCase()}`)
 
@@ -32,23 +34,15 @@ function isActive(item: AppShellNavItem): boolean {
   return activeBase.value === to
 }
 
-function cycleTheme(): void {
-  const modes = ['light', 'dark', 'system'] as const
-  const idx = modes.indexOf(mode.value)
-  setTheme(modes[(idx + 1) % modes.length]!)
+// The default mode is `system`, so the resolved theme follows the
+// browser's prefers-color-scheme until the user makes an explicit
+// choice. The toggle then flips between explicit light/dark off the
+// resolved value, so the first click always visibly changes the theme.
+function toggleTheme(): void {
+  setTheme(isDark.value ? 'light' : 'dark')
 }
 
-const themeIcon = computed(() => {
-  if (mode.value === 'light') return 'light'
-  if (mode.value === 'dark') return 'dark'
-  return 'auto'
-})
-
-const themeLabel = computed(() => {
-  if (mode.value === 'light') return 'light'
-  if (mode.value === 'dark') return 'dark'
-  return 'auto'
-})
+const themeToggleLabel = computed(() => (isDark.value ? 'Switch to light theme' : 'Switch to dark theme'))
 
 // Drawer state — full-height slide-in panel on `< lg` (anything
 // narrower than 1024 px). The desktop layout shows the inline nav
@@ -129,16 +123,47 @@ onBeforeUnmount(() => {
           <button
             v-if="showThemeToggle"
             type="button"
-            class="font-mono text-xs lowercase tracking-tight text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-terminal-amber)]"
-            :title="`Theme: ${mode}`"
-            :aria-label="`Theme: ${mode}`"
+            class="inline-flex h-8 w-8 items-center justify-center rounded-md text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-terminal-amber)]"
+            :title="themeToggleLabel"
+            :aria-label="themeToggleLabel"
             data-testid="nav-theme-toggle"
-            @click="cycleTheme"
+            @click="toggleTheme"
           >
-            {{ themeIcon }}
+            <svg
+              v-if="isDark"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="h-4 w-4"
+              aria-hidden="true"
+            >
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+            <svg
+              v-else
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="h-4 w-4"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="4" />
+              <path
+                d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"
+              />
+            </svg>
           </button>
           <slot name="extras" :compact="true" />
           <a
+            v-if="showAccountLink"
             :href="accountHref"
             class="font-mono text-xs text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-terminal-green)]"
             data-testid="nav-account"
@@ -247,12 +272,43 @@ onBeforeUnmount(() => {
                   type="button"
                   class="flex w-full items-center justify-between rounded-md px-4 py-3 text-left font-mono text-sm text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-terminal-amber)]"
                   data-testid="drawer-theme"
-                  @click="cycleTheme"
+                  @click="toggleTheme"
                 >
-                  <span>Theme</span>
-                  <span class="font-mono text-xs">{{ themeLabel }}</span>
+                  <span>{{ themeToggleLabel }}</span>
+                  <svg
+                    v-if="isDark"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="h-4 w-4"
+                    aria-hidden="true"
+                  >
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                  </svg>
+                  <svg
+                    v-else
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="h-4 w-4"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="4" />
+                    <path
+                      d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"
+                    />
+                  </svg>
                 </button>
                 <a
+                  v-if="showAccountLink"
                   :href="accountHref"
                   class="flex w-full items-center rounded-md px-4 py-3 font-mono text-sm text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-elevated)] hover:text-[var(--color-terminal-green)]"
                   data-testid="drawer-account"

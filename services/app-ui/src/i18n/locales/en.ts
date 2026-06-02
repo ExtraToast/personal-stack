@@ -7,6 +7,7 @@ export default {
     contact: 'Contact',
     myApps: 'My Apps',
     admin: 'Admin',
+    account: 'Account',
     login: 'Login',
     logout: 'Logout',
   },
