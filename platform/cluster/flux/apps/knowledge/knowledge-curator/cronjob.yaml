@@ -7,19 +7,21 @@
 # stat or indexed SQL count — so the 98% no-op case exits in
 # <100 ms with zero LLM calls.
 #
-# Cadence: hourly, 24/7. The no-op tick is effectively free, but a
-# tick that finds work drives an LLM burst on the heavy qwen3:32b
-# host (enschede-rx7900xtx-1), and at the old 5-minute cadence those
-# bursts — combined with the 60m model keep-alive — held the RX 7900
-# XTX's weights resident around the clock, so the card never idled
-# its fans or clocked down. Hourly batches an hour of captures into a
-# single warm-model pass: ~12x fewer wake-ups, and with the keep-alive
-# now shorter than the cadence (see ollama-rocm.nix) the GPU unloads
-# the model and idles between passes. Captures consolidate within the
-# hour, which is ample for a personal vault. `suspend: false` is
-# explicit so a manual `kubectl patch suspend=true` for a planned
-# outage gets reverted on the next Flux reconcile — the intended
-# safety net.
+# Cadence: hourly during awake hours (08:00–22:59 local), silent
+# overnight. The no-op tick is effectively free, but a tick that
+# finds work drives an LLM burst on the heavy qwen3:32b host
+# (enschede-rx7900xtx-1). The 5m keep-alive (see ollama-rocm.nix)
+# already idles the card between hourly passes, but an hourly burst
+# still spins the RX 7900 XTX fans audibly — and the desktop sits in
+# earshot of where someone sleeps, so even one wake-up at 03:00 is
+# unwelcome. Confining the cron to 08:00–22:59 removes every
+# overnight tick: captures that land while the window is closed
+# queue in the inbox / `_inbox/_needs-review/` and drain on the
+# first 08:00 pass, so nothing is lost — the card simply stays cold
+# and quiet from 23:00 to 08:00. Hourly batching within the window
+# is unchanged. `suspend: false` is explicit so a manual `kubectl
+# patch suspend=true` for a planned outage gets reverted on the next
+# Flux reconcile — the intended safety net.
 #
 # `concurrencyPolicy: Forbid` keeps two ticks from running
 # concurrently at the kubelet level. Inside the orchestrator each
@@ -49,17 +51,16 @@ metadata:
     keel.sh/trigger: poll
     keel.sh/pollSchedule: '@every 2m'
 spec:
-  # Hourly, 24/7. The orchestrator gates each pass behind a cheap
-  # has_work() probe (single indexed SQL count or filesystem stat),
-  # so a no-op tick still takes <100 ms; the cost that matters is the
-  # LLM burst on the heavy GPU host when a tick finds work. Hourly
-  # collapses an hour of captures into one warm-model pass instead of
-  # up to twelve, and lets the GPU unload its model and idle in
-  # between (keep-alive is now shorter than the cadence — see
-  # ollama-rocm.nix). Real compute still only happens when the
-  # ingest-worker dropped a capture or a file landed in
-  # _inbox/_needs-review/ since the last pass.
-  schedule: '0 * * * *'
+  # Top of every hour, 08:00–22:59 local; no tick fires 23:00–07:59,
+  # so the heavy Ollama on the rx7900xtx never wakes overnight. The
+  # orchestrator still gates each pass behind a cheap has_work()
+  # probe, so an in-window no-op tick costs <100 ms. `timeZone` is
+  # pinned rather than left to the controller's UTC default so the
+  # quiet window tracks Enschede wall-clock across the CEST/CET DST
+  # flip — a bare UTC `7-22` schedule would drift an hour twice a
+  # year and silence the wrong window.
+  schedule: '0 8-22 * * *'
+  timeZone: Europe/Amsterdam
   # `suspend: false` is explicit so kustomize-controller owns the
   # field. Manual `kubectl patch suspend=true` for a planned outage
   # gets reverted on the next Flux reconcile — which is the intended
