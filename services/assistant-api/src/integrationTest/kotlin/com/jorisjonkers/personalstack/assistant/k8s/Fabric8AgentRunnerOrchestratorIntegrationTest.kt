@@ -146,6 +146,19 @@ class Fabric8AgentRunnerOrchestratorIntegrationTest {
         // (adHocWorkspace is repo-backed with a branch).
         assertThat(env.single { it.name == "REPO_URL" }.value).isEqualTo("git@github.com:example/repo.git")
         assertThat(env.single { it.name == "REPO_BRANCH" }.value).isEqualTo("main")
+
+        // GITHUB_APP_TOKEN_URL + GITHUB_APP_TOKEN_BEARER let the runner's
+        // `gh` wrapper mint repo-scoped App tokens; the bearer is an
+        // optional Secret ref, never a literal.
+        val expectedTokenUrl =
+            "http://assistant-api.assistant-system.svc.cluster.local:8082" +
+                "/api/v1/internal/github/installation-token"
+        assertThat(env.single { it.name == "GITHUB_APP_TOKEN_URL" }.value).isEqualTo(expectedTokenUrl)
+        val appBearer = env.single { it.name == "GITHUB_APP_TOKEN_BEARER" }
+        assertThat(appBearer.value).isNull()
+        assertThat(appBearer.valueFrom.secretKeyRef.name).isEqualTo("github-app")
+        assertThat(appBearer.valueFrom.secretKeyRef.key).isEqualTo("token-bearer")
+        assertThat(appBearer.valueFrom.secretKeyRef.optional).isTrue()
     }
 
     @Test

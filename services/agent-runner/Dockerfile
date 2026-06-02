@@ -79,6 +79,13 @@ COPY --from=gateway-build /app/services/agent-gateway/build/libs/*.jar /opt/agen
 COPY services/agent-runner/entrypoint.sh /opt/entrypoint.sh
 RUN chmod +x /opt/entrypoint.sh
 
+# `gh` wrapper that mints a fresh App installation token before each
+# real gh call. Installed ahead of the apt gh (/usr/bin/gh) on PATH so
+# `gh pr comment` / `gh run rerun` carry a short-lived, repo-scoped
+# token; the wrapper is a no-op passthrough when the App is not wired.
+COPY services/agent-runner/gh-app-token-wrapper.sh /usr/local/bin/gh
+RUN chmod +x /usr/local/bin/gh
+
 # Non-root agent user, with /workspace writable. /home/agent is the
 # anchor for ~/.claude, ~/.codex, ~/.gitconfig, ~/.ssh — all mounted
 # from PVCs/Secrets at runtime.
