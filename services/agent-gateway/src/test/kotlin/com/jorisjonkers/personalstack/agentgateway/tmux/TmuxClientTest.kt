@@ -25,16 +25,23 @@ class TmuxClientTest {
 
     @Test
     fun `newSession invokes tmux with socket name and cwd`() {
-        val argv = slot<List<String>>()
-        every { runner.run(capture(argv), any(), any(), any(), any()) } returns
+        // newSession issues new-session then a window-size set-option, so
+        // capture every call and assert against the new-session one.
+        val calls = mutableListOf<List<String>>()
+        every { runner.run(capture(calls), any(), any(), any(), any()) } returns
             ProcessRunner.Result(0, "", "")
 
         client.newSession("agent-abc", listOf("claude"), "/workspace/repo")
 
-        assertThat(argv.captured).containsSubsequence("tmux", "-L", "agent-gw")
-        assertThat(argv.captured).contains("-s", "agent-abc")
-        assertThat(argv.captured).contains("-c", "/workspace/repo")
-        assertThat(argv.captured).endsWith("claude")
+        val create = calls.single { it.contains("new-session") }
+        assertThat(create).containsSubsequence("tmux", "-L", "agent-gw")
+        assertThat(create).contains("-s", "agent-abc")
+        assertThat(create).contains("-c", "/workspace/repo")
+        assertThat(create).endsWith("claude")
+
+        // The pane is pinned to manual sizing so browser resize frames win.
+        val manualSize = calls.single { it.contains("set-option") }
+        assertThat(manualSize).containsSubsequence("set-option", "-t", "agent-abc", "window-size", "manual")
     }
 
     @Test
