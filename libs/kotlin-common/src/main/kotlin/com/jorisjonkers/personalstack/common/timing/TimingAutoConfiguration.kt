@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
 import org.springframework.web.filter.OncePerRequestFilter
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
@@ -41,11 +42,6 @@ class TimingAutoConfiguration {
     fun requestTimingFilter(): RequestTimingFilter = RequestTimingFilter()
 
     @Bean
-    @ConditionalOnClass(DefaultExecuteListenerProvider::class)
-    fun jooqTimingExecuteListenerProvider(): DefaultExecuteListenerProvider =
-        DefaultExecuteListenerProvider(JooqQueryTimingListener())
-
-    @Bean
     @ConditionalOnClass(WebMvcConfigurer::class)
     fun handlerTimingWebMvcConfigurer(): WebMvcConfigurer =
         object : WebMvcConfigurer {
@@ -62,6 +58,25 @@ class TimingAutoConfiguration {
     @ConditionalOnClass(OncePerRequestFilter::class, Tracer::class)
     fun requestPipelineSpanFilter(): RequestPipelineSpanFilter =
         RequestPipelineSpanFilter(GlobalOpenTelemetry.getTracer(PIPELINE_INSTRUMENTATION_SCOPE))
+
+    // The jOOQ listener lives on a nested @ConditionalOnClass config, not
+    // a @Bean method on the outer class. jOOQ is compileOnly in
+    // kotlin-common, so a consumer without it (the agent-gateway) has no
+    // org.jooq.* on its classpath. A @ConditionalOnClass guard on the
+    // method itself is not enough: Spring reflectively enumerates the
+    // enclosing class's @Bean methods, and resolving this method's
+    // DefaultExecuteListenerProvider return type throws
+    // NoClassDefFoundError before the condition is ever read — which
+    // crashed the gateway's context at startup. A separate class is gated
+    // by metadata (ASM), so jOOQ is only resolved once it is actually
+    // present.
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(DefaultExecuteListenerProvider::class)
+    class JooqTimingConfiguration {
+        @Bean
+        fun jooqTimingExecuteListenerProvider(): DefaultExecuteListenerProvider =
+            DefaultExecuteListenerProvider(JooqQueryTimingListener())
+    }
 
     private companion object {
         const val PIPELINE_INSTRUMENTATION_SCOPE =

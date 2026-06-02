@@ -87,6 +87,7 @@ dependencies {
     testImplementation("org.springframework.security:spring-security-oauth2-jose:7.0.5")
     testImplementation("org.crac:crac:1.5.0")
     testImplementation("org.springframework.boot:spring-boot-autoconfigure:4.0.6")
+    testImplementation("org.springframework.boot:spring-boot-test:4.0.6")
     testImplementation("org.jooq:jooq:3.21.4")
     testImplementation("org.springframework:spring-test:7.0.7")
     implementation("com.tngtech.archunit:archunit-junit5:1.4.2")
