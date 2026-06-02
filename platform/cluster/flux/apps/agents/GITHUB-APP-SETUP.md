@@ -30,7 +30,10 @@ and click **Create GitHub App** — or set the same values by hand at
 
 ```html
 <form action="https://github.com/settings/apps/new" method="post">
-  <input type="hidden" name="manifest" value='{
+  <input
+    type="hidden"
+    name="manifest"
+    value='{
     "name": "personal-stack-agents",
     "url": "https://github.com/ExtraToast/personal-stack",
     "public": true,
@@ -41,7 +44,8 @@ and click **Create GitHub App** — or set the same values by hand at
       "actions": "write"
     },
     "default_events": []
-  }'>
+  }'
+  />
   <button type="submit">Create GitHub App</button>
 </form>
 ```
