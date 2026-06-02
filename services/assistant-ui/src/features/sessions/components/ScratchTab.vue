@@ -16,6 +16,8 @@ const store = useWorkspacesStore()
 const router = useRouter()
 const toast = useToast()
 const create = useMutationState<void>()
+const destroy = useMutationState<void>()
+const deletingId = ref<string | null>(null)
 const formErrors = useFormErrors()
 const name = ref('')
 
@@ -24,6 +26,27 @@ const scratchWorkspaces = computed(() => store.workspaces.filter((w) => w.kind =
 onMounted(() => {
   void store.loadAll()
 })
+
+async function onDestroy(id: string, label: string): Promise<void> {
+  // See ProjectView for the rationale on using window.confirm.
+  // eslint-disable-next-line no-alert
+  if (
+    !window.confirm(`Delete scratch workspace "${label}"? Its Pod and volume are torn down. This cannot be undone.`)
+  ) {
+    return
+  }
+  deletingId.value = id
+  try {
+    await destroy.run(async () => {
+      await store.destroy(id)
+    })
+    toast.success('Scratch workspace deleted')
+  } catch (e) {
+    toast.errorFromCatch('Could not delete the scratch workspace', e)
+  } finally {
+    deletingId.value = null
+  }
+}
 
 async function onCreate(): Promise<void> {
   const label = name.value.trim() || `scratch-${new Date().toISOString().substring(11, 16).replace(':', '')}`
@@ -91,6 +114,16 @@ async function onCreate(): Promise<void> {
               </div>
             </template>
             <p class="text-xs text-gray-500">{{ new Date(w.updatedAt).toLocaleString() }}</p>
+            <div class="mt-3 flex justify-end">
+              <SubmitButton
+                type="button"
+                variant="danger"
+                label="Delete"
+                :status="deletingId === w.id ? destroy.status.value : 'idle'"
+                :data-testid="`scratch-delete-${w.id}`"
+                @click.stop.prevent="onDestroy(w.id, w.name)"
+              />
+            </div>
           </Card>
         </li>
       </ul>
