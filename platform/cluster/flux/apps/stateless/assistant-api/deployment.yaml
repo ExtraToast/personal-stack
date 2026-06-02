@@ -15,19 +15,23 @@ metadata:
     keel.sh/trigger: poll
     keel.sh/pollSchedule: '@every 2m'
 spec:
-  # Two replicas + maxUnavailable=1 + maxSurge=0 — see auth-api's
-  # deployment.yaml for the full rationale. Frankfurt CPU is tight
-  # so the spare may sit Pending until capacity is available, but
-  # the Deployment is Available with 1 of 2 (maxUnavailable=1) and
-  # rollouts replace one at a time so a new image cutover never
-  # leaves zero pods serving.
+  # Single replica, zero-downtime rollout (mirrors auth-api):
+  # maxSurge=1 + maxUnavailable=0. On a new image the surge pod is
+  # created and must reach Ready before the old pod is torn down, so a
+  # cutover never leaves zero pods serving — critical here because a
+  # cold start is slow (~5 min: Spring + Vault init on the tight
+  # Frankfurt VPS). The previous maxSurge=0/maxUnavailable=1 with a
+  # single replica killed the only pod first and left the service down
+  # for the whole startup window. Briefly runs 2 pods (~800m CPU
+  # requested) during the roll; progressDeadlineSeconds covers the
+  # slow start.
   replicas: 1
   progressDeadlineSeconds: 1800
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 0
-      maxUnavailable: 1
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app.kubernetes.io/name: assistant-api
