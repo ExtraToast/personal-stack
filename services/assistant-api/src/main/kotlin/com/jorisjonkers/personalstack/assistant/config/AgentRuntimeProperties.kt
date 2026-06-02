@@ -42,4 +42,17 @@ data class AgentRuntimeProperties(
     val githubApiToken: String = "",
     // GitHub REST base — overridable for tests / GitHub Enterprise.
     val githubApiBaseUrl: String = "https://api.github.com",
+    // GitHub App credentials used to mint short-lived, repo-scoped
+    // installation tokens for the runner's `gh` (PR comments + Actions
+    // re-runs only — pull_requests:write + actions:write, never
+    // contents/administration). The App's numeric id and its PEM
+    // private key (PKCS#1 or PKCS#8). Both empty => minting disabled
+    // and the internal token endpoint reports 503.
+    val githubAppId: String = "",
+    val githubAppPrivateKey: String = "",
+    // Shared bearer the runner must present on the in-cluster
+    // /api/v1/internal/github/installation-token call. Empty => the
+    // internal endpoint is fail-closed (rejects every request) so an
+    // unconfigured deployment never exposes token minting unauthed.
+    val githubAppTokenBearer: String = "",
 )
