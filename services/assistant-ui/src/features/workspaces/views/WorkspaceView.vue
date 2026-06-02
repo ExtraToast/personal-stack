@@ -59,10 +59,11 @@ async function onStopSession(id: string): Promise<void> {
         <AgentKindPicker v-model="pickerKind" />
         <button
           type="button"
-          class="rounded bg-blue-600 hover:bg-blue-700 px-3 py-2 text-sm text-white"
+          class="rounded bg-blue-600 hover:bg-blue-700 px-3 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="store.startingSession"
           @click="onSpawn"
         >
-          New agent
+          {{ store.startingSession ? 'Starting runner…' : 'New agent' }}
         </button>
       </div>
     </header>

@@ -137,6 +137,6 @@ describe('useWorkspacesStore', () => {
     store.activeWorkspace = fakeWorkspace()
     const id = await store.newSession('CODEX')
     expect(id).toBe('sess-2')
-    expect(mocked.startSession).toHaveBeenCalledWith(fakeWorkspace().id, 'CODEX')
+    expect(mocked.startSession).toHaveBeenCalledWith(fakeWorkspace().id, 'CODEX', expect.any(Function))
   })
 })
