@@ -27,6 +27,7 @@ class StartChatSessionCommandHandler(
                 userId = command.userId,
                 title = title,
                 status = ChatSessionStatus.ACTIVE,
+                kind = command.kind,
                 createdAt = now,
                 updatedAt = now,
             ),

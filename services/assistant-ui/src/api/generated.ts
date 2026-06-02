@@ -571,6 +571,8 @@ export interface components {
         };
         StartChatSessionRequest: {
             title?: string | null;
+            /** @enum {string|null} */
+            kind?: "PLAIN" | "KNOWLEDGE" | null;
         };
         ChatSessionResponse: {
             /** Format: uuid */
@@ -579,6 +581,7 @@ export interface components {
             userId: string;
             title?: string | null;
             status: string;
+            kind: string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */

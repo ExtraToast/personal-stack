@@ -2,6 +2,7 @@ package com.jorisjonkers.personalstack.assistant.infrastructure.persistence
 
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatSession
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatSessionId
+import com.jorisjonkers.personalstack.assistant.domain.model.ChatSessionKind
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatSessionStatus
 import com.jorisjonkers.personalstack.assistant.domain.port.ChatSessionRepository
 import org.jooq.DSLContext
@@ -25,6 +26,7 @@ class JooqChatSessionRepository(
             .set(USER_ID, session.userId)
             .set(TITLE, session.title)
             .set(STATUS, session.status.name)
+            .set(KIND, session.kind.name)
             .set(CREATED_AT, createdAt)
             .set(UPDATED_AT, updatedAt)
             .onConflict(ID)
@@ -61,6 +63,7 @@ class JooqChatSessionRepository(
             userId = this[USER_ID],
             title = this[TITLE],
             status = ChatSessionStatus.valueOf(this[STATUS]),
+            kind = ChatSessionKind.valueOf(this[KIND]),
             createdAt = this[CREATED_AT].toInstant(),
             updatedAt = this[UPDATED_AT].toInstant(),
         )
@@ -75,6 +78,8 @@ class JooqChatSessionRepository(
         @JvmStatic val TITLE = DSL.field("title", String::class.java)
 
         @JvmStatic val STATUS = DSL.field("status", String::class.java)
+
+        @JvmStatic val KIND = DSL.field("kind", String::class.java)
 
         @JvmStatic val CREATED_AT = DSL.field("created_at", OffsetDateTime::class.java)
 
