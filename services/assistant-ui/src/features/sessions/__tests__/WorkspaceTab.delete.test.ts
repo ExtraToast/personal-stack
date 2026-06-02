@@ -1,4 +1,4 @@
-import type { Workspace } from '@/features/workspaces/types'
+import type { Workspace } from '@/features/workspaces'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
