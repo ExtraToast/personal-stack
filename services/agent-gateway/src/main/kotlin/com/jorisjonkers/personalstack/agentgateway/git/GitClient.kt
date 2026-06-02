@@ -29,6 +29,11 @@ class GitClient(
 ) {
     private val log = LoggerFactory.getLogger(GitClient::class.java)
 
+    companion object {
+        private const val DETAIL_CHARS = 500
+        private const val RANDOM_SUFFIX_CHARS = 8
+    }
+
     fun clone(
         repoUrl: String,
         intoDir: String,
@@ -43,7 +48,7 @@ class GitClient(
                 add(repoUrl)
                 add(intoDir)
             }
-        runner.run(argv, env = gitEnv(), timeoutSeconds = 300)
+        runner.run(argv, env = sshEnv(), timeoutSeconds = 300)
         return intoDir
     }
 
@@ -66,7 +71,7 @@ class GitClient(
             mutableListOf("git", "push", "-u", remote).apply {
                 if (branch != null) add(branch) else add("HEAD")
             }
-        return runner.run(argv, cwd = File(repoDir), env = gitEnv(), timeoutSeconds = 300).combined
+        return runner.run(argv, cwd = File(repoDir), env = sshEnv(), timeoutSeconds = 300).combined
     }
 
     fun openPr(
@@ -90,6 +95,105 @@ class GitClient(
         return runner.run(argv, cwd = File(repoDir), env = ghEnv(), timeoutSeconds = 120).stdout.trim()
     }
 
+    data class VerifyResult(
+        val read: Boolean,
+        val write: Boolean,
+        val detail: String,
+    )
+
+    /**
+     * Probes deploy-key access without mutating the repo. Read is a plain
+     * `ls-remote`; write points a throwaway ref at an EXISTING commit and
+     * deletes it immediately, so no new objects are created and the default
+     * branch is never touched. An auth/permission denial is a legitimate
+     * {read|write:false} result, not an error — only genuinely unexpected
+     * failures (timeouts, malformed remote) surface as detail text.
+     */
+    fun verify(
+        repoUrl: String,
+        branch: String? = null,
+    ): VerifyResult {
+        val env = sshEnv()
+        val lsArgs = mutableListOf("git", "ls-remote", repoUrl).apply { if (branch != null) add(branch) }
+        val ls = runner.run(lsArgs, env = env, timeoutSeconds = 60, checked = false)
+        if (ls.exitCode != 0) {
+            val detail = "ls-remote failed: ${ls.combined.trim().take(DETAIL_CHARS)}"
+            return VerifyResult(read = false, write = false, detail = detail)
+        }
+
+        val sha =
+            tipSha(ls.stdout, branch)
+                ?: return VerifyResult(
+                    read = true,
+                    write = false,
+                    detail = "read ok; no ref found to probe write against",
+                )
+
+        val (writeOk, writeDetail) = probeWrite(repoUrl, sha, env)
+        return VerifyResult(read = true, write = writeOk, detail = "read ok; $writeDetail")
+    }
+
+    private fun probeWrite(
+        repoUrl: String,
+        sha: String,
+        env: Map<String, String>,
+    ): Pair<Boolean, String> {
+        val probeRef = "refs/heads/_agent-keycheck-${randomSuffix()}"
+        try {
+            val push =
+                runner.run(
+                    listOf("git", "push", repoUrl, "$sha:$probeRef"),
+                    env = env,
+                    timeoutSeconds = 60,
+                    checked = false,
+                )
+            val ok = push.exitCode == 0
+            return ok to if (ok) "write ok" else "write denied: ${push.combined.trim().take(DETAIL_CHARS)}"
+        } finally {
+            deleteProbeRef(repoUrl, probeRef, env)
+        }
+    }
+
+    private fun tipSha(
+        lsRemoteStdout: String,
+        branch: String?,
+    ): String? {
+        val lines =
+            lsRemoteStdout
+                .lineSequence()
+                .mapNotNull { line ->
+                    val parts = line.trim().split('\t', limit = 2)
+                    if (parts.size == 2 && parts[0].isNotBlank()) parts[0] to parts[1] else null
+                }.toList()
+        if (lines.isEmpty()) return null
+        val wantRef = branch?.let { "refs/heads/$it" }
+        return when {
+            wantRef != null -> lines.firstOrNull { it.second == wantRef }?.first
+            else -> lines.firstOrNull { it.second == "HEAD" }?.first ?: lines.first().first
+        }
+    }
+
+    private fun deleteProbeRef(
+        repoUrl: String,
+        probeRef: String,
+        env: Map<String, String>,
+    ) {
+        runCatching {
+            runner.run(
+                listOf("git", "push", repoUrl, ":$probeRef"),
+                env = env,
+                timeoutSeconds = 60,
+                checked = false,
+            )
+        }.onFailure { log.warn("failed to delete probe ref {}: {}", probeRef, it.message) }
+    }
+
+    private fun randomSuffix(): String =
+        java.util.UUID
+            .randomUUID()
+            .toString()
+            .substring(0, RANDOM_SUFFIX_CHARS)
+
     fun currentBranch(repoDir: String): String =
         runner
             .run(
@@ -98,7 +202,7 @@ class GitClient(
             ).stdout
             .trim()
 
-    private fun gitEnv(): Map<String, String> {
+    private fun sshEnv(): Map<String, String> {
         val key = ensureDeployKey()
         val known = Path(props.git.deployKeyDir).resolve("known_hosts").toFile()
         val sshOpts =
