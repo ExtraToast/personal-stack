@@ -5,6 +5,7 @@ import com.jorisjonkers.personalstack.assistant.domain.model.Workspace
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSession
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSessionStatus
 import com.jorisjonkers.personalstack.assistant.domain.port.AgentGatewayClient
+import com.jorisjonkers.personalstack.assistant.domain.port.AgentRunnerOrchestrator
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceAgentSessionRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepository
 import com.jorisjonkers.personalstack.common.command.CommandHandler
@@ -15,7 +16,7 @@ import org.springframework.web.client.ResourceAccessException
 import java.time.Instant
 
 /**
- * Two failure modes are surfaced as a typed 503 instead of an opaque
+ * Three failure modes are surfaced as a typed 503 instead of an opaque
  * 500 / 502:
  *
  * 1. The workspace's runner Pod is not ready yet — `isReady()` polls
@@ -27,6 +28,15 @@ import java.time.Instant
  *    publish and the runner's HTTP listener binding. The handler
  *    retries the spawn a bounded number of times with backoff before
  *    surfacing `runnerStatus="ConnectionRefused"`.
+ * 3. The runner Pod is gone (evicted / deleted) or wedged in
+ *    CrashLoopBackOff — typically a workspace created against an older
+ *    agent-runner image. Here a `/healthz` poll alone never recovers:
+ *    no Pod will ever answer. The handler re-provisions the runner
+ *    (an idempotent ensure that lands a fresh Pod pulling the current
+ *    `:latest`), re-points the workspace's `gatewayEndpoint`/`podName`,
+ *    and only then re-gates readiness. The 503 is surfaced solely when
+ *    re-provision itself fails or the fresh Pod still hasn't passed
+ *    `/healthz` inside the retry budget.
  *
  * The 503 carries a `Retry-After` header (via
  * [AgentRunnerUnavailableExceptionHandler]) so well-behaved clients
@@ -39,6 +49,7 @@ class StartAgentSessionCommandHandler(
     private val workspaces: WorkspaceRepository,
     private val sessions: WorkspaceAgentSessionRepository,
     private val gateway: AgentGatewayClient,
+    private val orchestrator: AgentRunnerOrchestrator,
     /**
      * Initial backoff between spawn retries. The default matches a
      * production-tuned 1 s; tests pass `0` so the suite doesn't
@@ -54,13 +65,13 @@ class StartAgentSessionCommandHandler(
             workspaces.findById(command.workspaceId)
                 ?: throw NoSuchElementException("workspace not found: ${command.workspaceId.value}")
 
-        gateRunnerReadiness(workspace)
+        val healthy = ensureRunnerReady(workspace)
 
         val now = Instant.now()
         val session =
             WorkspaceAgentSession(
                 id = command.sessionId,
-                workspaceId = workspace.id,
+                workspaceId = healthy.id,
                 kind = command.kind,
                 gatewayAgentId = null,
                 status = WorkspaceAgentSessionStatus.STARTING,
@@ -69,7 +80,7 @@ class StartAgentSessionCommandHandler(
             )
         sessions.save(session)
 
-        val gatewayAgent = spawnAgentWithRetry(workspace, command)
+        val gatewayAgent = spawnAgentWithRetry(healthy, command)
         sessions.save(session.bindGatewayAgent(gatewayAgent.id))
     }
 
@@ -78,14 +89,80 @@ class StartAgentSessionCommandHandler(
      * endpoint so a not-yet-ready runner surfaces as a clean 503
      * rather than a `ResourceAccessException` deep in the RestClient
      * stack.
+     *
+     * When the runner answers `/healthz` it is left untouched — a
+     * healthy Pod is never destroyed. When it does not, the Pod is
+     * either still warming up or it is missing / crash-looping; the
+     * latter never self-heals on its own, so the runner is
+     * re-provisioned (destroy + provision lands a fresh Pod on the
+     * current image), the workspace is re-pointed at the new
+     * Pod/endpoint, and readiness is re-gated against the fresh Pod.
+     *
+     * @return the workspace to spawn against — the same instance when
+     *   the runner was already healthy, or the re-pointed copy after a
+     *   successful re-provision.
      */
-    private fun gateRunnerReadiness(workspace: Workspace) {
-        if (!gateway.isReady(workspace)) {
-            throw AgentRunnerUnavailableException(
-                workspaceId = workspace.id,
-                runnerStatus = "NotReady",
+    private fun ensureRunnerReady(workspace: Workspace): Workspace {
+        if (gateway.isReady(workspace)) return workspace
+        log.info(
+            "runner for workspace {} (pod {}) did not answer /healthz — re-provisioning a fresh Pod",
+            workspace.id.value,
+            workspace.podName,
+        )
+        val reprovisioned = reprovision(workspace)
+        gateRunnerReadinessWithRetry(reprovisioned)
+        return reprovisioned
+    }
+
+    /**
+     * Destroy any stale Pod/Service/Secret then provision a fresh one.
+     * `destroy` is idempotent (a 404 on a missing Pod is a no-op), so
+     * this is safe whether the old Pod was absent, crash-looping, or
+     * merely not yet warm. A failure to provision is the only thing
+     * that turns into a 503 here — the caller can retry.
+     */
+    private fun reprovision(workspace: Workspace): Workspace {
+        val handle =
+            runCatching {
+                orchestrator.destroy(workspace)
+                orchestrator.provision(workspace)
+            }.getOrElse { ex ->
+                throw AgentRunnerUnavailableException(
+                    workspaceId = workspace.id,
+                    runnerStatus = "ReprovisionFailed",
+                    cause = ex,
+                )
+            }
+        val repointed =
+            workspace.withPodInfo(
+                podName = handle.podName,
+                pvcName = handle.pvcName,
+                gatewayEndpoint = handle.gatewayEndpoint,
             )
+        workspaces.save(repointed)
+        log.info("re-provisioned runner for workspace {} as pod {}", workspace.id.value, handle.podName)
+        return repointed
+    }
+
+    /**
+     * Poll `/healthz` against the freshly provisioned Pod within the
+     * spawn retry budget. A new Pod takes a few seconds to schedule,
+     * pull, and pass its readiness probe; the same bounded backoff the
+     * spawn path uses keeps the total wait inside the existing budget
+     * before surfacing a `NotReady` 503.
+     */
+    private fun gateRunnerReadinessWithRetry(workspace: Workspace) {
+        repeat(MAX_SPAWN_ATTEMPTS) { attempt ->
+            if (gateway.isReady(workspace)) return
+            if (attempt < MAX_SPAWN_ATTEMPTS - 1) {
+                val sleepMs = backoffInitialMs * (attempt + 1)
+                if (sleepMs > 0) Thread.sleep(sleepMs)
+            }
         }
+        throw AgentRunnerUnavailableException(
+            workspaceId = workspace.id,
+            runnerStatus = "NotReady",
+        )
     }
 
     /**
