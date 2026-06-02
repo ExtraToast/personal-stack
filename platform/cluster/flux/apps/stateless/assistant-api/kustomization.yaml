@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - deployment.yaml
+  - deployment-enschede-ws.yaml
   - servicemonitor.yaml
   - pdb.yaml
   - vault-secrets-operator-sa.yaml
