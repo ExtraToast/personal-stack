@@ -78,7 +78,7 @@ class TagClusterServiceTest {
     fun `degrades to empty list when the embedder fails`() {
         every { discoveryRepository.listTags(null, any()) } returns
             listOf(tag("kotlin", count = 10), tag("postgres", count = 5))
-        val angryEmbedder = QueryEmbedder { _ -> throw RuntimeException("ollama down") }
+        val angryEmbedder = QueryEmbedder { _ -> throw IllegalStateException("ollama down") }
         val svc = TagClusterService(discoveryRepository, angryEmbedder)
 
         val clusters = svc.listTagCandidates(minCount = 1, threshold = 0.85, maxTags = 100)
