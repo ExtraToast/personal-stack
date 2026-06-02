@@ -11,6 +11,8 @@ metadata:
   name: agents-mcp-servers
   namespace: agents-system
 data:
+  # Claude Code (~/.claude.json .mcpServers). @KB_URL@/@KB_BEARER_TOKEN@
+  # are filled from the Pod env by the entrypoint.
   claude-mcp-servers.json: |
     {
       "knowledge": {
@@ -19,3 +21,11 @@ data:
         "headers": { "Authorization": "Bearer @KB_BEARER_TOKEN@" }
       }
     }
+  # Codex (~/.codex/config.toml). Codex reads remote HTTP MCP servers
+  # natively; the bearer is taken at request time from the
+  # KB_BEARER_TOKEN env var (bearer_token_env_var), so no secret is
+  # written into config.toml — only @KB_URL@ is substituted.
+  codex-mcp-servers.toml: |
+    [mcp_servers.knowledge]
+    url = "@KB_URL@/mcp"
+    bearer_token_env_var = "KB_BEARER_TOKEN"
