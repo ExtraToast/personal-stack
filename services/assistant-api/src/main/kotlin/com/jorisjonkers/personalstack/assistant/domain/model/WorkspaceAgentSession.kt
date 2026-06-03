@@ -10,6 +10,15 @@ enum class WorkspaceAgentSessionStatus { STARTING, RUNNING, STOPPED, FAILED }
  * /agents — the assistant-api always addresses gateway resources by
  * that short id, never by our own UUID, because the gateway is the
  * source of truth for "is this process actually alive".
+ *
+ * `cliSessionId` is the native CLI session id returned by the
+ * gateway at spawn time (Claude: from `--session-id <uuid>`;
+ * Codex: captured after spawn, null until discovered; Shell: never
+ * set). Stored so a wake/re-attach can pass `--resume`/`resume` to
+ * the CLI without starting a fresh session.
+ *
+ * `runMode` is `INTERACTIVE` for browser-terminal sessions and will
+ * be `HEADLESS` once N4 headless runs land.
  */
 data class WorkspaceAgentSession(
     val id: WorkspaceAgentSessionId,
@@ -19,10 +28,16 @@ data class WorkspaceAgentSession(
     val status: WorkspaceAgentSessionStatus,
     val createdAt: Instant,
     val updatedAt: Instant,
+    val cliSessionId: String? = null,
+    val runMode: String = "INTERACTIVE",
 ) {
-    fun bindGatewayAgent(gatewayAgentId: String): WorkspaceAgentSession =
+    fun bindGatewayAgent(
+        gatewayAgentId: String,
+        cliSessionId: String? = null,
+    ): WorkspaceAgentSession =
         copy(
             gatewayAgentId = gatewayAgentId,
+            cliSessionId = cliSessionId,
             status = WorkspaceAgentSessionStatus.RUNNING,
             updatedAt = Instant.now(),
         )

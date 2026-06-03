@@ -39,7 +39,7 @@ class AgentSessionManager(
         Files.deleteIfExists(logFile)
         Files.createFile(logFile)
 
-        val command = commandFor(kind)
+        val (command, cliSessionId) = commandAndSessionIdFor(kind)
         tmux.newSession(tmuxSession, command, cwd)
         tmux.startPipeToFile(tmuxSession, logFile)
 
@@ -51,9 +51,10 @@ class AgentSessionManager(
                 logFile = logFile,
                 cwd = cwd,
                 createdAt = Instant.now(),
+                cliSessionId = cliSessionId,
             )
         sessions[id] = session
-        log.info("spawned {} agent {} ({}) in {}", kind, id, tmuxSession, cwd)
+        log.info("spawned {} agent {} ({}) in {} cliSessionId={}", kind, id, tmuxSession, cwd, cliSessionId)
         return session
     }
 
@@ -99,10 +100,24 @@ class AgentSessionManager(
         tmux.resize(session.tmuxSession, cols, rows)
     }
 
-    private fun commandFor(kind: AgentKind): List<String> =
+    /**
+     * Build the CLI command and return the native session id alongside
+     * it. For Claude the id is generated here and passed as
+     * `--session-id <uuid>`; the same UUID is stored in the session
+     * and returned to assistant-api for persist+resume. For Codex
+     * no deterministic create-time flag exists; async discovery from
+     * `$CODEX_HOME/sessions` is a follow-up. Shell has no session id.
+     */
+    private fun commandAndSessionIdFor(kind: AgentKind): Pair<List<String>, String?> =
         when (kind) {
-            AgentKind.CLAUDE -> listOf(props.cli.claude) + props.cli.claudeArgs
-            AgentKind.CODEX -> listOf(props.cli.codex) + props.cli.codexArgs
-            AgentKind.SHELL -> listOf("/bin/bash", "-l")
+            AgentKind.CLAUDE -> {
+                val cliSessionId = UUID.randomUUID().toString()
+                val cmd =
+                    listOf(props.cli.claude) + props.cli.claudeArgs +
+                        listOf("--session-id", cliSessionId)
+                cmd to cliSessionId
+            }
+            AgentKind.CODEX -> (listOf(props.cli.codex) + props.cli.codexArgs) to null
+            AgentKind.SHELL -> listOf("/bin/bash", "-l") to null
         }
 }

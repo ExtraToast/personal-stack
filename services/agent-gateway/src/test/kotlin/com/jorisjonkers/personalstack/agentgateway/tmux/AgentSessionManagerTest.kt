@@ -40,10 +40,15 @@ class AgentSessionManagerTest {
         assertThat(s.tmuxSession).isEqualTo("agent-${s.id}")
         assertThat(s.cwd).isEqualTo("/workspace/repo")
         assertThat(s.logFile.parent).isEqualTo(tmp)
+        assertThat(s.cliSessionId).isNotNull()
         verify {
             tmux.newSession(
                 s.tmuxSession,
-                listOf("/usr/local/bin/claude", "--dangerously-skip-permissions"),
+                match { cmd ->
+                    cmd.containsAll(listOf("/usr/local/bin/claude", "--dangerously-skip-permissions")) &&
+                        cmd.contains("--session-id") &&
+                        cmd[cmd.indexOf("--session-id") + 1] == s.cliSessionId
+                },
                 "/workspace/repo",
             )
         }
@@ -58,10 +63,16 @@ class AgentSessionManagerTest {
     ) {
         val mgr = manager(tmp)
         val s = mgr.spawn(AgentKind.CLAUDE)
+        // Claude gets --session-id <uuid> appended so native resume is possible.
+        assertThat(s.cliSessionId).isNotNull()
         verify {
             tmux.newSession(
                 s.tmuxSession,
-                listOf("/usr/local/bin/claude", "--dangerously-skip-permissions"),
+                match { cmd ->
+                    cmd.containsAll(listOf("/usr/local/bin/claude", "--dangerously-skip-permissions")) &&
+                        cmd.contains("--session-id") &&
+                        cmd[cmd.indexOf("--session-id") + 1] == s.cliSessionId
+                },
                 "/workspace",
             )
         }
@@ -73,6 +84,8 @@ class AgentSessionManagerTest {
     ) {
         val mgr = manager(tmp)
         val s = mgr.spawn(AgentKind.CODEX)
+        // Codex has no deterministic create-time session id flag; discovery is async.
+        assertThat(s.cliSessionId).isNull()
         verify {
             tmux.newSession(
                 s.tmuxSession,
@@ -88,6 +101,7 @@ class AgentSessionManagerTest {
     ) {
         val mgr = manager(tmp)
         val s = mgr.spawn(AgentKind.SHELL)
+        assertThat(s.cliSessionId).isNull()
         verify { tmux.newSession(s.tmuxSession, listOf("/bin/bash", "-l"), "/workspace") }
     }
 
