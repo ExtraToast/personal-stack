@@ -71,7 +71,7 @@ async function onStopSession(id: string): Promise<void> {
     <SessionTabs
       :sessions="store.sessions"
       :active-id="store.activeSessionId"
-      @select="(id) => (store.activeSessionId = id)"
+      @select="store.selectSession"
       @stop="onStopSession"
     />
 

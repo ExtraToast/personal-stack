@@ -1,15 +1,11 @@
 #!/usr/bin/env bash
-# Launches the GitHub MCP server (stdio) with a fresh GitHub App
-# installation token. The App token rotates hourly, which a static MCP
-# auth header cannot follow, so the token is minted at spawn (MCP
-# servers are started once per agent session) using the same endpoint +
-# on-disk cache as the gh CLI wrapper — back-to-back spawns and gh calls
-# share one token. A session running past the token's ~1h life needs the
-# MCP server restarted to re-mint.
+# Launches the GitHub MCP server (stdio) with a GitHub token.
 #
-# Degrades gracefully: when the App is not wired (no endpoint/bearer/repo
-# in the env) the server still starts, just unauthenticated, rather than
-# failing the whole MCP connection.
+# github-mcp-server requires GITHUB_PERSONAL_ACCESS_TOKEN at process
+# start. The runner normally mints a fresh GitHub App installation token
+# through assistant-api using the same cache as the gh CLI wrapper. A
+# pre-seeded GITHUB_PERSONAL_ACCESS_TOKEN or GH_TOKEN still wins, which
+# keeps local/dev runners usable without the in-cluster token endpoint.
 set -u
 
 CACHE="${GH_APP_TOKEN_CACHE:-/tmp/.gh-app-token}"
@@ -47,7 +43,21 @@ mint_token() {
   printf '%s' "$tok"
 }
 
-TOKEN=$(mint_token || true)
-[ -n "$TOKEN" ] && export GITHUB_PERSONAL_ACCESS_TOKEN="$TOKEN"
+TOKEN="${GITHUB_PERSONAL_ACCESS_TOKEN:-${GH_TOKEN:-}}"
+if [ -z "$TOKEN" ]; then
+  TOKEN=$(mint_token || true)
+fi
+
+if [ -z "$TOKEN" ]; then
+  cat >&2 <<'EOF'
+[gh-mcp-wrapper] ERROR: no GitHub token available for github-mcp-server.
+[gh-mcp-wrapper] Set GITHUB_PERSONAL_ACCESS_TOKEN/GH_TOKEN, or provide
+[gh-mcp-wrapper] GITHUB_APP_TOKEN_URL, GITHUB_APP_TOKEN_BEARER, and REPO_URL
+[gh-mcp-wrapper] so the runner can mint an installation token.
+EOF
+  exit 78
+fi
+
+export GITHUB_PERSONAL_ACCESS_TOKEN="$TOKEN"
 
 exec github-mcp-server stdio
