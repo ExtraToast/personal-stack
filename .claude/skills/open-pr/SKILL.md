@@ -33,7 +33,7 @@ EOF
 - **Never** add `Co-Authored-By`, "Generated with …", or the name of any
   AI assistant anywhere in the commit or PR body.
 - **Backticks:** the heredoc delimiter is quoted (`<<'EOF'`), so write
-  plain `` `foo` `` and ```` ```lang ```` — never backslash-escape them
+  plain `` `foo` `` and ` ```lang ` — never backslash-escape them
   (that produces literal `\` in GitHub markdown).
 - **Scope:** small, independently revertable PRs; stacking (B on A) is
   fine. Never bundle unrelated fixes. No "while we're here" refactors.
