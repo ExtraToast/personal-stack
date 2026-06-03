@@ -96,6 +96,7 @@ class StartAgentSessionCommandHandlerTest {
             ),
         )
 
+        verify(exactly = 0) { orchestrator.scaleDown(any()) }
         verify(exactly = 0) { orchestrator.destroy(any()) }
         verify(exactly = 0) { orchestrator.provision(any()) }
     }
@@ -104,16 +105,16 @@ class StartAgentSessionCommandHandlerTest {
     fun `handle re-provisions a fresh Pod when the runner is missing or crash-looping`() {
         // Regression: a workspace whose Pod was evicted / built against
         // an older image answers nothing on /healthz forever. Instead
-        // of a permanent 503, the runner is re-provisioned (destroy +
-        // provision lands a fresh Pod on the current image), the
-        // workspace is re-pointed at the new endpoint, and the fresh
-        // Pod passes /healthz on the next gate.
+        // of a permanent 503, the runner is re-provisioned (scaleDown +
+        // provision lands a fresh Pod on the current image), the PVC is
+        // preserved, the workspace is re-pointed at the new endpoint,
+        // and the fresh Pod passes /healthz on the next gate.
         val ws = workspace()
         every { workspaces.findById(ws.id) } returns ws
         // First gate fails (stale/missing Pod); after re-provision the
         // fresh Pod answers.
         every { gateway.isReady(any()) } returnsMany listOf(false, true)
-        every { orchestrator.destroy(ws) } returns Unit
+        every { orchestrator.scaleDown(ws) } returns Unit
         every { orchestrator.provision(ws) } returns
             AgentRunnerOrchestrator.RunnerHandle(
                 podName = "agent-runner-fresh001",
@@ -134,7 +135,8 @@ class StartAgentSessionCommandHandlerTest {
             ),
         )
 
-        verify(exactly = 1) { orchestrator.destroy(ws) }
+        verify(exactly = 1) { orchestrator.scaleDown(ws) }
+        verify(exactly = 0) { orchestrator.destroy(any()) }
         verify(exactly = 1) { orchestrator.provision(ws) }
         // The re-pointed workspace is persisted and spawned against.
         assertThat(saved.single().podName).isEqualTo("agent-runner-fresh001")
@@ -150,7 +152,7 @@ class StartAgentSessionCommandHandlerTest {
         val ws = workspace()
         every { workspaces.findById(ws.id) } returns ws
         every { gateway.isReady(ws) } returns false
-        every { orchestrator.destroy(ws) } returns Unit
+        every { orchestrator.scaleDown(ws) } returns Unit
         every { orchestrator.provision(ws) } throws IllegalStateException("k8s apply rejected")
 
         val ex =
@@ -177,7 +179,7 @@ class StartAgentSessionCommandHandlerTest {
         val ws = workspace()
         every { workspaces.findById(ws.id) } returns ws
         every { gateway.isReady(any()) } returns false
-        every { orchestrator.destroy(ws) } returns Unit
+        every { orchestrator.scaleDown(ws) } returns Unit
         every { orchestrator.provision(ws) } returns
             AgentRunnerOrchestrator.RunnerHandle(
                 podName = "agent-runner-fresh001",

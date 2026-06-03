@@ -41,6 +41,10 @@ class StubAgentRunnerOrchestrator : AgentRunnerOrchestrator {
         return handle
     }
 
+    override fun scaleDown(workspace: Workspace) {
+        log.info("stub orchestrator: scaleDown({}) — no-op", workspace.id)
+    }
+
     override fun destroy(workspace: Workspace) {
         log.info("stub orchestrator: destroy({}) — no-op", workspace.id)
     }
