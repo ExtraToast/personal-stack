@@ -26,13 +26,20 @@ spec:
     - Egress
   ingress:
     # Only assistant-api may reach the runner's agent-gateway sidecar.
+    # Both the Frankfurt deployment (assistant-api) and the Enschede
+    # terminal-WS replica (assistant-api-ws) bridge the attach
+    # WebSocket, so both labels are allowed.
     - from:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: assistant-system
           podSelector:
-            matchLabels:
-              app.kubernetes.io/name: assistant-api
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - assistant-api
+                  - assistant-api-ws
       ports:
         - protocol: TCP
           port: 8090
