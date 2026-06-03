@@ -38,4 +38,30 @@ class PlatformAgentMcpFluxTest {
             .contains("- assistant-api-ws")
             .contains("port: 8082")
     }
+
+    @Test
+    fun `agent runner wires github app token into gh github mcp and git push`() {
+        val dockerfile =
+            repositoryRoot
+                .resolve("services/agent-runner/Dockerfile")
+                .toFile()
+                .readText()
+        val entrypoint =
+            repositoryRoot
+                .resolve("services/agent-runner/entrypoint.sh")
+                .toFile()
+                .readText()
+
+        assertThat(dockerfile)
+            .contains("agent-github-token.sh /usr/local/bin/agent-github-token")
+            .contains("gh-app-token-wrapper.sh /usr/local/bin/gh")
+            .contains("git-credential-agent-gh-app.sh /usr/local/bin/git-credential-agent-gh-app")
+            .contains("gh-mcp-wrapper.sh /usr/local/bin/gh-mcp-wrapper")
+
+        assertThat(entrypoint)
+            .contains("credential.helper agent-gh-app")
+            .contains("credential.useHttpPath true")
+            .contains("url.https://github.com/.insteadOf git@github.com:")
+            .contains("url.https://github.com/.insteadOf ssh://git@github.com/")
+    }
 }

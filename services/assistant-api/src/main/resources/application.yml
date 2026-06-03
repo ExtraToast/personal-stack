@@ -145,9 +145,10 @@ agent-runtime:
   github-api-token: ${GITHUB_API_TOKEN:}
   github-api-base-url: ${GITHUB_API_BASE_URL:https://api.github.com}
   # GitHub App used to mint short-lived, single-repo installation tokens
-  # for the runner's `gh` (PR comments + Actions re-runs only). Both the
-  # id and key empty => minting disabled and the internal token endpoint
-  # returns 503. The PEM may be PKCS#1 or PKCS#8.
+  # for runner GitHub writes: git push over HTTPS, gh PR creation,
+  # PR comments, and Actions re-runs. Both the id and key empty =>
+  # minting disabled and the internal token endpoint returns 503. The
+  # PEM may be PKCS#1 or PKCS#8.
   github-app-id: ${GITHUB_APP_ID:}
   github-app-private-key: ${GITHUB_APP_PRIVATE_KEY:}
   # Shared bearer the runner presents on the in-cluster installation-
