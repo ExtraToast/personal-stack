@@ -57,17 +57,7 @@ metadata:
     # 0.13.0-0.13.2 (LightRAG #2495 embedding regression).
     keel.sh/policy: never
 spec:
-  # Back to 1: at 0 the knowledge recall embedding path (qwen3-embedding)
-  # had no backend at all — embedding traffic only ever routes to this
-  # light endpoint, never to ollama-heavy — so every curator pass logged
-  # `relation_enrichment.recall_failed: Connection refused` and recall's
-  # vector leg was dead even while the desktop served chat. The curator is
-  # hourly now (not every 5 min), so the laptop only wakes for a brief
-  # embedding burst about once an hour rather than constantly. Pinned to
-  # the gtx960m laptop because the model PVC is node-local there; the
-  # durable noise fix is still to relocate to an always-on, out-of-earshot
-  # node (t1000), tracked separately.
-  replicas: 1
+  replicas: 0
   progressDeadlineSeconds: 1800
   strategy:
     # RWO model PVC; old pod must release before new pod can mount.
