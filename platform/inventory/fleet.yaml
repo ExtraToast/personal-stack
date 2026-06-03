@@ -13,6 +13,16 @@ sites:
   frankfurt:
     kind: vps
     purpose: primary_cluster_site
+    networking:
+      # Public IPv4 of the Contabo VPS, where traefik-public terminates
+      # TLS on :443 directly (no cloud LB). Feeds
+      # `ingress_intent.wan_origin_overrides: edge_direct` services so
+      # their Cloudflare record is a grey-cloud A record straight to the
+      # edge instead of an orange CNAME to `ingress.jorisjonkers.dev`.
+      # Used for WebSocket hosts that must not transit Cloudflare's
+      # proxy (its ~100s idle timeout silently kills long-lived attach
+      # sockets, leaving the terminal a dead half-open connection).
+      wan_public_ip: 167.86.79.203
   enschede:
     kind: home
     purpose: home_lan_and_media_site
@@ -587,6 +597,12 @@ ingress_intent:
   # that shouldn't transit the VPS or CF's proxy.
   wan_origin_overrides:
     jellyfin: home_direct
+    # The terminal-attach WebSocket host must bypass Cloudflare's proxy
+    # (orange-cloud) entirely: CF closes idle WS after ~100s, which left
+    # the agent terminal a dead half-open socket after a tab switch.
+    # `edge_direct` points it at the Frankfurt edge as a grey-cloud A
+    # record so the browser holds a direct TLS WebSocket to traefik.
+    assistant-ws: edge_direct
 
 monitoring_intent:
   # Cluster-only services with no external ingress. Gatus probes these

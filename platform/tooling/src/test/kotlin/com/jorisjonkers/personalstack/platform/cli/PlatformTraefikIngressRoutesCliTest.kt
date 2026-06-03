@@ -146,6 +146,20 @@ class PlatformTraefikIngressRoutesCliTest {
             .contains("external-dns.alpha.kubernetes.io/cloudflare-proxied: 'false'")
             .contains("kubernetes.io/ingress.class: traefik-public")
 
+        // edge_direct: the terminal-attach WS host is a grey-cloud A
+        // record straight to the Frankfurt edge, bypassing Cloudflare's
+        // proxy (and its idle-WS timeout) while still terminating at the
+        // VPS rather than the home WAN.
+        val assistantWsBlock =
+            output
+                .substringAfter("  name: assistant-ws\n")
+                .substringBefore("---\n")
+
+        assertThat(assistantWsBlock)
+            .contains("external-dns.alpha.kubernetes.io/target: 167.86.79.203")
+            .contains("external-dns.alpha.kubernetes.io/cloudflare-proxied: 'false'")
+            .contains("kubernetes.io/ingress.class: traefik-public")
+
         val defaultProxiedServices = listOf("assistant-api", "auth-api", "vault", "bazarr", "jellyseerr")
         defaultProxiedServices.forEach { svc ->
             val block =

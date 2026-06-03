@@ -366,13 +366,18 @@ private fun PlatformFleet.toEdgeRouteConfigMapYaml(yamlMapper: ObjectMapper): St
 
 private fun PlatformFleet.toTraefikIngressRoutesYaml(): String {
     val publicServices = exposureIntent.public.toSet() + exposureIntent.publicAndLan.toSet()
-    val wanPublicIp = sites.values.firstNotNullOfOrNull { it.networking?.wanPublicIp }
+    val homeWanIp = sites.values.firstOrNull { it.purpose == "home_lan_and_media_site" }?.networking?.wanPublicIp
+    val edgeWanIp = sites.values.firstOrNull { it.purpose == "primary_cluster_site" }?.networking?.wanPublicIp
     val targetOverrides =
         ingressIntent.wanOriginOverrides
             .mapNotNull { (service, origin) ->
                 when (origin) {
                     "home_direct" ->
-                        wanPublicIp?.let {
+                        homeWanIp?.let {
+                            service to IngressDnsTarget(target = it, cloudflareProxied = false)
+                        }
+                    "edge_direct" ->
+                        edgeWanIp?.let {
                             service to IngressDnsTarget(target = it, cloudflareProxied = false)
                         }
                     else -> null

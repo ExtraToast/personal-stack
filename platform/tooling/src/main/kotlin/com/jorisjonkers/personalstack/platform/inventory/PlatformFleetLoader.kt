@@ -154,13 +154,27 @@ class PlatformFleetLoader(
             require(serviceName in externallyExposedKubernetesServices) {
                 "wan origin override for service $serviceName must target an externally exposed kubernetes service"
             }
-            require(origin == "home_direct") {
-                "wan origin override for service $serviceName must be 'home_direct' (got '$origin')"
+            require(origin == "home_direct" || origin == "edge_direct") {
+                "wan origin override for service $serviceName must be 'home_direct' or 'edge_direct' (got '$origin')"
             }
         }
-        if (fleet.ingressIntent.wanOriginOverrides.values.any { it == "home_direct" }) {
-            require(fleet.sites.values.any { it.networking?.wanPublicIp != null }) {
-                "wan_origin_overrides set to 'home_direct' require at least one site with networking.wan_public_ip"
+        val overrideModes = fleet.ingressIntent.wanOriginOverrides.values.toSet()
+        if ("home_direct" in overrideModes) {
+            val hasHomeWanIp =
+                fleet.sites.values.any {
+                    it.purpose == "home_lan_and_media_site" && it.networking?.wanPublicIp != null
+                }
+            require(hasHomeWanIp) {
+                "wan_origin_overrides 'home_direct' needs the home site to set networking.wan_public_ip"
+            }
+        }
+        if ("edge_direct" in overrideModes) {
+            val hasEdgeWanIp =
+                fleet.sites.values.any {
+                    it.purpose == "primary_cluster_site" && it.networking?.wanPublicIp != null
+                }
+            require(hasEdgeWanIp) {
+                "wan_origin_overrides 'edge_direct' needs the primary cluster site to set networking.wan_public_ip"
             }
         }
 
