@@ -134,6 +134,54 @@ class SessionAttachHandlerTest {
         verify(exactly = 1) { upstream.close(any()) }
     }
 
+    @Test
+    fun `upstream close closes browser socket so it can reconnect`() {
+        val client = clientSession()
+        every { client.close(any()) } just Runs
+        val handlerSlot = slot<org.springframework.web.socket.WebSocketHandler>()
+        every {
+            anyConstructed<StandardWebSocketClient>().execute(capture(handlerSlot), any<String>())
+        } returns CompletableFuture.completedFuture(upstream)
+
+        handler.afterConnectionEstablished(client)
+        handlerSlot.captured.afterConnectionClosed(upstream, CloseStatus.GOING_AWAY)
+
+        val closed = slot<CloseStatus>()
+        verify { client.close(capture(closed)) }
+        assertThat(closed.captured.reason).isEqualTo("runner attach disconnected")
+    }
+
+    @Test
+    fun `upstream transport error closes browser socket so it can reconnect`() {
+        val client = clientSession()
+        every { client.close(any()) } just Runs
+        val handlerSlot = slot<org.springframework.web.socket.WebSocketHandler>()
+        every {
+            anyConstructed<StandardWebSocketClient>().execute(capture(handlerSlot), any<String>())
+        } returns CompletableFuture.completedFuture(upstream)
+
+        handler.afterConnectionEstablished(client)
+        handlerSlot.captured.handleTransportError(upstream, RuntimeException("boom"))
+
+        val closed = slot<CloseStatus>()
+        verify { client.close(capture(closed)) }
+        assertThat(closed.captured.reason).isEqualTo("runner attach error")
+    }
+
+    @Test
+    fun `client input after upstream closed closes browser socket instead of dropping keystrokes`() {
+        val client = clientSession()
+        every { client.close(any()) } just Runs
+        handler.afterConnectionEstablished(client)
+        every { upstream.isOpen } returns false
+
+        handler.handleMessage(client, TextMessage("""{"input":"x","enter":false}"""))
+
+        val closed = slot<CloseStatus>()
+        verify { client.close(capture(closed)) }
+        assertThat(closed.captured.reason).isEqualTo("runner attach disconnected")
+    }
+
     private fun clientSession(): WebSocketSession {
         val client = mockk<WebSocketSession>(relaxed = true)
         every { client.id } returns UUID.randomUUID().toString()

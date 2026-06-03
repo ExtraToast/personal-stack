@@ -121,6 +121,8 @@ class SessionAttachHandler(
         val bridge = bridges[clientSession.id] ?: return
         if (bridge.upstream.isOpen) {
             synchronized(bridge.upstream) { bridge.upstream.sendMessage(message) }
+        } else {
+            clientSession.close(CloseStatus.SERVICE_RESTARTED.withReason("runner attach disconnected"))
         }
         sessions.findById(bridge.sessionId)?.workspaceId?.let { activity.touch(it) }
     }
@@ -157,6 +159,24 @@ class SessionAttachHandler(
         ) {
             if (client.isOpen) {
                 synchronized(client) { client.sendMessage(message) }
+            }
+        }
+
+        override fun afterConnectionClosed(
+            session: WebSocketSession,
+            status: CloseStatus,
+        ) {
+            if (client.isOpen) {
+                client.close(CloseStatus.SERVICE_RESTARTED.withReason("runner attach disconnected"))
+            }
+        }
+
+        override fun handleTransportError(
+            session: WebSocketSession,
+            exception: Throwable,
+        ) {
+            if (client.isOpen) {
+                client.close(CloseStatus.SERVICE_RESTARTED.withReason("runner attach error"))
             }
         }
     }
