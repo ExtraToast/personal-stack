@@ -31,10 +31,6 @@ onMounted(() => {
     cursorBlink: true,
     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
     fontSize: 13,
-    // xterm keeps only 1000 scrollback lines by default, so a
-    // long-running agent session scrolls its own history out of reach
-    // within minutes. Hold far more so the transcript stays readable.
-    scrollback: 50_000,
     theme: { background: '#0b0e14' },
   })
   fitAddon = new FitAddon()
