@@ -142,8 +142,8 @@ RUN arch="$(dpkg --print-architecture)" \
 ARG MISE_VERSION=2025.5.16
 RUN arch="$(dpkg --print-architecture)" \
     && case "$arch" in \
-         amd64) mise_arch=x86_64 ;; \
-         arm64) mise_arch=aarch64 ;; \
+         amd64) mise_arch=x64 ;; \
+         arm64) mise_arch=arm64 ;; \
          *) echo "unsupported arch: $arch" >&2; exit 1 ;; \
        esac \
     && curl -fsSL "https://github.com/jdx/mise/releases/download/v${MISE_VERSION}/mise-v${MISE_VERSION}-linux-${mise_arch}" \
