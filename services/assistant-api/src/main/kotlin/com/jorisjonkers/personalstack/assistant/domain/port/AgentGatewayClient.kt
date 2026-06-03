@@ -79,4 +79,26 @@ interface AgentGatewayClient {
     ): String
 
     fun isReady(workspace: Workspace): Boolean
+
+    enum class HeadlessStatus { RUNNING, COMPLETED, FAILED, CANCELLED }
+
+    data class HeadlessJob(
+        val id: String,
+        val status: HeadlessStatus,
+        val exitCode: Int?,
+        val output: String?,
+    )
+
+    fun startHeadlessJob(
+        workspace: Workspace,
+        kind: WorkspaceAgentKind,
+        prompt: String,
+        cliSessionId: String? = null,
+        timeoutSeconds: Long? = null,
+    ): HeadlessJob
+
+    fun pollHeadlessJob(
+        workspace: Workspace,
+        headlessJobId: String,
+    ): HeadlessJob
 }

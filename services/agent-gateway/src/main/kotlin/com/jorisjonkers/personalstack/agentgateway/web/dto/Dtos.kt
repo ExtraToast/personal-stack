@@ -53,3 +53,21 @@ data class GitVerifyResponse(
     val write: Boolean,
     val detail: String,
 )
+
+data class HeadlessRequest(
+    val kind: com.jorisjonkers.personalstack.agentgateway.tmux.AgentKind,
+    val prompt: String,
+    val workspacePath: String? = null,
+    val cliSessionId: String? = null,
+    val timeoutSeconds: Long? = null,
+)
+
+data class HeadlessJobResponse(
+    val id: String,
+    val kind: com.jorisjonkers.personalstack.agentgateway.tmux.AgentKind,
+    val status: com.jorisjonkers.personalstack.agentgateway.headless.HeadlessJobStatus,
+    val exitCode: Int? = null,
+    val output: String? = null,
+    val createdAt: String,
+    val completedAt: String? = null,
+)

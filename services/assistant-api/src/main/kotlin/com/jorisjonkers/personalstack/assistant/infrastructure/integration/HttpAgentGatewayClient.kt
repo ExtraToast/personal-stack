@@ -200,4 +200,61 @@ class HttpAgentGatewayClient(
                 .toBodilessEntity()
             true
         }.getOrElse { false }
+
+    private data class HeadlessRequestBody(
+        val kind: WorkspaceAgentKind,
+        val prompt: String,
+        val cliSessionId: String? = null,
+        val timeoutSeconds: Long? = null,
+    )
+
+    private data class HeadlessJobDto(
+        val id: String,
+        val status: String,
+        val exitCode: Int? = null,
+        val output: String? = null,
+    )
+
+    override fun startHeadlessJob(
+        workspace: Workspace,
+        kind: WorkspaceAgentKind,
+        prompt: String,
+        cliSessionId: String?,
+        timeoutSeconds: Long?,
+    ): AgentGatewayClient.HeadlessJob {
+        val dto =
+            restClient
+                .post()
+                .uri("${endpoint(workspace)}/agents/headless")
+                .body(HeadlessRequestBody(kind, prompt, cliSessionId, timeoutSeconds))
+                .retrieve()
+                .body(HeadlessJobDto::class.java)
+                ?: error("empty response from gateway /agents/headless")
+        return dto.toDomain()
+    }
+
+    override fun pollHeadlessJob(
+        workspace: Workspace,
+        headlessJobId: String,
+    ): AgentGatewayClient.HeadlessJob {
+        val dto =
+            restClient
+                .get()
+                .uri("${endpoint(workspace)}/agents/headless/$headlessJobId")
+                .retrieve()
+                .body(HeadlessJobDto::class.java)
+                ?: error("empty response from gateway /agents/headless/$headlessJobId")
+        return dto.toDomain()
+    }
+
+    private fun HeadlessJobDto.toDomain(): AgentGatewayClient.HeadlessJob =
+        AgentGatewayClient.HeadlessJob(
+            id = id,
+            status =
+                runCatching {
+                    AgentGatewayClient.HeadlessStatus.valueOf(status)
+                }.getOrDefault(AgentGatewayClient.HeadlessStatus.FAILED),
+            exitCode = exitCode,
+            output = output,
+        )
 }
