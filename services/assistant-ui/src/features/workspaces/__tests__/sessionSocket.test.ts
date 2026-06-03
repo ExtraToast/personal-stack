@@ -127,6 +127,26 @@ describe('sessionSocket', () => {
     expect(MockWebSocket.instances).toHaveLength(2)
   })
 
+  it('keeps an active socket warm with heartbeats', () => {
+    sock = attachSessionSocket({ sessionId: 's1', onOutput: () => {} })
+    latest().open()
+
+    vi.advanceTimersByTime(29_999)
+    expect(latest().sent).toEqual([])
+
+    vi.advanceTimersByTime(1)
+    expect(latest().sent).toEqual([JSON.stringify({ heartbeat: true })])
+  })
+
+  it('stops heartbeats while reconnect is disabled', () => {
+    sock = attachSessionSocket({ sessionId: 's1', onOutput: () => {} })
+    latest().open()
+    sock.setReconnect(false)
+
+    vi.advanceTimersByTime(60_000)
+    expect(latest().sent).toEqual([])
+  })
+
   it('never reconnects after a deliberate close', () => {
     sock = attachSessionSocket({ sessionId: 's1', onOutput: () => {} })
     latest().open()

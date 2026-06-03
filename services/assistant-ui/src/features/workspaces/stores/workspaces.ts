@@ -12,6 +12,56 @@ import {
   stopSession,
 } from '../services/workspaceService'
 
+const ACTIVE_SESSION_STORAGE_KEY = 'assistant-ui:workspace-active-session'
+
+function isLiveSession(session: AgentSession): boolean {
+  return session.status === 'STARTING' || session.status === 'RUNNING'
+}
+
+function parseStoredSessions(raw: string | null): Record<string, string> {
+  if (!raw) return {}
+  try {
+    const value: unknown = JSON.parse(raw)
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+    const result: Record<string, string> = {}
+    for (const [key, entry] of Object.entries(value)) {
+      if (typeof entry === 'string') result[key] = entry
+    }
+    return result
+  } catch {
+    return {}
+  }
+}
+
+function readPreferredSession(workspaceId: string): string | null {
+  try {
+    const values = parseStoredSessions(localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY))
+    const value = values[workspaceId]
+    return value ?? null
+  } catch {
+    return null
+  }
+}
+
+function writePreferredSession(workspaceId: string, sessionId: string): void {
+  try {
+    const values = parseStoredSessions(localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY))
+    values[workspaceId] = sessionId
+    localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, JSON.stringify(values))
+  } catch {
+    // Preference only; keep the store usable when localStorage is unavailable.
+  }
+}
+
+function chooseActiveSession(all: AgentSession[], preferredId: string | null): string | null {
+  const live = all.filter(isLiveSession)
+  if (preferredId && live.some((s) => s.id === preferredId)) return preferredId
+  if (preferredId && live.length === 0 && all.some((s) => s.id === preferredId)) {
+    return preferredId
+  }
+  return live[0]?.id ?? all[0]?.id ?? null
+}
+
 export const useWorkspacesStore = defineStore('workspaces', () => {
   const workspaces = ref<Workspace[]>([])
   const activeWorkspace = ref<Workspace | null>(null)
@@ -41,11 +91,15 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
     error.value = null
     try {
       const detail = await getWorkspace(id)
+      const preferredId = activeWorkspace.value?.id === id ? activeSessionId.value : readPreferredSession(id)
       activeWorkspace.value = detail.workspace
       sessions.value = detail.sessions
-      if (sessions.value.length > 0 && !activeSessionId.value) {
-        activeSessionId.value = sessions.value[0]!.id
+      activeSessionId.value = chooseActiveSession(sessions.value, preferredId)
+      if (activeSessionId.value) {
+        writePreferredSession(id, activeSessionId.value)
         await loadTurns(activeSessionId.value)
+      } else {
+        turns.value = []
       }
     } catch {
       error.value = 'Failed to load workspace'
@@ -80,6 +134,7 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
         startingSession.value = true
       })
       activeSessionId.value = sessionId
+      writePreferredSession(ws.id, sessionId)
       await open(ws.id)
       return sessionId
     } finally {
@@ -99,6 +154,11 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
     const ws = activeWorkspace.value
     if (!ws) return
     turns.value = await getTurns(ws.id, sessionId)
+  }
+
+  function selectSession(sessionId: string): void {
+    activeSessionId.value = sessionId
+    if (activeWorkspace.value) writePreferredSession(activeWorkspace.value.id, sessionId)
   }
 
   function appendStreamedOutput(text: string): void {
@@ -144,6 +204,7 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
     newSession,
     endSession,
     loadTurns,
+    selectSession,
     appendStreamedOutput,
     appendUserTurn,
   }

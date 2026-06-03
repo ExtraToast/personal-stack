@@ -79,6 +79,24 @@ spec:
       ports:
         - protocol: TCP
           port: 8080
+    # assistant-api internal endpoint used by the runner's GitHub App
+    # token wrappers (`gh` + GitHub MCP). Both the regular Frankfurt
+    # deployment and the Enschede WebSocket replica can serve the
+    # in-cluster token minting route.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: assistant-system
+          podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - assistant-api
+                  - assistant-api-ws
+      ports:
+        - protocol: TCP
+          port: 8082
     # Outbound HTTPS — needed for Anthropic, OpenAI, GitHub. Re-tighten
     # once an L7 gateway lands.
     - to:

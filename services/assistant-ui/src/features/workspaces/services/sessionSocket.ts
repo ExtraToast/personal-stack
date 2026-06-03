@@ -19,7 +19,9 @@
  * Reconnection is gated by [setReconnect] so an inactive tab does not
  * hold its runner alive against the idle reaper: only the visible
  * terminal keeps its socket warm; a hidden one is allowed to lapse and
- * reconnects when it is shown again.
+ * reconnects when it is shown again. The active socket also sends a
+ * small application-level heartbeat because browsers cannot emit WS
+ * ping frames and quiet terminals otherwise look idle to proxies.
  */
 export interface SessionSocketOptions {
   sessionId: string
@@ -44,6 +46,7 @@ export interface SessionSocket {
 const MAX_BACKOFF_MS = 10_000
 const BASE_BACKOFF_MS = 500
 const MAX_QUEUED_FRAMES = 200
+const HEARTBEAT_INTERVAL_MS = 30_000
 
 export function attachSessionSocket(opts: SessionSocketOptions): SessionSocket {
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -60,6 +63,7 @@ export function attachSessionSocket(opts: SessionSocketOptions): SessionSocket {
   let attempts = 0
   let everOpened = false
   let timer: ReturnType<typeof setTimeout> | null = null
+  let heartbeatTimer: ReturnType<typeof setInterval> | null = null
   const queue: string[] = []
 
   function clearTimer(): void {
@@ -67,6 +71,24 @@ export function attachSessionSocket(opts: SessionSocketOptions): SessionSocket {
       clearTimeout(timer)
       timer = null
     }
+  }
+
+  function clearHeartbeat(): void {
+    if (heartbeatTimer !== null) {
+      clearInterval(heartbeatTimer)
+      heartbeatTimer = null
+    }
+  }
+
+  function sendHeartbeat(): void {
+    if (reconnectEnabled && ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ heartbeat: true }))
+    }
+  }
+
+  function startHeartbeat(): void {
+    if (!reconnectEnabled || heartbeatTimer !== null || ws?.readyState !== WebSocket.OPEN) return
+    heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS)
   }
 
   function flushQueue(): void {
@@ -103,6 +125,7 @@ export function attachSessionSocket(opts: SessionSocketOptions): SessionSocket {
       if (everOpened) opts.onReopen?.()
       everOpened = true
       flushQueue()
+      startHeartbeat()
     }
     ws.onmessage = (ev) => {
       try {
@@ -116,6 +139,7 @@ export function attachSessionSocket(opts: SessionSocketOptions): SessionSocket {
       }
     }
     ws.onclose = (ev) => {
+      clearHeartbeat()
       opts.onClose?.(ev.code, ev.reason)
       scheduleReconnect()
     }
@@ -135,7 +159,12 @@ export function attachSessionSocket(opts: SessionSocketOptions): SessionSocket {
     },
     setReconnect(enabled) {
       reconnectEnabled = enabled
-      if (!enabled) clearTimer()
+      if (enabled) {
+        startHeartbeat()
+      } else {
+        clearTimer()
+        clearHeartbeat()
+      }
     },
     reconnectNow() {
       attempts = 0
@@ -147,6 +176,7 @@ export function attachSessionSocket(opts: SessionSocketOptions): SessionSocket {
     close() {
       closedByCaller = true
       clearTimer()
+      clearHeartbeat()
       ws?.close()
     },
     readyState() {

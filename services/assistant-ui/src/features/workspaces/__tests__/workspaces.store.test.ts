@@ -1,4 +1,4 @@
-import type { Workspace, WorkspaceDetail } from '../types'
+import type { AgentSession, Workspace, WorkspaceDetail } from '../types'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -51,10 +51,24 @@ function fakeWorkspace(over: Partial<Workspace> = {}): Workspace {
   }
 }
 
+function fakeSession(over: Partial<AgentSession> = {}): AgentSession {
+  return {
+    id: 'sess-1',
+    workspaceId: '11111111-1111-1111-1111-111111111111',
+    kind: 'CLAUDE',
+    gatewayAgentId: 'abc',
+    status: 'RUNNING',
+    createdAt: '2026-05-19T10:00:00Z',
+    updatedAt: '2026-05-19T10:00:00Z',
+    ...over,
+  }
+}
+
 describe('useWorkspacesStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     Object.values(mocked).forEach((m) => m.mockReset())
+    localStorage.clear()
   })
 
   it('loadAll populates workspaces', async () => {
@@ -68,17 +82,7 @@ describe('useWorkspacesStore', () => {
   it('open loads workspace + sessions and auto-selects first session turns', async () => {
     const detail: WorkspaceDetail = {
       workspace: fakeWorkspace(),
-      sessions: [
-        {
-          id: 'sess-1',
-          workspaceId: '11111111-1111-1111-1111-111111111111',
-          kind: 'CLAUDE',
-          gatewayAgentId: 'abc',
-          status: 'RUNNING',
-          createdAt: '2026-05-19T10:00:00Z',
-          updatedAt: '2026-05-19T10:00:00Z',
-        },
-      ],
+      sessions: [fakeSession()],
     }
     mocked.getWorkspace.mockResolvedValue(detail)
     mocked.getTurns.mockResolvedValue([])
@@ -86,6 +90,37 @@ describe('useWorkspacesStore', () => {
     await store.open('11111111-1111-1111-1111-111111111111')
     expect(store.sessions).toHaveLength(1)
     expect(store.activeSessionId).toBe('sess-1')
+  })
+
+  it('open prefers a live session over a stopped first session after refresh', async () => {
+    mocked.getWorkspace.mockResolvedValue({
+      workspace: fakeWorkspace(),
+      sessions: [fakeSession({ id: 'stopped', status: 'STOPPED' }), fakeSession({ id: 'running', status: 'RUNNING' })],
+    })
+    mocked.getTurns.mockResolvedValue([])
+
+    const store = useWorkspacesStore()
+    await store.open('11111111-1111-1111-1111-111111111111')
+
+    expect(store.activeSessionId).toBe('running')
+  })
+
+  it('open restores the previous live session for a workspace', async () => {
+    mocked.getWorkspace.mockResolvedValue({
+      workspace: fakeWorkspace(),
+      sessions: [fakeSession({ id: 'sess-a', status: 'RUNNING' }), fakeSession({ id: 'sess-b', status: 'RUNNING' })],
+    })
+    mocked.getTurns.mockResolvedValue([])
+
+    const store = useWorkspacesStore()
+    await store.open('11111111-1111-1111-1111-111111111111')
+    store.selectSession('sess-b')
+
+    setActivePinia(createPinia())
+    const freshStore = useWorkspacesStore()
+    await freshStore.open('11111111-1111-1111-1111-111111111111')
+
+    expect(freshStore.activeSessionId).toBe('sess-b')
   })
 
   it('create unshifts the new workspace', async () => {

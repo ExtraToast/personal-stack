@@ -48,5 +48,9 @@ refresh_token() {
   export GH_TOKEN="$tok"
 }
 
+if [ -n "${GITHUB_PERSONAL_ACCESS_TOKEN:-}" ] && [ -z "${GH_TOKEN:-}" ]; then
+  export GH_TOKEN="$GITHUB_PERSONAL_ACCESS_TOKEN"
+fi
+
 refresh_token || true
 exec "$REAL_GH" "$@"
