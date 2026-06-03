@@ -227,6 +227,36 @@ codex exec --skip-git-repo-check 'reply with the single word pong' </dev/null
 
 If both succeed, Codex is wired.
 
+### 5a. Remove the GitHub connector from the ChatGPT account
+
+**Required hardening — do not skip.** Codex surfaces every connector
+authorized on the signed-in ChatGPT account as `codex_apps.*` tools.
+The GitHub connector among them authenticates as that account's own
+GitHub OAuth identity, so it inherits **every org that identity can
+see** — including any employer org the account holder belongs to — and
+bypasses the repo-scoped GitHub App installation token entirely. An
+agent running Codex would be able to search and read those private
+repos. The only sanctioned GitHub access for an agent is the `github`
+MCP server (a short-lived, repo-scoped App installation token).
+
+The runner forces `features.apps = false` in `~/.codex/config.toml` on
+every boot (see `services/agent-runner/entrypoint.sh`), which gates the
+connector subsystem off. Treat that as defence-in-depth only: per-app
+disables have been ignored upstream (openai/codex#17588), so the hard
+guarantee is to remove the connector at the account:
+
+1. Sign in to ChatGPT as the Codex account on a laptop.
+2. **Settings → Connectors / Apps → GitHub → Disconnect.**
+3. Revoke the grant at `https://github.com/settings/applications` (and,
+   if the account belongs to an org with OAuth-app restrictions, confirm
+   it is not re-approved there).
+4. Re-run the verify step below from a fresh Pod and confirm no
+   `codex_apps`/GitHub-connector tools are listed while the declared
+   `github` MCP server (App token) still works.
+
+Keep the Codex account free of GitHub (and any other sensitive)
+connectors going forward — re-adding one re-opens this path.
+
 Exit the Pod:
 
 ```sh
