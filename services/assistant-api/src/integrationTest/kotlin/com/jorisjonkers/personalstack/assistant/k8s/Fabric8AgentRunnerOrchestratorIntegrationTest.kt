@@ -178,6 +178,12 @@ class Fabric8AgentRunnerOrchestratorIntegrationTest {
         assertThat(mcpVol.configMap.name).isEqualTo("agents-mcp-servers")
         assertThat(mcpVol.configMap.optional).isTrue()
 
+        // The runner must hold no Kubernetes API credential: cluster reads
+        // go through the read-only MCP server, never the SA token. An
+        // unsandboxed agent therefore cannot reach the API server to
+        // modify or delete any Pod.
+        assertThat(pod.spec.automountServiceAccountToken).isFalse()
+
         // A startup probe must gate liveness so the gateway's JVM cold
         // start is not killed mid-boot (which re-provisioned the runner
         // and 503'd start-session).

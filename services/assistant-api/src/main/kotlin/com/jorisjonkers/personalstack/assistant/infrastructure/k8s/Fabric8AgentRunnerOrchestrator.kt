@@ -281,6 +281,13 @@ class Fabric8AgentRunnerOrchestrator(
             .endMetadata()
             .withNewSpec()
             .withServiceAccountName(props.serviceAccount)
+            // The runner never calls the Kubernetes API itself — cluster
+            // reads go through the read-only kubernetes MCP server over
+            // HTTP. Don't project the SA token into the Pod, so the agent
+            // (which runs unsandboxed) holds no API credential at all and
+            // cannot reach the API server even if the SA were later granted
+            // RBAC by mistake.
+            .withAutomountServiceAccountToken(false)
             .withNodeSelector<String, String>(props.nodeSelector)
             .withRestartPolicy("Always")
             .withNewSecurityContext()
