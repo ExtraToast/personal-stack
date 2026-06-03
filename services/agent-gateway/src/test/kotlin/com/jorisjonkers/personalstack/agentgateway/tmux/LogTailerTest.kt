@@ -4,6 +4,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.awaitility.Awaitility.await
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
@@ -21,13 +22,13 @@ class LogTailerTest {
     }
 
     @Test
-    fun `tailer emits bytes appended to the file`(
+    fun `tailer emits text appended to the file`(
         @TempDir tmp: Path,
     ) {
         val file = tmp.resolve("agent.log")
         Files.createFile(file)
         val received = CopyOnWriteArrayList<String>()
-        LogTailer(file, intervalMs = 50) { received.add(String(it)) }.use { tailer ->
+        LogTailer(file, intervalMs = 50) { received.add(it) }.use { tailer ->
             tailer.start()
             Files.writeString(file, "hello ", StandardOpenOption.APPEND)
             Files.writeString(file, "world\n", StandardOpenOption.APPEND)
@@ -45,7 +46,7 @@ class LogTailerTest {
         val file = tmp.resolve("agent.log")
         Files.writeString(file, "OLD HISTORY THAT MUST NOT REPLAY\n")
         val received = CopyOnWriteArrayList<String>()
-        LogTailer(file, intervalMs = 50) { received.add(String(it)) }.use { tailer ->
+        LogTailer(file, intervalMs = 50) { received.add(it) }.use { tailer ->
             tailer.start()
             Files.writeString(file, "fresh bytes\n", StandardOpenOption.APPEND)
             await().atMost(Duration.ofSeconds(2)).until {
@@ -53,6 +54,65 @@ class LogTailerTest {
             }
             assertThat(received.joinToString("")).contains("fresh bytes")
             assertThat(received.joinToString("")).doesNotContain("OLD HISTORY")
+        }
+    }
+
+    @Test
+    fun `completeUtf8Length holds back a codepoint split across a read`() {
+        // "Aé": 0x41 then 0xC3 0xA9 — the whole buffer is complete.
+        assertThat(LogTailer.completeUtf8Length(byteArrayOf(0x41, 0xC3.toByte(), 0xA9.toByte()))).isEqualTo(3)
+        // Same "é" missing its continuation byte: carry from the lead at index 1.
+        assertThat(LogTailer.completeUtf8Length(byteArrayOf(0x41, 0xC3.toByte()))).isEqualTo(1)
+        // Box-drawing "─" (E2 94 80) missing its last byte: nothing is ready yet.
+        assertThat(LogTailer.completeUtf8Length(byteArrayOf(0xE2.toByte(), 0x94.toByte()))).isEqualTo(0)
+    }
+
+    @Test
+    fun `chunked bounds pieces and never splits a surrogate pair`() {
+        val text = "a😀b" // the emoji is U+1F600, one codepoint as a surrogate pair
+        val out = mutableListOf<String>()
+        LogTailer.chunked(text, 2, out::add)
+        assertThat(out.joinToString("")).isEqualTo(text)
+        assertThat(out).allSatisfy { assertThat(it.length).isLessThanOrEqualTo(2) }
+        out.filter { it.isNotEmpty() }.forEach {
+            assertThat(Character.isLowSurrogate(it.first())).isFalse()
+            assertThat(Character.isHighSurrogate(it.last())).isFalse()
+        }
+    }
+
+    @Test
+    fun `streams a multibyte char even when it is split across two reads`(
+        @TempDir tmp: Path,
+    ) {
+        val file = tmp.resolve("split.log")
+        Files.createFile(file)
+        val received = CopyOnWriteArrayList<String>()
+        LogTailer(file, intervalMs = 20) { received.add(it) }.use { tailer ->
+            tailer.start()
+            // "─" is E2 94 80; deliver the lead two bytes, then the rest + 'A'.
+            // A poll may land between the writes (exercising the carry) or
+            // after both; either way the decoded result must be intact.
+            Files.write(file, byteArrayOf(0xE2.toByte(), 0x94.toByte()), StandardOpenOption.APPEND)
+            Thread.sleep(40)
+            Files.write(file, byteArrayOf(0x80.toByte(), 0x41), StandardOpenOption.APPEND)
+            await().atMost(Duration.ofSeconds(2)).until { received.joinToString("") == "─A" }
+        }
+    }
+
+    @Test
+    fun `restarts from the new beginning after the log is truncated to its cap`(
+        @TempDir tmp: Path,
+    ) {
+        val file = tmp.resolve("capped.log")
+        Files.writeString(file, "old-content")
+        val received = CopyOnWriteArrayList<String>()
+        LogTailer(file, intervalMs = 20) { received.add(it) }.use { tailer ->
+            tailer.start()
+            Files.writeString(file, "-more", StandardOpenOption.APPEND)
+            await().atMost(Duration.ofSeconds(2)).until { received.joinToString("") == "-more" }
+            FileChannel.open(file, StandardOpenOption.WRITE).use { it.truncate(0) }
+            Files.writeString(file, "fresh", StandardOpenOption.APPEND)
+            await().atMost(Duration.ofSeconds(2)).until { received.joinToString("") == "-morefresh" }
         }
     }
 }

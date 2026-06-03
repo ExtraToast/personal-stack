@@ -58,18 +58,26 @@ class AgentAttachHandler(
                 .getOrDefault("")
                 .replace("\r\n", "\n")
                 .replace("\n", "\r\n")
-        val snapshotMsg = mapper.writeValueAsString(mapOf("output" to snapshot))
-        synchronized(session) { session.sendMessage(TextMessage(snapshotMsg)) }
+        LogTailer.chunked(snapshot, LogTailer.MAX_CHUNK_CHARS) { sendOutput(session, it) }
 
         val tailer =
-            LogTailer(agent.logFile, intervalMs = props.tmux.tailIntervalMs) { bytes ->
-                if (session.isOpen) {
-                    val msg = mapper.writeValueAsString(mapOf("output" to String(bytes)))
-                    synchronized(session) { session.sendMessage(TextMessage(msg)) }
-                }
+            LogTailer(agent.logFile, intervalMs = props.tmux.tailIntervalMs) { text ->
+                sendOutput(session, text)
             }
         tailers[session.id] = tailer
         tailer.start()
+    }
+
+    // Output is relayed as small `{"output": "..."}` frames; LogTailer
+    // already bounds each chunk so a JSON frame stays under the default
+    // WebSocket buffer and nothing is buffered whole on the heap.
+    private fun sendOutput(
+        session: WebSocketSession,
+        text: String,
+    ) {
+        if (text.isEmpty() || !session.isOpen) return
+        val msg = mapper.writeValueAsString(mapOf("output" to text))
+        synchronized(session) { session.sendMessage(TextMessage(msg)) }
     }
 
     override fun handleTextMessage(

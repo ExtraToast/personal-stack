@@ -5,9 +5,12 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
+import org.awaitility.Awaitility.await
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Duration
 
 class AgentSessionManagerTest {
     private val tmux = mockk<TmuxClient>(relaxed = true)
@@ -171,5 +174,34 @@ class AgentSessionManagerTest {
         val s = mgr.spawn(AgentKind.CLAUDE)
         mgr.resize(s.id, 100, 30)
         verify { tmux.resize(s.tmuxSession, 100, 30) }
+    }
+
+    @Test
+    fun `trims a session log once it outgrows its disk cap`(
+        @TempDir tmp: Path,
+    ) {
+        val props =
+            GatewayProperties(
+                workspaceRoot = "/workspace",
+                tmux =
+                    GatewayProperties.Tmux(
+                        socketName = "agent-gw",
+                        stateDir = tmp.toString(),
+                        logCapBytes = 64,
+                        logTrimIntervalSeconds = 1,
+                    ),
+                cli = GatewayProperties.Cli(claude = "/c", codex = "/x"),
+                git = GatewayProperties.Git(deployKeyDir = "/x"),
+            )
+        every { tmux.ensureStateDir() } returns tmp
+        val mgr = AgentSessionManager(tmux, props)
+        try {
+            val s = mgr.spawn(AgentKind.SHELL)
+            Files.write(s.logFile, ByteArray(200) { 'x'.code.toByte() })
+            assertThat(Files.size(s.logFile)).isEqualTo(200L)
+            await().atMost(Duration.ofSeconds(5)).until { Files.size(s.logFile) == 0L }
+        } finally {
+            mgr.shutdown()
+        }
     }
 }

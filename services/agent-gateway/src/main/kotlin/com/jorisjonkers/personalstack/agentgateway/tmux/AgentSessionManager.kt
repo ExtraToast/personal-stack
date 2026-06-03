@@ -1,13 +1,18 @@
 package com.jorisjonkers.personalstack.agentgateway.tmux
 
 import com.jorisjonkers.personalstack.agentgateway.config.GatewayProperties
+import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardOpenOption
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.io.path.Path
 
 /**
@@ -26,6 +31,38 @@ class AgentSessionManager(
 ) {
     private val log = LoggerFactory.getLogger(AgentSessionManager::class.java)
     private val sessions = ConcurrentHashMap<String, AgentSession>()
+
+    // The pipe-pane log only conducts the live stream, so it is capped
+    // rather than kept whole: this trims any session log that outgrows
+    // its cap so a long-lived agent cannot fill the runner disk. Active
+    // tailers restart from the new beginning on the next poll.
+    private val trimmer =
+        Executors.newSingleThreadScheduledExecutor { r ->
+            Thread(r, "agent-log-trimmer").apply { isDaemon = true }
+        }
+
+    init {
+        val period = props.tmux.logTrimIntervalSeconds
+        trimmer.scheduleWithFixedDelay(::trimOversizedLogs, period, period, TimeUnit.SECONDS)
+    }
+
+    @PreDestroy
+    fun shutdown() {
+        trimmer.shutdownNow()
+    }
+
+    private fun trimOversizedLogs() {
+        val cap = props.tmux.logCapBytes
+        sessions.values.forEach { session ->
+            runCatching {
+                val file = session.logFile
+                if (Files.exists(file) && Files.size(file) > cap) {
+                    FileChannel.open(file, StandardOpenOption.WRITE).use { it.truncate(0) }
+                    log.info("trimmed agent {} log past {} bytes", session.id, cap)
+                }
+            }.onFailure { log.warn("trim of {} failed: {}", session.logFile, it.message) }
+        }
+    }
 
     fun spawn(
         kind: AgentKind,

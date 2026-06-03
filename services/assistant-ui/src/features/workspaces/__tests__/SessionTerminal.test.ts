@@ -22,6 +22,7 @@ const term = {
   reset: vi.fn(),
   dispose: vi.fn(),
 }
+let termOptions: Record<string, unknown> | undefined
 vi.mock('@xterm/xterm', () => ({
   Terminal: class {
     write = term.write
@@ -32,6 +33,9 @@ vi.mock('@xterm/xterm', () => ({
     focus = term.focus
     reset = term.reset
     dispose = term.dispose
+    constructor(opts: Record<string, unknown>) {
+      termOptions = opts
+    }
   },
 }))
 vi.mock('@xterm/xterm/css/xterm.css', () => ({}))
@@ -69,6 +73,7 @@ describe('sessionTerminal', () => {
     capturedOnReopen = undefined
     onDataCb = undefined
     onResizeCb = undefined
+    termOptions = undefined
   })
 
   afterEach(() => {
@@ -157,5 +162,13 @@ describe('sessionTerminal', () => {
     mountTerminal({ active: true })
     capturedOnReopen?.()
     expect(term.reset).toHaveBeenCalled()
+  })
+
+  it('retains a deep scrollback so a long session keeps its history', () => {
+    mountTerminal()
+    // The 1000-line xterm default scrolls a busy agent session out of
+    // reach within minutes; the terminal must request far more. This is
+    // browser memory only and does not affect the streaming backend.
+    expect(termOptions?.scrollback).toBeGreaterThanOrEqual(50_000)
   })
 })
