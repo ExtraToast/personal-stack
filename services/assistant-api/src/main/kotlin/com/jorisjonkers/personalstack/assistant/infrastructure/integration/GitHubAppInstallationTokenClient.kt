@@ -15,12 +15,12 @@ import java.util.Base64
 
 /**
  * Mints short-lived, single-repo GitHub App installation tokens so the
- * runner's `gh` can comment on PRs and re-run Actions — and nothing
- * else. Each token is scoped to the one repository being acted on and
- * carries only `pull_requests:write` + `actions:write`; `contents` and
- * `administration` are never requested, so the token cannot push code
- * or change repo settings (git stays on the deploy key, and `main` is
- * guarded by branch protection).
+ * runner's `gh` can create PRs/re-run Actions and `git push` can create
+ * feature branches over HTTPS. Each token is scoped to the one
+ * repository being acted on and carries only `contents:write`,
+ * `pull_requests:write`, and `actions:write`; `administration` is never
+ * requested, so the token cannot change repo settings. `main` stays
+ * guarded by branch protection.
  *
  * Disabled — [enabled] is false and [mint] returns null — whenever the
  * App id or private key is absent, so an unconfigured deployment is a
@@ -99,7 +99,12 @@ class GitHubAppInstallationTokenClient(
             .body(
                 AccessTokenRequest(
                     repositories = listOf(repo),
-                    permissions = mapOf("pull_requests" to "write", "actions" to "write"),
+                    permissions =
+                        mapOf(
+                            "contents" to "write",
+                            "pull_requests" to "write",
+                            "actions" to "write",
+                        ),
                 ),
             ).retrieve()
             .body(AccessTokenResponse::class.java)

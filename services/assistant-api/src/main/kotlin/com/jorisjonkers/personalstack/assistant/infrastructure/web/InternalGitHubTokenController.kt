@@ -12,8 +12,9 @@ import java.time.Instant
 
 /**
  * In-cluster only: the runner's `gh` wrapper calls this to obtain a
- * fresh, single-repo GitHub App installation token (PR comments +
- * Actions re-runs). Reached over svc.cluster.local, so it bypasses the
+ * fresh, single-repo GitHub App installation token for runner GitHub
+ * writes (`git push`, `gh pr create`, PR comments, Actions re-runs).
+ * Reached over svc.cluster.local, so it bypasses the
  * edge forward-auth that gates the public API; the
  * InternalBearerAuthFilter (see SecurityConfig) gates it with a shared
  * bearer instead, and is fail-closed when the bearer is unset.
