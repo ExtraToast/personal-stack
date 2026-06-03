@@ -115,8 +115,8 @@ metadata:
   name: assistant-ws
   namespace: edge-system
   annotations:
-    external-dns.alpha.kubernetes.io/target: ingress.jorisjonkers.dev
-    external-dns.alpha.kubernetes.io/cloudflare-proxied: 'true'
+    external-dns.alpha.kubernetes.io/target: 167.86.79.203
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: 'false'
     kubernetes.io/ingress.class: traefik-public
 spec:
   entryPoints:
