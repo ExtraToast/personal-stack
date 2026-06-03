@@ -152,9 +152,13 @@ RUN arch="$(dpkg --print-architecture)" \
 
 # ast-grep (sg) — structural search/rewrite for Kotlin, TypeScript,
 # Python etc. Installed globally so skills and hooks can call `sg`
-# without a workspace-level install.
+# without a workspace-level install. The npm prefix is /usr, so the
+# package's `sg` bin collides with Debian's /usr/bin/sg (newgrp) and the
+# global install aborts with EEXIST; drop the shadow-utils `sg` first so
+# `sg` resolves to ast-grep, which is the binary this image wants.
 ARG AST_GREP_VERSION=0.38.4
-RUN npm install -g "@ast-grep/cli@${AST_GREP_VERSION}" \
+RUN rm -f /usr/bin/sg \
+    && npm install -g "@ast-grep/cli@${AST_GREP_VERSION}" \
     && npm cache clean --force
 
 # The gateway jar runs on the Temurin 21 JDK installed above; the
