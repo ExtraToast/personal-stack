@@ -66,6 +66,19 @@ spec:
           port: 9621
         - protocol: TCP
           port: 11434
+    # Kubernetes MCP server — read-only cluster diagnostics.
+    # NetworkPolicy cannot select by Service name; target by namespace+pod
+    # selector and the server's port.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: agents-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: kubernetes-mcp-server
+      ports:
+        - protocol: TCP
+          port: 8080
     # Outbound HTTPS — needed for Anthropic, OpenAI, GitHub. Re-tighten
     # once an L7 gateway lands.
     - to:

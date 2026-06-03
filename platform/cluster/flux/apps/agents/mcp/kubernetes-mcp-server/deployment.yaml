@@ -1,0 +1,57 @@
+# kubernetes-mcp-server: exposes cluster read access to agents via MCP
+# Streamable HTTP at :8080/mcp. Uses in-cluster ServiceAccount auth —
+# no kubeconfig is mounted into the Pod.
+#
+# Pin version deliberately and re-verify upstream checksums before each
+# bump. v0.0.62 was current on 2026-06-03.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubernetes-mcp-server
+  namespace: agents-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kubernetes-mcp-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kubernetes-mcp-server
+        app.kubernetes.io/part-of: agents-mcp
+    spec:
+      serviceAccountName: kubernetes-mcp-server
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: kubernetes-mcp-server
+          image: ghcr.io/manusa/kubernetes-mcp-server:0.0.62
+          imagePullPolicy: IfNotPresent
+          args:
+            - --port=8080
+          ports:
+            - name: mcp
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /mcp
+              port: mcp
+              httpHeaders:
+                - name: Content-Type
+                  value: application/json
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]

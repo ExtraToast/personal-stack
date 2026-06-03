@@ -36,6 +36,10 @@ data:
       "github": {
         "type": "stdio",
         "command": "gh-mcp-wrapper"
+      },
+      "kubernetes": {
+        "type": "http",
+        "url": "http://kubernetes-mcp-server.agents-system.svc.cluster.local:8080/mcp"
       }
     }
   # Codex (~/.codex/config.toml). Codex reads remote HTTP MCP servers
@@ -65,3 +69,9 @@ data:
 
     [mcp_servers.github]
     command = "gh-mcp-wrapper"
+
+    # Kubernetes MCP server — read-only cluster diagnostics (pods, logs,
+    # events, deployments, Flux resources). No kubeconfig mount needed;
+    # the server runs in-cluster with its own read-only ClusterRole.
+    [mcp_servers.kubernetes]
+    url = "http://kubernetes-mcp-server.agents-system.svc.cluster.local:8080/mcp"
