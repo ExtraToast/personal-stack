@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.http.HttpHeaders
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
+import org.springframework.web.client.RestClientResponseException
 import java.io.ByteArrayOutputStream
 import java.security.KeyFactory
 import java.security.Signature
@@ -63,10 +64,42 @@ class GitHubAppInstallationTokenClient(
             val resp =
                 accessToken(base, installationId, slug.repo, jwt)
                     ?: error("empty access-token response")
+            warnOnNarrowedGrant(slug, resp.permissions)
             InstallationToken(token = resp.token, expiresAt = Instant.parse(resp.expiresAt))
-        }.onFailure {
-            log.warn("installation-token mint for {} failed: {}", repoUrl, it.message)
+        }.onFailure { ex ->
+            val detail = (ex as? RestClientResponseException)?.responseBodyAsString?.takeIf { it.isNotBlank() }
+            log.warn("installation-token mint for {} failed: {}{}", repoUrl, ex.message, detail?.let { " — $it" } ?: "")
         }.getOrNull()
+    }
+
+    /**
+     * GitHub silently narrows a token to whatever the installation
+     * actually holds, so requesting `contents:write` against an App that
+     * was installed with only `metadata:read` yields a token that can
+     * neither push, pull, nor touch Actions — with no error. Compare the
+     * granted set against [REQUESTED_PERMISSIONS] and log an actionable
+     * warning when anything is missing or weaker, so the fix (widen the
+     * App's permissions, then approve the request on each installation)
+     * is visible instead of surfacing as a mystified read-only runner.
+     */
+    private fun warnOnNarrowedGrant(
+        slug: GitHubBranchProtectionClient.OwnerRepo,
+        granted: Map<String, String>,
+    ) {
+        val shortfall = narrowedPermissions(REQUESTED_PERMISSIONS, granted)
+        if (shortfall.isNotEmpty()) {
+            log.warn(
+                "installation token for {}/{} is missing requested permissions {} (granted: {}). " +
+                    "Widen the personal-stack-agents App's repository permissions to contents/pull_requests/" +
+                    "actions: read & write, then approve the updated permissions on the {} installation — " +
+                    "until then runner git push / gh pr / gh run rerun stay read-only.",
+                slug.owner,
+                slug.repo,
+                shortfall,
+                granted,
+                slug.owner,
+            )
+        }
     }
 
     private fun installationId(
@@ -99,12 +132,7 @@ class GitHubAppInstallationTokenClient(
             .body(
                 AccessTokenRequest(
                     repositories = listOf(repo),
-                    permissions =
-                        mapOf(
-                            "contents" to "write",
-                            "pull_requests" to "write",
-                            "actions" to "write",
-                        ),
+                    permissions = REQUESTED_PERMISSIONS,
                 ),
             ).retrieve()
             .body(AccessTokenResponse::class.java)
@@ -145,6 +173,7 @@ class GitHubAppInstallationTokenClient(
     private data class AccessTokenResponse(
         val token: String = "",
         @param:JsonProperty("expires_at") val expiresAt: String = "",
+        val permissions: Map<String, String> = emptyMap(),
     )
 
     // The DER/ASN.1 byte and bit-shift literals below are structural
@@ -153,6 +182,35 @@ class GitHubAppInstallationTokenClient(
     companion object {
         private const val GH_API_VERSION_HEADER = "X-GitHub-Api-Version"
         private const val GH_API_VERSION = "2022-11-28"
+
+        // The only permissions a runner token ever carries: enough for
+        // git push, gh pr create/comment, and gh run rerun. `administration`
+        // is deliberately absent so the token cannot change repo settings.
+        val REQUESTED_PERMISSIONS =
+            mapOf(
+                "contents" to "write",
+                "pull_requests" to "write",
+                "actions" to "write",
+            )
+
+        private val PERMISSION_RANK = mapOf("read" to 1, "write" to 2, "admin" to 3)
+
+        /**
+         * Requested permissions that the granted set does not satisfy —
+         * either absent, or granted at a weaker level than asked. Pure so
+         * the narrowed-grant detection is unit-testable without HTTP.
+         */
+        fun narrowedPermissions(
+            requested: Map<String, String>,
+            granted: Map<String, String>,
+        ): List<String> =
+            requested
+                .filter { (perm, level) ->
+                    val have = granted[perm]?.let { PERMISSION_RANK[it] ?: 0 } ?: 0
+                    val want = PERMISSION_RANK[level] ?: 0
+                    have < want
+                }.keys
+                .sorted()
 
         // The fixed PKCS#8 PrivateKeyInfo prelude for an RSA key:
         // version INTEGER 0 + AlgorithmIdentifier { rsaEncryption, NULL }.

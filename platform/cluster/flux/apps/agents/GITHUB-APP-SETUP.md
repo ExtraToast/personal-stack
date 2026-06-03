@@ -142,3 +142,51 @@ gh run rerun <run-id>                       # should re-run
 # A force-push to main must still be refused (App token + ruleset):
 git push --force origin main                # expect: protected branch
 ```
+
+## Troubleshooting: token has no push/pull/Actions access
+
+Symptom: the runner's `gh auth status` shows `personal-stack-agents[bot]`,
+but `git push` / `gh pr create` / `gh run rerun` behave read-only, and
+`gh api /installation/repositories` lists the repo with every
+`permissions` boolean `false`.
+
+Cause: GitHub mints an installation token scoped to **whatever the
+installation actually holds**, silently dropping anything the App was
+not granted. assistant-api always _requests_ `contents`,
+`pull_requests`, and `actions` at `write`
+(`GitHubAppInstallationTokenClient.REQUESTED_PERMISSIONS`), so a
+narrowed token means the **App itself** is under-permissioned — almost
+always one of:
+
+1. The App was created by hand (not via the manifest in §1), so it only
+   has GitHub's default `metadata: read`.
+2. The App's permissions were widened later, but the installation has a
+   **pending approval**. Widening an App's permission set does **not**
+   apply to existing installations until each one approves the request.
+
+assistant-api logs this exact case at WARN on the next mint:
+
+```
+installation token for <owner>/<repo> is missing requested permissions
+[actions, contents, pull_requests] (granted: {metadata=read}). Widen the
+personal-stack-agents App's repository permissions … then approve …
+```
+
+Fix:
+
+1. App settings → **Permissions → Repository permissions**: set
+   Metadata: Read-only, **Contents: Read and write**, **Pull requests:
+   Read and write**, **Actions: Read and write**. Save.
+2. For **each** account the App is installed on (ExtraToast and
+   ESA-Blueshell), open the installation and **approve the updated
+   permissions** (GitHub surfaces a "review request" banner; an org
+   install may need an org owner to approve).
+3. Drop the cached token so the next call re-mints with the wider grant:
+   delete `/tmp/.gh-app-token` in the runner Pod, or recreate the Pod.
+   No assistant-api restart is needed — the permission set is requested
+   per mint, not cached.
+
+The `permissions` booleans on `/installation/repositories` stay `false`
+even after the fix — those describe a _user's_ collaborator level and
+are always false for an App token. Confirm with a real operation
+(`git push` a throwaway branch, `gh pr create --draft`), not that field.

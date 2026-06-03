@@ -89,7 +89,8 @@ class GitHubAppInstallationTokenClientTest {
             .andExpect(jsonPath("$.permissions.actions").value("write"))
             .andRespond(
                 withSuccess(
-                    """{"token":"ghs_abc","expires_at":"2026-06-02T15:00:00Z"}""",
+                    """{"token":"ghs_abc","expires_at":"2026-06-02T15:00:00Z",""" +
+                        """"permissions":{"contents":"write","pull_requests":"write","actions":"write"}}""",
                     MediaType.APPLICATION_JSON,
                 ),
             )
@@ -115,6 +116,57 @@ class GitHubAppInstallationTokenClientTest {
         assertThat(verifier.verify(Base64.getUrlDecoder().decode(parts[2]))).isTrue()
         val payload = String(Base64.getUrlDecoder().decode(parts[1]))
         assertThat(payload).contains("\"iss\":\"123456\"")
+    }
+
+    @Test
+    fun `narrowedPermissions flags absent and weaker grants, and passes a full grant`() {
+        val requested = GitHubAppInstallationTokenClient.REQUESTED_PERMISSIONS
+
+        // A metadata-only install grants none of contents/pull_requests/actions.
+        assertThat(GitHubAppInstallationTokenClient.narrowedPermissions(requested, emptyMap()))
+            .containsExactly("actions", "contents", "pull_requests")
+
+        // contents granted read-only is weaker than the requested write.
+        assertThat(
+            GitHubAppInstallationTokenClient.narrowedPermissions(
+                requested,
+                mapOf("contents" to "read", "pull_requests" to "write", "actions" to "write"),
+            ),
+        ).containsExactly("contents")
+
+        // Exactly the requested write set — nothing narrowed.
+        assertThat(
+            GitHubAppInstallationTokenClient.narrowedPermissions(
+                requested,
+                mapOf("contents" to "write", "pull_requests" to "write", "actions" to "write"),
+            ),
+        ).isEmpty()
+    }
+
+    @Test
+    fun `mint still returns the token when the App grant is narrower than requested`() {
+        val builder = RestClient.builder()
+        val server = MockRestServiceServer.bindTo(builder).build()
+        val client = GitHubAppInstallationTokenClient(builder.build(), props())
+
+        server
+            .expect(requestTo("https://api.github.com/repos/ExtraToast/personal-stack/installation"))
+            .andRespond(withSuccess("""{"id":777}""", MediaType.APPLICATION_JSON))
+        server
+            .expect(requestTo("https://api.github.com/app/installations/777/access_tokens"))
+            .andRespond(
+                withSuccess(
+                    // GitHub narrowed the token to metadata-only — no write perms.
+                    """{"token":"ghs_narrow","expires_at":"2026-06-02T15:00:00Z","permissions":{"metadata":"read"}}""",
+                    MediaType.APPLICATION_JSON,
+                ),
+            )
+
+        val minted = client.mint("git@github.com:ExtraToast/personal-stack.git")
+
+        assertThat(minted).isNotNull
+        assertThat(minted!!.token).isEqualTo("ghs_narrow")
+        server.verify()
     }
 
     @Test
