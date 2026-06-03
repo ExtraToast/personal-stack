@@ -1,10 +1,9 @@
-# agent-runner: the image every per-workspace Pod (and the auth
-# bootstrap + refresh ping) boots from. Bundles:
+# agent-runner: the image every per-workspace Pod boots from. Bundles:
 #   - Claude Code CLI + Codex CLI (the unit of "the agent")
 #   - tmux + bash + git + gh (the agent's tools)
-#   - language toolchains light enough to share one image (node, jdk,
-#     python, go); per-workspace specialisation happens via mise/asdf
-#     inside the workspace later
+#   - language toolchains: node 22, jdk 21, python, go (pinned below)
+#   - uv + mise for fast Python/toolchain management
+#   - ast-grep (sg) for AST-scoped symbol search
 #   - the agent-gateway jar as PID 1, owning the tmux server and the
 #     REST/WS plane assistant-api talks to
 #
@@ -100,6 +99,64 @@ RUN arch="$(dpkg --print-architecture)" \
        | tar -xz -C /usr/local/bin github-mcp-server \
     && chmod +x /usr/local/bin/github-mcp-server
 
+# Go toolchain — installed as root from the official binary tarball so
+# the GOROOT is world-readable and the agent user can install tooling
+# under GOPATH without privilege.
+# Fetch checksums from https://go.dev/dl/ before bumping.
+ARG GO_VERSION=1.24.3
+RUN arch="$(dpkg --print-architecture)" \
+    && case "$arch" in \
+         amd64) go_arch=amd64 ;; \
+         arm64) go_arch=arm64 ;; \
+         *) echo "unsupported arch: $arch" >&2; exit 1 ;; \
+       esac \
+    && curl -fsSL "https://dl.google.com/go/go${GO_VERSION}.linux-${go_arch}.tar.gz" \
+       -o /tmp/go.tar.gz \
+    && tar -C /usr/local -xzf /tmp/go.tar.gz \
+    && rm /tmp/go.tar.gz
+ENV GOROOT=/usr/local/go
+ENV GOPATH=/home/agent/go
+ENV PATH=/usr/local/go/bin:${PATH}
+
+# uv — fast Python package/toolchain manager. Installed from GitHub
+# releases as a static binary so it works without pip or a venv.
+# Fetch checksums from https://github.com/astral-sh/uv/releases before bumping.
+ARG UV_VERSION=0.7.8
+RUN arch="$(dpkg --print-architecture)" \
+    && case "$arch" in \
+         amd64) uv_arch=x86_64-unknown-linux-gnu ;; \
+         arm64) uv_arch=aarch64-unknown-linux-gnu ;; \
+         *) echo "unsupported arch: $arch" >&2; exit 1 ;; \
+       esac \
+    && curl -fsSL "https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-${uv_arch}.tar.gz" \
+       -o /tmp/uv.tar.gz \
+    && tar -C /usr/local/bin -xzf /tmp/uv.tar.gz --strip-components=1 \
+         "uv-${uv_arch}/uv" "uv-${uv_arch}/uvx" \
+    && rm /tmp/uv.tar.gz \
+    && chmod +x /usr/local/bin/uv /usr/local/bin/uvx
+
+# mise — polyglot runtime manager (Node, Python, Go, Ruby …).
+# Installed as the root-owned system binary so the agent user can
+# activate toolchains without a separate install step.
+# Fetch checksums from https://github.com/jdx/mise/releases before bumping.
+ARG MISE_VERSION=2025.5.16
+RUN arch="$(dpkg --print-architecture)" \
+    && case "$arch" in \
+         amd64) mise_arch=x86_64 ;; \
+         arm64) mise_arch=aarch64 ;; \
+         *) echo "unsupported arch: $arch" >&2; exit 1 ;; \
+       esac \
+    && curl -fsSL "https://github.com/jdx/mise/releases/download/v${MISE_VERSION}/mise-v${MISE_VERSION}-linux-${mise_arch}" \
+       -o /usr/local/bin/mise \
+    && chmod +x /usr/local/bin/mise
+
+# ast-grep (sg) — structural search/rewrite for Kotlin, TypeScript,
+# Python etc. Installed globally so skills and hooks can call `sg`
+# without a workspace-level install.
+ARG AST_GREP_VERSION=0.38.4
+RUN npm install -g "@ast-grep/cli@${AST_GREP_VERSION}" \
+    && npm cache clean --force
+
 # The gateway jar runs on the Temurin 21 JDK installed above; the
 # entrypoint launches it with ZGC the same way every other service does.
 COPY --from=gateway-build /app/services/agent-gateway/build/libs/*.jar /opt/agent-gateway.jar
@@ -129,7 +186,11 @@ USER agent
 WORKDIR /workspace
 ENV HOME=/home/agent
 ENV CODEX_HOME=/home/agent/.codex
-ENV PATH=/home/agent/.npm-global/bin:$PATH
+# /home/agent/go/bin — user-installed Go binaries
+# /home/agent/.local/bin — uv-managed tools + pip installs
+# GOROOT/GOPATH are set above at the root layer; repeat for agent context.
+ENV GOPATH=/home/agent/go
+ENV PATH=/home/agent/.npm-global/bin:/home/agent/go/bin:/home/agent/.local/bin:${PATH}
 
 EXPOSE 8090
 ENTRYPOINT ["/usr/bin/tini", "--", "/opt/entrypoint.sh"]
