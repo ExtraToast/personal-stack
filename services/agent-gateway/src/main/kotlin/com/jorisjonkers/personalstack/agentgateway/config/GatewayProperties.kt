@@ -15,6 +15,11 @@ data class GatewayProperties(
         // Poll cadence for the pipe-pane log tailer. Lower = more
         // responsive streamed output at the cost of more wakeups.
         val tailIntervalMs: Long = 15,
+        // The pipe-pane log is only a streaming conduit (the live screen
+        // lives in tmux, scrollback in the browser), so it is truncated
+        // once it outgrows this cap to keep the runner disk bounded.
+        val logCapBytes: Long = 8L * 1024 * 1024,
+        val logTrimIntervalSeconds: Long = 30,
     )
 
     data class Cli(
