@@ -114,28 +114,57 @@ trust_level = "trusted"
 EOF
 fi
 
-# Register MCP servers for Codex from the same ConfigMap (TOML form).
-# Codex consumes remote HTTP MCP servers natively and reads the bearer
-# at request time from KB_BEARER_TOKEN (bearer_token_env_var), so no
-# secret lands in config.toml — only @KB_URL@ is substituted. The MCP
-# set is fully managed from the ConfigMap: strip any previously-seeded
-# [mcp_servers.*] tables, then re-append the current list each boot so
-# adding/removing a server propagates on restart (the prior append-once
-# pinned the set to whatever first reached the PVC). Non-MCP config
-# (approval/sandbox/trust) is left intact.
+# Codex managed config: force ChatGPT Apps/connectors off and re-seed the
+# MCP server set on EVERY boot. Codex exposes account-level connectors as
+# `codex_apps.*` tools; the GitHub connector among them is bound to the
+# ChatGPT account's own GitHub OAuth identity and therefore inherits every
+# org that identity can see (employer orgs included), completely bypassing
+# the repo-scoped GitHub App installation token. The only sanctioned GitHub
+# access for an agent is the `github` MCP server (gh-mcp-wrapper → a short-
+# lived, repo-scoped App token). `features.apps = false` gates the whole
+# experimental connectors subsystem off; `apps._default.enabled = false` is
+# defence-in-depth (per-app disables are ignored upstream — openai/codex
+# #17588), so removing the connector on the ChatGPT account (see SETUP.md)
+# stays the hard guarantee. Managed each boot so the invariant survives a
+# hand-edited PVC config; the create-once approval/sandbox/trust config and
+# any unrelated [features] dotted keys are preserved.
+#
+# Codex reads remote HTTP MCP servers natively and takes the bearer at
+# request time from KB_BEARER_TOKEN (bearer_token_env_var), so no secret
+# lands in config.toml — only @KB_URL@ is substituted.
 CODEX_MCP_FILE="${AGENT_CODEX_MCP_FILE:-/etc/agent-mcp/codex-mcp-servers.toml}"
-if [ -f "$CODEX_MCP_FILE" ] && [ -f "$CODEX_HOME/config.toml" ]; then
+if [ -f "$CODEX_HOME/config.toml" ]; then
   codex_tmp=$(mktemp)
+  # Strip every managed section so re-applying never duplicates a key: the
+  # [features]/[apps*] disable tables, any dotted features.apps / apps._default
+  # keys, and the [mcp_servers.*] tables. Other top-level tables (projects)
+  # and keys are passed through untouched.
   awk '
-    /^\[mcp_servers\./ { in_mcp = 1; next }
-    /^\[/ { in_mcp = 0 }
-    !in_mcp { print }
+    /^\[mcp_servers\./ { skip = 1; next }
+    /^\[features\]/    { skip = 1; next }
+    /^\[apps\]/        { skip = 1; next }
+    /^\[apps\./        { skip = 1; next }
+    /^\[/              { skip = 0 }
+    skip               { next }
+    /^[[:space:]]*features\.apps[[:space:]]*=/ { next }
+    /^[[:space:]]*apps\._default\./            { next }
+    { print }
   ' "$CODEX_HOME/config.toml" > "$codex_tmp"
   {
     echo ""
-    sed -e "s|@KB_URL@|${KB_URL:-}|g" "$CODEX_MCP_FILE"
+    echo "[features]"
+    echo "apps = false"
+    echo ""
+    echo "[apps._default]"
+    echo "enabled = false"
+    if [ -f "$CODEX_MCP_FILE" ]; then
+      echo ""
+      sed -e "s|@KB_URL@|${KB_URL:-}|g" "$CODEX_MCP_FILE"
+    fi
   } >> "$codex_tmp"
-  mv "$codex_tmp" "$CODEX_HOME/config.toml"
+  # Collapse runs of blank lines so repeated boots don't grow the file.
+  awk 'NF{print; blank=0; next} {blank++} blank<2' "$codex_tmp" > "$CODEX_HOME/config.toml"
+  rm -f "$codex_tmp"
 fi
 
 # Stage the deploy key into /tmp with restrictive perms. The gateway
