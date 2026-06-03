@@ -31,31 +31,34 @@ class ContextBuilder(
 
     fun augment(userPrompt: String): String {
         if (!props.enabled || sources.isEmpty()) return userPrompt
-        val merged = dedupedAndFiltered(userPrompt)
-        if (merged.isEmpty()) return userPrompt
+        val chunks = buildChunks(dedupedAndFiltered(userPrompt))
+        // Empty when all snippets failed the score floor, the merged list was
+        // empty, or the character budget was too tight for even the first chunk.
+        if (chunks.isEmpty()) return userPrompt
+        val usedChars = chunks.sumOf { it.length }
+        injectedHits.increment(chunks.size.toDouble())
+        injectedChars.increment(usedChars.toDouble())
+        return buildEnvelope(chunks) + userPrompt
+    }
 
+    private fun buildChunks(merged: List<RetrievalPort.Snippet>): List<String> {
         var usedChars = 0
-        val chunks = mutableListOf<String>()
+        val result = mutableListOf<String>()
         for (s in merged) {
             val chunk = "[${s.source}] ${s.text.take(800)}\n"
             if (usedChars + chunk.length > props.maxContextChars) break
-            chunks += chunk
+            result += chunk
             usedChars += chunk.length
         }
-        // If no chunk fit (budget too tight for even the first hit) emit nothing.
-        if (chunks.isEmpty()) return userPrompt
-
-        injectedHits.increment(chunks.size.toDouble())
-        injectedChars.increment(usedChars.toDouble())
-
-        val body =
-            buildString {
-                append("<context source=\"personal-stack-rag\">\n")
-                chunks.forEach { append(it) }
-                append("</context>\n\n")
-            }
-        return body + userPrompt
+        return result
     }
+
+    private fun buildEnvelope(chunks: List<String>): String =
+        buildString {
+            append("<context source=\"personal-stack-rag\">\n")
+            chunks.forEach { append(it) }
+            append("</context>\n\n")
+        }
 
     private fun dedupedAndFiltered(query: String): List<RetrievalPort.Snippet> {
         val seenIds = mutableSetOf<String>()
