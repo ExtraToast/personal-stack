@@ -19,13 +19,31 @@ data:
         "type": "http",
         "url": "@KB_URL@/mcp",
         "headers": { "Authorization": "Bearer @KB_BEARER_TOKEN@" }
+      },
+      "context7": {
+        "type": "http",
+        "url": "https://mcp.context7.com/mcp"
+      },
+      "vuetify": {
+        "type": "http",
+        "url": "https://mcp.vuetifyjs.com/mcp"
       }
     }
   # Codex (~/.codex/config.toml). Codex reads remote HTTP MCP servers
   # natively; the bearer is taken at request time from the
   # KB_BEARER_TOKEN env var (bearer_token_env_var), so no secret is
   # written into config.toml — only @KB_URL@ is substituted.
+  #
+  # context7 = up-to-date library docs (Spring/Kotlin/Vue/TypeScript/…);
+  # vuetify = Vuetify 3/4 component APIs. Both are public hosted HTTP
+  # endpoints with no auth on the basic tier.
   codex-mcp-servers.toml: |
     [mcp_servers.knowledge]
     url = "@KB_URL@/mcp"
     bearer_token_env_var = "KB_BEARER_TOKEN"
+
+    [mcp_servers.context7]
+    url = "https://mcp.context7.com/mcp"
+
+    [mcp_servers.vuetify]
+    url = "https://mcp.vuetifyjs.com/mcp"

@@ -114,16 +114,25 @@ fi
 # Register MCP servers for Codex from the same ConfigMap (TOML form).
 # Codex consumes remote HTTP MCP servers natively and reads the bearer
 # at request time from KB_BEARER_TOKEN (bearer_token_env_var), so no
-# secret lands in config.toml — only @KB_URL@ is substituted. Appended
-# once: skipped when an [mcp_servers.*] block already exists so a
-# restart on a populated PVC never duplicates it.
+# secret lands in config.toml — only @KB_URL@ is substituted. The MCP
+# set is fully managed from the ConfigMap: strip any previously-seeded
+# [mcp_servers.*] tables, then re-append the current list each boot so
+# adding/removing a server propagates on restart (the prior append-once
+# pinned the set to whatever first reached the PVC). Non-MCP config
+# (approval/sandbox/trust) is left intact.
 CODEX_MCP_FILE="${AGENT_CODEX_MCP_FILE:-/etc/agent-mcp/codex-mcp-servers.toml}"
-if [ -f "$CODEX_MCP_FILE" ] && [ -f "$CODEX_HOME/config.toml" ] &&
-  ! grep -q '^\[mcp_servers\.' "$CODEX_HOME/config.toml"; then
+if [ -f "$CODEX_MCP_FILE" ] && [ -f "$CODEX_HOME/config.toml" ]; then
+  codex_tmp=$(mktemp)
+  awk '
+    /^\[mcp_servers\./ { in_mcp = 1; next }
+    /^\[/ { in_mcp = 0 }
+    !in_mcp { print }
+  ' "$CODEX_HOME/config.toml" > "$codex_tmp"
   {
     echo ""
     sed -e "s|@KB_URL@|${KB_URL:-}|g" "$CODEX_MCP_FILE"
-  } >> "$CODEX_HOME/config.toml"
+  } >> "$codex_tmp"
+  mv "$codex_tmp" "$CODEX_HOME/config.toml"
 fi
 
 # Stage the deploy key into /tmp with restrictive perms. The gateway
