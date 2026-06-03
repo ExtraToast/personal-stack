@@ -1,0 +1,68 @@
+# Read-only cluster-wide visibility for the Kubernetes MCP server.
+#
+# Grants cover the resources agents need to diagnose cluster state:
+# workload resources, pod logs, events, ingress, Flux custom resources.
+#
+# Deliberately excluded (no read, no exec, no patch):
+#   - secrets
+#   - pods/exec
+#   - any write verb (create, update, patch, delete)
+#
+# Mutating operations (restart, reconcile) belong in a later audited
+# allow-list PR (L1).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubernetes-mcp-server-read-only
+rules:
+  # Core workloads
+  - apiGroups: ['']
+    resources:
+      - pods
+      - pods/log
+      - events
+      - services
+      - endpoints
+      - nodes
+      - namespaces
+    verbs: [get, list, watch]
+  # apps workloads
+  - apiGroups: ['apps']
+    resources:
+      - deployments
+      - statefulsets
+      - daemonsets
+      - replicasets
+    verbs: [get, list, watch]
+  # batch workloads
+  - apiGroups: ['batch']
+    resources:
+      - jobs
+      - cronjobs
+    verbs: [get, list, watch]
+  # Ingress / IngressRoute
+  - apiGroups: ['networking.k8s.io']
+    resources:
+      - ingresses
+      - networkpolicies
+    verbs: [get, list, watch]
+  - apiGroups: ['traefik.io', 'traefik.containo.us']
+    resources:
+      - ingressroutes
+      - middlewares
+    verbs: [get, list, watch]
+  # Flux GitOps objects (optional — absent CRDs are a no-op)
+  - apiGroups: ['kustomize.toolkit.fluxcd.io']
+    resources:
+      - kustomizations
+    verbs: [get, list, watch]
+  - apiGroups: ['helm.toolkit.fluxcd.io']
+    resources:
+      - helmreleases
+    verbs: [get, list, watch]
+  - apiGroups: ['source.toolkit.fluxcd.io']
+    resources:
+      - gitrepositories
+      - helmrepositories
+      - ocirepositories
+    verbs: [get, list, watch]

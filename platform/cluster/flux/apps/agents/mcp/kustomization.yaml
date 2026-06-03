@@ -3,3 +3,4 @@ kind: Kustomization
 
 resources:
   - agents-mcp-servers-configmap.yaml
+  - kubernetes-mcp-server
