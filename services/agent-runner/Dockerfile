@@ -73,6 +73,33 @@ RUN npm install -g \
       @openai/codex \
     && npm cache clean --force
 
+# Playwright MCP (browser automation) + a matching chromium. The MCP
+# server (bin: playwright-mcp) is installed globally so the stdio launch
+# needs no runtime npx fetch. The chromium revision is tied to the
+# Playwright version, so `playwright` is pinned to the exact version
+# @playwright/mcp depends on — bump the two in lockstep. Browsers + their
+# system libs live in a shared, world-readable path so the non-root
+# agent user can launch chromium headless.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN npm install -g @playwright/mcp@0.0.75 playwright@1.61.0-alpha-1778188671000 \
+    && playwright install --with-deps chromium \
+    && chmod -R a+rX /ms-playwright \
+    && npm cache clean --force
+
+# GitHub MCP server (stdio), launched via gh-mcp-wrapper which mints a
+# fresh App installation token at spawn (the App token rotates hourly
+# and a static MCP header cannot follow it).
+ARG GITHUB_MCP_VERSION=1.1.2
+RUN arch="$(dpkg --print-architecture)" \
+    && case "$arch" in \
+         amd64) gmcp_arch=x86_64 ;; \
+         arm64) gmcp_arch=arm64 ;; \
+         *) echo "unsupported arch: $arch" >&2; exit 1 ;; \
+       esac \
+    && curl -fsSL "https://github.com/github/github-mcp-server/releases/download/v${GITHUB_MCP_VERSION}/github-mcp-server_Linux_${gmcp_arch}.tar.gz" \
+       | tar -xz -C /usr/local/bin github-mcp-server \
+    && chmod +x /usr/local/bin/github-mcp-server
+
 # The gateway jar runs on the Temurin 21 JDK installed above; the
 # entrypoint launches it with ZGC the same way every other service does.
 COPY --from=gateway-build /app/services/agent-gateway/build/libs/*.jar /opt/agent-gateway.jar
@@ -85,6 +112,12 @@ RUN chmod +x /opt/entrypoint.sh
 # token; the wrapper is a no-op passthrough when the App is not wired.
 COPY services/agent-runner/gh-app-token-wrapper.sh /usr/local/bin/gh
 RUN chmod +x /usr/local/bin/gh
+
+# Wrapper that launches the GitHub MCP server with a freshly-minted App
+# token (see gh-mcp-wrapper.sh). Referenced as the `github` MCP server's
+# command in the agents-mcp-servers ConfigMap.
+COPY services/agent-runner/gh-mcp-wrapper.sh /usr/local/bin/gh-mcp-wrapper
+RUN chmod +x /usr/local/bin/gh-mcp-wrapper
 
 # Non-root agent user, with /workspace writable. /home/agent is the
 # anchor for ~/.claude, ~/.codex, ~/.gitconfig, ~/.ssh — all mounted

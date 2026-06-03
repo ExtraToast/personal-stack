@@ -27,6 +27,15 @@ data:
       "vuetify": {
         "type": "http",
         "url": "https://mcp.vuetifyjs.com/mcp"
+      },
+      "playwright": {
+        "type": "stdio",
+        "command": "playwright-mcp",
+        "args": ["--headless", "--browser", "chromium"]
+      },
+      "github": {
+        "type": "stdio",
+        "command": "gh-mcp-wrapper"
       }
     }
   # Codex (~/.codex/config.toml). Codex reads remote HTTP MCP servers
@@ -47,3 +56,12 @@ data:
 
     [mcp_servers.vuetify]
     url = "https://mcp.vuetifyjs.com/mcp"
+
+    # stdio servers — their command must exist in the runner image
+    # (playwright-mcp + chromium, and gh-mcp-wrapper → github-mcp-server).
+    [mcp_servers.playwright]
+    command = "playwright-mcp"
+    args = ["--headless", "--browser", "chromium"]
+
+    [mcp_servers.github]
+    command = "gh-mcp-wrapper"
