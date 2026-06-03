@@ -34,22 +34,48 @@ class KnowledgeMcpClient(
     ): List<RetrievalPort.Snippet> {
         if (!props.enabled) return emptyList()
         return runCatching {
-            val resp = callTool("knowledge_recall", mapOf("query" to query, "limit" to limit))
-            // CallToolResult.content is an array of TextContent { type, text }.
-            val text =
-                resp
-                    ?.get("result")
-                    ?.get("content")
-                    ?.firstOrNull()
-                    ?.get("text")
-                    ?.asText()
-                    .orEmpty()
-            if (text.isBlank()) emptyList() else parseRecallHits(text).take(limit)
+            val resp =
+                callTool(
+                    "knowledge_recall",
+                    mapOf("query" to query, "limit" to limit, "mode" to props.recallMode),
+                )
+            val result = resp?.get("result") ?: return@runCatching emptyList()
+            // Prefer structuredContent.hits (MCP 2025-06) for typed parsing;
+            // fall back to text block for compatibility with older server.
+            val structuredHits = result.get("structuredContent")?.get("hits")
+            if (structuredHits != null && structuredHits.isArray) {
+                parseStructuredHits(structuredHits).take(limit)
+            } else {
+                val text =
+                    result
+                        .get("content")
+                        ?.firstOrNull()
+                        ?.get("text")
+                        ?.asText()
+                        .orEmpty()
+                if (text.isBlank()) emptyList() else parseRecallHits(text).take(limit)
+            }
         }.getOrElse {
             log.warn("knowledge.recall failed: {}", it.message)
             emptyList()
         }
     }
+
+    private fun parseStructuredHits(hitsNode: JsonNode): List<RetrievalPort.Snippet> =
+        hitsNode.mapNotNull { hit ->
+            val id = hit.get("id")?.asText()?.takeIf { it.isNotBlank() }
+            val title = hit.get("title")?.asText().orEmpty()
+            val snippet = hit.get("snippet")?.asText().orEmpty()
+            val score = hit.get("score")?.asDouble() ?: 0.0
+            val scope = hit.get("scope")?.asText().orEmpty()
+            if (title.isBlank() && snippet.isBlank()) return@mapNotNull null
+            RetrievalPort.Snippet(
+                source = "kb:$scope:$title".trimEnd(':'),
+                text = snippet.ifEmpty { title },
+                score = score,
+                id = id,
+            )
+        }
 
     override fun ingestNote(
         title: String,
