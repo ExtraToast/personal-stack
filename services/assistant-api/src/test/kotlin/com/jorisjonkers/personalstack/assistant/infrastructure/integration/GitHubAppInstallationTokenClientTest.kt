@@ -84,6 +84,7 @@ class GitHubAppInstallationTokenClientTest {
             .expect(requestTo("https://api.github.com/app/installations/777/access_tokens"))
             .andExpect(method(HttpMethod.POST))
             .andExpect(jsonPath("$.repositories[0]").value("personal-stack"))
+            .andExpect(jsonPath("$.permissions.contents").value("write"))
             .andExpect(jsonPath("$.permissions.pull_requests").value("write"))
             .andExpect(jsonPath("$.permissions.actions").value("write"))
             .andRespond(

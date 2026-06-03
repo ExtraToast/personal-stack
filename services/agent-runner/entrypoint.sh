@@ -15,6 +15,9 @@ set -eu
 git config --global user.name  "${GIT_AUTHOR_NAME:-Personal Stack Agent}"
 git config --global user.email "${GIT_AUTHOR_EMAIL:-agents@jorisjonkers.dev}"
 git config --global init.defaultBranch main
+git config --global credential.helper agent-gh-app
+git config --global credential.useHttpPath true
+export GIT_TERMINAL_PROMPT=0
 
 # Restore ~/.claude.json from the latest PVC-backed backup if the
 # runtime file is missing. Claude Code keeps OAuth tokens in
@@ -163,6 +166,14 @@ if [ -n "${REPO_URL:-}" ] && [ -z "$(ls -A "$WORKSPACE_ROOT" 2>/dev/null || true
     git clone "$REPO_URL" "$WORKSPACE_ROOT" || echo "[entrypoint] WARN: clone of $REPO_URL failed; starting gateway anyway"
   fi
 fi
+
+# Keep boot-time clone on the deploy-key path above, then make every
+# interactive git operation prefer HTTPS so the credential helper can
+# provide the short-lived GitHub App token. This fixes pushes from
+# repo-backed workspaces whose SSH deploy key is absent or read-only,
+# and it also covers `gh pr create` when gh shells out to git.
+git config --global url.https://github.com/.insteadOf git@github.com:
+git config --global url.https://github.com/.insteadOf ssh://git@github.com/
 
 exec java \
   -XX:+UseZGC \

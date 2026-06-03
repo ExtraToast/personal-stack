@@ -47,10 +47,11 @@ data class AgentRuntimeProperties(
     // GitHub REST base — overridable for tests / GitHub Enterprise.
     val githubApiBaseUrl: String = "https://api.github.com",
     // GitHub App credentials used to mint short-lived, repo-scoped
-    // installation tokens for the runner's `gh` (PR comments + Actions
-    // re-runs only — pull_requests:write + actions:write, never
-    // contents/administration). The App's numeric id and its PEM
-    // private key (PKCS#1 or PKCS#8). Both empty => minting disabled
+    // installation tokens for runner GitHub writes (`git push` via
+    // HTTPS, `gh pr create`, PR comments, Actions re-runs). Requested
+    // permissions stay repo-scoped: contents:write, pull_requests:write,
+    // actions:write, never administration. The App's numeric id and its
+    // PEM private key (PKCS#1 or PKCS#8). Both empty => minting disabled
     // and the internal token endpoint reports 503.
     val githubAppId: String = "",
     val githubAppPrivateKey: String = "",
