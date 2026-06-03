@@ -4,6 +4,7 @@ import com.jorisjonkers.personalstack.assistant.application.idle.WorkspaceActivi
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSessionId
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceAgentSessionRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepository
+import jakarta.websocket.ContainerProvider
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import org.springframework.web.socket.CloseStatus
@@ -47,7 +48,21 @@ class SessionAttachHandler(
     )
 
     private val bridges = ConcurrentHashMap<String, Bridge>()
-    private val client = StandardWebSocketClient()
+
+    // The gateway ships PTY output in frames up to 64 KiB (a LogTailer
+    // read) and a full-screen attach snapshot can be tens of KiB on its
+    // own. The JSR-356 client container defaults to an 8 KiB text
+    // buffer and closes the upstream WS with 1009 (TOO_BIG) the moment a
+    // frame exceeds it, which tore the bridge down on every busy screen.
+    // Size the inbound buffer to hold the largest frame the gateway emits.
+    private val client =
+        StandardWebSocketClient(
+            ContainerProvider.getWebSocketContainer().apply {
+                defaultMaxTextMessageBufferSize = MAX_TEXT_BUFFER_BYTES
+                defaultMaxBinaryMessageBufferSize = MAX_TEXT_BUFFER_BYTES
+                defaultMaxSessionIdleTimeout = IDLE_TIMEOUT_MS
+            },
+        )
 
     private data class ResolvedAttach(
         val sessionId: WorkspaceAgentSessionId,
@@ -144,6 +159,8 @@ class SessionAttachHandler(
 
     companion object {
         private const val UPSTREAM_HANDSHAKE_SECONDS = 5L
+        private const val MAX_TEXT_BUFFER_BYTES = 1 shl 20
+        private const val IDLE_TIMEOUT_MS = 30L * 60 * 1000
     }
 
     /**
