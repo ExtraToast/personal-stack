@@ -49,7 +49,8 @@ class IdleScaleDownSchedulerTest {
 
         scheduler.sweep()
 
-        verify { orchestrator.destroy(ws) }
+        verify { orchestrator.scaleDown(ws) }
+        verify(exactly = 0) { orchestrator.destroy(any()) }
         assertThat(saved.captured.status).isEqualTo(WorkspaceStatus.IDLE)
         assertThat(saved.captured.podName).isNull()
         assertThat(saved.captured.gatewayEndpoint).isNull()
@@ -63,6 +64,7 @@ class IdleScaleDownSchedulerTest {
 
         scheduler.sweep()
 
+        verify(exactly = 0) { orchestrator.scaleDown(any()) }
         verify(exactly = 0) { orchestrator.destroy(any()) }
         verify(exactly = 0) { workspaces.save(any()) }
     }
@@ -74,6 +76,7 @@ class IdleScaleDownSchedulerTest {
 
         scheduler.sweep()
 
+        verify(exactly = 0) { orchestrator.scaleDown(any()) }
         verify(exactly = 0) { orchestrator.destroy(any()) }
     }
 
@@ -85,6 +88,7 @@ class IdleScaleDownSchedulerTest {
 
         scheduler.sweep()
 
+        verify(exactly = 0) { orchestrator.scaleDown(any()) }
         verify(exactly = 0) { orchestrator.destroy(any()) }
     }
 

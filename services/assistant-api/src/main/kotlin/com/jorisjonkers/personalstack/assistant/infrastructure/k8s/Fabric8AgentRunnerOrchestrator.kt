@@ -101,6 +101,21 @@ class Fabric8AgentRunnerOrchestrator(
             .serverSideApply()
     }
 
+    override fun scaleDown(workspace: Workspace) {
+        val short = workspace.id.short()
+        client
+            .pods()
+            .inNamespace(props.namespace)
+            .withName("agent-runner-$short")
+            .delete()
+        client
+            .services()
+            .inNamespace(props.namespace)
+            .withName("agent-runner-$short")
+            .delete()
+        log.info("scaled down runner pod for workspace {} (PVC preserved)", workspace.id)
+    }
+
     override fun destroy(workspace: Workspace) {
         val short = workspace.id.short()
         client
@@ -126,7 +141,7 @@ class Fabric8AgentRunnerOrchestrator(
                 .withName(workspaceSecretName(short))
                 .delete()
         }
-        log.info("destroyed runner pod for workspace {}", workspace.id)
+        log.info("destroyed runner pod and PVC for workspace {}", workspace.id)
     }
 
     override fun isReady(workspace: Workspace): Boolean {

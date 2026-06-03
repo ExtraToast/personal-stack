@@ -221,6 +221,47 @@ class Fabric8AgentRunnerOrchestratorIntegrationTest {
     }
 
     @Test
+    @DisplayName("scaleDown removes Pod and Service but keeps the PVC")
+    fun `scaleDown removes pod and service but keeps the pvc`() {
+        K3sTestSupport.applyProductionRbac(admin)
+        saScoped = K3sTestSupport.createServiceAccountScopedClient(k3s, admin)
+        val orchestrator = orchestrator(saScoped, deployKeysProvider = empty(), githubLinks = empty())
+        val workspace = adHocWorkspace()
+        orchestrator.provision(workspace)
+
+        orchestrator.scaleDown(workspace)
+
+        val short = workspace.id.short()
+        // PVC must survive scale-down so a follow-up provision can re-attach it.
+        assertThat(
+            admin
+                .persistentVolumeClaims()
+                .inNamespace(K3sTestSupport.AGENTS_NAMESPACE)
+                .withName("workspace-$short")
+                .get(),
+        ).isNotNull
+        // Pod and Service are torn down.
+        assertDeletedOrTerminating {
+            admin
+                .pods()
+                .inNamespace(K3sTestSupport.AGENTS_NAMESPACE)
+                .withName("agent-runner-$short")
+                .get()
+                ?.metadata
+                ?.deletionTimestamp
+        }
+        assertDeletedOrTerminating {
+            admin
+                .services()
+                .inNamespace(K3sTestSupport.AGENTS_NAMESPACE)
+                .withName("agent-runner-$short")
+                .get()
+                ?.metadata
+                ?.deletionTimestamp
+        }
+    }
+
+    @Test
     @DisplayName("destroy removes the PVC, Pod, and Service")
     fun `destroy removes the four resources`() {
         K3sTestSupport.applyProductionRbac(admin)

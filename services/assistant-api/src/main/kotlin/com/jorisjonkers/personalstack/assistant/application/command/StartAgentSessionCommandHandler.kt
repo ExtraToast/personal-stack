@@ -115,16 +115,16 @@ class StartAgentSessionCommandHandler(
     }
 
     /**
-     * Destroy any stale Pod/Service/Secret then provision a fresh one.
-     * `destroy` is idempotent (a 404 on a missing Pod is a no-op), so
-     * this is safe whether the old Pod was absent, crash-looping, or
-     * merely not yet warm. A failure to provision is the only thing
-     * that turns into a 503 here — the caller can retry.
+     * Scale down any stale Pod/Service then provision a fresh one.
+     * The workspace PVC is preserved so /workspace contents survive the
+     * re-provision. `scaleDown` is idempotent (a 404 on a missing Pod
+     * is a no-op). A failure to provision is the only thing that turns
+     * into a 503 here — the caller can retry.
      */
     private fun reprovision(workspace: Workspace): Workspace {
         val handle =
             runCatching {
-                orchestrator.destroy(workspace)
+                orchestrator.scaleDown(workspace)
                 orchestrator.provision(workspace)
             }.getOrElse { ex ->
                 throw AgentRunnerUnavailableException(

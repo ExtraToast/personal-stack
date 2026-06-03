@@ -14,11 +14,10 @@ import java.time.Instant
 
 /**
  * Periodic sweep: any READY workspace whose last activity is older
- * than `agent-runtime.idle-after` gets its Pod + Service + Secret
- * torn down. The PVC (workspace volume) survives so a follow-up
- * "wake" operation can re-provision the Pod with the same disk —
- * the future operation isn't implemented yet, but the destroy step
- * is the part that costs cluster resources and is worth doing now.
+ * than `agent-runtime.idle-after` gets its Pod + Service torn down
+ * via [AgentRunnerOrchestrator.scaleDown]. The workspace PVC and
+ * per-workspace deploy-key Secret are preserved so a follow-up wake
+ * can re-provision the Pod against the same disk without a re-clone.
  *
  * Defaults: idle threshold 30 min, sweep every 5 min. Both
  * overridable via env so a noisier or quieter cluster can tune.
@@ -48,7 +47,7 @@ class IdleScaleDownScheduler(
     private fun effectiveLastSeen(workspace: Workspace): Instant = tracker.lastSeen(workspace.id) ?: workspace.updatedAt
 
     private fun scaleDown(workspace: Workspace) {
-        runCatching { orchestrator.destroy(workspace) }
+        runCatching { orchestrator.scaleDown(workspace) }
             .onFailure {
                 log.warn("scale-down of {} failed: {}", workspace.id, it.message)
                 return
