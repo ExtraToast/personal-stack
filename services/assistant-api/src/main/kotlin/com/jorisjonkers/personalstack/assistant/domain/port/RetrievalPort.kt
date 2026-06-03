@@ -11,6 +11,7 @@ interface RetrievalPort {
         val source: String,
         val text: String,
         val score: Double,
+        val id: String? = null,
     )
 
     fun retrieve(

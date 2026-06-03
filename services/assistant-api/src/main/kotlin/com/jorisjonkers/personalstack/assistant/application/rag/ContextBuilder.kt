@@ -2,13 +2,18 @@ package com.jorisjonkers.personalstack.assistant.application.rag
 
 import com.jorisjonkers.personalstack.assistant.config.RagProperties
 import com.jorisjonkers.personalstack.assistant.domain.port.RetrievalPort
+import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.stereotype.Component
 
 /**
  * Aggregates retrieval results from every RetrievalPort bean,
- * dedupes by snippet text, ranks by score, and formats into a
- * single `<context>...</context>` envelope that the
- * SendUserInputCommandHandler prepends to the agent's input.
+ * dedupes by note id (when present) then by text, filters below the
+ * score floor, ranks by score, and formats into a single
+ * `<context>...</context>` envelope that SendUserInputCommandHandler
+ * prepends to the agent's input.
+ *
+ * No envelope is emitted when no hit clears the score floor or when
+ * the character budget is exhausted before the first chunk lands.
  *
  * Why a single envelope rather than per-source headers: every CLI
  * we plug in has its own quirks for parsing user input. A single
@@ -19,28 +24,48 @@ import org.springframework.stereotype.Component
 class ContextBuilder(
     private val sources: List<RetrievalPort>,
     private val props: RagProperties,
+    registry: MeterRegistry,
 ) {
+    private val injectedHits = registry.counter("rag.hits.injected")
+    private val injectedChars = registry.counter("rag.chars.injected")
+
     fun augment(userPrompt: String): String {
         if (!props.enabled || sources.isEmpty()) return userPrompt
-        val merged =
-            sources
-                .flatMap { it.retrieve(userPrompt, props.maxSnippets) }
-                .sortedByDescending { it.score }
-                .distinctBy { it.text }
-                .take(props.maxSnippets)
+        val merged = dedupedAndFiltered(userPrompt)
         if (merged.isEmpty()) return userPrompt
+
+        var usedChars = 0
+        val chunks = mutableListOf<String>()
+        for (s in merged) {
+            val chunk = "[${s.source}] ${s.text.take(800)}\n"
+            if (usedChars + chunk.length > props.maxContextChars) break
+            chunks += chunk
+            usedChars += chunk.length
+        }
+        // If no chunk fit (budget too tight for even the first hit) emit nothing.
+        if (chunks.isEmpty()) return userPrompt
+
+        injectedHits.increment(chunks.size.toDouble())
+        injectedChars.increment(usedChars.toDouble())
+
         val body =
             buildString {
                 append("<context source=\"personal-stack-rag\">\n")
-                var used = 0
-                for (s in merged) {
-                    val chunk = "[${s.source}] ${s.text.take(800)}\n"
-                    if (used + chunk.length > props.maxContextChars) break
-                    append(chunk)
-                    used += chunk.length
-                }
+                chunks.forEach { append(it) }
                 append("</context>\n\n")
             }
         return body + userPrompt
+    }
+
+    private fun dedupedAndFiltered(query: String): List<RetrievalPort.Snippet> {
+        val seenIds = mutableSetOf<String>()
+        val seenTexts = mutableSetOf<String>()
+        return sources
+            .flatMap { it.retrieve(query, props.maxSnippets) }
+            .filter { it.score >= props.minScore }
+            .sortedByDescending { it.score }
+            .filter { s ->
+                if (s.id != null) seenIds.add(s.id) else seenTexts.add(s.text.trim())
+            }.take(props.maxSnippets)
     }
 }
