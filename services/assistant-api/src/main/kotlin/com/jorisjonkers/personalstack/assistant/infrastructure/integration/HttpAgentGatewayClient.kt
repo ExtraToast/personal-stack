@@ -26,6 +26,7 @@ class HttpAgentGatewayClient(
         val id: String,
         val kind: WorkspaceAgentKind,
         val cwd: String,
+        val cliSessionId: String? = null,
     )
 
     private data class SpawnBody(
@@ -83,7 +84,12 @@ class HttpAgentGatewayClient(
                 .retrieve()
                 .body(GatewayAgentDto::class.java)
                 ?: error("empty response from gateway")
-        return AgentGatewayClient.GatewayAgent(id = dto.id, kind = dto.kind, cwd = dto.cwd)
+        return AgentGatewayClient.GatewayAgent(
+            id = dto.id,
+            kind = dto.kind,
+            cwd = dto.cwd,
+            cliSessionId = dto.cliSessionId,
+        )
     }
 
     override fun stopAgent(

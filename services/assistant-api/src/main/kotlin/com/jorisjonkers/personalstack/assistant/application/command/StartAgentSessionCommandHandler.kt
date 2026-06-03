@@ -81,7 +81,7 @@ class StartAgentSessionCommandHandler(
         sessions.save(session)
 
         val gatewayAgent = spawnAgentWithRetry(healthy, command)
-        sessions.save(session.bindGatewayAgent(gatewayAgent.id))
+        sessions.save(session.bindGatewayAgent(gatewayAgent.id, gatewayAgent.cliSessionId))
     }
 
     /**

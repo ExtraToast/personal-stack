@@ -28,12 +28,16 @@ class JooqWorkspaceAgentSessionRepository(
             .set(KIND, session.kind.name)
             .set(GATEWAY_AGENT_ID, session.gatewayAgentId)
             .set(STATUS, session.status.name)
+            .set(CLI_SESSION_ID, session.cliSessionId)
+            .set(RUN_MODE, session.runMode)
             .set(CREATED_AT, createdAt)
             .set(UPDATED_AT, updatedAt)
             .onConflict(ID)
             .doUpdate()
             .set(GATEWAY_AGENT_ID, session.gatewayAgentId)
             .set(STATUS, session.status.name)
+            .set(CLI_SESSION_ID, session.cliSessionId)
+            .set(RUN_MODE, session.runMode)
             .set(UPDATED_AT, updatedAt)
             .execute()
         return session
@@ -67,6 +71,8 @@ class JooqWorkspaceAgentSessionRepository(
             status = WorkspaceAgentSessionStatus.valueOf(this[STATUS]),
             createdAt = this[CREATED_AT].toInstant(),
             updatedAt = this[UPDATED_AT].toInstant(),
+            cliSessionId = this[CLI_SESSION_ID],
+            runMode = this[RUN_MODE] ?: "INTERACTIVE",
         )
 
     companion object {
@@ -81,6 +87,10 @@ class JooqWorkspaceAgentSessionRepository(
         @JvmStatic val GATEWAY_AGENT_ID = DSL.field("gateway_agent_id", String::class.java)
 
         @JvmStatic val STATUS = DSL.field("status", String::class.java)
+
+        @JvmStatic val CLI_SESSION_ID = DSL.field("cli_session_id", String::class.java)
+
+        @JvmStatic val RUN_MODE = DSL.field("run_mode", String::class.java)
 
         @JvmStatic val CREATED_AT = DSL.field("created_at", OffsetDateTime::class.java)
 

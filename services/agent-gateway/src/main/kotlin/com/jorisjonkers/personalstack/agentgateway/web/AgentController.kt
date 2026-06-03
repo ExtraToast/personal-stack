@@ -69,5 +69,6 @@ class AgentController(
             kind = s.kind,
             cwd = s.cwd,
             createdAt = s.createdAt.toString(),
+            cliSessionId = s.cliSessionId,
         )
 }

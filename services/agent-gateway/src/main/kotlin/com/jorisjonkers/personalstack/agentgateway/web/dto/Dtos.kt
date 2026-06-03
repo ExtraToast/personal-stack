@@ -17,6 +17,7 @@ data class AgentResponse(
     val kind: AgentKind,
     val cwd: String,
     val createdAt: String,
+    val cliSessionId: String? = null,
 )
 
 data class CloneRequest(

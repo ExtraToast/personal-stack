@@ -15,6 +15,7 @@ interface AgentGatewayClient {
         val id: String,
         val kind: WorkspaceAgentKind,
         val cwd: String,
+        val cliSessionId: String? = null,
     )
 
     /**
