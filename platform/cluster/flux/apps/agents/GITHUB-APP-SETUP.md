@@ -2,15 +2,15 @@
 
 Agent runners use **two** GitHub credentials with a deliberate split:
 
-- **Deploy key (SSH, per repo, read-write)** — git clone / fetch / push.
-  Long-lived, so it never expires mid-session. It cannot destroy the
-  repo: no admin scope, and the `main` ruleset blocks force-push and
-  branch deletion for every actor.
+- **Deploy key (SSH, per repo)** — boot-time clone/fetch fallback. Long-
+  lived, so a workspace can still clone even when the short-lived token
+  broker is unavailable.
 - **GitHub App installation token (short-lived, repo-scoped)** — the
-  one thing a deploy key cannot do: `gh pr comment` and `gh run rerun`.
-  Permissions are `pull_requests:write` + `actions:write` only;
-  `contents` and `administration` are never requested, so this token
-  cannot push code or change settings.
+  workspace write path: `git push`, `gh pr create`, `gh pr comment`,
+  and `gh run rerun`. Permissions are `contents:write`,
+  `pull_requests:write`, and `actions:write` only; `administration` is
+  never requested, so this token cannot change repo settings. The
+  `main` ruleset still blocks force-push and branch deletion.
 
 assistant-api mints a fresh, single-repo installation token on demand;
 the runner's `gh` wrapper fetches one before each `gh` call and caches
@@ -40,6 +40,7 @@ and click **Create GitHub App** — or set the same values by hand at
     "hook_attributes": { "active": false },
     "default_permissions": {
       "metadata": "read",
+      "contents": "write",
       "pull_requests": "write",
       "actions": "write"
     },
@@ -56,7 +57,7 @@ only on its owner account.) Public here means "installable by other
 accounts" — it grants the App access to a repo only when that account
 explicitly installs it; it exposes nothing of this repo.
 
-Leave webhooks off. Do not request `contents` or `administration`.
+Leave webhooks off. Do not request `administration`.
 
 ## 2. Generate a private key
 
@@ -133,9 +134,11 @@ workspaces get it immediately.
 
 ```bash
 # From inside a runner Pod (repo-backed workspace):
-gh pr comment <pr> --body "runner check"   # should post
+git push -u origin <branch>                 # should create/update the branch
+gh pr create --draft --fill                 # should create the PR
+gh pr comment <pr> --body "runner check"    # should post
 gh run rerun <run-id>                       # should re-run
 
-# A force-push to main must still be refused (deploy key + ruleset):
+# A force-push to main must still be refused (App token + ruleset):
 git push --force origin main                # expect: protected branch
 ```

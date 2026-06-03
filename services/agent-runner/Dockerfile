@@ -163,12 +163,24 @@ COPY --from=gateway-build /app/services/agent-gateway/build/libs/*.jar /opt/agen
 COPY services/agent-runner/entrypoint.sh /opt/entrypoint.sh
 RUN chmod +x /opt/entrypoint.sh
 
+# Shared token helper used by gh, GitHub MCP, and Git's credential
+# helper. Centralising cache/minting logic keeps push + PR creation on
+# the same repo-scoped token.
+COPY services/agent-runner/agent-github-token.sh /usr/local/bin/agent-github-token
+RUN chmod +x /usr/local/bin/agent-github-token
+
 # `gh` wrapper that mints a fresh App installation token before each
 # real gh call. Installed ahead of the apt gh (/usr/bin/gh) on PATH so
-# `gh pr comment` / `gh run rerun` carry a short-lived, repo-scoped
+# `gh pr create` / `gh run rerun` carry a short-lived, repo-scoped
 # token; the wrapper is a no-op passthrough when the App is not wired.
 COPY services/agent-runner/gh-app-token-wrapper.sh /usr/local/bin/gh
 RUN chmod +x /usr/local/bin/gh
+
+# Git credential helper for HTTPS pushes. The entrypoint rewrites
+# github.com SSH remotes to HTTPS after boot-time clone, so `git push`
+# uses the same installation token instead of requiring an SSH key.
+COPY services/agent-runner/git-credential-agent-gh-app.sh /usr/local/bin/git-credential-agent-gh-app
+RUN chmod +x /usr/local/bin/git-credential-agent-gh-app
 
 # Wrapper that launches the GitHub MCP server with a freshly-minted App
 # token (see gh-mcp-wrapper.sh). Referenced as the `github` MCP server's
