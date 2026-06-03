@@ -184,6 +184,8 @@ service_intent:
       - auth-api
       - assistant-ui
       - assistant-api
+      # Alternate host for the agent terminal WebSocket (Enschede replica).
+      - assistant-ws
       - stalwart
       - n8n
       - gatus
@@ -320,6 +322,9 @@ exposure_intent:
     - knowledge-api
 
   public_and_lan:
+    # Terminal-WS host: public via Cloudflare so it works off-site, and
+    # LAN so split-DNS routes on-site clients to the Enschede replica.
+    - assistant-ws
     - bazarr
     - immich
     - jellyfin
@@ -344,6 +349,7 @@ exposure_intent:
 access_intent:
   sso_protected:
     - assistant-api
+    - assistant-ws
     - stalwart
     - bazarr
     - immich
@@ -363,6 +369,7 @@ access_intent:
     auth-api: auth
     assistant-ui: assistant
     assistant-api: assistant
+    assistant-ws: assistant-ws
     stalwart: stalwart
     grafana: grafana
     n8n: n8n
@@ -428,6 +435,16 @@ ingress_intent:
     assistant-api:
       namespace: assistant-system
       service: assistant-api
+      port: 8082
+      health:
+        path: /api/actuator/health/readiness
+    # Alternate host serving only the agent terminal WebSocket, backed by
+    # the Enschede-pinned assistant-api-ws replica so on-site keystrokes
+    # stay local. Public via Cloudflare; split-DNS routes on-site clients
+    # to the Enschede ingress.
+    assistant-ws:
+      namespace: assistant-system
+      service: assistant-api-ws
       port: 8082
       health:
         path: /api/actuator/health/readiness
