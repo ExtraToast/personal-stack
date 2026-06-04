@@ -8,7 +8,6 @@ import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepository
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.time.Clock
-import java.time.Instant
 
 /**
  * Bulk maintenance operations on runner Pods. Unlike [com.jorisjonkers.personalstack.assistant.application.idle.IdleScaleDownScheduler],

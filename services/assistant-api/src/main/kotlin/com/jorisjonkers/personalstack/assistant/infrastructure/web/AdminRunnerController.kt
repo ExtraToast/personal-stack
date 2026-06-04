@@ -1,10 +1,12 @@
 package com.jorisjonkers.personalstack.assistant.infrastructure.web
 
 import com.jorisjonkers.personalstack.assistant.application.maintenance.RunnerMaintenanceService
+import io.swagger.v3.oas.annotations.Hidden
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
+@Hidden
 @RestController
 @RequestMapping("/api/v1/admin/runners")
 class AdminRunnerController(

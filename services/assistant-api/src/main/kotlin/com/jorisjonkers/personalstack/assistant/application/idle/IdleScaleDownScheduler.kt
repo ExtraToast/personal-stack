@@ -1,8 +1,10 @@
 package com.jorisjonkers.personalstack.assistant.application.idle
 
 import com.jorisjonkers.personalstack.assistant.domain.model.Workspace
+import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSessionStatus
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceStatus
 import com.jorisjonkers.personalstack.assistant.domain.port.AgentRunnerOrchestrator
+import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceAgentSessionRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepository
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -13,35 +15,56 @@ import java.time.Duration
 import java.time.Instant
 
 /**
- * Periodic sweep: any READY workspace whose last activity is older
- * than `agent-runtime.idle-after` gets its Pod + Service torn down
- * via [AgentRunnerOrchestrator.scaleDown]. The workspace PVC and
- * per-workspace deploy-key Secret are preserved so a follow-up wake
- * can re-provision the Pod against the same disk without a re-clone.
+ * Periodic sweep: any READY workspace that is both idle long enough
+ * and has no connected browser clients gets its Pod + Service torn
+ * down via [AgentRunnerOrchestrator.scaleDown].
  *
- * Defaults: idle threshold 30 min, sweep every 5 min. Both
- * overridable via env so a noisier or quieter cluster can tune.
+ * Scale-down is suppressed when:
+ *  - A browser WebSocket is open ([ConnectedClientTracker.isConnected]).
+ *  - The workspace has RUNNING agent sessions and their last activity
+ *    is within `agent-runtime.agent-idle-after-seconds` (default 4 h).
+ *    This protects long-running autonomous agent tasks after the user
+ *    disconnects — the idle timer resets while the AI streams output.
+ *    Once the AI goes quiet the longer grace period begins.
+ *
+ * Defaults: 30 min for sessions-idle, 4 h for agent-running, sweep
+ * every 5 min. All overridable via env.
  */
 @Component
 class IdleScaleDownScheduler(
     private val workspaces: WorkspaceRepository,
+    private val agentSessions: WorkspaceAgentSessionRepository,
     private val orchestrator: AgentRunnerOrchestrator,
     private val tracker: WorkspaceActivityTracker,
+    private val connected: ConnectedClientTracker,
     private val clock: Clock = Clock.systemUTC(),
     @param:Value("\${agent-runtime.idle-after-seconds:1800}")
     private val idleAfterSeconds: Long,
+    @param:Value("\${agent-runtime.agent-idle-after-seconds:14400}")
+    private val agentIdleAfterSeconds: Long,
 ) {
     private val log = LoggerFactory.getLogger(IdleScaleDownScheduler::class.java)
 
     @Scheduled(fixedDelayString = "\${agent-runtime.idle-sweep-period-ms:300000}")
     fun sweep() {
-        val threshold = clock.instant().minus(Duration.ofSeconds(idleAfterSeconds))
         val candidates =
             workspaces
                 .findAllByStatusNot(WorkspaceStatus.DESTROYED)
-                .filter { it.status == WorkspaceStatus.READY && !effectiveLastSeen(it).isAfter(threshold) }
+                .filter { it.status == WorkspaceStatus.READY && isEligibleForScaleDown(it) }
         candidates.forEach { scaleDown(it) }
         if (candidates.isNotEmpty()) log.info("idle-sweep scaled down {} workspace(s)", candidates.size)
+    }
+
+    private fun isEligibleForScaleDown(workspace: Workspace): Boolean {
+        if (connected.isConnected(workspace.id)) return false
+        val lastSeen = effectiveLastSeen(workspace)
+        val hasRunning =
+            agentSessions
+                .findAllByWorkspaceId(workspace.id)
+                .any { it.status == WorkspaceAgentSessionStatus.RUNNING }
+        val threshold =
+            Duration.ofSeconds(if (hasRunning) agentIdleAfterSeconds else idleAfterSeconds)
+        return !lastSeen.isAfter(clock.instant().minus(threshold))
     }
 
     private fun effectiveLastSeen(workspace: Workspace): Instant = tracker.lastSeen(workspace.id) ?: workspace.updatedAt
