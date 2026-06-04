@@ -35,7 +35,25 @@ python3 platform/agents/council/council.py --self-test
 ```
 
 `plan` prints the run dir on stdout. Inspect `consolidated_plan.md` and
-`tasks.json` there. Fan-out execution is a separate `fanout` subcommand.
+`tasks.json` there.
+
+```bash
+# stages 5-6: execute the task DAG with cheap workers, verify, reconcile
+python3 platform/agents/council/council.py fanout --run .council/runs/<id>
+
+# preview the wave/worker plan (no execution)
+python3 platform/agents/council/council.py fanout --run .council/runs/<id> --estimate
+```
+
+`fanout` topologically sorts `tasks.json` into waves. Within a wave, workers run
+concurrently — each in its own `git worktree` off the integration branch — so
+they never collide. Each worker (cheap model) implements its task; the
+orchestrator commits the worktree, runs the task's `verify`, and an adversarial
+verifier (`claude:sonnet`) checks the diff against the objective. Worker commits
+are merged onto a `council/<run>/integration` branch in dependency order;
+conflicts are left out and reported. **Nothing is merged into your branch** —
+`fanout` prints the integration branch name for review. See `report.md` in the
+run dir.
 
 ## Knobs
 - `--rounds N` — critique rounds (default 2).
