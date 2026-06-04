@@ -1,6 +1,7 @@
 package com.jorisjonkers.personalstack.assistant.infrastructure.integration
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.jorisjonkers.personalstack.assistant.config.RagProperties
 import com.jorisjonkers.personalstack.assistant.domain.port.KnowledgeWritePort
 import com.jorisjonkers.personalstack.assistant.domain.port.RetrievalPort
@@ -13,7 +14,7 @@ import java.util.concurrent.atomic.AtomicLong
 /**
  * JSON-RPC over HTTP against knowledge-api's /mcp endpoint. The
  * server speaks the MCP 2024-11 dialect; we only need two tools
- * (`knowledge_recall` and `knowledge_capture_lesson`) so the client
+ * (`knowledge.recall` and `knowledge.capture_lesson`) so the client
  * is one-call-per-method rather than a full session manager.
  *
  * Auth: bearer-token allow-list (see knowledge-api/vault-secrets);
@@ -26,6 +27,7 @@ class KnowledgeMcpClient(
 ) : RetrievalPort,
     KnowledgeWritePort {
     private val log = LoggerFactory.getLogger(KnowledgeMcpClient::class.java)
+    private val mapper = jacksonObjectMapper()
     private val seq = AtomicLong(0)
 
     override fun retrieve(
@@ -36,7 +38,7 @@ class KnowledgeMcpClient(
         return runCatching {
             val resp =
                 callTool(
-                    "knowledge_recall",
+                    RECALL_TOOL,
                     mapOf("query" to query, "limit" to limit, "mode" to props.recallMode),
                 )
             val result = resp?.get("result") ?: return@runCatching emptyList()
@@ -86,7 +88,7 @@ class KnowledgeMcpClient(
         if (!props.enabled) return
         runCatching {
             callTool(
-                "knowledge_capture_lesson",
+                CAPTURE_LESSON_TOOL,
                 mapOf(
                     "title" to title,
                     "body" to body,
@@ -118,7 +120,8 @@ class KnowledgeMcpClient(
                 }
             }.body(payload)
             .retrieve()
-            .body(JsonNode::class.java)
+            .body(String::class.java)
+            ?.let(mapper::readTree)
     }
 
     private fun parseRecallHits(text: String): List<RetrievalPort.Snippet> {
@@ -138,5 +141,10 @@ class KnowledgeMcpClient(
     private fun scoreFromTrailer(line: String): Double {
         val m = Regex("score=([0-9.]+)").find(line) ?: return 0.0
         return m.groupValues[1].toDoubleOrNull() ?: 0.0
+    }
+
+    private companion object {
+        const val RECALL_TOOL = "knowledge.recall"
+        const val CAPTURE_LESSON_TOOL = "knowledge.capture_lesson"
     }
 }
