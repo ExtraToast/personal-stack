@@ -15,7 +15,7 @@ jobs:
     name: Mutation Tests (Kotlin)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - uses: ./.github/actions/setup-java-gradle
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -29,7 +29,7 @@ jobs:
     name: Mutation Tests (Frontend)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - uses: ./.github/actions/setup-node-pnpm
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -46,7 +46,7 @@ jobs:
     name: Advanced Security Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - name: Semgrep
         uses: semgrep/semgrep-action@v1
         with:
