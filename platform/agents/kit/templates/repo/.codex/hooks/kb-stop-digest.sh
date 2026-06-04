@@ -43,7 +43,7 @@ else
 fi
 [ "${remaining}" -gt 0 ] 2>/dev/null || exit 0
 
-transcript="$(python3 - "${transcript_path}" "${KB_DIGEST_MAX_CHARS:-60000}" <<'PY' 2>/dev/null
+transcript="$(python3 - "${transcript_path}" "${KB_DIGEST_MAX_CHARS:-30000}" <<'PY' 2>/dev/null
 import json, sys
 path, max_chars = sys.argv[1], int(sys.argv[2])
 rows = []

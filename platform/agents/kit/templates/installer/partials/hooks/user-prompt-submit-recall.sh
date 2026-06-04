@@ -17,26 +17,71 @@ case "${KB_URL}" in
   *) KB_MCP_URL="${KB_URL%/}/mcp" ;;
 esac
 
-# Stdin carries the JSON event payload; the user_prompt field has the
-# raw text. Use python (always present on macOS / NixOS) to extract.
-prompt="$(python3 -c 'import json,sys; data=json.load(sys.stdin); print(data.get("user_prompt") or data.get("prompt") or "", end="")' 2>/dev/null || true)"
+# Stdin carries the JSON event payload. Extract the prompt from several
+# possible shapes: user_prompt string, messages list, or generic prompt.
+input="$(cat 2>/dev/null || true)"
+prompt="$(printf '%s' "${input}" | python3 -c '
+import json, sys
+
+def text(value):
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        return " ".join(text(v) for v in value)
+    if isinstance(value, dict):
+        if isinstance(value.get("text"), str):
+            return value["text"]
+        if "content" in value:
+            return text(value["content"])
+    return ""
+
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+
+for key in ("user_prompt", "prompt", "input"):
+    value = text(data.get(key))
+    if value:
+        print(value, end="")
+        sys.exit(0)
+
+messages = data.get("messages")
+if isinstance(messages, list) and messages:
+    print(text(messages[-1]), end="")
+' 2>/dev/null || true)"
 
 # Skip trivially-short prompts — overhead > value.
 [ "${#prompt}" -lt "${KB_RECALL_MIN_PROMPT_CHARS:-40}" ] && exit 0
 
-mode="${KB_RECALL_HOOK_MODE:-hybrid}"
+# Scope recall to the current repo when running inside a git checkout.
+project="$(git remote get-url origin 2>/dev/null | sed -e 's#\.git$##' -e 's#.*[/:]##')"
+[ -n "${project}" ] || project="$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")"
+scope="${KB_RECALL_SCOPE:-project:${project}}"
+
+# Adaptive mode: short prompts rarely need semantic search.
+prompt_len="${#prompt}"
+if [ -n "${KB_RECALL_HOOK_MODE:-}" ]; then
+  mode="${KB_RECALL_HOOK_MODE}"
+elif [ "${prompt_len}" -lt 80 ]; then
+  mode="fast"
+else
+  mode="hybrid"
+fi
 limit="${KB_RECALL_HOOK_LIMIT:-3}"
+min_score="${KB_RECALL_MIN_SCORE:-0.004}"
 
 recall_payload() {
-  python3 -c 'import json,sys; print(json.dumps({
-  "jsonrpc":"2.0","id":1,"method":"tools/call","params":{
-    "name":"knowledge.recall",
-    "arguments":{"query":sys.argv[1],"limit":int(sys.argv[2]),"mode":sys.argv[3]}}}))' \
-    "$1" "$2" "$3"
+  python3 -c 'import json,sys
+args = {"query": sys.argv[1], "limit": int(sys.argv[2]), "mode": sys.argv[3]}
+if sys.argv[4]:
+    args["scope"] = sys.argv[4]
+print(json.dumps({"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"knowledge.recall","arguments":args}}))' \
+    "$1" "$2" "$3" "$4"
 }
 
 call_recall() {
-  payload=$(recall_payload "$1" "$2" "$3") || return 1
+  payload=$(recall_payload "$1" "$2" "$3" "$4") || return 1
   curl -sS --connect-timeout 3 --max-time 5 \
     -H "Authorization: Bearer ${KB_BEARER_TOKEN}" \
     -H "Content-Type: application/json" \
@@ -44,33 +89,32 @@ call_recall() {
     "${KB_MCP_URL}" 2>/dev/null
 }
 
-response=$(call_recall "${prompt}" "${limit}" "${mode}") || response=""
+response=$(call_recall "${prompt}" "${limit}" "${mode}" "${scope}") || response=""
 if [ -z "${response}" ] && [ "${mode}" != "fast" ]; then
-  response=$(call_recall "${prompt}" "${limit}" fast) || exit 0
+  response=$(call_recall "${prompt}" "${limit}" fast "${scope}") || exit 0
 fi
 [ -n "${response}" ] || exit 0
 
-hits=$(printf '%s' "${response}" | python3 -c 'import json,sys
+printf '%s' "${response}" | python3 -c '
+import json, sys
 try:
     data = json.load(sys.stdin)
     hits = data["result"]["structuredContent"]["hits"]
-    if not hits: sys.exit(0)
-    print("## Knowledge base — relevant prior captures")
-    print()
-    for h in hits:
-        title = h.get("title", "")
-        scope = h.get("scope", "")
-        note_id = h.get("id", "")
-        try:
-            score = f"{float(h.get('score', 0.0)):.2f}"
-        except Exception:
-            score = str(h.get("score", ""))
-        print(f"- **{title}** (`{scope}`, score {score}) — id `{note_id}`")
-        snip = h.get("snippet","").replace("\n"," ").strip()
-        if snip: print(f"  > {snip[:220]}")
 except Exception:
-    sys.exit(0)' 2>/dev/null) || exit 0
-
-if [ -n "${hits}" ]; then
-  printf '%s\n' "${hits}"
-fi
+    sys.exit(0)
+min_score = float("'"${min_score}"'")
+hits = [h for h in hits if float(h.get("score", 0) or 0) >= min_score]
+if not hits:
+    sys.exit(0)
+print("## Knowledge base — relevant prior captures")
+print()
+for h in hits:
+    title = h.get("title", "")
+    scope = h.get("scope", "")
+    note_id = h.get("id", "")
+    score = h.get("score", 0)
+    print(f"- **{title}** (`{scope}`, score {score}) — id `{note_id}`")
+    snip = (h.get("snippet") or "").replace("\n", " ").strip()
+    if snip:
+        print(f"  > {snip[:160]}")
+' 2>/dev/null || true

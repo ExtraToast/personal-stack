@@ -13,8 +13,9 @@ description: Use when the user asks to reduce token usage, agent cost, context b
   fetch full files or notes only when needed.
 - Keep recall bounded: default to `limit=3` for hook-injected context and
   `limit <= 5` for manual task setup.
-- Use hybrid retrieval for normal KB recall. Escalate to deep retrieval only
-  after a miss, ambiguity, or non-obvious cross-topic dependency.
+- Use adaptive recall mode: `fast` for prompts under 80 chars, `hybrid` for
+  normal work, `deep` only after a miss, ambiguity, or non-obvious cross-topic
+  dependency.
 - Keep runner MCP profiles narrow. Use `minimal` by default and opt into
   `frontend`, `cluster`, `code-intel`, or `full-diagnostic` only for tasks that
   need those extra tools.
@@ -32,3 +33,14 @@ decision. When explaining research, cite sources but do not paste long passages.
 
 Session digests should capture only reusable lessons above a confidence floor.
 Use per-session caps and dedupe against existing KB hits before writing.
+
+## Tunable env vars
+
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `KB_RECALL_MIN_SCORE` | `0.004` | Minimum hit score injected into context; raise to tighten relevance. |
+| `KB_RECALL_HOOK_LIMIT` | `3` | Max recall hits per hook invocation. |
+| `KB_RECALL_HOOK_MODE` | auto | Override adaptive mode (`fast`/`hybrid`/`deep`). |
+| `KB_DIGEST_MAX_CHARS` | `30000` | Transcript chars fed to the stop-digest hook; lower = cheaper. |
+| `KB_DIGEST_MAX_CAPTURES` | `4` | Per-session capture cap for the stop hook. |
+| `KB_AUTO_MCP_DISABLED` | `0` | Set to `1` to disable all automatic KB calls (panic switch). |

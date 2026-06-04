@@ -8,8 +8,13 @@ description: Use before designing or changing behavior that may depend on prior 
 Use the KB as a small retrieval layer, not as a large context dump.
 
 1. Distill the task into a short query.
-2. Call `knowledge.recall` with `mode=hybrid` and `limit <= 5`.
-3. Prefer a specific `project:<repo>` or `topic:<slug>` scope.
+2. Call `knowledge.recall` with `limit <= 5` and a scope when possible.
+   - `mode=fast` for short/trivial lookups (< 80 chars or latency-sensitive).
+   - `mode=hybrid` for normal work.
+   - `mode=deep` only after a miss or when cross-topic context matters.
+3. Prefer `scope=project:<repo>` or `topic:<slug>` over broad recall.
 4. Read snippets first, relations next, and full notes only when needed.
-5. Capture durable lessons or decisions at the end. Never capture secrets,
+5. Filter mentally: hits with very low scores (< 0.01) are rarely actionable —
+   skip them and say the KB had no relevant hits.
+6. Capture durable lessons or decisions at the end. Never capture secrets,
    raw logs, full diffs, or full transcripts.
