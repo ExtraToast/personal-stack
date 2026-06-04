@@ -45,10 +45,6 @@ jobs:
     outputs:
       matrix: ${{ steps.compute.outputs.matrix }}
       has-matrix: ${{ steps.compute.outputs.has-matrix }}
-      # knowledge-api is built by its own CRaC job (see build-knowledge-api-crac),
-      # not the generic matrix, because its image bakes a runtime-produced CRaC
-      # checkpoint.
-      knowledge-api: ${{ steps.compute.outputs.knowledge_api }}
     steps:
       - uses: actions/checkout@v6.0.2
         with:
@@ -159,10 +155,7 @@ jobs:
 
           [[ "$(any "$FORCE_ALL" "$KOTLIN_SHARED"   "$FILTER_AUTH_API")"      == "true" ]] && append auth-api      services/auth-api/Dockerfile      "$AMD64"
           [[ "$(any "$FORCE_ALL" "$KOTLIN_SHARED"   "$FILTER_ASSISTANT_API")" == "true" ]] && append assistant-api services/assistant-api/Dockerfile "$AMD64"
-          # knowledge-api is intentionally NOT appended to the matrix: it needs
-          # the bespoke train -> checkpoint -> bake flow in build-knowledge-api-crac.
-          # The boolean is surfaced as its own output so that job can gate on it.
-          KNOWLEDGE_API=$(any "$FORCE_ALL" "$KOTLIN_SHARED" "$FILTER_KNOWLEDGE_API")
+          [[ "$(any "$FORCE_ALL" "$KOTLIN_SHARED"   "$FILTER_KNOWLEDGE_API")" == "true" ]] && append knowledge-api services/knowledge-api/Dockerfile "$AMD64"
           # agent-runner bundles the agent-gateway jar (built from the
           # same Gradle settings), so a single image rebuild covers both
           # the per-workspace tmux/runner shell and the gateway HTTP
@@ -181,8 +174,6 @@ jobs:
           [[ "$(any "$FORCE_ALL" "$FILTER_WORKFLOW" "$FILTER_STALWART_TOOLS")" == "true" ]] && append stalwart-tools infra/stalwart/Dockerfile "$AMD64"
 
           echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
-          echo "knowledge_api=$KNOWLEDGE_API" >> "$GITHUB_OUTPUT"
-          echo "knowledge-api CRaC build: $KNOWLEDGE_API"
           if [[ "$MATRIX" == "[]" ]]; then
             echo "has-matrix=false" >> "$GITHUB_OUTPUT"
             echo "::notice::No service image needs rebuilding for this push."
@@ -236,115 +227,3 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:latest
           cache-from: type=gha,scope=${{ matrix.service.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}
-
-  build-knowledge-api-crac:
-    # knowledge-api's production image bakes a CRaC checkpoint so a fresh pod
-    # restores with the read path already JIT-hot (see services/knowledge-api/
-    # Dockerfile + crac-launch.sh). The checkpoint can only be produced by
-    # *running* the trained JVM against real Postgres (pgvector) + RabbitMQ, so
-    # this cannot be a plain build-push matrix entry — knowledge-api is handled
-    # here instead. Isolated as its own job on purpose: a failure leaves the
-    # previous knowledge-api :latest in place (Keel keeps serving it) and never
-    # blocks the other services' images.
-    name: Build & Push knowledge-api (CRaC)
-    needs: detect-changes
-    if: needs.detect-changes.outputs.knowledge-api == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-      contents: read
-    services:
-      postgres:
-        # pgvector image, not plain postgres: knowledge-api's Flyway migrations
-        # create vector / HNSW / GIN objects, so a vanilla server fails to
-        # migrate and the JVM never reaches ApplicationReadyEvent (no checkpoint).
-        image: pgvector/pgvector:pg17
-        env:
-          POSTGRES_DB: knowledge_db
-          POSTGRES_USER: kb_user
-          POSTGRES_PASSWORD: kb_password
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
-      rabbitmq:
-        image: rabbitmq:3-management-alpine
-        ports:
-          - 5672:5672
-        options: >-
-          --health-cmd "rabbitmq-diagnostics ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 12
-    steps:
-      - uses: actions/checkout@v6.0.2
-      - name: Set image prefix (lowercase)
-        run: echo "IMAGE_PREFIX=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
-      - uses: docker/setup-buildx-action@v4
-      - uses: docker/login-action@v4.2.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build train image
-        uses: docker/build-push-action@v7.2.0
-        with:
-          context: .
-          file: services/knowledge-api/Dockerfile
-          target: train
-          load: true
-          tags: knowledge-api-train:local
-          build-args: |
-            GIT_SHA=${{ github.sha }}
-          cache-from: type=gha,scope=knowledge-api
-          cache-to: type=gha,mode=max,scope=knowledge-api
-      - name: Run training (drives warmup, dumps checkpoint)
-        run: |
-          set -euo pipefail
-          mkdir -p crac-checkpoint
-          chmod 777 crac-checkpoint
-          # --privileged so CRIU has CHECKPOINT_RESTORE / SYS_PTRACE under any
-          # host seccomp profile; --network=host reaches the GHA service
-          # sidecars on localhost. Exit 137 is the expected clean-dump signal.
-          set +e
-          docker run --rm \
-            --privileged \
-            --network=host \
-            -v "$PWD/crac-checkpoint:/opt/crac/checkpoint" \
-            -e DB_HOST=localhost -e DB_PORT=5432 \
-            -e DB_NAME=knowledge_db -e DB_USER=kb_user -e DB_PASSWORD=kb_password \
-            -e RABBITMQ_HOST=localhost -e RABBITMQ_PORT=5672 \
-            -e RABBITMQ_USER=guest -e RABBITMQ_PASSWORD=guest \
-            -e SERVER_PORT=8080 \
-            knowledge-api-train:local
-          EXIT_CODE=$?
-          set -e
-          echo "Container exit code: ${EXIT_CODE}"
-          echo "::group::Checkpoint directory listing"
-          ls -la crac-checkpoint || true
-          echo "::endgroup::"
-          if [ -z "$(ls -A crac-checkpoint 2>/dev/null)" ]; then
-            echo "::error::checkpoint dir is empty — CRaC dump did not produce files"
-            exit 1
-          fi
-          if [ "${EXIT_CODE}" -ne 0 ] && [ "${EXIT_CODE}" -ne 137 ]; then
-            echo "::error::training container exited ${EXIT_CODE}"
-            exit "${EXIT_CODE}"
-          fi
-      - name: Build and push final image with baked checkpoint
-        uses: docker/build-push-action@v7.2.0
-        with:
-          context: .
-          file: services/knowledge-api/Dockerfile
-          push: true
-          platforms: linux/amd64
-          build-args: |
-            GIT_SHA=${{ github.sha }}
-            CRAC_CHECKPOINT_DIR=crac-checkpoint
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/knowledge-api:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/knowledge-api:latest
-          cache-from: type=gha,scope=knowledge-api
