@@ -27,7 +27,11 @@ parallel execution. Each task must:
   (overlapping files across parallel tasks cause merge conflicts — partition the
   work so this never happens),
 - declare its dependencies explicitly in depends_on (task ids),
-- carry a concrete verify command or check a worker can run,
+- carry a `verify` that is a SINGLE shell command run verbatim via `bash -lc`
+  and exits 0 only on success. It must be pure shell — no prose, no backticks,
+  no markdown, no parenthetical asides. Chain steps with `&&`. Right:
+  `python3 foo.py --version && python3 -m pytest -q`. Wrong:
+  `run the script (expect "ok") and check it passes`.
 - be tagged with a difficulty and a worker model (haiku for trivial/moderate,
   sonnet for hard).
 

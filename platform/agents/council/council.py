@@ -22,6 +22,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -71,6 +72,14 @@ CONSOLIDATOR = Engine("claude", "opus")
 DEFAULT_ROUNDS = 2
 CODEX_REASONING = os.environ.get("COUNCIL_CODEX_REASONING", "high")
 PLAN_TIMEOUT_S = int(os.environ.get("COUNCIL_PLAN_TIMEOUT_S", "1200"))
+
+# fan-out tier
+WORKER_PERMISSION_MODE = "acceptEdits"   # auto-accept edits; no command approval
+WORKER_TIMEOUT_S = int(os.environ.get("COUNCIL_WORKER_TIMEOUT_S", "1800"))
+VERIFY_TIMEOUT_S = int(os.environ.get("COUNCIL_VERIFY_TIMEOUT_S", "600"))
+VERIFIER = Engine("claude", "sonnet")
+DEFAULT_MAX_WORKERS = 6
+WT_ROOT = Path(tempfile.gettempdir()) / "council-worktrees"
 
 
 @dataclass
@@ -419,6 +428,257 @@ def validate_tasks(tasks: list[dict]) -> None:
 
 
 # --------------------------------------------------------------------------
+# stages 5-6: fan-out + verify + reconcile
+# --------------------------------------------------------------------------
+
+def git(*args: str, cwd: Optional[Path] = None, check: bool = True,
+        timeout: int = 120) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", *args], cwd=str(cwd or REPO_ROOT),
+                          capture_output=True, text=True, check=check,
+                          timeout=timeout)
+
+
+def parallel_bounded(thunks: list[Callable[[], T]], cap: int) -> list[T]:
+    """Run thunks with at most `cap` concurrent, preserving order. Thunks must
+    not raise (wrap failures into return values)."""
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, cap)) as ex:
+        return list(ex.map(lambda t: t(), thunks))
+
+
+def run_verify(cmd: str, cwd: Path) -> tuple[Optional[int], str]:
+    if not cmd.strip():
+        return None, "(no verify command)"
+    try:
+        proc = subprocess.run(["bash", "-lc", cmd], cwd=str(cwd),
+                              capture_output=True, text=True, env=child_env(),
+                              timeout=VERIFY_TIMEOUT_S)
+        return proc.returncode, (proc.stdout + proc.stderr)[-8000:]
+    except subprocess.TimeoutExpired:
+        return 124, f"(verify timed out after {VERIFY_TIMEOUT_S}s)"
+
+
+def run_verifier(run: Run, task: dict, diff: str, verify_cmd: str,
+                 verify_rc: Optional[int], verify_out: str) -> Optional[dict]:
+    prompt = render(
+        load_prompt("verifier"), objective=task.get("objective", ""),
+        output_format=task.get("output_format", ""),
+        paths="\n".join(f"- {p}" for p in task.get("paths", [])) or "(none)",
+        diff=diff[:16000] or "(no changes)", verify_cmd=verify_cmd or "(none)",
+        verify_rc=str(verify_rc), verify_output=verify_out[:6000] or "(none)",
+        schema=load_schema_text("verdict"),
+    )
+    try:
+        res = run.record(run_engine(VERIFIER, prompt, retries=0))
+        return extract_json(res.text)
+    except Exception as exc:  # verifier is advisory; never fail the run on it
+        log(f"verifier for {task['id']} errored: {exc}")
+        return None
+
+
+def run_worker(run: Run, task: dict, base_ref: str, run_name: str) -> dict:
+    tid = task["id"]
+    paths = list(task.get("paths", []))
+    branch = f"council/{run_name}/{tid}"
+    wt = WT_ROOT / run_name / tid
+    result: dict = {"task_id": tid, "title": task.get("title", tid),
+                    "model": task.get("model"), "branch": branch,
+                    "worktree": str(wt), "committed": False}
+    try:
+        wt.parent.mkdir(parents=True, exist_ok=True)
+        git("worktree", "remove", "--force", str(wt), check=False)
+        git("branch", "-D", branch, check=False)
+        git("worktree", "add", "--force", "-b", branch, str(wt), base_ref)
+
+        if paths:
+            prompt = render(
+                load_prompt("worker"), title=task.get("title", tid),
+                objective=task["objective"],
+                paths="\n".join(f"- {p}" for p in paths),
+                boundaries=task.get("boundaries", ""),
+                output_format=task.get("output_format", ""), cwd=str(wt))
+            res = run.record(run_claude(prompt, task["model"], cwd=wt,
+                                        permission_mode=WORKER_PERMISSION_MODE,
+                                        timeout=WORKER_TIMEOUT_S))
+            result["summary"] = res.text[-2000:]
+        else:
+            result["summary"] = "(verify-only task: no files to edit)"
+
+        git("add", "-A", cwd=wt)
+        dirty = git("status", "--porcelain", cwd=wt).stdout.strip()
+        if dirty:
+            git("-c", "user.name=council", "-c", "user.email=council@local",
+                "commit", "-q", "-m", f"council: {tid}", cwd=wt)
+            result["committed"] = True
+            result["files_changed"] = git(
+                "diff", "--name-only", f"{base_ref}..HEAD", cwd=wt
+            ).stdout.split()
+            diff = git("diff", f"{base_ref}..HEAD", cwd=wt, timeout=120).stdout
+        else:
+            result["files_changed"] = []
+            diff = ""
+
+        out_of_bounds = [f for f in result["files_changed"] if f not in paths]
+        result["out_of_bounds"] = out_of_bounds
+
+        verify_cmd = task.get("verify", "")
+        rc, out = run_verify(verify_cmd, wt)
+        result["verify_rc"] = rc
+        result["verify_output"] = out[-4000:]
+
+        verdict = run_verifier(run, task, diff, verify_cmd, rc, out)
+        result["verdict"] = verdict
+
+        if out_of_bounds:
+            result["status"] = "out-of-bounds"
+        elif paths and not result["committed"]:
+            result["status"] = "no-op"
+        elif rc not in (None, 0):
+            result["status"] = "verify-failed"
+        elif verdict is not None and not verdict.get("satisfied", True):
+            result["status"] = "rejected"
+        else:
+            result["status"] = "ok"
+    except Exception as exc:
+        result["status"] = "error"
+        result["error"] = str(exc)[:500]
+    finally:
+        wdir = run.path / "workers" / tid
+        wdir.mkdir(parents=True, exist_ok=True)
+        (wdir / "result.json").write_text(json.dumps(result, indent=2))
+    return result
+
+
+def cmd_fanout(args: argparse.Namespace) -> int:
+    run = Run.open(Path(args.run))
+    if not run.has("tasks.json"):
+        raise SystemExit(f"no tasks.json in {run.path}; run `plan` first")
+    tasks = run.read_json("tasks.json")
+    by_id = {t["id"]: t for t in tasks}
+    waves = plan_waves(tasks)
+    cores = max(1, (os.cpu_count() or 3) - 2)
+    cap = min(args.max_workers, cores)
+
+    if args.estimate:
+        print(f"council fanout — {len(tasks)} tasks in {len(waves)} wave(s), "
+              f"concurrency {cap}")
+        for i, wave in enumerate(waves, 1):
+            models = ", ".join(f"{t}:{by_id[t].get('model')}" for t in wave)
+            print(f"  wave {i}: {models}")
+        print("Each task spawns one worker (cheap model) + one verifier "
+              "(claude:sonnet). Worktrees are isolated; nothing is merged into "
+              "your branch — results land on an integration branch for review.")
+        return 0
+
+    run_name = run.path.name
+    base = git("rev-parse", "HEAD").stdout.strip()
+    integ_branch = f"council/{run_name}/integration"
+    integ_wt = WT_ROOT / run_name / "_integration"
+    integ_wt.parent.mkdir(parents=True, exist_ok=True)
+    git("worktree", "remove", "--force", str(integ_wt), check=False)
+    git("branch", "-D", integ_branch, check=False)
+    git("worktree", "add", "--force", "-b", integ_branch, str(integ_wt), base)
+    log(f"fanout: {len(tasks)} task(s) in {len(waves)} wave(s); base {base[:8]}; "
+        f"integration branch {integ_branch}; concurrency {cap}")
+
+    results: dict[str, dict] = {}
+    for wi, wave in enumerate(waves, 1):
+        wave_base = git("rev-parse", "HEAD", cwd=integ_wt).stdout.strip()
+        log(f"wave {wi}/{len(waves)}: {wave}  (base {wave_base[:8]})")
+        thunks = [(lambda t=t: run_worker(run, by_id[t], wave_base, run_name))
+                  for t in wave]
+        for tid, res in zip(wave, parallel_bounded(thunks, cap)):
+            results[tid] = res
+            log(f"  [{tid}] {res['status']}"
+                + (f" ({len(res.get('files_changed', []))} files)"
+                   if res.get("committed") else ""))
+        # reconcile this wave into the integration branch, in order
+        for tid in wave:
+            res = results[tid]
+            if not res.get("committed"):
+                res["merge"] = "nothing-to-merge"
+                continue
+            m = git("merge", "--no-ff", "-m", f"council merge {tid}",
+                    f"council/{run_name}/{tid}", cwd=integ_wt, check=False)
+            if m.returncode != 0:
+                git("merge", "--abort", cwd=integ_wt, check=False)
+                res["merge"] = "conflict"
+                log(f"  [{tid}] merge CONFLICT — left out of integration")
+            else:
+                res["merge"] = "ok"
+
+    if not args.keep_worktrees:
+        for tid in by_id:
+            git("worktree", "remove", "--force", str(WT_ROOT / run_name / tid),
+                check=False)
+
+    report = build_report(run, integ_branch, str(integ_wt), waves, results)
+    run.write_json("report.json", report)
+    run.write_text("report.md", render_report_md(report))
+    run.set_state(stage="fanned-out", integration_branch=integ_branch)
+    s = report["summary"]
+    log(f"done: {s['ok']}/{s['total']} ok, {s['failed']} failed, "
+        f"{s['merged']} merged into {integ_branch}")
+    print(integ_branch)  # stdout: integration branch for the host to surface
+    return 0
+
+
+def build_report(run: Run, integ_branch: str, integ_wt: str,
+                 waves: list[list[str]], results: dict[str, dict]) -> dict:
+    rows = []
+    ok = failed = merged = 0
+    for tid, r in results.items():
+        good = r.get("status") == "ok" and r.get("merge") in ("ok", None)
+        ok += 1 if r.get("status") == "ok" else 0
+        failed += 0 if r.get("status") == "ok" else 1
+        merged += 1 if r.get("merge") == "ok" else 0
+        rows.append({
+            "task_id": tid, "status": r.get("status"),
+            "merge": r.get("merge"), "model": r.get("model"),
+            "files_changed": r.get("files_changed", []),
+            "verify_rc": r.get("verify_rc"),
+            "verifier_satisfied": (r.get("verdict") or {}).get("satisfied"),
+            "out_of_bounds": r.get("out_of_bounds", []),
+            "branch": r.get("branch"), "good": good,
+        })
+    return {
+        "run": run.path.name, "integration_branch": integ_branch,
+        "integration_worktree": integ_wt, "waves": waves, "tasks": rows,
+        "summary": {"total": len(results), "ok": ok, "failed": failed,
+                    "merged": merged},
+    }
+
+
+def render_report_md(report: dict) -> str:
+    s = report["summary"]
+    lines = [f"# council fan-out report — {report['run']}", "",
+             f"- integration branch: `{report['integration_branch']}`",
+             f"- worktree: `{report['integration_worktree']}`",
+             f"- result: **{s['ok']}/{s['total']} ok**, {s['failed']} failed, "
+             f"{s['merged']} merged", "", "## Tasks", "",
+             "| task | status | merge | model | files | verify | verifier |",
+             "|---|---|---|---|---|---|---|"]
+    for t in report["tasks"]:
+        lines.append(
+            f"| {t['task_id']} | {t['status']} | {t['merge']} | {t['model']} "
+            f"| {len(t['files_changed'])} | "
+            f"{'-' if t['verify_rc'] is None else t['verify_rc']} "
+            f"| {t['verifier_satisfied']} |")
+    failures = [t for t in report["tasks"] if not t["good"]]
+    if failures:
+        lines += ["", "## Needs attention", ""]
+        for t in failures:
+            note = t["status"]
+            if t["merge"] == "conflict":
+                note += " + merge conflict"
+            if t["out_of_bounds"]:
+                note += f" (touched out-of-bounds: {t['out_of_bounds']})"
+            lines.append(f"- `{t['task_id']}`: {note}")
+    lines += ["", f"Review: `git -C {report['integration_worktree']} log --oneline`"
+              f" or `git checkout {report['integration_branch']}`."]
+    return "\n".join(lines) + "\n"
+
+
+# --------------------------------------------------------------------------
 # commands
 # --------------------------------------------------------------------------
 
@@ -562,6 +822,18 @@ def build_parser() -> argparse.ArgumentParser:
     pl.add_argument("--estimate", action="store_true",
                     help="print planned call count and exit without spending")
     pl.set_defaults(func=cmd_plan)
+
+    fo = sub.add_parser("fanout", help="stages 5-6: execute the task DAG, "
+                                       "verify, reconcile onto a branch")
+    fo.add_argument("--run", required=True, help="run dir with a tasks.json")
+    fo.add_argument("--max-workers", type=int, default=DEFAULT_MAX_WORKERS,
+                    help=f"max concurrent workers (default {DEFAULT_MAX_WORKERS}, "
+                         "clamped to cores-2)")
+    fo.add_argument("--keep-worktrees", action="store_true",
+                    help="keep per-task worktrees for inspection")
+    fo.add_argument("--estimate", action="store_true",
+                    help="print the wave/worker plan and exit without spending")
+    fo.set_defaults(func=cmd_fanout)
     return p
 
 
