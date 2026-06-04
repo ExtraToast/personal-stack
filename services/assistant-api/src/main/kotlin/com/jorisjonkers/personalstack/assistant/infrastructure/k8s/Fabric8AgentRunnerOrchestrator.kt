@@ -365,6 +365,7 @@ class Fabric8AgentRunnerOrchestrator(
             // --dangerously-skip-permissions runs without the bypass-mode
             // warning + acceptance prompt.
             add(EnvVarBuilder().withName("IS_SANDBOX").withValue("1").build())
+            add(EnvVarBuilder().withName("AGENT_MCP_PROFILE").withValue(props.defaultMcpProfile).build())
             addAll(knowledgeEnv())
             addAll(githubAppTokenEnv())
             // REPO_URL/REPO_BRANCH drive the entrypoint's boot-time clone

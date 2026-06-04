@@ -113,6 +113,9 @@ agent-runtime:
   knowledge-base-url: ${AGENT_RUNTIME_KB_URL:http://knowledge-api.knowledge-system.svc.cluster.local:8080}
   knowledge-bearer-secret: ${AGENT_RUNTIME_KB_BEARER_SECRET:agents-kb-bearer}
   knowledge-bearer-secret-key: ${AGENT_RUNTIME_KB_BEARER_SECRET_KEY:bearer}
+  # Runner MCP profile. Keep default tool count low; wider profiles are
+  # opt-ins via AGENT_RUNTIME_DEFAULT_MCP_PROFILE.
+  default-mcp-profile: ${AGENT_RUNTIME_DEFAULT_MCP_PROFILE:minimal}
   # Pinning to a single node is mandatory because the shared
   # credential PVCs (claude-credentials / codex-credentials) are
   # backed by local-path RWO — every runner Pod must land on the

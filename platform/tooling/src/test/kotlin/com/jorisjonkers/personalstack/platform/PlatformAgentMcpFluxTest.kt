@@ -112,6 +112,148 @@ class PlatformAgentMcpFluxTest {
     }
 
     @Test
+    fun `agent runner mcp profiles keep default tool count bounded`() {
+        val entrypoint =
+            repositoryRoot
+                .resolve("services/agent-runner/entrypoint.sh")
+                .toFile()
+                .readText()
+        val appConfig =
+            repositoryRoot
+                .resolve("services/assistant-api/src/main/resources/application.yml")
+                .toFile()
+                .readText()
+        val orchestrator =
+            repositoryRoot
+                .resolve(
+                    "services/assistant-api/src/main/kotlin/com/jorisjonkers/personalstack/assistant/" +
+                        "infrastructure/k8s/Fabric8AgentRunnerOrchestrator.kt",
+                )
+                .toFile()
+                .readText()
+        val mcpConfigMap =
+            repositoryRoot
+                .resolve("platform/cluster/flux/apps/agents/mcp/agents-mcp-servers-configmap.yaml")
+                .toFile()
+                .readText()
+
+        assertThat(appConfig)
+            .contains("default-mcp-profile: \${AGENT_RUNTIME_DEFAULT_MCP_PROFILE:minimal}")
+        assertThat(orchestrator)
+            .contains("withName(\"AGENT_MCP_PROFILE\")")
+            .contains("props.defaultMcpProfile")
+        assertThat(entrypoint)
+            .contains("AGENT_MCP_PROFILE=\"\${AGENT_MCP_PROFILE:-minimal}\"")
+            .contains("claude-mcp-servers.\${AGENT_MCP_PROFILE}.json")
+            .contains("codex-mcp-servers.\${AGENT_MCP_PROFILE}.toml")
+            .contains("unknown AGENT_MCP_PROFILE")
+
+        assertClaudeProfile(
+            mcpConfigMap,
+            "minimal",
+            expected = listOf("\"knowledge\"", "\"github\""),
+            forbidden = listOf("\"context7\"", "\"vuetify\"", "\"playwright\"", "\"kubernetes\""),
+            maxServers = 2,
+        )
+        assertClaudeProfile(
+            mcpConfigMap,
+            "frontend",
+            expected = listOf("\"knowledge\"", "\"github\"", "\"context7\"", "\"vuetify\"", "\"playwright\""),
+            forbidden = listOf("\"kubernetes\""),
+            maxServers = 5,
+        )
+        assertClaudeProfile(
+            mcpConfigMap,
+            "cluster",
+            expected = listOf("\"knowledge\"", "\"github\"", "\"kubernetes\""),
+            forbidden = listOf("\"context7\"", "\"vuetify\"", "\"playwright\""),
+            maxServers = 3,
+        )
+        assertClaudeProfile(
+            mcpConfigMap,
+            "code-intel",
+            expected = listOf("\"knowledge\"", "\"github\""),
+            forbidden = listOf("\"context7\"", "\"vuetify\"", "\"playwright\"", "\"kubernetes\""),
+            maxServers = 2,
+        )
+        assertClaudeProfile(
+            mcpConfigMap,
+            "full-diagnostic",
+            expected = listOf("\"knowledge\"", "\"github\"", "\"context7\"", "\"vuetify\"", "\"playwright\"", "\"kubernetes\""),
+            forbidden = emptyList(),
+            maxServers = 6,
+        )
+
+        assertCodexProfile(
+            mcpConfigMap,
+            "minimal",
+            expected = listOf("[mcp_servers.knowledge]", "[mcp_servers.github]"),
+            forbidden =
+                listOf(
+                    "[mcp_servers.context7]",
+                    "[mcp_servers.vuetify]",
+                    "[mcp_servers.playwright]",
+                    "[mcp_servers.kubernetes]",
+                ),
+            maxServers = 2,
+        )
+        assertCodexProfile(
+            mcpConfigMap,
+            "frontend",
+            expected =
+                listOf(
+                    "[mcp_servers.knowledge]",
+                    "[mcp_servers.github]",
+                    "[mcp_servers.context7]",
+                    "[mcp_servers.vuetify]",
+                    "[mcp_servers.playwright]",
+                ),
+            forbidden = listOf("[mcp_servers.kubernetes]"),
+            maxServers = 5,
+        )
+        assertCodexProfile(
+            mcpConfigMap,
+            "cluster",
+            expected = listOf("[mcp_servers.knowledge]", "[mcp_servers.github]", "[mcp_servers.kubernetes]"),
+            forbidden =
+                listOf(
+                    "[mcp_servers.context7]",
+                    "[mcp_servers.vuetify]",
+                    "[mcp_servers.playwright]",
+                ),
+            maxServers = 3,
+        )
+        assertCodexProfile(
+            mcpConfigMap,
+            "code-intel",
+            expected = listOf("[mcp_servers.knowledge]", "[mcp_servers.github]"),
+            forbidden =
+                listOf(
+                    "[mcp_servers.context7]",
+                    "[mcp_servers.vuetify]",
+                    "[mcp_servers.playwright]",
+                    "[mcp_servers.kubernetes]",
+                ),
+            maxServers = 2,
+        )
+        assertCodexProfile(
+            mcpConfigMap,
+            "full-diagnostic",
+            expected =
+                listOf(
+                    "[mcp_servers.knowledge]",
+                    "[mcp_servers.github]",
+                    "[mcp_servers.context7]",
+                    "[mcp_servers.vuetify]",
+                    "[mcp_servers.playwright]",
+                    "[mcp_servers.kubernetes]",
+                ),
+            forbidden = emptyList(),
+            maxServers = 6,
+        )
+    }
+
+    @Test
     fun `kb installer cronjob refreshes claude and codex homes`() {
         val cronjob =
             repositoryRoot
@@ -131,5 +273,43 @@ class PlatformAgentMcpFluxTest {
             .contains("name: codex-credentials")
             .contains("mountPath: /home/agent/.codex")
             .contains("claimName: codex-credentials")
+    }
+
+    private fun assertClaudeProfile(
+        manifest: String,
+        profile: String,
+        expected: List<String>,
+        forbidden: List<String>,
+        maxServers: Int,
+    ) {
+        val block = configMapBlock(manifest, "claude-mcp-servers.$profile.json")
+        expected.forEach { assertThat(block).contains(it) }
+        forbidden.forEach { assertThat(block).doesNotContain(it) }
+        assertThat(Regex("\"type\"\\s*:").findAll(block).count()).isLessThanOrEqualTo(maxServers)
+    }
+
+    private fun assertCodexProfile(
+        manifest: String,
+        profile: String,
+        expected: List<String>,
+        forbidden: List<String>,
+        maxServers: Int,
+    ) {
+        val block = configMapBlock(manifest, "codex-mcp-servers.$profile.toml")
+        expected.forEach { assertThat(block).contains(it) }
+        forbidden.forEach { assertThat(block).doesNotContain(it) }
+        assertThat(Regex("\\[mcp_servers\\.").findAll(block).count()).isLessThanOrEqualTo(maxServers)
+    }
+
+    private fun configMapBlock(
+        manifest: String,
+        key: String,
+    ): String {
+        val marker = "  $key: |"
+        val start = manifest.indexOf(marker)
+        assertThat(start).describedAs("ConfigMap key $key").isGreaterThanOrEqualTo(0)
+        val rest = manifest.substring(start + marker.length)
+        val nextKey = Regex("\n  (?:#|[A-Za-z0-9_.-]+:)").find(rest)?.range?.first ?: -1
+        return if (nextKey == -1) rest else rest.substring(0, nextKey)
     }
 }

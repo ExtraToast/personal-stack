@@ -74,12 +74,36 @@ else
 fi
 
 # Register MCP servers into Claude Code from the declarative ConfigMap
-# (agents-mcp-servers, mounted at /etc/agent-mcp). The file is the
-# mcpServers object with @KB_URL@/@KB_BEARER_TOKEN@ placeholders filled
-# from the Pod env, so no secret is baked into the ConfigMap. The
-# managed servers win for their own keys; any hand-added server already
-# in the config is preserved. Absent mount (feature off) => no-op.
-MCP_SERVERS_FILE="${AGENT_MCP_SERVERS_FILE:-/etc/agent-mcp/claude-mcp-servers.json}"
+# (agents-mcp-servers, mounted at /etc/agent-mcp). The selected profile
+# is an mcpServers object with @KB_URL@/@KB_BEARER_TOKEN@ placeholders
+# filled from the Pod env, so no secret is baked into the ConfigMap.
+# The managed servers win for their own keys; any hand-added server
+# already in the config is preserved. Absent mount (feature off) => no-op.
+AGENT_MCP_PROFILE="${AGENT_MCP_PROFILE:-minimal}"
+case "$AGENT_MCP_PROFILE" in
+  minimal|frontend|cluster|code-intel|full-diagnostic) ;;
+  *)
+    echo "[entrypoint] WARN: unknown AGENT_MCP_PROFILE=$AGENT_MCP_PROFILE; using minimal"
+    AGENT_MCP_PROFILE="minimal"
+    ;;
+esac
+
+AGENT_MCP_DIR="${AGENT_MCP_DIR:-/etc/agent-mcp}"
+if [ -n "${AGENT_MCP_SERVERS_FILE:-}" ]; then
+  MCP_SERVERS_FILE="$AGENT_MCP_SERVERS_FILE"
+else
+  MCP_PROFILE_FILE="${AGENT_MCP_DIR}/claude-mcp-servers.${AGENT_MCP_PROFILE}.json"
+  MCP_MINIMAL_FILE="${AGENT_MCP_DIR}/claude-mcp-servers.minimal.json"
+  MCP_LEGACY_FILE="${AGENT_MCP_DIR}/claude-mcp-servers.json"
+  if [ -f "$MCP_PROFILE_FILE" ]; then
+    MCP_SERVERS_FILE="$MCP_PROFILE_FILE"
+  elif [ -f "$MCP_MINIMAL_FILE" ]; then
+    echo "[entrypoint] WARN: MCP profile $AGENT_MCP_PROFILE not found; using minimal"
+    MCP_SERVERS_FILE="$MCP_MINIMAL_FILE"
+  else
+    MCP_SERVERS_FILE="$MCP_LEGACY_FILE"
+  fi
+fi
 if [ -f "$MCP_SERVERS_FILE" ]; then
   mcp_rendered=$(mktemp)
   sed -e "s|@KB_URL@|${KB_URL:-}|g" \
@@ -135,7 +159,21 @@ fi
 # Codex reads remote HTTP MCP servers natively and takes the bearer at
 # request time from KB_BEARER_TOKEN (bearer_token_env_var), so no secret
 # lands in config.toml — only @KB_URL@ is substituted.
-CODEX_MCP_FILE="${AGENT_CODEX_MCP_FILE:-/etc/agent-mcp/codex-mcp-servers.toml}"
+if [ -n "${AGENT_CODEX_MCP_FILE:-}" ]; then
+  CODEX_MCP_FILE="$AGENT_CODEX_MCP_FILE"
+else
+  CODEX_PROFILE_FILE="${AGENT_MCP_DIR}/codex-mcp-servers.${AGENT_MCP_PROFILE}.toml"
+  CODEX_MINIMAL_FILE="${AGENT_MCP_DIR}/codex-mcp-servers.minimal.toml"
+  CODEX_LEGACY_FILE="${AGENT_MCP_DIR}/codex-mcp-servers.toml"
+  if [ -f "$CODEX_PROFILE_FILE" ]; then
+    CODEX_MCP_FILE="$CODEX_PROFILE_FILE"
+  elif [ -f "$CODEX_MINIMAL_FILE" ]; then
+    echo "[entrypoint] WARN: Codex MCP profile $AGENT_MCP_PROFILE not found; using minimal"
+    CODEX_MCP_FILE="$CODEX_MINIMAL_FILE"
+  else
+    CODEX_MCP_FILE="$CODEX_LEGACY_FILE"
+  fi
+fi
 if [ -f "$CODEX_HOME/config.toml" ]; then
   codex_tmp=$(mktemp)
   # Strip every managed section so re-applying never duplicates a key: the
