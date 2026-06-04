@@ -17,6 +17,8 @@ renderer:
     - .agents/skills/token-economy/SKILL.md
     - .claude/hooks/kb-user-prompt-recall.sh
     - .claude/hooks/kb-stop-digest.sh
+    - .claude/hooks/pre-tool-use-edit-recall.sh
+    - .claude/hooks/pre-tool-use-git-commit-capture.sh
     - .codex/hooks/kb-user-prompt-recall.sh
     - .codex/hooks/kb-stop-digest.sh
     - .claude/settings.json
