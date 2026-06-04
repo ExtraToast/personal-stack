@@ -15,13 +15,10 @@ esac
 
 input="$(cat 2>/dev/null || true)"
 parsed="$(printf '%s' "${input}" | python3 -c '
-import json
-import sys
-
+import json, sys
 try:
     data = json.load(sys.stdin)
 except Exception:
-    print("")
     sys.exit(0)
 
 tool = data.get("tool_name") or data.get("name") or ""
@@ -54,12 +51,10 @@ for source in inputs + [data]:
     if command:
         break
 
-print(f"{tool}\x1f{command}", end="")
-' 2>/dev/null || true)"
+print(f"{tool}\x1f{command}", end="")' 2>/dev/null || true)"
 tool="${parsed%%$'\x1f'*}"
 command="${parsed#*$'\x1f'}"
 [ "${tool}" = "${parsed}" ] && command=""
-
 if [ -n "${tool}" ] && [ "${tool}" != "Bash" ] && [ "${tool}" != "bash" ]; then
   exit 0
 fi
@@ -74,9 +69,7 @@ case "${command}" in
 esac
 
 title="$(printf '%s' "${command}" | python3 -c '
-import re
-import sys
-
+import re, sys
 cmd = sys.stdin.read()
 match = re.search(r"-m\s+(\x27([^\x27]+)\x27|\"([^\"]+)\")", cmd)
 if not match:
@@ -92,27 +85,21 @@ scope="project:${project}"
 body="$(cat <<BODY
 Commit message: ${title}
 
-Captured automatically by the Codex PreToolUse git commit hook. The
+Captured automatically by ${KB_AUTO_MCP_CLIENT_NAME:-the Codex PreToolUse} \`git commit\` hook. The
 diff and surrounding context live in git history.
 BODY
 )"
 
-payload="$(python3 -c 'import json,sys
-print(json.dumps({
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/call",
-  "params": {
-    "name": "knowledge.capture_decision",
-    "arguments": {
+source="${KB_AUTO_MCP_SOURCE:-codex:auto-capture:git-commit}"
+payload="$(python3 -c 'import json,sys; print(json.dumps({
+  "jsonrpc":"2.0","id":1,"method":"tools/call","params":{
+    "name":"knowledge.capture_decision","arguments":{
       "title": sys.argv[1],
       "body": sys.argv[2],
       "scope": sys.argv[3],
-      "source": "codex:auto-capture:git-commit",
-      "tags": ["auto-capture", "git-commit"],
-    },
-  },
-}))' "${title}" "${body}" "${scope}")"
+      "source": sys.argv[4],
+      "tags": ["auto-capture","git-commit"]
+    }}}))' "${title}" "${body}" "${scope}" "${source}")"
 
 curl -sS --connect-timeout 3 --max-time 5 \
   -H "Authorization: Bearer ${KB_BEARER_TOKEN}" \

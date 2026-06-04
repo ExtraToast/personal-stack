@@ -419,6 +419,214 @@ class AgentKitManifestTest {
     }
 
     @Test
+    fun `installed capture hooks parse commits and stop digest sessions`() {
+        val installer = repositoryRoot.resolve(manifest["installer"]["path"].asText()).toAbsolutePath()
+        val claudeHome = tempDir.resolve("capture-claude")
+        val codexHome = tempDir.resolve("capture-codex")
+        val installEnvironment =
+            mapOf(
+                "CLAUDE_CONFIG_DIR" to claudeHome.toString(),
+                "CODEX_HOME" to codexHome.toString(),
+            )
+        val installResult =
+            runProcessWithEnv(
+                installEnvironment,
+                "bash",
+                installer.toString(),
+                "--agent",
+                "all",
+            )
+
+        assertThat(installResult.exitCode)
+            .describedAs(installResult.stderr)
+            .isEqualTo(0)
+
+        val fakeBin = tempDir.resolve("capture-bin").also { Files.createDirectories(it) }
+        fakeBin.resolve("curl").writeExecutable(
+            """
+            #!/usr/bin/env bash
+            payload=""
+            while [ "${'$'}#" -gt 0 ]; do
+              case "${'$'}1" in
+                -d)
+                  shift
+                  payload="${'$'}1"
+                  printf '%s\n' "${'$'}{payload}" >> "${'$'}{CURL_CAPTURE_FILE}"
+                  ;;
+              esac
+              shift || true
+            done
+            python3 - "${'$'}payload" <<'PY'
+            import json, sys
+
+            payload = json.loads(sys.argv[1])
+            name = payload["params"]["name"]
+            args = payload["params"].get("arguments", {})
+
+            if name == "knowledge.digest_transcript":
+                transcript = args.get("transcript", "")
+                is_codex = "Codex stop transcript" in transcript
+                print(json.dumps({
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "structuredContent": {
+                            "candidates": [{
+                                "title": "Codex digest lesson" if is_codex else "Claude digest lesson",
+                                "body": "Capture Codex stop lessons without duplicates." if is_codex else "Capture Claude stop lessons without duplicates.",
+                                "suggested_topic": "" if is_codex else "agent-tools",
+                                "suggested_tags": ["agent-kit", "hooks"],
+                            }]
+                        }
+                    },
+                }))
+            elif name == "knowledge.recall":
+                print(json.dumps({"jsonrpc": "2.0", "result": {"structuredContent": {"hits": []}}}))
+            else:
+                print(json.dumps({"jsonrpc": "2.0", "result": {"structuredContent": {"id": "01HOOK"}}}))
+            PY
+            """,
+        )
+
+        val hookEnvironment =
+            installEnvironment +
+                mapOf(
+                    "KB_BEARER_TOKEN" to "test-token",
+                    "KB_URL" to "http://knowledge.local",
+                    "PATH" to "${fakeBin}:${System.getenv("PATH")}",
+                )
+
+        val commitCurlLog = tempDir.resolve("commit-curl-payloads.jsonl")
+        val commitEnvironment = hookEnvironment + ("CURL_CAPTURE_FILE" to commitCurlLog.toString())
+        val claudeCommitResult =
+            runProcessWithInput(
+                commitEnvironment,
+                """{"tool_name":"Bash","tool_input":{"command":"git commit -m \"Add hook capture smoke\""}}""",
+                claudeHome.resolve("hooks/pre-tool-use-git-commit-capture.sh").toAbsolutePath().toString(),
+            )
+
+        assertThat(claudeCommitResult.exitCode)
+            .describedAs(claudeCommitResult.stderr)
+            .isEqualTo(0)
+        val claudeCommitArgs = toolArguments(readCurlPayloads(commitCurlLog).single())
+        assertThat(claudeCommitArgs["title"].asText()).isEqualTo("Add hook capture smoke")
+        assertThat(claudeCommitArgs["scope"].asText()).isEqualTo("project:personal-stack")
+        assertThat(claudeCommitArgs["source"].asText()).isEqualTo("claude-code:auto-capture:git-commit")
+        assertThat(claudeCommitArgs["body"].asText()).contains("Claude PreToolUse", "`git commit` hook")
+        assertThat(jsonArrayTexts(claudeCommitArgs["tags"])).containsExactly("auto-capture", "git-commit")
+
+        val codexCommitResult =
+            runProcessWithInput(
+                commitEnvironment +
+                    mapOf(
+                        "KB_AUTO_MCP_CLIENT_NAME" to "Codex",
+                        "KB_AUTO_MCP_SOURCE" to "codex:auto-capture:git-commit",
+                    ),
+                """{"tool":{"name":"Bash","input":{"cmd":"git commit -m 'Add Codex commit capture'"}}}""",
+                codexHome.resolve("hooks/pre-tool-use-git-commit-capture.sh").toAbsolutePath().toString(),
+            )
+
+        assertThat(codexCommitResult.exitCode)
+            .describedAs(codexCommitResult.stderr)
+            .isEqualTo(0)
+        val codexCommitArgs = toolArguments(readCurlPayloads(commitCurlLog).last())
+        assertThat(codexCommitArgs["title"].asText()).isEqualTo("Add Codex commit capture")
+        assertThat(codexCommitArgs["scope"].asText()).isEqualTo("project:personal-stack")
+        assertThat(codexCommitArgs["source"].asText()).isEqualTo("codex:auto-capture:git-commit")
+        assertThat(codexCommitArgs["body"].asText()).contains("Codex", "`git commit` hook")
+
+        runProcessWithInput(
+            commitEnvironment,
+            """{"tool_name":"Bash","tool_input":{"command":"git commit -m \"WIP scratch\""}}""",
+            claudeHome.resolve("hooks/pre-tool-use-git-commit-capture.sh").toAbsolutePath().toString(),
+        )
+        assertThat(readCurlPayloads(commitCurlLog))
+            .describedAs("WIP commit messages should not be auto-captured")
+            .hasSize(2)
+
+        val claudeTranscript = tempDir.resolve("claude-transcript.jsonl")
+        Files.writeString(
+            claudeTranscript,
+            """{"role":"user","content":"Claude stop transcript should create a durable lesson."}""" + "\n",
+        )
+        val claudeStopCurlLog = tempDir.resolve("claude-stop-curl-payloads.jsonl")
+        val claudeStopEnvironment =
+            hookEnvironment +
+                mapOf(
+                    "CURL_CAPTURE_FILE" to claudeStopCurlLog.toString(),
+                    "KB_DIGEST_MAX_CAPTURES" to "1",
+                )
+        val claudeStopInput =
+            """{"session_id":"claude-stop-session","transcript_path":"${claudeTranscript.toAbsolutePath()}"}"""
+
+        val claudeStopResult =
+            runProcessWithInput(
+                claudeStopEnvironment,
+                claudeStopInput,
+                claudeHome.resolve("hooks/stop-session-digest.sh").toAbsolutePath().toString(),
+            )
+
+        assertThat(claudeStopResult.exitCode)
+            .describedAs(claudeStopResult.stderr)
+            .isEqualTo(0)
+        val claudeStopPayloads = readCurlPayloads(claudeStopCurlLog)
+        assertThat(claudeStopPayloads.map { toolName(it) })
+            .containsExactly("knowledge.digest_transcript", "knowledge.recall", "knowledge.capture_lesson")
+        assertThat(toolArguments(claudeStopPayloads[0])["transcript"].asText())
+            .contains("Claude stop transcript")
+        assertThat(toolArguments(claudeStopPayloads[0])["max_candidates"].asInt()).isEqualTo(1)
+        assertThat(toolArguments(claudeStopPayloads[1])["mode"].asText()).isEqualTo("hybrid")
+        val claudeCaptureArgs = toolArguments(claudeStopPayloads[2])
+        assertThat(claudeCaptureArgs["title"].asText()).isEqualTo("Claude digest lesson")
+        assertThat(claudeCaptureArgs["scope"].asText()).isEqualTo("topic:agent-tools")
+        assertThat(claudeCaptureArgs["source"].asText()).isEqualTo("claude-code:auto-digest:claude-stop-session")
+        assertThat(claudeCaptureArgs["session_id"].asText()).isEqualTo("claude-stop-session")
+        assertThat(jsonArrayTexts(claudeCaptureArgs["tags"])).containsExactly("agent-kit", "hooks")
+        assertThat(Files.readString(claudeHome.resolve("state/sessions/claude-stop-session/digest-budget")).trim())
+            .isEqualTo("0")
+
+        runProcessWithInput(
+            claudeStopEnvironment,
+            claudeStopInput,
+            claudeHome.resolve("hooks/stop-session-digest.sh").toAbsolutePath().toString(),
+        )
+        assertThat(readCurlPayloads(claudeStopCurlLog))
+            .describedAs("exhausted Stop digest budget should prevent another MCP call")
+            .hasSize(3)
+
+        val codexTranscript = tempDir.resolve("codex-transcript.jsonl")
+        Files.writeString(
+            codexTranscript,
+            """{"source":"user","message":"Codex stop transcript should fall back to project scope."}""" + "\n",
+        )
+        val codexStopCurlLog = tempDir.resolve("codex-stop-curl-payloads.jsonl")
+        val codexStopResult =
+            runProcessWithInput(
+                hookEnvironment +
+                    mapOf(
+                        "CODEX_HOME" to codexHome.toString(),
+                        "CURL_CAPTURE_FILE" to codexStopCurlLog.toString(),
+                        "KB_DIGEST_MAX_CAPTURES" to "1",
+                    ),
+                """{"thread_id":"codex-stop-session","transcriptPath":"${codexTranscript.toAbsolutePath()}"}""",
+                codexHome.resolve("hooks/kb-stop-digest.sh").toAbsolutePath().toString(),
+            )
+
+        assertThat(codexStopResult.exitCode)
+            .describedAs(codexStopResult.stderr)
+            .isEqualTo(0)
+        val codexStopPayloads = readCurlPayloads(codexStopCurlLog)
+        assertThat(codexStopPayloads.map { toolName(it) })
+            .containsExactly("knowledge.digest_transcript", "knowledge.recall", "knowledge.capture_lesson")
+        val codexCaptureArgs = toolArguments(codexStopPayloads[2])
+        assertThat(codexCaptureArgs["title"].asText()).isEqualTo("Codex digest lesson")
+        assertThat(codexCaptureArgs["scope"].asText()).isEqualTo("project:personal-stack")
+        assertThat(codexCaptureArgs["source"].asText()).isEqualTo("codex:auto-digest:codex-stop-session")
+        assertThat(codexCaptureArgs["session_id"].asText()).isEqualTo("codex-stop-session")
+        assertThat(Files.readString(codexHome.resolve("state/sessions/codex-stop-session/digest-budget")).trim())
+            .isEqualTo("0")
+    }
+
+    @Test
     fun `hook settings reference only manifest hooks`() {
         val manifestHookPaths = manifestTargetPaths("hooks").filter { it.contains("/hooks/") }.toSet()
         val settingsHookPaths =
@@ -705,6 +913,11 @@ class AgentKitManifestTest {
         }
 
     private fun toolArguments(payload: JsonNode): JsonNode = payload["params"]["arguments"]
+
+    private fun toolName(payload: JsonNode): String = payload["params"]["name"].asText()
+
+    private fun jsonArrayTexts(node: JsonNode): List<String> =
+        node.elements().asSequence().map { it.asText() }.toList()
 
     private fun rendererManagedPathList(): List<String> =
         manifest["renderer"]["managed_paths"]

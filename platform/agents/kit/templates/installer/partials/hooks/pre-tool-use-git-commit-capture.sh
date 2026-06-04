@@ -86,13 +86,13 @@ print(m.group(2) or m.group(3) or "", end="")' 2>/dev/null)
 # Scope: project:<repo-name> from origin URL, mirrors the
 # SessionStart hook's convention.
 project="$(git remote get-url origin 2>/dev/null | sed -e 's#\.git$##' -e 's#.*[/:]##')"
-[ -n "${project}" ] || project="$(basename "$(pwd)")"
+[ -n "${project}" ] || project="$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")"
 scope="project:${project}"
 
 body=$(cat <<BODY
 Commit message: ${title}
 
-Captured automatically by ${KB_AUTO_MCP_CLIENT_NAME:-the PreToolUse} \`git commit\` hook. The
+Captured automatically by ${KB_AUTO_MCP_CLIENT_NAME:-the Claude PreToolUse} \`git commit\` hook. The
 diff and surrounding context live in git history.
 BODY
 )

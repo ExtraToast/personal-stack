@@ -14,15 +14,50 @@ case "${KB_URL}" in
 esac
 
 input="$(cat 2>/dev/null || true)"
-read -r tool command < <(printf '%s' "${input}" | python3 -c '
+parsed="$(printf '%s' "${input}" | python3 -c '
 import json, sys
 try:
     data = json.load(sys.stdin)
-    print(data.get("tool_name") or data.get("tool") or "", (data.get("tool_input") or {}).get("command") or "")
 except Exception:
-    print("")
-' 2>/dev/null)
-[ "${tool}" = "Bash" ] || exit 0
+    sys.exit(0)
+
+tool = data.get("tool_name") or data.get("name") or ""
+raw_tool = data.get("tool")
+if isinstance(raw_tool, str):
+    tool = tool or raw_tool
+elif isinstance(raw_tool, dict):
+    tool = tool or raw_tool.get("name") or ""
+
+inputs = []
+for key in ("tool_input", "input", "arguments", "params"):
+    value = data.get(key)
+    if isinstance(value, dict):
+        inputs.append(value)
+if isinstance(raw_tool, dict):
+    for key in ("input", "arguments", "params"):
+        value = raw_tool.get(key)
+        if isinstance(value, dict):
+            inputs.append(value)
+
+command = ""
+for source in inputs + [data]:
+    if not isinstance(source, dict):
+        continue
+    for key in ("command", "cmd", "script", "shell_command", "shellCommand"):
+        value = source.get(key)
+        if isinstance(value, str) and value.strip():
+            command = value.strip()
+            break
+    if command:
+        break
+
+print(f"{tool}\x1f{command}", end="")' 2>/dev/null || true)"
+tool="${parsed%%$'\x1f'*}"
+command="${parsed#*$'\x1f'}"
+[ "${tool}" = "${parsed}" ] && command=""
+if [ -n "${tool}" ] && [ "${tool}" != "Bash" ] && [ "${tool}" != "bash" ]; then
+  exit 0
+fi
 
 case "${command}" in
   *"git commit"*"-m"*) : ;;
@@ -52,27 +87,21 @@ scope="project:${project}"
 body="$(cat <<BODY
 Commit message: ${title}
 
-Captured automatically by the Claude PreToolUse git commit hook. The
+Captured automatically by ${KB_AUTO_MCP_CLIENT_NAME:-the Claude PreToolUse} \`git commit\` hook. The
 diff and surrounding context live in git history.
 BODY
 )"
 
-payload="$(python3 -c 'import json,sys
-print(json.dumps({
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/call",
-  "params": {
-    "name": "knowledge.capture_decision",
-    "arguments": {
+source="${KB_AUTO_MCP_SOURCE:-claude-code:auto-capture:git-commit}"
+payload="$(python3 -c 'import json,sys; print(json.dumps({
+  "jsonrpc":"2.0","id":1,"method":"tools/call","params":{
+    "name":"knowledge.capture_decision","arguments":{
       "title": sys.argv[1],
       "body": sys.argv[2],
       "scope": sys.argv[3],
-      "source": "claude-code:auto-capture:git-commit",
-      "tags": ["auto-capture", "git-commit"],
-    },
-  },
-}))' "${title}" "${body}" "${scope}")"
+      "source": sys.argv[4],
+      "tags": ["auto-capture","git-commit"]
+    }}}))' "${title}" "${body}" "${scope}" "${source}")"
 
 curl -sS --connect-timeout 3 --max-time 5 \
   -H "Authorization: Bearer ${KB_BEARER_TOKEN}" \
