@@ -182,7 +182,14 @@ spec:
               cpu: 250m
               memory: 768Mi
             limits:
-              cpu: 1000m
+              # The JVM is cgroup-aware: a 1-core limit made it size its
+              # JIT/GC thread pools to a single CPU, so the Spring Boot
+              # cold start ran ~9 min CFS-throttled at the ceiling while
+              # the node sat near-idle. A 3-core burst limit lets startup
+              # use the spare cores; steady-state stays well under the
+              # 250m request, so this only costs cores during the boot
+              # window. Memory is unchanged.
+              cpu: '3'
               memory: 1536Mi
 ---
 apiVersion: v1
