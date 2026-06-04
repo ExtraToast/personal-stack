@@ -51,6 +51,16 @@ class PlatformAgentMcpFluxTest {
                 .resolve("services/agent-runner/entrypoint.sh")
                 .toFile()
                 .readText()
+        val githubMcpWrapper =
+            repositoryRoot
+                .resolve("services/agent-runner/gh-mcp-wrapper.sh")
+                .toFile()
+                .readText()
+        val mcpConfigMap =
+            repositoryRoot
+                .resolve("platform/cluster/flux/apps/agents/mcp/agents-mcp-servers-configmap.yaml")
+                .toFile()
+                .readText()
 
         assertThat(dockerfile)
             .contains("agent-github-token.sh /usr/local/bin/agent-github-token")
@@ -63,5 +73,18 @@ class PlatformAgentMcpFluxTest {
             .contains("credential.useHttpPath true")
             .contains("url.https://github.com/.insteadOf git@github.com:")
             .contains("url.https://github.com/.insteadOf ssh://git@github.com/")
+
+        assertThat(githubMcpWrapper)
+            .contains("GITHUB_MCP_TOKEN_RETRIES:-4")
+            .contains("GITHUB_MCP_TOKEN_RETRY_SLEEP_SECONDS:-3")
+            .contains("GITHUB_MCP_TOOLSETS:-repos,pull_requests,issues,actions,git")
+            .contains("GITHUB_MCP_EXCLUDE_TOOLS:-create_repository,fork_repository")
+            .contains("--toolsets")
+            .contains("--exclude-tools")
+
+        assertThat(mcpConfigMap)
+            .contains("[mcp_servers.github]")
+            .contains("command = \"gh-mcp-wrapper\"")
+            .contains("startup_timeout_sec = 60")
     }
 }
