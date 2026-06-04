@@ -26,3 +26,17 @@ platform/agents/kit/render-agent-kit.py --output /tmp/agent-kit-render
 
 Use `--write` only when intentionally updating checked-in repo mirrors or
 installer resources from `platform/agents/kit/templates`.
+
+Run the read-only doctor when debugging runner memory, MCP, or installer
+drift:
+
+```bash
+platform/agents/kit/render-agent-kit.py --doctor
+platform/agents/kit/render-agent-kit.py --doctor --require-live-kb
+```
+
+By default, doctor fails static repo drift and MCP profile mismatches. Missing
+local Claude/Codex installs and skipped live KB probes are warnings so the
+command remains portable in CI and fresh clones. Use `--strict` to make
+warnings fail, and use `--require-live-kb` when `KB_URL` and
+`KB_BEARER_TOKEN` must be present and the MCP server must answer `tools/list`.
