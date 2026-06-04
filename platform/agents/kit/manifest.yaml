@@ -139,6 +139,11 @@ hooks:
     matcher: "Edit|Write|MultiEdit"
     purpose: "Recall file/module lessons before Claude edits."
     supported_agents: [claude]
+    targets:
+      - agent: claude
+        path: .claude/hooks/pre-tool-use-edit-recall.sh
+        settings_path: .claude/settings.json
+        sha256: 7d99f2f851d4156abc30f3ed9f6b220e927710a961ed630628f0393b5fe5b979
     unsupported:
       codex: "Codex repo hooks currently expose UserPromptSubmit and Stop only; PR4 should add the closest Codex or gateway equivalent."
     mcp_tools: [knowledge.recall]
@@ -150,6 +155,11 @@ hooks:
     matcher: Bash
     purpose: "Capture non-WIP git commit messages as candidate decisions."
     supported_agents: [claude]
+    targets:
+      - agent: claude
+        path: .claude/hooks/pre-tool-use-git-commit-capture.sh
+        settings_path: .claude/settings.json
+        sha256: 86a842ad20bdf1e69a62a7dbb79e75832a462220a85a7e8ff64244641fb12227
     unsupported:
       codex: "Codex repo hooks currently expose UserPromptSubmit and Stop only; PR4 should add the closest Codex or gateway equivalent."
     mcp_tools: [knowledge.capture_decision]
@@ -160,12 +170,12 @@ hooks:
 settings:
   - agent: claude
     path: .claude/settings.json
-    sha256: da833d3aaa70bf625b2f64c2a2ab9aee1ed49218b6366881338a24d8b7ac19ba
+    sha256: 08f4c470cd3f10e524d6d442afc510b479cb06c0e018675ef8a04f7f7a26d9fd
   - agent: codex
     path: .codex/hooks.json
     sha256: 0635f539b1e29836a605fa1d3b99eff01658713845ab9751fdd112b89f77589f
 
 installer:
   path: services/knowledge-api/src/main/resources/installer/install.sh
-  sha256: fadaebbbf64fc9734dba22104fda3698b0a2df87a1763a6a52252f703ef09aae
+  sha256: 317c2411f41bb0de3d56cb086a3c4554043c176cf2688c0cbe2afcb7fd66b586
   supported_agents: [codex, claude]

@@ -79,8 +79,9 @@ canonical `knowledge.*` MCP tool names. The guard lives in
 
 Current intentional gaps are recorded in the manifest:
 
-- the knowledge-api installer writes Claude-only `PreToolUse` hooks
-  for edit recall and git-commit capture.
+- Claude has `PreToolUse` hooks for edit recall and git-commit capture.
+  Codex repo hooks currently expose only `UserPromptSubmit` and `Stop`,
+  so the closest Codex or gateway equivalent remains a follow-up.
 
 Those entries must keep an explicit unsupported reason until a later
 PR adds the closest Codex or gateway equivalent. A new repo hook,
