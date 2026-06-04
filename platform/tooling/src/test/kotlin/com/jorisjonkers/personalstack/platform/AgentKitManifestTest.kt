@@ -928,6 +928,105 @@ class AgentKitManifestTest {
         }
     }
 
+    @Test
+    fun `agent kit doctor reports static health and skipped live checks`() {
+        val renderer = repositoryRoot.resolve(manifest["renderer"]["script_path"].asText())
+        val home = tempDir.resolve("doctor-home")
+
+        val result =
+            runProcessWithEnv(
+                mapOf(
+                    "HOME" to home.toString(),
+                    "CLAUDE_CONFIG_DIR" to home.resolve(".claude").toString(),
+                    "CODEX_HOME" to home.resolve(".codex").toString(),
+                    "KB_URL" to "",
+                    "KB_BEARER_TOKEN" to "",
+                ),
+                renderer.toAbsolutePath().toString(),
+                "--doctor",
+            )
+
+        assertThat(result.exitCode)
+            .describedAs(result.stderr)
+            .isEqualTo(0)
+        assertThat(result.stdout)
+            .contains(
+                "agent kit doctor",
+                "ok   render: generated files match templates",
+                "ok   manifest: kit manifest version 1",
+                "ok   mcp-profiles: 5 synchronized profiles",
+                "warn claude-install: manifest missing",
+                "warn codex-install: manifest missing",
+                "warn kb-live: KB_URL is not set; live MCP probe skipped",
+                "summary: 3 ok, 3 warn, 0 fail",
+            )
+    }
+
+    @Test
+    fun `agent kit doctor validates installed manifest versions when expected version is set`() {
+        val renderer = repositoryRoot.resolve(manifest["renderer"]["script_path"].asText())
+        val home = tempDir.resolve("doctor-installed")
+        val claudeHome = home.resolve(".claude")
+        val codexHome = home.resolve(".codex")
+        Files.createDirectories(claudeHome)
+        Files.createDirectories(codexHome)
+        Files.writeString(claudeHome.resolve(".knowledge-system-version"), "version=current\n")
+        Files.writeString(codexHome.resolve(".knowledge-system-version"), "version=current\nagent=codex\n")
+
+        val result =
+            runProcessWithEnv(
+                mapOf(
+                    "HOME" to home.toString(),
+                    "CLAUDE_CONFIG_DIR" to claudeHome.toString(),
+                    "CODEX_HOME" to codexHome.toString(),
+                    "AGENT_KIT_EXPECTED_VERSION" to "current",
+                    "KB_URL" to "",
+                    "KB_BEARER_TOKEN" to "",
+                ),
+                renderer.toAbsolutePath().toString(),
+                "--doctor",
+            )
+
+        assertThat(result.exitCode)
+            .describedAs(result.stderr)
+            .isEqualTo(0)
+        assertThat(result.stdout)
+            .contains(
+                "ok   claude-install: manifest version current, expected current",
+                "ok   codex-install: manifest version current, expected current",
+                "summary: 5 ok, 1 warn, 0 fail",
+            )
+    }
+
+    @Test
+    fun `agent kit doctor can require live kb credentials`() {
+        val renderer = repositoryRoot.resolve(manifest["renderer"]["script_path"].asText())
+        val home = tempDir.resolve("doctor-live")
+
+        val result =
+            runProcessWithEnv(
+                mapOf(
+                    "HOME" to home.toString(),
+                    "CLAUDE_CONFIG_DIR" to home.resolve(".claude").toString(),
+                    "CODEX_HOME" to home.resolve(".codex").toString(),
+                    "KB_URL" to "http://knowledge.local",
+                    "KB_BEARER_TOKEN" to "",
+                ),
+                renderer.toAbsolutePath().toString(),
+                "--doctor",
+                "--require-live-kb",
+            )
+
+        assertThat(result.exitCode)
+            .describedAs(result.stdout)
+            .isEqualTo(1)
+        assertThat(result.stdout)
+            .contains(
+                "fail kb-live: KB_BEARER_TOKEN is not set; live MCP probe skipped",
+                "summary: 3 ok, 2 warn, 1 fail",
+            )
+    }
+
     private fun repoSkillPaths(): Set<String> =
         listOf(".agents/skills", ".claude/skills")
             .flatMap { base ->
