@@ -17,6 +17,7 @@ import kotlin.streams.asSequence
 class AgentKitManifestTest {
     private val repositoryRoot = RepositoryRootLocator().locate()
     private val manifestPath = repositoryRoot.resolve("platform/agents/kit/manifest.yaml")
+    private val jsonMapper = ObjectMapper()
     private val manifest = ObjectMapper(YAMLFactory()).readTree(manifestPath.toFile())
 
     @TempDir
@@ -156,6 +157,122 @@ class AgentKitManifestTest {
         assertThat(Files.exists(codexHome.resolve("hooks.json")))
             .describedAs("dry-run should not write Codex hooks.json")
             .isFalse()
+    }
+
+    @Test
+    fun `installer writes parseable Codex hooks and uninstalls managed files`() {
+        val installer = repositoryRoot.resolve(manifest["installer"]["path"].asText()).toAbsolutePath()
+        val claudeHome = tempDir.resolve("write-claude")
+        val codexHome = tempDir.resolve("write-codex")
+        val environment =
+            mapOf(
+                "CLAUDE_CONFIG_DIR" to claudeHome.toString(),
+                "CODEX_HOME" to codexHome.toString(),
+            )
+
+        val installResult =
+            runProcessWithEnv(
+                environment,
+                "bash",
+                installer.toString(),
+                "--agent",
+                "all",
+            )
+
+        assertThat(installResult.exitCode)
+            .describedAs(installResult.stderr)
+            .isEqualTo(0)
+        assertThat(installResult.stdout)
+            .contains("knowledge-system installer complete", "agent=all")
+
+        val claudeFiles =
+            listOf(
+                "hooks/user-prompt-submit-recall.sh",
+                "hooks/pre-tool-use-edit-recall.sh",
+                "hooks/pre-tool-use-git-commit-capture.sh",
+                "hooks/stop-session-digest.sh",
+                "skills/topics/SKILL.md",
+                "skills/audit/SKILL.md",
+                "skills/kb-first/SKILL.md",
+                "skills/token-economy/SKILL.md",
+                "skills/agent-session-bootstrap/SKILL.md",
+                ".knowledge-system-allowlist",
+                ".knowledge-system-version",
+            ).map { claudeHome.resolve(it) }
+        val codexFiles =
+            listOf(
+                "hooks/kb-user-prompt-recall.sh",
+                "hooks/pre-tool-use-edit-recall.sh",
+                "hooks/pre-tool-use-git-commit-capture.sh",
+                "hooks/kb-stop-digest.sh",
+                "skills/topics/SKILL.md",
+                "skills/audit/SKILL.md",
+                "skills/kb-first/SKILL.md",
+                "skills/token-economy/SKILL.md",
+                "skills/agent-session-bootstrap/SKILL.md",
+                ".knowledge-system-allowlist",
+                ".knowledge-system-version",
+                "hooks.json",
+            ).map { codexHome.resolve(it) }
+
+        (claudeFiles + codexFiles).forEach { path ->
+            assertThat(Files.exists(path))
+                .describedAs("installer wrote $path")
+                .isTrue()
+        }
+        listOf(
+            claudeHome.resolve("hooks/user-prompt-submit-recall.sh"),
+            claudeHome.resolve("hooks/pre-tool-use-edit-recall.sh"),
+            claudeHome.resolve("hooks/pre-tool-use-git-commit-capture.sh"),
+            claudeHome.resolve("hooks/stop-session-digest.sh"),
+            codexHome.resolve("hooks/kb-user-prompt-recall.sh"),
+            codexHome.resolve("hooks/pre-tool-use-edit-recall.sh"),
+            codexHome.resolve("hooks/pre-tool-use-git-commit-capture.sh"),
+            codexHome.resolve("hooks/kb-stop-digest.sh"),
+        ).forEach { hook ->
+            assertThat(Files.isExecutable(hook))
+                .describedAs("installer made hook executable: $hook")
+                .isTrue()
+        }
+
+        assertThat(Files.readString(claudeHome.resolve(".knowledge-system-version")))
+            .contains("managed:", "hooks/user-prompt-submit-recall.sh")
+        assertThat(Files.readString(codexHome.resolve(".knowledge-system-version")))
+            .contains("agent=codex", "hooks.json")
+
+        val codexHooks = jsonMapper.readTree(codexHome.resolve("hooks.json").toFile())
+        assertThat(hookCommands(codexHooks, "UserPromptSubmit"))
+            .containsExactly(codexHome.resolve("hooks/kb-user-prompt-recall.sh").toString())
+        assertThat(hookMatchers(codexHooks, "PreToolUse"))
+            .containsExactlyInAnyOrder("Edit|Write|apply_patch", "Bash")
+        assertThat(hookCommands(codexHooks, "PreToolUse"))
+            .containsExactlyInAnyOrder(
+                "env KB_AUTO_MCP_HOME=${codexHome} ${codexHome}/hooks/pre-tool-use-edit-recall.sh",
+                "env KB_AUTO_MCP_HOME=${codexHome} " +
+                    "KB_AUTO_MCP_SOURCE=codex:auto-capture:git-commit " +
+                    "KB_AUTO_MCP_CLIENT_NAME=Codex ${codexHome}/hooks/pre-tool-use-git-commit-capture.sh",
+            )
+        assertThat(hookCommands(codexHooks, "Stop"))
+            .containsExactly(codexHome.resolve("hooks/kb-stop-digest.sh").toString())
+
+        val uninstallResult =
+            runProcessWithEnv(
+                environment,
+                "bash",
+                installer.toString(),
+                "--agent",
+                "all",
+                "--uninstall",
+            )
+
+        assertThat(uninstallResult.exitCode)
+            .describedAs(uninstallResult.stderr)
+            .isEqualTo(0)
+        (claudeFiles + codexFiles).forEach { path ->
+            assertThat(Files.exists(path))
+                .describedAs("uninstall removed $path")
+                .isFalse()
+        }
     }
 
     @Test
@@ -412,6 +529,27 @@ class AgentKitManifestTest {
         Regex("""["']name["']\s*:\s*["'](knowledge\.[A-Za-z_]+)["']""")
             .findAll(text)
             .map { it.groupValues[1] }
+            .toList()
+
+    private fun hookMatchers(
+        settings: JsonNode,
+        event: String,
+    ): List<String> =
+        settings["hooks"][event]
+            .elements()
+            .asSequence()
+            .mapNotNull { it["matcher"]?.asText() }
+            .toList()
+
+    private fun hookCommands(
+        settings: JsonNode,
+        event: String,
+    ): List<String> =
+        settings["hooks"][event]
+            .elements()
+            .asSequence()
+            .flatMap { group -> group["hooks"].elements().asSequence() }
+            .map { it["command"].asText() }
             .toList()
 
     private fun rendererManagedPathList(): List<String> =
