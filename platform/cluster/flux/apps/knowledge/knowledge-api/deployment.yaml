@@ -98,6 +98,8 @@ spec:
               value: '5672'
             - name: DEPLOYMENT_ENVIRONMENT
               value: production
+            - name: KB_RECALL_DEFAULT_MODE
+              value: hybrid
             - name: OTEL_SERVICE_NAME
               value: knowledge-api
             - name: OTEL_EXPORTER_OTLP_ENDPOINT

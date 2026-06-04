@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fleet Change"
+  short_description: "Render and validate fleet edits"
+  default_prompt: "Use $fleet-change to make this fleet.yaml update safely."
