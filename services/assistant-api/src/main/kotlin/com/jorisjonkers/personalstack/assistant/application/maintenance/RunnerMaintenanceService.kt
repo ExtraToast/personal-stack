@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component
 import java.time.Clock
 
 /**
- * Bulk maintenance operations on runner Pods. Unlike [com.jorisjonkers.personalstack.assistant.application.idle.IdleScaleDownScheduler],
+ * Bulk maintenance operations on runner Pods. Unlike [IdleScaleDownScheduler],
  * which acts on a time threshold, these operations are admin-triggered
  * and act on all active workspaces immediately.
  *

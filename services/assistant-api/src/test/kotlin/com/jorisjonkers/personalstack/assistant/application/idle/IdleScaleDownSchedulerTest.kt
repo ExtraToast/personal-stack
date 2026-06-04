@@ -122,7 +122,7 @@ class IdleScaleDownSchedulerTest {
     fun `sweep skips a workspace with RUNNING sessions inside the agent idle threshold`() {
         val ws = workspace(updatedAt = now.minusSeconds(7_200))
         every { workspaces.findAllByStatusNot(WorkspaceStatus.DESTROYED) } returns listOf(ws)
-        every { agentSessions.findAllByWorkspaceId(ws.id) } returns listOf(runningSession(ws))
+        every { agentSessions.findAllByWorkspaceId(ws.id) } returns listOf(runningSession())
 
         scheduler.sweep()
 
@@ -133,7 +133,7 @@ class IdleScaleDownSchedulerTest {
     fun `sweep scales down a workspace with RUNNING sessions once agent idle threshold expires`() {
         val ws = workspace(updatedAt = now.minusSeconds(14_401))
         every { workspaces.findAllByStatusNot(WorkspaceStatus.DESTROYED) } returns listOf(ws)
-        every { agentSessions.findAllByWorkspaceId(ws.id) } returns listOf(runningSession(ws))
+        every { agentSessions.findAllByWorkspaceId(ws.id) } returns listOf(runningSession())
         every { workspaces.save(any()) } answers { firstArg() }
 
         scheduler.sweep()
@@ -141,7 +141,7 @@ class IdleScaleDownSchedulerTest {
         verify { orchestrator.scaleDown(ws) }
     }
 
-    private fun runningSession(ws: Workspace) =
+    private fun runningSession() =
         mockk<WorkspaceAgentSession> {
             every { status } returns WorkspaceAgentSessionStatus.RUNNING
         }
