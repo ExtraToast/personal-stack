@@ -25,8 +25,15 @@ class LessonExtractorTest {
         val out = extractor.extract(workspace(), turns)
         assertThat(out).hasSize(1)
         assertThat(out[0].title).contains("how do I configure flannel")
-        assertThat(out[0].body).contains("Q: how do I").contains("A: Use --flannel")
-        assertThat(out[0].tags).contains("source:agents-ui", "kind:turn-pair")
+        assertThat(out[0].body)
+            .contains("Trigger:")
+            .contains("Evidence:")
+            .contains("Q: how do I")
+            .contains("A: Use --flannel")
+        assertThat(out[0].triggerTerms).contains("flannel", "tailscale")
+        assertThat(out[0].excerpts).hasSize(2)
+        assertThat(out[0].dedupeQuery).contains("flannel")
+        assertThat(out[0].tags).contains("auto-capture", "assistant-ui", "kind:turn-pair")
     }
 
     @Test
@@ -83,11 +90,18 @@ class LessonExtractorTest {
         val ws = workspace(repoUrl = "git@github.com:owner/personal-stack.git")
         val turns =
             listOf(
-                turn(TurnRole.USER, "how does this work?", 1),
-                turn(TurnRole.AGENT, "long substantive answer. ".repeat(20), 2),
+                turn(TurnRole.USER, "how does services/assistant-api/src/main/App.kt work with kubectl?", 1),
+                turn(TurnRole.AGENT, "long substantive answer using ./gradlew and kubectl. ".repeat(20), 2),
             )
-        val tags = extractor.extract(ws, turns).single().tags
-        assertThat(tags).contains("repo:personal-stack")
+        val out = extractor.extract(ws, turns).single()
+        assertThat(out.tags).contains("repo:personal-stack")
+        assertThat(out.triggerTerms)
+            .contains(
+                "personal-stack",
+                "services/assistant-api/src/main/App.kt",
+                "kubectl",
+                "./gradlew",
+            )
     }
 
     private fun turn(

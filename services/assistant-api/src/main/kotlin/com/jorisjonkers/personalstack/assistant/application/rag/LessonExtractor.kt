@@ -15,9 +15,9 @@ import org.springframework.stereotype.Component
  *   (>= minBodyChars) AND either contains an explicit lesson
  *   marker ("TIL:", "Note:", "Lesson:") OR the user turn is a
  *   question (ends with "?" or starts with "how/why/what/...").
- * - The title is the user's prompt, truncated; the body is
- *   "Q: <user>\nA: <agent>" so the captured note has enough
- *   context to be useful in a future recall.
+ * - The title is the user's prompt, truncated; the body includes
+ *   trigger terms, short evidence excerpts, and a Q/A lesson section
+ *   so the captured note can be reviewed and recalled later.
  *
  * The actual quality bar is enforced at the curator step downstream
  * (it routes low-confidence notes into `_inbox/_needs-review`), so
@@ -37,6 +37,9 @@ class LessonExtractor(
         val body: String,
         val tags: List<String>,
         val confidence: Double,
+        val triggerTerms: List<String>,
+        val excerpts: List<String>,
+        val dedupeQuery: String,
     )
 
     private data class Pair(
@@ -92,16 +95,23 @@ class LessonExtractor(
     ): Candidate {
         val tags =
             buildList {
-                add("source:agents-ui")
+                add("auto-capture")
+                add("assistant-ui")
                 add("kind:turn-pair")
                 if (markerRegex.containsMatchIn(pair.agentBody)) add("has-marker")
                 workspace.repoUrl?.let { add("repo:${ScopeInference.repoSlug(it)}") }
             }
+        val triggerTerms = triggerTerms(workspace, pair.user.body, pair.agentBody)
+        val excerpts = excerpts(pair.user.body, pair.agentBody)
+        val title = makeTitle(workspace, pair.user.body)
         return Candidate(
-            title = makeTitle(workspace, pair.user.body),
-            body = makeBody(pair.user.body, pair.agentBody),
+            title = title,
+            body = makeBody(pair.user.body, pair.agentBody, triggerTerms, excerpts),
             tags = tags,
             confidence = scoreFor(pair.agentBody),
+            triggerTerms = triggerTerms,
+            excerpts = excerpts,
+            dedupeQuery = (listOf(title) + triggerTerms + excerpts).joinToString(" ").take(DEDUPE_QUERY_CHARS),
         )
     }
 
@@ -132,10 +142,20 @@ class LessonExtractor(
     private fun makeBody(
         userBody: String,
         agentBody: String,
+        triggerTerms: List<String>,
+        excerpts: List<String>,
     ): String {
         val q = userBody.trim().take(maxBodyChars / Q_FRACTION_DENOMINATOR)
         val a = agentBody.trim().take(maxBodyChars * A_FRACTION_NUMERATOR / A_FRACTION_DENOMINATOR)
-        return "Q: $q\n\nA: $a"
+        return buildString {
+            append("Trigger:\n")
+            triggerTerms.forEach { append("- ").append(it).append('\n') }
+            append("\nEvidence:\n")
+            excerpts.forEach { append("- ").append(it).append('\n') }
+            append("\nLesson:\n")
+            append("Q: ").append(q).append("\n\n")
+            append("A: ").append(a)
+        }
     }
 
     private fun scoreFor(agentBody: String): Double {
@@ -143,6 +163,52 @@ class LessonExtractor(
         val lengthBonus = (agentBody.length.coerceAtMost(LENGTH_CAP) / LENGTH_DIVISOR)
         val codeFenceBonus = if (agentBody.contains("```")) CODE_FENCE_BONUS else 0.0
         return (BASELINE + markerBonus + lengthBonus + codeFenceBonus).coerceIn(0.0, MAX_CONFIDENCE)
+    }
+
+    private fun triggerTerms(
+        workspace: Workspace,
+        userBody: String,
+        agentBody: String,
+    ): List<String> {
+        val text = "$userBody\n$agentBody"
+        val triggers = linkedSetOf<String>()
+        workspace.repoUrl?.let { triggers += ScopeInference.repoSlug(it) }
+        pathRegex.findAll(text).take(MAX_PATH_TRIGGERS).forEach { triggers += it.value }
+        commandRegex.findAll(text).take(MAX_COMMAND_TRIGGERS).forEach { triggers += it.value }
+        wordRegex.findAll(userBody).forEach { match ->
+            val word = match.value.lowercase()
+            if (word !in stopWords) triggers += word
+            if (triggers.size >= MAX_TRIGGER_TERMS) return triggers.toList()
+        }
+        wordRegex.findAll(agentBody).forEach { match ->
+            val word = match.value.lowercase()
+            if (word !in stopWords) triggers += word
+            if (triggers.size >= MAX_TRIGGER_TERMS) return triggers.toList()
+        }
+        return triggers.take(MAX_TRIGGER_TERMS)
+    }
+
+    private fun excerpts(
+        userBody: String,
+        agentBody: String,
+    ): List<String> =
+        listOfNotNull(
+            compactExcerpt("user", userBody),
+            compactExcerpt("agent", agentBody),
+        )
+
+    private fun compactExcerpt(
+        label: String,
+        text: String,
+    ): String? {
+        val normalized =
+            text
+                .lines()
+                .map(String::trim)
+                .filter(String::isNotBlank)
+                .joinToString(" ")
+        if (normalized.isBlank()) return null
+        return "$label: ${normalized.take(EXCERPT_CHARS)}"
     }
 
     companion object {
@@ -161,5 +227,42 @@ class LessonExtractor(
         private const val LENGTH_DIVISOR = 4_000.0
         private const val CODE_FENCE_BONUS = 0.05
         private const val MAX_CONFIDENCE = 0.85
+        private const val MAX_TRIGGER_TERMS = 14
+        private const val MAX_PATH_TRIGGERS = 4
+        private const val MAX_COMMAND_TRIGGERS = 4
+        private const val EXCERPT_CHARS = 320
+        private const val DEDUPE_QUERY_CHARS = 1_200
+
+        private val pathRegex = Regex("""[\w./-]+\.(?:kt|kts|ts|tsx|vue|py|ya?ml|sh|nix|md|sql|json|toml)""")
+        private val commandRegex =
+            Regex("""(?:\./gradlew|gradle|npm|pnpm|kubectl|helm|flux|kustomize|docker|git|gh|nix|uv|python3?)\b""")
+        private val wordRegex = Regex("""[A-Za-z][A-Za-z0-9_-]{3,}""")
+        private val stopWords =
+            setOf(
+                "about",
+                "after",
+                "agent",
+                "also",
+                "answer",
+                "because",
+                "before",
+                "does",
+                "from",
+                "have",
+                "into",
+                "should",
+                "that",
+                "their",
+                "there",
+                "this",
+                "turn",
+                "what",
+                "when",
+                "where",
+                "which",
+                "with",
+                "work",
+                "would",
+            )
     }
 }
