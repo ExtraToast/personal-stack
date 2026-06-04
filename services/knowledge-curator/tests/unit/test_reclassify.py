@@ -8,7 +8,14 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from curator.classify import Classification, ClassificationError
-from curator.reclassify import ReclassifyOutcome, TopicReclassifier, summarise
+from curator.reclassify import (
+    ReclassifyOutcome,
+    TagReclassifier,
+    TagReclassifyOutcome,
+    TopicReclassifier,
+    summarise,
+    summarise_tag_outcomes,
+)
 from curator.topics import Topic, TopicVocabulary
 
 
@@ -93,7 +100,7 @@ class _FakeStore:
 
 
 class _FakeAudit:
-    def __init__(self, store: _FakeStore) -> None:
+    def __init__(self, store: Any) -> None:
         self._store = store
         self.records: list[dict[str, Any]] = []
 
@@ -101,6 +108,89 @@ class _FakeAudit:
         self.records.append(kwargs)
         self._store.audit_rows.append(("fake-audit-id", kwargs["actor"], kwargs["action"]))
         return "fake-audit-id"
+
+
+class _FakeTagStore:
+    """In-memory `kb_notes`, `kb_note_tags`, and tag-admin audit watermark."""
+
+    def __init__(
+        self,
+        *,
+        notes: Iterable[tuple[str, str, str, str, Iterable[str], datetime]],
+        audit_watermark: datetime | None,
+    ) -> None:
+        self.notes: dict[str, dict[str, Any]] = {
+            note_id: {
+                "id": note_id,
+                "title": title,
+                "body": body,
+                "scope": scope,
+                "tag_classified_at": classified_at,
+            }
+            for (note_id, title, body, scope, _tags, classified_at) in notes
+        }
+        self.tags: dict[str, set[str]] = {
+            note_id: set(tags) for (note_id, _title, _body, _scope, tags, _at) in notes
+        }
+        self.audit_watermark = audit_watermark
+        self.audit_rows: list[tuple[Any, ...]] = []
+
+    @contextmanager
+    def connection(self) -> Any:
+        store = self
+
+        class _Cur:
+            def __enter__(self) -> _Cur:
+                return self
+
+            def __exit__(self, *_: object) -> None:
+                return None
+
+            def execute(self, query: object, params: tuple[Any, ...] = ()) -> None:
+                q = str(query)
+                if "MAX(at) FROM kb_audit" in q:
+                    self._fetched = [(store.audit_watermark,)]
+                elif "FROM kb_notes" in q and "tag_classified_at < %s" in q:
+                    watermark, limit = params
+                    rows = sorted(
+                        (n for n in store.notes.values() if n["tag_classified_at"] < watermark),
+                        key=lambda n: n["tag_classified_at"],
+                    )[:limit]
+                    self._fetched = [(n["id"], n["title"], n["body"], n["scope"]) for n in rows]
+                elif "DELETE FROM kb_note_tags" in q:
+                    (note_id,) = params
+                    store.tags[note_id] = set()
+                    self._fetched = []
+                elif "INSERT INTO kb_note_tags" in q:
+                    note_id, tag = params
+                    store.tags.setdefault(note_id, set()).add(tag)
+                    self._fetched = []
+                elif "FROM kb_note_tags" in q:
+                    (note_id,) = params
+                    self._fetched = [(tag,) for tag in sorted(store.tags.get(note_id, set()))]
+                elif "UPDATE kb_notes" in q and "tag_classified_at = NOW()" in q:
+                    (note_id,) = params
+                    note = store.notes.get(note_id)
+                    if note is not None:
+                        note["tag_classified_at"] = datetime.now(UTC)
+                    self._fetched = []
+                else:
+                    self._fetched = []
+
+            def fetchall(self) -> list[tuple[Any, ...]]:
+                return list(self._fetched)
+
+        class _Conn:
+            def __enter__(self) -> _Conn:
+                return self
+
+            def __exit__(self, *_: object) -> None:
+                return None
+
+            def cursor(self) -> _Cur:
+                return _Cur()
+
+        yield _Conn()
 
 
 class _StubClassifier:
@@ -131,13 +221,14 @@ def _classification(
     scope: str,
     confidence: float = 0.9,
     topic: str | None = None,
+    tags: list[str] | None = None,
 ) -> Classification:
     return Classification(
         title="any short title",
         scope=scope,
         topic=topic,
         type="lesson",
-        tags=[],
+        tags=tags or [],
         supersedes=[],
         see_also=[],
         confidence=confidence,
@@ -157,6 +248,18 @@ def _reclassifier(
         classifier=classifier,
         audit=audit,
         vocabulary=vocab,
+    )
+
+
+def _tag_reclassifier(
+    store: _FakeTagStore,
+    classifier: Any,
+    audit: _FakeAudit,
+) -> TagReclassifier:
+    return TagReclassifier(
+        store=store,
+        classifier=classifier,
+        audit=audit,
     )
 
 
@@ -399,5 +502,205 @@ def test_summarise_counts_outcomes_by_status() -> None:
         "unchanged": 1,
         "low_confidence": 1,
         "invalid_topic": 1,
+        "failed": 1,
+    }
+
+
+# ---- tag reclassification -----------------------------------------------
+
+
+def test_tag_pass_returns_nothing_when_admin_audit_watermark_is_null() -> None:
+    store = _FakeTagStore(notes=[], audit_watermark=None)
+    audit = _FakeAudit(store)
+    reclassifier = _tag_reclassifier(store, _StubClassifier({}), audit)
+
+    assert reclassifier.has_work() is False
+    assert reclassifier.run_pass() == []
+    assert audit.records == []
+
+
+def test_tag_pass_retags_when_tag_set_changes_and_confidence_is_high() -> None:
+    now = datetime.now(UTC)
+    store = _FakeTagStore(
+        notes=[
+            (
+                "01A",
+                "title-a",
+                "body about kotlin",
+                "topic:kotlin",
+                ["kt", "jvm"],
+                now - timedelta(days=30),
+            )
+        ],
+        audit_watermark=now,
+    )
+    audit = _FakeAudit(store)
+    classifier = _StubClassifier(
+        {
+            "title-a": _classification(
+                scope="topic:kotlin",
+                topic="kotlin",
+                confidence=0.9,
+                tags=["kotlin", "jvm", "kotlin", " "],
+            ),
+        },
+    )
+    reclassifier = _tag_reclassifier(store, classifier, audit)
+
+    outcomes = reclassifier.run_pass()
+
+    assert outcomes == [
+        TagReclassifyOutcome(
+            note_id="01A",
+            status="retagged",
+            before_tags=("jvm", "kt"),
+            after_tags=("jvm", "kotlin"),
+        )
+    ]
+    assert store.tags["01A"] == {"jvm", "kotlin"}
+    assert store.notes["01A"]["tag_classified_at"] > now
+    assert len(audit.records) == 1
+    assert audit.records[0]["actor"] == "kb-reclassify-tags"
+    assert audit.records[0]["action"] == "reclassify_tags"
+    assert audit.records[0]["before"] == {"tags": ["jvm", "kt"]}
+    assert audit.records[0]["after"] == {"tags": ["jvm", "kotlin"]}
+
+
+def test_tag_pass_marks_unchanged_when_classifier_tags_match() -> None:
+    now = datetime.now(UTC)
+    store = _FakeTagStore(
+        notes=[
+            (
+                "01A",
+                "title-a",
+                "body",
+                "topic:kotlin",
+                ["jvm", "kotlin"],
+                now - timedelta(days=30),
+            )
+        ],
+        audit_watermark=now,
+    )
+    audit = _FakeAudit(store)
+    classifier = _StubClassifier(
+        {
+            "title-a": _classification(
+                scope="topic:kotlin",
+                topic="kotlin",
+                tags=["kotlin", "jvm"],
+            ),
+        },
+    )
+    reclassifier = _tag_reclassifier(store, classifier, audit)
+
+    outcomes = reclassifier.run_pass()
+
+    assert outcomes[0].status == "unchanged"
+    assert store.tags["01A"] == {"jvm", "kotlin"}
+    assert store.notes["01A"]["tag_classified_at"] > now
+    assert audit.records == []
+
+
+def test_tag_pass_skips_under_confidence_floor_but_advances_watermark() -> None:
+    now = datetime.now(UTC)
+    store = _FakeTagStore(
+        notes=[
+            (
+                "01A",
+                "title-a",
+                "body",
+                "topic:kotlin",
+                ["kt"],
+                now - timedelta(days=30),
+            )
+        ],
+        audit_watermark=now,
+    )
+    audit = _FakeAudit(store)
+    classifier = _StubClassifier(
+        {
+            "title-a": _classification(
+                scope="topic:kotlin",
+                topic="kotlin",
+                confidence=0.6,
+                tags=["kotlin"],
+            ),
+        },
+    )
+    reclassifier = _tag_reclassifier(store, classifier, audit)
+
+    outcomes = reclassifier.run_pass()
+
+    assert outcomes[0].status == "low_confidence"
+    assert store.tags["01A"] == {"kt"}
+    assert store.notes["01A"]["tag_classified_at"] > now
+    assert audit.records == []
+
+
+def test_tag_pass_leaves_row_alone_on_classifier_failure() -> None:
+    now = datetime.now(UTC)
+    older = now - timedelta(days=30)
+    store = _FakeTagStore(
+        notes=[("01A", "title-a", "body", "topic:kotlin", ["kt"], older)],
+        audit_watermark=now,
+    )
+    audit = _FakeAudit(store)
+    classifier = _StubClassifier({"title-a": ClassificationError("connect timeout")})
+    reclassifier = _tag_reclassifier(store, classifier, audit)
+
+    outcomes = reclassifier.run_pass()
+
+    assert outcomes[0].status == "failed"
+    assert store.tags["01A"] == {"kt"}
+    assert store.notes["01A"]["tag_classified_at"] == older
+    assert audit.records == []
+
+
+def test_tag_pass_respects_max_per_pass_limit() -> None:
+    now = datetime.now(UTC)
+    base = now - timedelta(days=30)
+    notes = [
+        (
+            f"01{i:02d}",
+            f"title-{i}",
+            "body",
+            "topic:kotlin",
+            ["kotlin"],
+            base + timedelta(minutes=i),
+        )
+        for i in range(10)
+    ]
+    store = _FakeTagStore(notes=notes, audit_watermark=now)
+    audit = _FakeAudit(store)
+    classifier = _StubClassifier(
+        {
+            f"title-{i}": _classification(scope="topic:kotlin", topic="kotlin", tags=["kotlin"])
+            for i in range(10)
+        },
+    )
+    reclassifier = TagReclassifier(
+        store=store,
+        classifier=classifier,  # type: ignore[arg-type]
+        audit=audit,
+        max_per_pass=4,
+    )
+
+    outcomes = reclassifier.run_pass()
+
+    assert len(outcomes) == 4
+    assert {o.note_id for o in outcomes} == {"0100", "0101", "0102", "0103"}
+
+
+def test_summarise_tag_outcomes_counts_statuses() -> None:
+    outcomes = [
+        TagReclassifyOutcome("01A", "retagged", before_tags=("kt",), after_tags=("kotlin",)),
+        TagReclassifyOutcome("01B", "unchanged", before_tags=("jvm",), after_tags=("jvm",)),
+        TagReclassifyOutcome("01C", "low_confidence", before_tags=("kt",), after_tags=("kt",)),
+        TagReclassifyOutcome("01D", "failed", before_tags=("kt",), after_tags=("kt",)),
+    ]
+    assert summarise_tag_outcomes(outcomes) == {
+        "retagged": 1,
+        "unchanged": 1,
+        "low_confidence": 1,
         "failed": 1,
     }

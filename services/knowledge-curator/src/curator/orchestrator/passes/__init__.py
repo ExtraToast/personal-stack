@@ -8,11 +8,13 @@ module here + register it in
 from curator.orchestrator.passes.inbox import InboxPass
 from curator.orchestrator.passes.needs_review_drain import NeedsReviewDrainPass
 from curator.orchestrator.passes.relation_enrichment import RelationEnrichmentPass
+from curator.orchestrator.passes.tag_reclassification import TagReclassificationPass
 from curator.orchestrator.passes.title_quality import TitleQualityPass
 
 __all__ = [
     "InboxPass",
     "NeedsReviewDrainPass",
     "RelationEnrichmentPass",
+    "TagReclassificationPass",
     "TitleQualityPass",
 ]
