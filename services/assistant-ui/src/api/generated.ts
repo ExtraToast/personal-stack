@@ -44,22 +44,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/workspaces/{workspaceId}/sessions/{sessionId}/input": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["send"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/workspaces/{workspaceId}/sessions/{sessionId}/staged-inputs": {
         parameters: {
             query?: never;
@@ -70,6 +54,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["stageInput"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/sessions/{sessionId}/input": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["send"];
         delete?: never;
         options?: never;
         head?: never;
@@ -491,10 +491,6 @@ export interface components {
             /** @enum {string} */
             kind: "CLAUDE" | "CODEX" | "SHELL";
         };
-        SendUserInputRequest: {
-            text: string;
-            enter: boolean;
-        };
         StageInputRequest: {
             content: string;
             name?: string | null;
@@ -504,6 +500,10 @@ export interface components {
             /** Format: int64 */
             bytes: number;
             name: string;
+        };
+        SendUserInputRequest: {
+            text: string;
+            enter: boolean;
         };
         OpenPrRequest: {
             repoDir: string;
@@ -744,31 +744,6 @@ export interface operations {
             };
         };
     };
-    send: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspaceId: string;
-                sessionId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SendUserInputRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     stageInput: {
         parameters: {
             query?: never;
@@ -793,6 +768,31 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["StagedInputResponse"];
                 };
+            };
+        };
+    };
+    send: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendUserInputRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

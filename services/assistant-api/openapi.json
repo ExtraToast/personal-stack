@@ -104,44 +104,6 @@
         }
       }
     },
-    "/api/v1/workspaces/{workspaceId}/sessions/{sessionId}/input" : {
-      "post" : {
-        "tags" : [ "agent-session-controller" ],
-        "operationId" : "send",
-        "parameters" : [ {
-          "name" : "workspaceId",
-          "in" : "path",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        }, {
-          "name" : "sessionId",
-          "in" : "path",
-          "required" : true,
-          "schema" : {
-            "type" : "string",
-            "format" : "uuid"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/SendUserInputRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "description" : "OK"
-          }
-        }
-      }
-    },
     "/api/v1/workspaces/{workspaceId}/sessions/{sessionId}/staged-inputs" : {
       "post" : {
         "tags" : [ "agent-session-controller" ],
@@ -183,6 +145,44 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/sessions/{sessionId}/input" : {
+      "post" : {
+        "tags" : [ "agent-session-controller" ],
+        "operationId" : "send",
+        "parameters" : [ {
+          "name" : "workspaceId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "sessionId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SendUserInputRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK"
           }
         }
       }
@@ -1226,18 +1226,6 @@
         },
         "required" : [ "kind" ]
       },
-      "SendUserInputRequest" : {
-        "type" : "object",
-        "properties" : {
-          "text" : {
-            "type" : "string"
-          },
-          "enter" : {
-            "type" : "boolean"
-          }
-        },
-        "required" : [ "enter", "text" ]
-      },
       "StageInputRequest" : {
         "type" : "object",
         "properties" : {
@@ -1265,6 +1253,18 @@
           }
         },
         "required" : [ "bytes", "name", "path" ]
+      },
+      "SendUserInputRequest" : {
+        "type" : "object",
+        "properties" : {
+          "text" : {
+            "type" : "string"
+          },
+          "enter" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "enter", "text" ]
       },
       "OpenPrRequest" : {
         "type" : "object",
