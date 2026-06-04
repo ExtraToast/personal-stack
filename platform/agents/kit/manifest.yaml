@@ -1,7 +1,7 @@
 version: 1
 generated: partial
 notes:
-  - "This manifest pins the current repo and installer agent surfaces. Repo skills, hooks, hook settings, and the installer entrypoint are rendered from agent-kit templates; installer heredoc bodies remain staged for later decomposition."
+  - "This manifest pins the current repo and installer agent surfaces. Repo skills, hooks, hook settings, and the installer entrypoint are rendered from agent-kit templates; installer hook bodies are rendered from partial templates, while installer skill heredocs remain staged for later decomposition."
   - "Repo skill bodies are intentionally agent-specific today; parity means every shared skill has both Claude and Codex targets unless an explicit unsupported reason is present."
 
 renderer:
@@ -10,6 +10,13 @@ renderer:
   extra_templates:
     - source_path: platform/agents/kit/templates/installer/install.sh.tpl
       destination_path: services/knowledge-api/src/main/resources/installer/install.sh
+  include_templates:
+    - platform/agents/kit/templates/installer/partials/hooks/pre-tool-use-edit-recall.sh
+    - platform/agents/kit/templates/installer/partials/hooks/pre-tool-use-git-commit-capture.sh
+    - platform/agents/kit/templates/installer/partials/hooks/stop-session-digest-claude.sh
+    - platform/agents/kit/templates/installer/partials/hooks/stop-session-digest-codex.sh
+    - platform/agents/kit/templates/installer/partials/hooks/user-prompt-submit-recall.sh
+    - platform/agents/kit/templates/installer/partials/settings/codex-hooks.json
   managed_paths:
     - .agents/skills/add-public-service/SKILL.md
     - .agents/skills/agent-session-bootstrap/SKILL.md

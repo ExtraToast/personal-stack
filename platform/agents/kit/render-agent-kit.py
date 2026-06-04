@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import filecmp
+import re
 import shutil
 import stat
 import sys
@@ -19,8 +20,10 @@ EXTRA_TEMPLATES = (
     (
         KIT_ROOT / "templates" / "installer" / "install.sh.tpl",
         Path("services/knowledge-api/src/main/resources/installer/install.sh"),
+        True,
     ),
 )
+INCLUDE_PATTERN = re.compile(r"^# @agent-kit-include (?P<path>[A-Za-z0-9_./-]+)$")
 
 
 @dataclass(frozen=True)
@@ -28,6 +31,7 @@ class RenderedFile:
     source: Path
     destination: Path
     relative_path: Path
+    expand_includes: bool = False
 
 
 def template_files(destination_root: Path) -> list[RenderedFile]:
@@ -47,7 +51,7 @@ def template_files(destination_root: Path) -> list[RenderedFile]:
             ),
         )
 
-    for source, relative_path in EXTRA_TEMPLATES:
+    for source, relative_path, expand_includes in EXTRA_TEMPLATES:
         if not source.is_file():
             raise FileNotFoundError(f"template file does not exist: {source}")
         files.append(
@@ -55,9 +59,37 @@ def template_files(destination_root: Path) -> list[RenderedFile]:
                 source=source,
                 destination=destination_root / relative_path,
                 relative_path=relative_path,
+                expand_includes=expand_includes,
             ),
         )
     return files
+
+
+def rendered_content(rendered: RenderedFile) -> bytes:
+    if not rendered.expand_includes:
+        return rendered.source.read_bytes()
+
+    parts: list[str] = []
+    template_root = rendered.source.parent
+    for raw_line in rendered.source.read_text().splitlines(keepends=True):
+        line = raw_line.rstrip("\r\n")
+        match = INCLUDE_PATTERN.match(line)
+        if not match:
+            parts.append(raw_line)
+            continue
+
+        include_path = (template_root / match.group("path")).resolve()
+        if not include_path.is_relative_to(template_root.resolve()):
+            raise ValueError(f"include escapes template root: {include_path}")
+        if not include_path.is_file():
+            raise FileNotFoundError(f"include file does not exist: {include_path}")
+
+        content = include_path.read_text()
+        parts.append(content)
+        if not content.endswith("\n"):
+            parts.append("\n")
+
+    return "".join(parts).encode()
 
 
 def check(destination_root: Path) -> int:
@@ -67,6 +99,9 @@ def check(destination_root: Path) -> int:
     for rendered in template_files(destination_root):
         if not rendered.destination.exists():
             missing.append(rendered)
+        elif rendered.expand_includes:
+            if rendered_content(rendered) != rendered.destination.read_bytes():
+                drifted.append(rendered)
         elif not filecmp.cmp(rendered.source, rendered.destination, shallow=False):
             drifted.append(rendered)
 
@@ -84,7 +119,10 @@ def check(destination_root: Path) -> int:
 def render(destination_root: Path) -> int:
     for rendered in template_files(destination_root):
         rendered.destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(rendered.source, rendered.destination)
+        if rendered.expand_includes:
+            rendered.destination.write_bytes(rendered_content(rendered))
+        else:
+            shutil.copyfile(rendered.source, rendered.destination)
         source_mode = rendered.source.stat().st_mode
         executable = source_mode & stat.S_IXUSR
         mode = 0o755 if executable else 0o644

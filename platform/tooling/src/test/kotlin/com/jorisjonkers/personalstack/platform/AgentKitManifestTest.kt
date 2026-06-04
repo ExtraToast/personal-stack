@@ -220,6 +220,27 @@ class AgentKitManifestTest {
     }
 
     @Test
+    fun `renderer include partials are declared and resolvable`() {
+        val declaredPartials =
+            manifest["renderer"]["include_templates"]
+                ?.elements()
+                ?.asSequence()
+                ?.map { it.asText() }
+                ?.toSet() ?: emptySet()
+        val referencedPartials = rendererIncludeTemplatePaths()
+
+        assertThat(declaredPartials)
+            .describedAs("renderer include partials must be explicit manifest inventory")
+            .containsExactlyInAnyOrderElementsOf(referencedPartials)
+
+        declaredPartials.forEach { path ->
+            assertThat(Files.exists(repositoryRoot.resolve(path)))
+                .describedAs("renderer include partial exists: $path")
+                .isTrue()
+        }
+    }
+
+    @Test
     fun `renderer check passes and can render templates to a temp directory`() {
         val renderer = repositoryRoot.resolve(manifest["renderer"]["script_path"].asText())
         assertThat(Files.isExecutable(renderer))
@@ -371,6 +392,18 @@ class AgentKitManifestTest {
 
         return (repoTemplatePaths + extraTemplatePaths).toSet()
     }
+
+    private fun rendererIncludeTemplatePaths(): Set<String> =
+        manifest["renderer"]["extra_templates"]
+            ?.elements()
+            ?.asSequence()
+            ?.flatMap { mapping ->
+                val source = repositoryRoot.resolve(mapping["source_path"].asText())
+                val templateRoot = source.parent
+                Regex("""^# @agent-kit-include ([A-Za-z0-9_./-]+)$""", RegexOption.MULTILINE)
+                    .findAll(source.toFile().readText())
+                    .map { relativePath(repositoryRoot, templateRoot.resolve(it.groupValues[1])) }
+            }?.toSet() ?: emptySet()
 
     private fun filesUnder(root: Path): List<Path> =
         Files.walk(root).use { paths ->
