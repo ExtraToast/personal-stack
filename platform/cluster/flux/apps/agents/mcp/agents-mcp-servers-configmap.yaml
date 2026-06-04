@@ -67,8 +67,9 @@ data:
         "url": "http://kubernetes-mcp-server.agents-system.svc.cluster.local:8080/mcp"
       }
     }
-  # Reserved for the Serena pilot. Until that profile lands, code-intel
-  # is intentionally as narrow as minimal.
+  # Code-intelligence profile: Serena adds LSP-backed semantic code
+  # navigation/editing. `no-memories` keeps durable memory centralized in
+  # knowledge-api rather than Serena's project-local memory layer.
   claude-mcp-servers.code-intel.json: |
     {
       "knowledge": {
@@ -79,6 +80,17 @@ data:
       "github": {
         "type": "stdio",
         "command": "gh-mcp-wrapper"
+      },
+      "serena": {
+        "type": "stdio",
+        "command": "serena",
+        "args": [
+          "start-mcp-server",
+          "--context=claude-code",
+          "--project-from-cwd",
+          "--mode", "no-memories",
+          "--open-web-dashboard", "false"
+        ]
       }
     }
   claude-mcp-servers.full-diagnostic.json: |
@@ -108,6 +120,17 @@ data:
       "kubernetes": {
         "type": "http",
         "url": "http://kubernetes-mcp-server.agents-system.svc.cluster.local:8080/mcp"
+      },
+      "serena": {
+        "type": "stdio",
+        "command": "serena",
+        "args": [
+          "start-mcp-server",
+          "--context=claude-code",
+          "--project-from-cwd",
+          "--mode", "no-memories",
+          "--open-web-dashboard", "false"
+        ]
       }
     }
   # Legacy fallback for runner images that predate profile selection.
@@ -187,8 +210,9 @@ data:
     [mcp_servers.kubernetes]
     url = "http://kubernetes-mcp-server.agents-system.svc.cluster.local:8080/mcp"
 
-  # Reserved for the Serena pilot. Until that profile lands, code-intel
-  # is intentionally as narrow as minimal.
+  # Code-intelligence profile: Serena adds LSP-backed semantic code
+  # navigation/editing. `no-memories` keeps durable memory centralized in
+  # knowledge-api rather than Serena's project-local memory layer.
   codex-mcp-servers.code-intel.toml: |
     [mcp_servers.knowledge]
     url = "@KB_URL@/mcp"
@@ -197,6 +221,11 @@ data:
     [mcp_servers.github]
     command = "gh-mcp-wrapper"
     startup_timeout_sec = 60
+
+    [mcp_servers.serena]
+    command = "serena"
+    startup_timeout_sec = 60
+    args = ["start-mcp-server", "--project-from-cwd", "--context=codex", "--mode", "no-memories", "--open-web-dashboard", "false"]
 
   codex-mcp-servers.full-diagnostic.toml: |
     [mcp_servers.knowledge]
@@ -219,6 +248,11 @@ data:
 
     [mcp_servers.kubernetes]
     url = "http://kubernetes-mcp-server.agents-system.svc.cluster.local:8080/mcp"
+
+    [mcp_servers.serena]
+    command = "serena"
+    startup_timeout_sec = 60
+    args = ["start-mcp-server", "--project-from-cwd", "--context=codex", "--mode", "no-memories", "--open-web-dashboard", "false"]
 
   # Legacy fallback for runner images that predate profile selection.
   codex-mcp-servers.toml: |

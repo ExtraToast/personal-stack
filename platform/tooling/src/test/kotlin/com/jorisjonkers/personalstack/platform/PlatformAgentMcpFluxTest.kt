@@ -77,6 +77,9 @@ class PlatformAgentMcpFluxTest {
             .contains("gh-app-token-wrapper.sh /usr/local/bin/gh")
             .contains("git-credential-agent-gh-app.sh /usr/local/bin/git-credential-agent-gh-app")
             .contains("gh-mcp-wrapper.sh /usr/local/bin/gh-mcp-wrapper")
+            .contains("ARG SERENA_AGENT_VERSION=1.5.3")
+            .contains("uv tool install -p 3.13 \"serena-agent==${'$'}{SERENA_AGENT_VERSION}\"")
+            .contains("serena --help >/dev/null")
 
         assertThat(entrypoint)
             .contains("credential.helper agent-gh-app")
@@ -148,6 +151,12 @@ class PlatformAgentMcpFluxTest {
             .contains("codex-mcp-servers.\${AGENT_MCP_PROFILE}.toml")
             .contains("unknown AGENT_MCP_PROFILE")
 
+        assertThat(mcpConfigMap)
+            .contains("--context=claude-code")
+            .contains("--context=codex")
+            .contains("no-memories")
+            .contains("--open-web-dashboard")
+
         assertClaudeProfile(
             mcpConfigMap,
             "minimal",
@@ -172,16 +181,25 @@ class PlatformAgentMcpFluxTest {
         assertClaudeProfile(
             mcpConfigMap,
             "code-intel",
-            expected = listOf("\"knowledge\"", "\"github\""),
+            expected = listOf("\"knowledge\"", "\"github\"", "\"serena\""),
             forbidden = listOf("\"context7\"", "\"vuetify\"", "\"playwright\"", "\"kubernetes\""),
-            maxServers = 2,
+            maxServers = 3,
         )
         assertClaudeProfile(
             mcpConfigMap,
             "full-diagnostic",
-            expected = listOf("\"knowledge\"", "\"github\"", "\"context7\"", "\"vuetify\"", "\"playwright\"", "\"kubernetes\""),
+            expected =
+                listOf(
+                    "\"knowledge\"",
+                    "\"github\"",
+                    "\"context7\"",
+                    "\"vuetify\"",
+                    "\"playwright\"",
+                    "\"kubernetes\"",
+                    "\"serena\"",
+                ),
             forbidden = emptyList(),
-            maxServers = 6,
+            maxServers = 7,
         )
 
         assertCodexProfile(
@@ -226,7 +244,7 @@ class PlatformAgentMcpFluxTest {
         assertCodexProfile(
             mcpConfigMap,
             "code-intel",
-            expected = listOf("[mcp_servers.knowledge]", "[mcp_servers.github]"),
+            expected = listOf("[mcp_servers.knowledge]", "[mcp_servers.github]", "[mcp_servers.serena]"),
             forbidden =
                 listOf(
                     "[mcp_servers.context7]",
@@ -234,7 +252,7 @@ class PlatformAgentMcpFluxTest {
                     "[mcp_servers.playwright]",
                     "[mcp_servers.kubernetes]",
                 ),
-            maxServers = 2,
+            maxServers = 3,
         )
         assertCodexProfile(
             mcpConfigMap,
@@ -247,9 +265,10 @@ class PlatformAgentMcpFluxTest {
                     "[mcp_servers.vuetify]",
                     "[mcp_servers.playwright]",
                     "[mcp_servers.kubernetes]",
+                    "[mcp_servers.serena]",
                 ),
             forbidden = emptyList(),
-            maxServers = 6,
+            maxServers = 7,
         )
     }
 

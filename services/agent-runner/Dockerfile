@@ -135,6 +135,11 @@ RUN arch="$(dpkg --print-architecture)" \
     && rm /tmp/uv.tar.gz \
     && chmod +x /usr/local/bin/uv /usr/local/bin/uvx
 
+# Serena MCP — LSP-backed semantic code intelligence. Installed as a
+# uv-managed tool for the agent user later in the file so the `serena`
+# command is on the runner PATH without using uvx/network at MCP startup.
+ARG SERENA_AGENT_VERSION=1.5.3
+
 # mise — polyglot runtime manager (Node, Python, Go, Ruby …).
 # Installed as the root-owned system binary so the agent user can
 # activate toolchains without a separate install step.
@@ -222,6 +227,8 @@ ENV CODEX_HOME=/home/agent/.codex
 # GOROOT/GOPATH are set above at the root layer; repeat for agent context.
 ENV GOPATH=/home/agent/go
 ENV PATH=/home/agent/.npm-global/bin:/home/agent/go/bin:/home/agent/.local/bin:${PATH}
+RUN uv tool install -p 3.13 "serena-agent==${SERENA_AGENT_VERSION}" \
+    && serena --help >/dev/null
 
 EXPOSE 8090
 ENTRYPOINT ["/usr/bin/tini", "--", "/opt/entrypoint.sh"]
