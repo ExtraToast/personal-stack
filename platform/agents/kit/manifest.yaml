@@ -1,7 +1,7 @@
 version: 1
 generated: partial
 notes:
-  - "This manifest pins the current repo and installer agent surfaces. Repo skills, hooks, hook settings, and the installer entrypoint are rendered from agent-kit templates; installer hook, skill, and Codex hook-setting bodies are rendered from partial templates."
+  - "This manifest pins the current repo and installer agent surfaces. Repo skills, hooks, hook settings, and the installer entrypoint are rendered from agent-kit templates; installer heredoc bodies, including hooks, skills, settings, and allowlists, are rendered from partial templates."
   - "Repo skill bodies are intentionally agent-specific today; parity means every shared skill has both Claude and Codex targets unless an explicit unsupported reason is present."
 
 renderer:
@@ -11,6 +11,7 @@ renderer:
     - source_path: platform/agents/kit/templates/installer/install.sh.tpl
       destination_path: services/knowledge-api/src/main/resources/installer/install.sh
   include_templates:
+    - platform/agents/kit/templates/installer/partials/allowlist/defaults.gitignore
     - platform/agents/kit/templates/installer/partials/hooks/pre-tool-use-edit-recall.sh
     - platform/agents/kit/templates/installer/partials/hooks/pre-tool-use-git-commit-capture.sh
     - platform/agents/kit/templates/installer/partials/hooks/stop-session-digest-claude.sh
@@ -34,8 +35,6 @@ renderer:
     - .claude/hooks/pre-tool-use-edit-recall.sh
     - .claude/hooks/pre-tool-use-git-commit-capture.sh
     - .claude/hooks/kb-stop-digest.sh
-    - .claude/hooks/pre-tool-use-edit-recall.sh
-    - .claude/hooks/pre-tool-use-git-commit-capture.sh
     - .codex/hooks/kb-user-prompt-recall.sh
     - .codex/hooks/kb-stop-digest.sh
     - .codex/hooks/pre-tool-use-edit-recall.sh

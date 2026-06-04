@@ -1,0 +1,34 @@
+# knowledge-system auto-MCP path allowlist (gitignore-style).
+# Lines starting with `#` are comments. Patterns match against the
+# full target path the hook is about to act on. Hooks SKIP any
+# match, so adding a line here disables auto-MCP for that path.
+#
+# Re-running the installer never overwrites this file once you've
+# customised it — only the initial install seeds these defaults.
+
+# Secrets-bearing files
+*.env
+.env*
+*.secret
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+secrets/**
+credentials*
+**/credentials/**
+id_rsa
+id_ed25519
+**/.ssh/**
+
+# Vault / KMS / cloud auth state
+.aws/**
+.config/gcloud/**
+.kube/config
+.kube/cache/**
+
+# Browser / OS keychains
+**/Library/Keychains/**
+**/Mozilla/Firefox/**
+**/Google/Chrome/Default/Login Data*
