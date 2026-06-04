@@ -30,6 +30,7 @@ skills:
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
       target_path: "${CLAUDE_HOME}/skills/agent-session-bootstrap/SKILL.md"
+      codex_target_path: "${CODEX_HOME}/skills/agent-session-bootstrap/SKILL.md"
   - name: fleet-change
     supported_agents: [codex, claude]
     targets:
@@ -51,6 +52,7 @@ skills:
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
       target_path: "${CLAUDE_HOME}/skills/kb-first/SKILL.md"
+      codex_target_path: "${CODEX_HOME}/skills/kb-first/SKILL.md"
   - name: open-pr
     supported_agents: [codex, claude]
     targets:
@@ -81,20 +83,19 @@ skills:
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
       target_path: "${CLAUDE_HOME}/skills/token-economy/SKILL.md"
+      codex_target_path: "${CODEX_HOME}/skills/token-economy/SKILL.md"
   - name: topics
-    supported_agents: [claude]
-    unsupported:
-      codex: "Installer-managed Claude-only skill; PR3 should render installer output for Codex or move this to repo-level .agents skills."
+    supported_agents: [codex, claude]
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
       target_path: "${CLAUDE_HOME}/skills/topics/SKILL.md"
+      codex_target_path: "${CODEX_HOME}/skills/topics/SKILL.md"
   - name: audit
-    supported_agents: [claude]
-    unsupported:
-      codex: "Installer-managed Claude-only skill; PR3 should render installer output for Codex or move this to repo-level .agents skills."
+    supported_agents: [codex, claude]
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
       target_path: "${CLAUDE_HOME}/skills/audit/SKILL.md"
+      codex_target_path: "${CODEX_HOME}/skills/audit/SKILL.md"
 
 hooks:
   - name: kb-user-prompt-recall
@@ -114,6 +115,7 @@ hooks:
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
       target_path: "${CLAUDE_HOME}/hooks/user-prompt-submit-recall.sh"
+      codex_target_path: "${CODEX_HOME}/hooks/kb-user-prompt-recall.sh"
   - name: kb-stop-digest
     event: Stop
     purpose: "Digest the transcript into capped lesson candidates and capture survivors."
@@ -131,6 +133,7 @@ hooks:
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
       target_path: "${CLAUDE_HOME}/hooks/stop-session-digest.sh"
+      codex_target_path: "${CODEX_HOME}/hooks/kb-stop-digest.sh"
   - name: pre-tool-use-edit-recall
     event: PreToolUse
     matcher: "Edit|Write|MultiEdit"
@@ -164,7 +167,5 @@ settings:
 
 installer:
   path: services/knowledge-api/src/main/resources/installer/install.sh
-  sha256: f1a1d751b3bd03940bf100d98565f5f51db24cc5bd756856b39c6ed3541ed28a
-  supported_agents: [claude]
-  unsupported:
-    codex: "PR3 should extend the installer with --agent claude|codex|all and write Codex kit files to CODEX_HOME."
+  sha256: f874e8ae2f50a7d1fdd518cc38a79a480c13878dfcc8c71a1ba9075639f34414
+  supported_agents: [codex, claude]
