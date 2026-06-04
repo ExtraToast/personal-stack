@@ -143,7 +143,10 @@ try:
     print()
     print(f"## Related captures for this file")
     for h in hits:
-        print(f"- **{h[\"title\"]}** (`{h[\"scope\"]}`) — id `{h[\"id\"]}`")
+        title = h.get("title", "")
+        scope = h.get("scope", "")
+        note_id = h.get("id", "")
+        print(f"- **{title}** (`{scope}`) — id `{note_id}`")
         snip = h.get("snippet","").replace("\n"," ").strip()
         if snip: print(f"  > {snip[:160]}")
 except Exception:
