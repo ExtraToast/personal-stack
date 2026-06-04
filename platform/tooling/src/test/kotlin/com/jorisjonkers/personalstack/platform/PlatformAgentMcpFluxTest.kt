@@ -51,9 +51,19 @@ class PlatformAgentMcpFluxTest {
                 .resolve("services/agent-runner/entrypoint.sh")
                 .toFile()
                 .readText()
+        val agentGatewayConfig =
+            repositoryRoot
+                .resolve("services/agent-gateway/src/main/resources/application.yml")
+                .toFile()
+                .readText()
         val githubMcpWrapper =
             repositoryRoot
                 .resolve("services/agent-runner/gh-mcp-wrapper.sh")
+                .toFile()
+                .readText()
+        val githubTokenHelper =
+            repositoryRoot
+                .resolve("services/agent-runner/agent-github-token.sh")
                 .toFile()
                 .readText()
         val mcpConfigMap =
@@ -74,13 +84,24 @@ class PlatformAgentMcpFluxTest {
             .contains("url.https://github.com/.insteadOf git@github.com:")
             .contains("url.https://github.com/.insteadOf ssh://git@github.com/")
 
+        assertThat(agentGatewayConfig)
+            .contains("--dangerously-bypass-approvals-and-sandbox")
+            .contains("--dangerously-bypass-hook-trust")
+
         assertThat(githubMcpWrapper)
             .contains("GITHUB_MCP_TOKEN_RETRIES:-4")
             .contains("GITHUB_MCP_TOKEN_RETRY_SLEEP_SECONDS:-3")
+            .contains("GITHUB_APP_TOKEN_URL")
+            .contains("GITHUB_APP_TOKEN_BEARER")
             .contains("GITHUB_MCP_TOOLSETS:-repos,pull_requests,issues,actions,git")
             .contains("GITHUB_MCP_EXCLUDE_TOOLS:-create_repository,fork_repository")
             .contains("--toolsets")
             .contains("--exclude-tools")
+
+        assertThat(githubTokenHelper)
+            .contains("WORKSPACE_ROOT=\"\${WORKSPACE_ROOT:-/workspace}\"")
+            .contains("git -C \"\$WORKSPACE_ROOT\" remote get-url origin")
+            .contains("--arg repoUrl \"\$repo_url\"")
 
         assertThat(mcpConfigMap)
             .contains("[mcp_servers.github]")
