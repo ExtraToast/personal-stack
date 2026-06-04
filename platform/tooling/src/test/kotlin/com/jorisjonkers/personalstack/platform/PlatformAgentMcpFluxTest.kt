@@ -81,6 +81,8 @@ class PlatformAgentMcpFluxTest {
         assertThat(entrypoint)
             .contains("credential.helper agent-gh-app")
             .contains("credential.useHttpPath true")
+            .contains("git config --global --get-all safe.directory")
+            .contains("git config --global --add safe.directory \"\$WORKSPACE_ROOT\"")
             .contains("url.https://github.com/.insteadOf git@github.com:")
             .contains("url.https://github.com/.insteadOf ssh://git@github.com/")
 

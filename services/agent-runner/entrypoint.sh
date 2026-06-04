@@ -52,6 +52,9 @@ fi
 # the per-project trust entry to the dir the gateway launches the CLI
 # in (AgentSessionManager defaults cwd to the gateway's workspace-root).
 WORKSPACE_ROOT="${WORKSPACE_ROOT:-/workspace}"
+if ! git config --global --get-all safe.directory | grep -Fxq "$WORKSPACE_ROOT"; then
+  git config --global --add safe.directory "$WORKSPACE_ROOT"
+fi
 if [ ! -f "$HOME/.claude.json" ]; then
   echo '{}' > "$HOME/.claude.json"
 fi
