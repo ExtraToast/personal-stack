@@ -69,10 +69,10 @@ skills:
     targets:
       - agent: codex
         path: .agents/skills/agent-session-bootstrap/SKILL.md
-        sha256: 04b17d97a1bae3cc718a2bd9b4d2c6c62cf49a1a1911dc3e3a0ba4b10303fb08
+        sha256: ce0ca2c28d3bc3e6c7c8f4ad4919d64323215d0a140a9e208230aca986ea3e14
       - agent: claude
         path: .claude/skills/agent-session-bootstrap/SKILL.md
-        sha256: 2545a5e05de2c527aa74babf9b46e6b2ccc34fbea99dffc44e5460318b219130
+        sha256: d9c050e9c9dc1714129e545559f8f42ead5f0b6bc4cb28f4af74b3610542e596
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
       target_path: "${CLAUDE_HOME}/skills/agent-session-bootstrap/SKILL.md"
@@ -122,10 +122,10 @@ skills:
     targets:
       - agent: codex
         path: .agents/skills/token-economy/SKILL.md
-        sha256: 3e2dc5e0a739c5d448bf86d8a85dcd45006c12739b5536b9d2b3db969afcfe0a
+        sha256: cf68779f5a33c665fdbf07a7e014ee777eeb04be1012e9747660a4c2ab05f497
       - agent: claude
         path: .claude/skills/token-economy/SKILL.md
-        sha256: 788d1e07ef60d9c50806dc69bd03630d1f7cde99c11b00eafaaf8eb5c34a1ba2
+        sha256: 0ed2e73feed207b77c59e2f5a8952a084cc9a1b23392fad42c983413753eaf50
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
       target_path: "${CLAUDE_HOME}/skills/token-economy/SKILL.md"
@@ -229,5 +229,5 @@ settings:
 
 installer:
   path: services/knowledge-api/src/main/resources/installer/install.sh
-  sha256: 28b2657355c9b33169de37bfc4fae8f6b4a73c81146a65f19b131ea281974680
+  sha256: 87883e5dea9531b6b7a36ed781a96c084bdb76ca431b6e6ebc8b26724b78b3b0
   supported_agents: [codex, claude]

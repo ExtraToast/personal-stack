@@ -15,6 +15,9 @@ description: Use when the user asks to reduce token usage, agent cost, context b
   `limit <= 5` for manual task setup.
 - Use hybrid retrieval for normal KB recall. Escalate to deep retrieval only
   after a miss, ambiguity, or non-obvious cross-topic dependency.
+- Keep runner MCP profiles narrow. Use `minimal` by default and opt into
+  `frontend`, `cluster`, `code-intel`, or `full-diagnostic` only for tasks that
+  need those extra tools.
 - Do not install or enable low-fit skills just to grow the list. Skill metadata
   itself consumes prompt budget and very large skill sets can hide useful skills.
 - Preserve prompt-cache-friendly ordering when writing durable instructions:
