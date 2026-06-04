@@ -77,13 +77,14 @@ for agent memory hooks, repo skills, installer-managed skills, and
 canonical `knowledge.*` MCP tool names. The guard lives in
 `AgentKitManifestTest`.
 
-Current intentional gaps are recorded in the manifest:
+Claude and Codex both have repo-level `UserPromptSubmit`, `PreToolUse`,
+and `Stop` hooks for bounded KB recall/capture. Codex loads lifecycle
+hooks from `.codex/hooks.json` in trusted projects; the managed runner
+passes `--dangerously-bypass-hook-trust` because the repo-managed hook
+sources are vetted by `platform/agents/kit/manifest.yaml` and
+`AgentKitManifestTest`.
 
-- Claude has `PreToolUse` hooks for edit recall and git-commit capture.
-  Codex repo hooks currently expose only `UserPromptSubmit` and `Stop`,
-  so the closest Codex or gateway equivalent remains a follow-up.
-
-Those entries must keep an explicit unsupported reason until a later
-PR adds the closest Codex or gateway equivalent. A new repo hook,
-skill, or installer-managed surface is incomplete unless it is listed
-in the manifest and passes the platform tooling test.
+A new repo hook, skill, or installer-managed surface is incomplete
+unless it is listed in the manifest and passes the platform tooling
+test. Any future agent-specific gap must carry an explicit unsupported
+reason in the manifest so drift is visible instead of accidental.

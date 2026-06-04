@@ -26,6 +26,8 @@ renderer:
     - .claude/hooks/pre-tool-use-git-commit-capture.sh
     - .codex/hooks/kb-user-prompt-recall.sh
     - .codex/hooks/kb-stop-digest.sh
+    - .codex/hooks/pre-tool-use-edit-recall.sh
+    - .codex/hooks/pre-tool-use-git-commit-capture.sh
     - .claude/settings.json
     - .codex/hooks.json
     - .claude/skills/add-public-service/SKILL.md
@@ -169,36 +171,42 @@ hooks:
       codex_target_path: "${CODEX_HOME}/hooks/kb-stop-digest.sh"
   - name: pre-tool-use-edit-recall
     event: PreToolUse
-    matcher: "Edit|Write|MultiEdit"
-    purpose: "Recall file/module lessons before Claude edits."
-    supported_agents: [claude]
+    matcher: "Edit|Write|MultiEdit|apply_patch"
+    purpose: "Recall file/module lessons before edits."
+    supported_agents: [claude, codex]
     targets:
       - agent: claude
         path: .claude/hooks/pre-tool-use-edit-recall.sh
         settings_path: .claude/settings.json
         sha256: 7d99f2f851d4156abc30f3ed9f6b220e927710a961ed630628f0393b5fe5b979
-    unsupported:
-      codex: "Codex repo hooks currently expose UserPromptSubmit and Stop only; PR4 should add the closest Codex or gateway equivalent."
+      - agent: codex
+        path: .codex/hooks/pre-tool-use-edit-recall.sh
+        settings_path: .codex/hooks.json
+        sha256: a107e6f8a2a73346c1b05a235c2849264509acbcc631688c25fc7b22f5444c7d
     mcp_tools: [knowledge.recall]
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
       target_path: "${CLAUDE_HOME}/hooks/pre-tool-use-edit-recall.sh"
+      codex_target_path: "${CODEX_HOME}/hooks/pre-tool-use-edit-recall.sh"
   - name: pre-tool-use-git-commit-capture
     event: PreToolUse
     matcher: Bash
     purpose: "Capture non-WIP git commit messages as candidate decisions."
-    supported_agents: [claude]
+    supported_agents: [claude, codex]
     targets:
       - agent: claude
         path: .claude/hooks/pre-tool-use-git-commit-capture.sh
         settings_path: .claude/settings.json
         sha256: 86a842ad20bdf1e69a62a7dbb79e75832a462220a85a7e8ff64244641fb12227
-    unsupported:
-      codex: "Codex repo hooks currently expose UserPromptSubmit and Stop only; PR4 should add the closest Codex or gateway equivalent."
+      - agent: codex
+        path: .codex/hooks/pre-tool-use-git-commit-capture.sh
+        settings_path: .codex/hooks.json
+        sha256: db7069d62953a3ec5f8cdbe2ce0e3a103b0ea1449e06375474e886c8ccf4415d
     mcp_tools: [knowledge.capture_decision]
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
       target_path: "${CLAUDE_HOME}/hooks/pre-tool-use-git-commit-capture.sh"
+      codex_target_path: "${CODEX_HOME}/hooks/pre-tool-use-git-commit-capture.sh"
 
 settings:
   - agent: claude
@@ -206,9 +214,9 @@ settings:
     sha256: 08f4c470cd3f10e524d6d442afc510b479cb06c0e018675ef8a04f7f7a26d9fd
   - agent: codex
     path: .codex/hooks.json
-    sha256: 0635f539b1e29836a605fa1d3b99eff01658713845ab9751fdd112b89f77589f
+    sha256: ec501908b04a9b4ac1cf073f9cdb703322952267eb79583845eb139068330019
 
 installer:
   path: services/knowledge-api/src/main/resources/installer/install.sh
-  sha256: 317c2411f41bb0de3d56cb086a3c4554043c176cf2688c0cbe2afcb7fd66b586
+  sha256: ca1607c24007fe082ba1d69a5a773ff5581b163552c853e8493cab4a809663c8
   supported_agents: [codex, claude]
