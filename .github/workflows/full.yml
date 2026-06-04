@@ -37,7 +37,7 @@ jobs:
       test-kotlin-integration-matrix: ${{ steps.matrix.outputs.test-kotlin-integration }}
       verify-coverage-matrix: ${{ steps.matrix.outputs.verify-coverage }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - uses: dorny/paths-filter@v4.0.1
         id: filter
         with:
@@ -218,7 +218,7 @@ jobs:
       matrix:
         include: ${{ fromJson(needs.detect-changes.outputs.lint-kotlin-matrix) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - uses: ./.github/actions/setup-java-gradle
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -230,7 +230,7 @@ jobs:
     if: needs.detect-changes.outputs.any-frontend == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - uses: ./.github/actions/setup-node-pnpm
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -246,7 +246,7 @@ jobs:
       matrix:
         include: ${{ fromJson(needs.detect-changes.outputs.test-kotlin-unit-matrix) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - uses: ./.github/actions/setup-java-gradle
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -258,7 +258,7 @@ jobs:
     if: needs.detect-changes.outputs.any-frontend == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - uses: ./.github/actions/setup-node-pnpm
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -273,8 +273,8 @@ jobs:
       run:
         working-directory: services/knowledge-ingest-worker
     steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@v6.0.2
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           version: '0.4.30'
       - run: uv sync --python 3.12 --frozen
@@ -290,8 +290,8 @@ jobs:
       run:
         working-directory: services/knowledge-ingest-worker
     steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@v6.0.2
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           version: '0.4.30'
       - run: uv sync --python 3.12 --frozen
@@ -306,8 +306,8 @@ jobs:
       run:
         working-directory: services/knowledge-ingest-worker
     steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@v6.0.2
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           version: '0.4.30'
       - run: uv sync --python 3.12 --frozen
@@ -324,8 +324,8 @@ jobs:
       run:
         working-directory: services/knowledge-curator
     steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@v6.0.2
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           version: '0.4.30'
       - run: uv sync --python 3.12 --frozen
@@ -341,8 +341,8 @@ jobs:
       run:
         working-directory: services/knowledge-curator
     steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@v6.0.2
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           version: '0.4.30'
       - run: uv sync --python 3.12 --frozen
@@ -357,8 +357,8 @@ jobs:
       run:
         working-directory: services/knowledge-curator
     steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@v6.0.2
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           version: '0.4.30'
       - run: uv sync --python 3.12 --frozen
@@ -382,7 +382,7 @@ jobs:
       matrix:
         include: ${{ fromJson(needs.detect-changes.outputs.test-kotlin-integration-matrix) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - uses: ./.github/actions/setup-java-gradle
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -397,7 +397,7 @@ jobs:
       matrix:
         include: ${{ fromJson(needs.detect-changes.outputs.verify-coverage-matrix) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - uses: ./.github/actions/setup-java-gradle
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -414,7 +414,7 @@ jobs:
     if: needs.detect-changes.outputs.any-kotlin == 'true' || needs.detect-changes.outputs.any-frontend == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - uses: ./.github/actions/setup-java-gradle
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -449,7 +449,7 @@ jobs:
     if: needs.detect-changes.outputs.any-platform == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
       - name: Install kustomize
@@ -484,7 +484,7 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
       - uses: aquasecurity/trivy-action@master
@@ -497,7 +497,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - run: pnpm audit --audit-level=high || true
       - name: Gitleaks
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v2.3.9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

@@ -87,7 +87,7 @@ jobs:
     # `vars.PROD_CANARY_ENABLED` is the operator's opt-in switch.
     if: ${{ vars.PROD_CANARY_ENABLED == 'true' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
 
       - name: Allow Keel to land any post-deploy image bumps
         # Keel polls ghcr every ~2 min. On `push: main` this workflow
