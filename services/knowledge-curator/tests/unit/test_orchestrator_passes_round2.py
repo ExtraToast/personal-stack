@@ -11,10 +11,12 @@ import respx
 from git import Actor, Repo
 
 from curator.orchestrator.passes.relation_enrichment import RelationEnrichmentPass
+from curator.orchestrator.passes.tag_reclassification import TagReclassificationPass
 from curator.orchestrator.passes.title_quality import TitleQualityPass, _patterns_hash
 from curator.orchestrator.protocol import PassState
 from curator.projects import Project, ProjectVocabulary
 from curator.recall import RecallHit
+from curator.reclassify import TagReclassifyOutcome
 from curator.store import InMemoryCuratorStore
 from curator.topics import Topic, TopicVocabulary
 from curator.vault import CuratorVault
@@ -58,6 +60,28 @@ def _projects() -> ProjectVocabulary:
     return ProjectVocabulary([Project(slug="ignored")])
 
 
+@dataclass
+class _FakeTagReclassifier:
+    watermark: object | None
+    outcomes: list[TagReclassifyOutcome]
+    has_work_return: bool = True
+    has_work_calls: int = 0
+    run_watermarks: list[object] | None = None
+
+    def has_work(self) -> bool:
+        self.has_work_calls += 1
+        return self.has_work_return
+
+    def current_watermark(self) -> object | None:
+        return self.watermark
+
+    def run_pass(self, *, watermark: object | None = None) -> list[TagReclassifyOutcome]:
+        if self.run_watermarks is None:
+            self.run_watermarks = []
+        self.run_watermarks.append(watermark)
+        return list(self.outcomes)
+
+
 # -------- TitleQualityPass -----------------------------------------
 
 
@@ -74,6 +98,51 @@ def test_title_quality_pass_has_work_false_when_no_candidate(tmp_path: Path) -> 
             chat_timeout_seconds=1.0,
         )
         assert p.has_work(_state("title_quality")) is False
+
+
+# -------- TagReclassificationPass ----------------------------------
+
+
+def test_tag_reclassification_pass_delegates_has_work() -> None:
+    reclassifier = _FakeTagReclassifier(watermark=None, outcomes=[], has_work_return=False)
+    p = TagReclassificationPass(reclassifier=reclassifier)  # type: ignore[arg-type]
+
+    assert p.has_work(_state("tag_reclassification")) is False
+    assert reclassifier.has_work_calls == 1
+
+
+def test_tag_reclassification_pass_records_watermark_and_counts() -> None:
+    watermark = "2026-06-04T10:00:00+00:00"
+    outcomes = [
+        TagReclassifyOutcome("01A", "retagged", before_tags=("kt",), after_tags=("kotlin",)),
+        TagReclassifyOutcome("01B", "unchanged", before_tags=("jvm",), after_tags=("jvm",)),
+    ]
+    reclassifier = _FakeTagReclassifier(watermark=watermark, outcomes=outcomes)
+    p = TagReclassificationPass(reclassifier=reclassifier)  # type: ignore[arg-type]
+
+    outcome = p.run(_state("tag_reclassification"))
+
+    assert outcome.status == "success"
+    assert outcome.notes_processed == 2
+    assert outcome.watermark_after == {
+        "audit_watermark": watermark,
+        "retagged": 1,
+        "unchanged": 1,
+        "low_confidence": 0,
+        "failed": 0,
+    }
+    assert reclassifier.run_watermarks == [watermark]
+
+
+def test_tag_reclassification_pass_returns_no_work_without_audit_watermark() -> None:
+    reclassifier = _FakeTagReclassifier(watermark=None, outcomes=[])
+    p = TagReclassificationPass(reclassifier=reclassifier)  # type: ignore[arg-type]
+
+    outcome = p.run(_state("tag_reclassification"))
+
+    assert outcome.status == "no_work"
+    assert outcome.notes_processed == 0
+    assert outcome.watermark_after == {}
 
 
 def test_title_quality_pass_has_work_true_when_candidate_matches(tmp_path: Path) -> None:

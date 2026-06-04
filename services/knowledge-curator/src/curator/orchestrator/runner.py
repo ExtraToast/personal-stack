@@ -34,6 +34,7 @@ import structlog
 from git import Actor
 
 from curator import telemetry
+from curator.audit import AuditRecorder
 from curator.classify import OllamaClassifier
 from curator.embed import OllamaEmbedder
 from curator.indexes import (
@@ -49,12 +50,14 @@ from curator.orchestrator.passes import (
     InboxPass,
     NeedsReviewDrainPass,
     RelationEnrichmentPass,
+    TagReclassificationPass,
     TitleQualityPass,
 )
 from curator.orchestrator.protocol import Pass, PassState
 from curator.projects import ProjectVocabulary
 from curator.promote import Promoter
 from curator.recall import RecallClient
+from curator.reclassify import TagReclassifier
 from curator.settings import Settings
 from curator.store import CuratorStore, PostgresCuratorStore
 from curator.topics import TopicVocabulary
@@ -70,11 +73,9 @@ def build_passes(
 ) -> list[Pass]:
     """Construct + wire the registered passes.
 
-    Two passes today: :class:`InboxPass` (promote fresh captures from
-    ``_inbox/<day>/``) and :class:`NeedsReviewDrainPass` (re-classify
-    files stuck in ``_inbox/_needs-review/``). Both share the heavy
-    collaborators (`Promoter`, `CuratorVault`, the heavy/light chat
-    endpoint resolver, etc.) — constructed once per tick.
+    The passes share the heavy collaborators (`Promoter`,
+    `CuratorVault`, the heavy/light chat endpoint resolver, etc.) —
+    constructed once per tick.
 
     Order matters: inbox runs before drain so a fresh capture that
     fails validation in this tick lands in `_needs-review/` and gets
@@ -155,6 +156,7 @@ def build_passes(
         embedder=embedder,
         embedding_model=settings.ollama_embedding_model,
     )
+    audit = AuditRecorder(store=store)
 
     regenerate = partial(
         _regenerate_indexes,
@@ -176,11 +178,10 @@ def build_passes(
             promoter=promoter,
             vault=vault,
         ),
-        # Title-quality + relation-enrichment run AFTER inbox + drain
-        # so a freshly-promoted note in this very tick is eligible for
-        # title polish + see_also discovery on the NEXT tick rather
-        # than the same one. Keeps each pass's view of the data
-        # stable for the duration of its run.
+        # Maintenance passes run AFTER inbox + drain so a freshly-promoted
+        # note in this tick is eligible for polish, relation discovery, or
+        # tag reclassification on the NEXT tick. Keeps each pass's view of
+        # the data stable for the duration of its run.
         TitleQualityPass(
             store=store,
             vault=vault,
@@ -199,6 +200,14 @@ def build_passes(
             chat_base_url=chat_endpoint.base_url,
             chat_model=chat_endpoint.model,
             chat_timeout_seconds=settings.ollama_request_timeout_seconds,
+        ),
+        TagReclassificationPass(
+            reclassifier=TagReclassifier(
+                store=store,
+                classifier=classifier,
+                audit=audit,
+                confidence_floor=settings.classify_confidence_floor,
+            ),
         ),
     ]
 
