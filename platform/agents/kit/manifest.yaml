@@ -208,11 +208,11 @@ hooks:
       - agent: claude
         path: .claude/hooks/pre-tool-use-git-commit-capture.sh
         settings_path: .claude/settings.json
-        sha256: 86a842ad20bdf1e69a62a7dbb79e75832a462220a85a7e8ff64244641fb12227
+        sha256: 2eae87a39883a349f7640338ed599b16335436df6cc4f559ff2fe69319ae345b
       - agent: codex
         path: .codex/hooks/pre-tool-use-git-commit-capture.sh
         settings_path: .codex/hooks.json
-        sha256: db7069d62953a3ec5f8cdbe2ce0e3a103b0ea1449e06375474e886c8ccf4415d
+        sha256: 6d2370aa565da308ce1d8e838dda18da4897cdd4a5ebeab171b4a1b8be6028c6
     mcp_tools: [knowledge.capture_decision]
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
@@ -229,5 +229,5 @@ settings:
 
 installer:
   path: services/knowledge-api/src/main/resources/installer/install.sh
-  sha256: c3910c7ff4e2a163e9ae441f3763d788a1f06595d58753e47e9eb6951a94f32d
+  sha256: 28b2657355c9b33169de37bfc4fae8f6b4a73c81146a65f19b131ea281974680
   supported_agents: [codex, claude]
