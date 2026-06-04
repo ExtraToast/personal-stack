@@ -117,6 +117,48 @@ class AgentKitManifestTest {
     }
 
     @Test
+    fun `installer dry-run covers Claude and Codex managed surfaces`() {
+        val installer = repositoryRoot.resolve(manifest["installer"]["path"].asText()).toAbsolutePath()
+        val claudeHome = tempDir.resolve("installer-claude")
+        val codexHome = tempDir.resolve("installer-codex")
+
+        val result =
+            runProcessWithEnv(
+                mapOf(
+                    "CLAUDE_CONFIG_DIR" to claudeHome.toString(),
+                    "CODEX_HOME" to codexHome.toString(),
+                ),
+                "bash",
+                installer.toString(),
+                "--agent",
+                "all",
+                "--dry-run",
+            )
+
+        assertThat(result.exitCode)
+            .describedAs(result.stderr)
+            .isEqualTo(0)
+        assertThat(result.stdout)
+            .contains(
+                "would write ${claudeHome}/hooks/user-prompt-submit-recall.sh",
+                "would write ${claudeHome}/hooks/pre-tool-use-edit-recall.sh",
+                "would write ${claudeHome}/hooks/pre-tool-use-git-commit-capture.sh",
+                "would write ${claudeHome}/hooks/stop-session-digest.sh",
+                "would write ${claudeHome}/.knowledge-system-allowlist",
+                "would write ${codexHome}/hooks/kb-user-prompt-recall.sh",
+                "would write ${codexHome}/hooks/pre-tool-use-edit-recall.sh",
+                "would write ${codexHome}/hooks/pre-tool-use-git-commit-capture.sh",
+                "would write ${codexHome}/hooks/kb-stop-digest.sh",
+                "would write ${codexHome}/hooks.json",
+                "would write ${codexHome}/.knowledge-system-allowlist",
+                "${codexHome}/hooks.json has been written with UserPromptSubmit, PreToolUse,",
+            )
+        assertThat(Files.exists(codexHome.resolve("hooks.json")))
+            .describedAs("dry-run should not write Codex hooks.json")
+            .isFalse()
+    }
+
+    @Test
     fun `hook settings reference only manifest hooks`() {
         val manifestHookPaths = manifestTargetPaths("hooks").filter { it.contains("/hooks/") }.toSet()
         val settingsHookPaths =
@@ -414,9 +456,17 @@ class AgentKitManifestTest {
         }
 
     private fun runProcess(vararg command: String): AgentKitProcessResult {
+        return runProcessWithEnv(emptyMap(), *command)
+    }
+
+    private fun runProcessWithEnv(
+        environment: Map<String, String>,
+        vararg command: String,
+    ): AgentKitProcessResult {
         val process =
             ProcessBuilder(command.toList())
                 .directory(repositoryRoot.toFile())
+                .also { it.environment().putAll(environment) }
                 .start()
         val stdout = process.inputStream.readAllBytes().decodeToString()
         val stderr = process.errorStream.readAllBytes().decodeToString()
