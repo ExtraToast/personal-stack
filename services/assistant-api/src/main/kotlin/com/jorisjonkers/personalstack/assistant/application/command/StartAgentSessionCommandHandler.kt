@@ -2,7 +2,6 @@ package com.jorisjonkers.personalstack.assistant.application.command
 
 import com.jorisjonkers.personalstack.assistant.application.exception.AgentRunnerUnavailableException
 import com.jorisjonkers.personalstack.assistant.domain.model.Workspace
-import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentKind
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSession
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSessionStatus
 import com.jorisjonkers.personalstack.assistant.domain.port.AgentGatewayClient
