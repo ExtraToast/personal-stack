@@ -1,6 +1,7 @@
 package com.jorisjonkers.personalstack.assistant.config
 
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource
@@ -71,6 +72,32 @@ class AgentRuntimePropertiesBindingTest {
         // strip, not a wholesale alphanum-only normalisation.)
         assertThat(props.nodeSelector.keys).noneMatch { it.contains("/") }
         assertThat(props.nodeSelector).containsKey("personal-stacknode")
+    }
+
+    @Test
+    fun `default mcp profile accepts every declared runner profile`() {
+        AgentRuntimeProperties.VALID_MCP_PROFILES.forEach { profile ->
+            val props =
+                bind(
+                    base +
+                        mapOf("agent-runtime.default-mcp-profile" to profile),
+                )
+
+            assertThat(props.defaultMcpProfile).isEqualTo(profile)
+        }
+    }
+
+    @Test
+    fun `default mcp profile rejects unknown values`() {
+        assertThatThrownBy {
+            bind(
+                base +
+                    mapOf("agent-runtime.default-mcp-profile" to "frontned"),
+            )
+        }.rootCause()
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("agent-runtime.default-mcp-profile")
+            .hasMessageContaining("frontned")
     }
 
     private fun bind(properties: Map<String, String>): AgentRuntimeProperties {

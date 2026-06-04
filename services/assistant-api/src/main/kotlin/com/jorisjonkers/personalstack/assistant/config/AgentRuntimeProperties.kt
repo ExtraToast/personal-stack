@@ -73,4 +73,23 @@ data class AgentRuntimeProperties(
     // starting with the `gh` wrapper degrading to a no-op.
     val githubAppBearerSecret: String = "github-app",
     val githubAppBearerSecretKey: String = "token-bearer",
-)
+) {
+    init {
+        require(defaultMcpProfile in VALID_MCP_PROFILES) {
+            "agent-runtime.default-mcp-profile must be one of " +
+                VALID_MCP_PROFILES.joinToString(", ") +
+                "; got '$defaultMcpProfile'"
+        }
+    }
+
+    companion object {
+        val VALID_MCP_PROFILES: Set<String> =
+            setOf(
+                "minimal",
+                "frontend",
+                "cluster",
+                "code-intel",
+                "full-diagnostic",
+            )
+    }
+}
