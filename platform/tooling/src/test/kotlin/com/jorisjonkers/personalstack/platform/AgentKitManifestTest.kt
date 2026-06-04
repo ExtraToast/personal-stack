@@ -239,9 +239,9 @@ class AgentKitManifestTest {
         }
 
         assertThat(Files.readString(claudeHome.resolve(".knowledge-system-version")))
-            .contains("managed:", "hooks/user-prompt-submit-recall.sh")
+            .contains("scope=user", "managed:", "hooks/user-prompt-submit-recall.sh")
         assertThat(Files.readString(codexHome.resolve(".knowledge-system-version")))
-            .contains("agent=codex", "hooks.json")
+            .contains("agent=codex", "scope=user", "hooks.json")
 
         val codexHooks = jsonMapper.readTree(codexHome.resolve("hooks.json").toFile())
         assertThat(hookCommands(codexHooks, "UserPromptSubmit"))
@@ -274,6 +274,93 @@ class AgentKitManifestTest {
         (claudeFiles + codexFiles).forEach { path ->
             assertThat(Files.exists(path))
                 .describedAs("uninstall removed $path")
+                .isFalse()
+        }
+    }
+
+    @Test
+    fun `installer project scope writes claude and codex files under project root`() {
+        val installer = repositoryRoot.resolve(manifest["installer"]["path"].asText()).toAbsolutePath()
+        val projectRoot = tempDir.resolve("project-root").also { Files.createDirectories(it) }
+        val ignoredClaudeHome = tempDir.resolve("ignored-claude")
+        val ignoredCodexHome = tempDir.resolve("ignored-codex")
+        val environment =
+            mapOf(
+                "AGENT_KIT_PROJECT_ROOT" to projectRoot.toString(),
+                "CLAUDE_CONFIG_DIR" to ignoredClaudeHome.toString(),
+                "CODEX_HOME" to ignoredCodexHome.toString(),
+            )
+
+        val installResult =
+            runProcessWithEnv(
+                environment,
+                "bash",
+                installer.toString(),
+                "--agent",
+                "all",
+                "--scope",
+                "project",
+            )
+
+        assertThat(installResult.exitCode)
+            .describedAs(installResult.stderr)
+            .isEqualTo(0)
+        assertThat(installResult.stdout)
+            .contains("knowledge-system installer complete", "agent=all", "scope=project")
+
+        val claudeHome = projectRoot.resolve(".claude")
+        val codexHome = projectRoot.resolve(".codex")
+        val managedFiles =
+            listOf(
+                claudeHome.resolve("hooks/user-prompt-submit-recall.sh"),
+                claudeHome.resolve("hooks/pre-tool-use-edit-recall.sh"),
+                claudeHome.resolve("hooks/pre-tool-use-git-commit-capture.sh"),
+                claudeHome.resolve("hooks/stop-session-digest.sh"),
+                claudeHome.resolve("skills/kb-first/SKILL.md"),
+                claudeHome.resolve(".knowledge-system-allowlist"),
+                claudeHome.resolve(".knowledge-system-version"),
+                codexHome.resolve("hooks/kb-user-prompt-recall.sh"),
+                codexHome.resolve("hooks/pre-tool-use-edit-recall.sh"),
+                codexHome.resolve("hooks/pre-tool-use-git-commit-capture.sh"),
+                codexHome.resolve("hooks/kb-stop-digest.sh"),
+                codexHome.resolve("skills/kb-first/SKILL.md"),
+                codexHome.resolve(".knowledge-system-allowlist"),
+                codexHome.resolve(".knowledge-system-version"),
+                codexHome.resolve("hooks.json"),
+            )
+
+        managedFiles.forEach { path ->
+            assertThat(Files.exists(path))
+                .describedAs("project-scope installer wrote $path")
+                .isTrue()
+        }
+        assertThat(Files.readString(claudeHome.resolve(".knowledge-system-version"))).contains("scope=project")
+        assertThat(Files.readString(codexHome.resolve(".knowledge-system-version"))).contains("scope=project")
+        assertThat(Files.exists(ignoredClaudeHome))
+            .describedAs("project scope should ignore CLAUDE_CONFIG_DIR")
+            .isFalse()
+        assertThat(Files.exists(ignoredCodexHome))
+            .describedAs("project scope should ignore CODEX_HOME")
+            .isFalse()
+
+        val uninstallResult =
+            runProcessWithEnv(
+                environment,
+                "bash",
+                installer.toString(),
+                "--agent",
+                "all",
+                "--scope",
+                "project",
+                "--uninstall",
+            )
+
+        assertThat(uninstallResult.exitCode)
+            .describedAs(uninstallResult.stderr)
+            .isEqualTo(0)
+        managedFiles.forEach { path ->
+            assertThat(Files.exists(path))
+                .describedAs("project-scope uninstall removed $path")
                 .isFalse()
         }
     }
@@ -929,6 +1016,24 @@ class AgentKitManifestTest {
                 .describedAs("rendered output for $path")
                 .isEqualTo(Files.readAllBytes(repositoryRoot.resolve(path)))
         }
+    }
+
+    @Test
+    fun `portability runbook documents install scope export restore and compatibility matrix`() {
+        val runbook = repositoryRoot.resolve("platform/agents/kit/PORTABILITY.md").toFile().readText()
+
+        assertThat(runbook)
+            .contains(
+                "--scope user",
+                "--scope project",
+                "knowledge-vault",
+                "Postgres logical backup",
+                "Restore Order",
+                "Compatibility Matrix",
+                "Claude Code",
+                "Codex",
+                "knowledge.recall",
+            )
     }
 
     @Test
