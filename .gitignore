@@ -92,3 +92,6 @@ __pycache__/
 .ruff_cache/
 .pytest_cache/
 .venv/
+
+# council orchestrator run state (transient)
+.council/
