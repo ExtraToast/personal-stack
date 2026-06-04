@@ -1,5 +1,32 @@
 # Knowledge-system evolution plan
 
+Status as of 2026-06-04: this plan is partially superseded. Keep it as
+historical context for the Postgres-only migration split, embedding/model
+tradeoffs, and the original retrieval roadmap, but verify current source
+before using any PR-stack item as future work.
+
+Already shipped since this document was written:
+
+- `knowledge.recall` supports `fast`, `hybrid`, and `deep` modes; hybrid
+  is no longer a future PR.
+- The knowledge MCP exposes canonical dot-named tools including
+  `knowledge.suggest_topic`, `knowledge.find_duplicates`,
+  `knowledge.list_tag_candidates`, `knowledge.rename_tag`,
+  `knowledge.merge_tags`, `knowledge.relations`, and
+  `knowledge.list_audit`.
+- Recall usage stats, embeddings, topic/tag hygiene helpers, and admin
+  discovery surfaces exist in current `knowledge-api` and curator code.
+- Agent-memory work has moved toward `platform/agents/kit/manifest.yaml`
+  plus renderer-backed Claude/Codex hook and skill parity.
+
+Still useful from this document:
+
+- The jOOQ `DDLDatabase` constraint and `db/migration-pg` split.
+- The distinction between source-grounded `knowledge-api` recall and
+  LightRAG graph retrieval.
+- The safety stance that recall degradation must be non-fatal and admin
+  mutation tools must remain admin-token gated.
+
 Stacked PRs that take the recall side from single-leg FTS to the hybrid
 HyDE+vector+graph+rerank shape the prior design proposals (see
 `_inbox/2026-05-19/075925-knowledge-system-retrieval-architecture…`
