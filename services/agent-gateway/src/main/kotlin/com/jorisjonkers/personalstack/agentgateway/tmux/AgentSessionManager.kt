@@ -67,6 +67,7 @@ class AgentSessionManager(
     fun spawn(
         kind: AgentKind,
         workspacePath: String? = null,
+        resumeCliSessionId: String? = null,
     ): AgentSession {
         val id = UUID.randomUUID().toString().substring(0, 8)
         val tmuxSession = "agent-$id"
@@ -76,7 +77,7 @@ class AgentSessionManager(
         Files.deleteIfExists(logFile)
         Files.createFile(logFile)
 
-        val (command, cliSessionId) = commandAndSessionIdFor(kind)
+        val (command, cliSessionId) = commandAndSessionIdFor(kind, resumeCliSessionId)
         tmux.newSession(tmuxSession, command, cwd)
         tmux.startPipeToFile(tmuxSession, logFile)
 
@@ -138,21 +139,33 @@ class AgentSessionManager(
     }
 
     /**
-     * Build the CLI command and return the native session id alongside
-     * it. For Claude the id is generated here and passed as
-     * `--session-id <uuid>`; the same UUID is stored in the session
-     * and returned to assistant-api for persist+resume. For Codex
-     * no deterministic create-time flag exists; async discovery from
+     * Build the CLI command and return the native session id alongside it.
+     *
+     * For Claude: when [resumeCliSessionId] is provided the existing session
+     * is continued via `--resume <id>` and that id is echoed back. Otherwise
+     * a fresh UUID is generated and passed as `--session-id <uuid>` so the
+     * conversation can be resumed in a future Pod restart. For Codex no
+     * deterministic create-time flag exists; async discovery from
      * `$CODEX_HOME/sessions` is a follow-up. Shell has no session id.
      */
-    private fun commandAndSessionIdFor(kind: AgentKind): Pair<List<String>, String?> =
+    private fun commandAndSessionIdFor(
+        kind: AgentKind,
+        resumeCliSessionId: String?,
+    ): Pair<List<String>, String?> =
         when (kind) {
             AgentKind.CLAUDE -> {
-                val cliSessionId = UUID.randomUUID().toString()
-                val cmd =
-                    listOf(props.cli.claude) + props.cli.claudeArgs +
-                        listOf("--session-id", cliSessionId)
-                cmd to cliSessionId
+                if (resumeCliSessionId != null) {
+                    val cmd =
+                        listOf(props.cli.claude) + props.cli.claudeArgs +
+                            listOf("--resume", resumeCliSessionId)
+                    cmd to resumeCliSessionId
+                } else {
+                    val cliSessionId = UUID.randomUUID().toString()
+                    val cmd =
+                        listOf(props.cli.claude) + props.cli.claudeArgs +
+                            listOf("--session-id", cliSessionId)
+                    cmd to cliSessionId
+                }
             }
             AgentKind.CODEX -> (listOf(props.cli.codex) + props.cli.codexArgs) to null
             AgentKind.SHELL -> listOf("/bin/bash", "-l") to null

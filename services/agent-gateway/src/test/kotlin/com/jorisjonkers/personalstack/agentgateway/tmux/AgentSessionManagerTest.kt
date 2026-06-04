@@ -82,6 +82,28 @@ class AgentSessionManagerTest {
     }
 
     @Test
+    fun `spawn resumes claude session when resumeCliSessionId is provided`(
+        @TempDir tmp: Path,
+    ) {
+        val mgr = manager(tmp)
+        val previousId = "prev-session-uuid"
+        val s = mgr.spawn(AgentKind.CLAUDE, resumeCliSessionId = previousId)
+        assertThat(s.cliSessionId).isEqualTo(previousId)
+        verify {
+            tmux.newSession(
+                s.tmuxSession,
+                match { cmd ->
+                    cmd.containsAll(listOf("/usr/local/bin/claude", "--dangerously-skip-permissions")) &&
+                        cmd.contains("--resume") &&
+                        cmd[cmd.indexOf("--resume") + 1] == previousId &&
+                        !cmd.contains("--session-id")
+                },
+                "/workspace",
+            )
+        }
+    }
+
+    @Test
     fun `spawn launches codex with approval+sandbox bypass flag`(
         @TempDir tmp: Path,
     ) {

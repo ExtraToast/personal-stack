@@ -5,6 +5,7 @@ import com.jorisjonkers.personalstack.agentgateway.tmux.AgentKind
 data class SpawnAgentRequest(
     val kind: AgentKind,
     val workspacePath: String? = null,
+    val resumeCliSessionId: String? = null,
 )
 
 data class SendInputRequest(

@@ -2,8 +2,10 @@ package com.jorisjonkers.personalstack.assistant.application.command
 
 import com.jorisjonkers.personalstack.assistant.application.exception.AgentRunnerUnavailableException
 import com.jorisjonkers.personalstack.assistant.domain.model.Workspace
+import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentKind
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSession
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSessionStatus
+import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId
 import com.jorisjonkers.personalstack.assistant.domain.port.AgentGatewayClient
 import com.jorisjonkers.personalstack.assistant.domain.port.AgentRunnerOrchestrator
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceAgentSessionRepository
@@ -80,7 +82,8 @@ class StartAgentSessionCommandHandler(
             )
         sessions.save(session)
 
-        val gatewayAgent = spawnAgentWithRetry(healthy, command)
+        val resumeId = previousClaudeSessionId(command.workspaceId, command.kind)
+        val gatewayAgent = spawnAgentWithRetry(healthy, command, resumeId)
         sessions.save(session.bindGatewayAgent(gatewayAgent.id, gatewayAgent.cliSessionId))
     }
 
@@ -166,6 +169,25 @@ class StartAgentSessionCommandHandler(
     }
 
     /**
+     * Return the most recent non-failed Claude session's CLI session id
+     * for [workspaceId], or null when the kind is not CLAUDE, no prior
+     * session exists, or none carried a cli session id. The caller
+     * forwards this to the gateway so `--resume <id>` continues the
+     * last conversation instead of starting a fresh one.
+     */
+    private fun previousClaudeSessionId(
+        workspaceId: WorkspaceId,
+        kind: WorkspaceAgentKind,
+    ): String? {
+        if (kind != WorkspaceAgentKind.CLAUDE) return null
+        return sessions
+            .findAllByWorkspaceId(workspaceId)
+            .filter { it.status != WorkspaceAgentSessionStatus.FAILED && it.cliSessionId != null }
+            .maxByOrNull { it.createdAt }
+            ?.cliSessionId
+    }
+
+    /**
      * Retry the spawn on `ResourceAccessException` (the Spring
      * RestClient wrapping of any transport-level failure: socket
      * refused, read timeout, …). Each attempt sleeps an increasing
@@ -175,11 +197,12 @@ class StartAgentSessionCommandHandler(
     private fun spawnAgentWithRetry(
         workspace: Workspace,
         command: StartAgentSessionCommand,
+        resumeCliSessionId: String? = null,
     ): AgentGatewayClient.GatewayAgent {
         var lastFailure: ResourceAccessException? = null
         repeat(MAX_SPAWN_ATTEMPTS) { attempt ->
             try {
-                return gateway.spawnAgent(workspace, command.kind)
+                return gateway.spawnAgent(workspace, command.kind, resumeCliSessionId = resumeCliSessionId)
             } catch (ex: ResourceAccessException) {
                 lastFailure = ex
                 val sleepMs = backoffInitialMs * (attempt + 1)
