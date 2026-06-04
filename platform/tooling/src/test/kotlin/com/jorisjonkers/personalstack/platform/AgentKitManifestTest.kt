@@ -202,8 +202,7 @@ class AgentKitManifestTest {
 
     @Test
     fun `renderer templates are declared in the manifest`() {
-        val templateRoot = repositoryRoot.resolve(manifest["renderer"]["template_root"].asText())
-        val templatePaths = filesUnder(templateRoot).map { relativePath(templateRoot, it) }.toSet()
+        val templatePaths = rendererTemplatePaths()
         val managedPaths = rendererManagedPaths()
         val pinnedPaths = collectPinnedPaths(manifest).map { it.path }.toSet()
 
@@ -349,6 +348,24 @@ class AgentKitManifestTest {
             .asSequence()
             .map { it.asText() }
             .toSet()
+
+    private fun rendererTemplatePaths(): Set<String> {
+        val templateRoot = repositoryRoot.resolve(manifest["renderer"]["template_root"].asText())
+        val repoTemplatePaths = filesUnder(templateRoot).map { relativePath(templateRoot, it) }
+        val extraTemplatePaths =
+            manifest["renderer"]["extra_templates"]
+                ?.elements()
+                ?.asSequence()
+                ?.map { mapping ->
+                    val source = repositoryRoot.resolve(mapping["source_path"].asText())
+                    assertThat(Files.exists(source))
+                        .describedAs("extra renderer template exists: ${mapping["source_path"].asText()}")
+                        .isTrue()
+                    mapping["destination_path"].asText()
+                }?.toList() ?: emptyList()
+
+        return (repoTemplatePaths + extraTemplatePaths).toSet()
+    }
 
     private fun filesUnder(root: Path): List<Path> =
         Files.walk(root).use { paths ->

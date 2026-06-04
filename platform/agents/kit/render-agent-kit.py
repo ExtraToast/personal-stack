@@ -14,7 +14,13 @@ from pathlib import Path
 
 KIT_ROOT = Path(__file__).resolve().parent
 REPOSITORY_ROOT = KIT_ROOT.parents[2]
-TEMPLATE_ROOT = KIT_ROOT / "templates" / "repo"
+REPO_TEMPLATE_ROOT = KIT_ROOT / "templates" / "repo"
+EXTRA_TEMPLATES = (
+    (
+        KIT_ROOT / "templates" / "installer" / "install.sh.tpl",
+        Path("services/knowledge-api/src/main/resources/installer/install.sh"),
+    ),
+)
 
 
 @dataclass(frozen=True)
@@ -25,14 +31,25 @@ class RenderedFile:
 
 
 def template_files(destination_root: Path) -> list[RenderedFile]:
-    if not TEMPLATE_ROOT.is_dir():
-        raise FileNotFoundError(f"template root does not exist: {TEMPLATE_ROOT}")
+    if not REPO_TEMPLATE_ROOT.is_dir():
+        raise FileNotFoundError(f"template root does not exist: {REPO_TEMPLATE_ROOT}")
 
     files: list[RenderedFile] = []
-    for source in sorted(TEMPLATE_ROOT.rglob("*")):
+    for source in sorted(REPO_TEMPLATE_ROOT.rglob("*")):
         if not source.is_file():
             continue
-        relative_path = source.relative_to(TEMPLATE_ROOT)
+        relative_path = source.relative_to(REPO_TEMPLATE_ROOT)
+        files.append(
+            RenderedFile(
+                source=source,
+                destination=destination_root / relative_path,
+                relative_path=relative_path,
+            ),
+        )
+
+    for source, relative_path in EXTRA_TEMPLATES:
+        if not source.is_file():
+            raise FileNotFoundError(f"template file does not exist: {source}")
         files.append(
             RenderedFile(
                 source=source,

@@ -2,8 +2,9 @@
 
 This directory is the checked-in control plane for cross-agent memory,
 hook, and skill parity. The current renderer owns repo skills, repo hook
-files, and hook settings; later PRs should move installer heredocs into
-the same template flow.
+files, hook settings, and the installer entrypoint. Later PRs should
+decompose the installer heredoc bodies so shared hook and skill content
+has one source template instead of one whole-file installer template.
 
 The manifest intentionally records today's gaps. A Claude-only installer
 hook or skill must carry an explicit `unsupported_reason` or `follow_up`
@@ -23,4 +24,4 @@ platform/agents/kit/render-agent-kit.py --output /tmp/agent-kit-render
 ```
 
 Use `--write` only when intentionally updating the checked-in repo mirrors
-from `platform/agents/kit/templates/repo`.
+from `platform/agents/kit/templates`.
