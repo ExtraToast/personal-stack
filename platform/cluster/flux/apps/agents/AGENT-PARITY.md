@@ -46,11 +46,15 @@ so the entrypoint seeds them on every boot:
   `approval_policy` / `sandbox_mode` from `~/.codex/config.toml` on
   the `codex-credentials` PVC. The entrypoint writes a
   trusted + non-interactive config only when none exists, so a
-  hand-edited file on the PVC is never overwritten.
+  hand-edited file on the PVC is never overwritten. Agent-gateway also
+  passes `--dangerously-bypass-hook-trust` for the managed runner
+  process so repo-managed hooks do not block startup on the interactive
+  "Hooks need review" prompt.
 
 Without this seeding every fresh session re-shows the theme picker
-and onboarding wizard (Claude) and the directory-trust prompt
-(Codex), all of which block the non-interactive tmux pane.
+and onboarding wizard (Claude), the directory-trust prompt (Codex), or
+the hook trust prompt (Codex), all of which block the non-interactive
+tmux pane.
 
 ## Domain / runtime
 

@@ -47,6 +47,7 @@ agent-gateway:
       - --dangerously-skip-permissions
     codex-args:
       - --dangerously-bypass-approvals-and-sandbox
+      - --dangerously-bypass-hook-trust
   git:
     # The deploy-key Secret is mounted into the Pod at this path by
     # assistant-api when it creates the runner Pod (Step 3).

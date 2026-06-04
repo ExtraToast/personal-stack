@@ -167,9 +167,9 @@ class HeadlessJobManager(
     /**
      * Build the one-shot CLI command for a headless run. Claude uses
      * `-p` (print mode) with `--output-format stream-json` for machine-
-     * parseable streaming events. Codex uses `exec --json`; when a
-     * `cliSessionId` is provided it resumes an existing context via
-     * `exec resume <id> --json`.
+     * parseable streaming events. Codex uses `exec --json` plus the
+     * configured Codex CLI args; when a `cliSessionId` is explicitly
+     * provided it resumes that exact context via `exec resume <id> --json`.
      */
     private fun headlessCommandFor(
         kind: AgentKind,
@@ -188,9 +188,13 @@ class HeadlessJobManager(
 
             AgentKind.CODEX ->
                 if (cliSessionId != null) {
-                    listOf(props.cli.codex, "exec", "resume", cliSessionId, "--json", "--", prompt)
+                    listOf(props.cli.codex, "exec", "resume") +
+                        props.cli.codexArgs +
+                        listOf("--json", cliSessionId, "--", prompt)
                 } else {
-                    listOf(props.cli.codex, "exec", "--json", "--", prompt)
+                    listOf(props.cli.codex, "exec") +
+                        props.cli.codexArgs +
+                        listOf("--json", "--", prompt)
                 }
 
             AgentKind.SHELL -> listOf("/bin/sh", "-c", prompt)
