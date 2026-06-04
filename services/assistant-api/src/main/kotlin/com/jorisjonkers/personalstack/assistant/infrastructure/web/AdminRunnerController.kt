@@ -20,8 +20,8 @@ class AdminRunnerController(
     /**
      * Gracefully scale down every active runner Pod so each workspace
      * transitions to IDLE with its PVC preserved. The next session start
-     * on any workspace re-provisions the Pod pulling `:latest`, and
-     * Claude sessions resume automatically via `--resume`.
+     * on any workspace re-provisions the Pod pulling `:latest` and starts
+     * a fresh agent process.
      *
      * Intended for two scenarios:
      *  1. After pushing a new agent-runner image to pick up the update.

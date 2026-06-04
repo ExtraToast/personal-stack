@@ -29,7 +29,11 @@ class AgentSessionManagerTest {
                         claude = "/usr/local/bin/claude",
                         codex = "/usr/local/bin/codex",
                         claudeArgs = listOf("--dangerously-skip-permissions"),
-                        codexArgs = listOf("--dangerously-bypass-approvals-and-sandbox"),
+                        codexArgs =
+                            listOf(
+                                "--dangerously-bypass-approvals-and-sandbox",
+                                "--dangerously-bypass-hook-trust",
+                            ),
                     ),
                 git = GatewayProperties.Git(deployKeyDir = "/x"),
                 stagedInputs = stagedInputs,
@@ -71,7 +75,8 @@ class AgentSessionManagerTest {
     ) {
         val mgr = manager(tmp)
         val s = mgr.spawn(AgentKind.CLAUDE)
-        // Claude gets --session-id <uuid> appended so native resume is possible.
+        // Claude gets --session-id <uuid> appended so each gateway agent has
+        // a fresh native session instead of inheriting another conversation.
         assertThat(s.cliSessionId).isNotNull()
         verify {
             tmux.newSession(
@@ -87,21 +92,19 @@ class AgentSessionManagerTest {
     }
 
     @Test
-    fun `spawn resumes claude session when resumeCliSessionId is provided`(
+    fun `spawn never resumes claude from another session`(
         @TempDir tmp: Path,
     ) {
         val mgr = manager(tmp)
-        val previousId = "prev-session-uuid"
-        val s = mgr.spawn(AgentKind.CLAUDE, resumeCliSessionId = previousId)
-        assertThat(s.cliSessionId).isEqualTo(previousId)
+        val s = mgr.spawn(AgentKind.CLAUDE)
         verify {
             tmux.newSession(
                 s.tmuxSession,
                 match { cmd ->
                     cmd.containsAll(listOf("/usr/local/bin/claude", "--dangerously-skip-permissions")) &&
-                        cmd.contains("--resume") &&
-                        cmd[cmd.indexOf("--resume") + 1] == previousId &&
-                        !cmd.contains("--session-id")
+                        cmd.contains("--session-id") &&
+                        cmd[cmd.indexOf("--session-id") + 1] == s.cliSessionId &&
+                        !cmd.contains("--resume")
                 },
                 "/workspace",
             )
@@ -109,35 +112,23 @@ class AgentSessionManagerTest {
     }
 
     @Test
-    fun `spawn resumes last codex session when LATEST sentinel is provided`(
+    fun `spawn never resumes codex last session`(
         @TempDir tmp: Path,
     ) {
         val mgr = manager(tmp)
-        val s = mgr.spawn(AgentKind.CODEX, resumeCliSessionId = "LATEST")
+        val s = mgr.spawn(AgentKind.CODEX)
         assertThat(s.cliSessionId).isNull()
         verify {
             tmux.newSession(
                 s.tmuxSession,
-                match { cmd -> cmd.containsAll(listOf("/usr/local/bin/codex", "resume", "--last")) },
-                "/workspace",
-            )
-        }
-    }
-
-    @Test
-    fun `spawn resumes specific codex session when a UUID is provided`(
-        @TempDir tmp: Path,
-    ) {
-        val mgr = manager(tmp)
-        val sessionId = "prev-codex-uuid"
-        val s = mgr.spawn(AgentKind.CODEX, resumeCliSessionId = sessionId)
-        assertThat(s.cliSessionId).isEqualTo(sessionId)
-        verify {
-            tmux.newSession(
-                s.tmuxSession,
                 match { cmd ->
-                    cmd.containsAll(listOf("/usr/local/bin/codex", "resume", sessionId)) &&
-                        !cmd.contains("--last")
+                    cmd.containsAll(
+                        listOf(
+                            "/usr/local/bin/codex",
+                            "--dangerously-bypass-approvals-and-sandbox",
+                            "--dangerously-bypass-hook-trust",
+                        ),
+                    ) && !cmd.contains("resume") && !cmd.contains("--last")
                 },
                 "/workspace",
             )
@@ -155,7 +146,11 @@ class AgentSessionManagerTest {
         verify {
             tmux.newSession(
                 s.tmuxSession,
-                listOf("/usr/local/bin/codex", "--dangerously-bypass-approvals-and-sandbox"),
+                listOf(
+                    "/usr/local/bin/codex",
+                    "--dangerously-bypass-approvals-and-sandbox",
+                    "--dangerously-bypass-hook-trust",
+                ),
                 "/workspace",
             )
         }

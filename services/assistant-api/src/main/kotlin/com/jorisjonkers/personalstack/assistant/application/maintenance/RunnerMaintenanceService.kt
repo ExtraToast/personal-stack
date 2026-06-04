@@ -18,8 +18,9 @@ import java.time.Clock
  *  - **Rolling restart**: after pushing a new agent-runner image, call
  *    [gracefulScaleDownAll] to tear down every Pod. The next session
  *    start on each workspace will re-provision via [AgentRunnerOrchestrator.provision],
- *    pulling `:latest` automatically. Claude sessions resume via
- *    `--resume <cliSessionId>` which is stored in the database.
+ *    pulling `:latest` automatically. The workspace PVC is preserved,
+ *    but a later "new session" starts a fresh agent process instead
+ *    of resuming a prior native CLI conversation.
  *  - **Pre-node-drain**: before draining the runner node, call
  *    [gracefulScaleDownAll] so Pods are stopped cleanly rather than
  *    evicted. After the node returns, workspaces re-provision on demand.
@@ -44,7 +45,7 @@ class RunnerMaintenanceService(
      * Scale down every workspace whose Pod is (or should be) running.
      * Each workspace transitions to [WorkspaceStatus.IDLE] with its PVC
      * preserved so the next [AgentRunnerOrchestrator.provision] re-attaches
-     * the same disk and session history.
+     * the same disk and CLI history.
      *
      * Scale-down failures are logged and skipped — the orchestrator's
      * [AgentRunnerOrchestrator.scaleDown] treats a missing Pod as a no-op,

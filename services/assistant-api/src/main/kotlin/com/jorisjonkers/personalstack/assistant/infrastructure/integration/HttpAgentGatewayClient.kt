@@ -32,7 +32,6 @@ class HttpAgentGatewayClient(
     private data class SpawnBody(
         val kind: WorkspaceAgentKind,
         val workspacePath: String? = null,
-        val resumeCliSessionId: String? = null,
     )
 
     private data class SendBody(
@@ -87,13 +86,12 @@ class HttpAgentGatewayClient(
         workspace: Workspace,
         kind: WorkspaceAgentKind,
         workspacePath: String?,
-        resumeCliSessionId: String?,
     ): AgentGatewayClient.GatewayAgent {
         val dto =
             restClient
                 .post()
                 .uri("${endpoint(workspace)}/agents")
-                .body(SpawnBody(kind, workspacePath, resumeCliSessionId))
+                .body(SpawnBody(kind, workspacePath))
                 .retrieve()
                 .body(GatewayAgentDto::class.java)
                 ?: error("empty response from gateway")

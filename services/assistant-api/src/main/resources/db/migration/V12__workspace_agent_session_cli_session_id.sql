@@ -1,5 +1,5 @@
--- Store the native CLI session id so a resume flag can be passed on
--- wake/re-attach without starting a fresh session. Nullable because:
+-- Store the native CLI session id for observability and future explicit
+-- continuation flows. Nullable because:
 --   - SHELL sessions have no native CLI id
 --   - Codex session id discovery is async (captured after spawn)
 --   - Old rows have no id
