@@ -22,7 +22,16 @@ spec:
   replicas: 1
   progressDeadlineSeconds: 1800
   strategy:
-    type: Recreate
+    # Keep the old pod serving until the replacement passes its
+    # readiness probe. knowledge-api fronts the MCP endpoint; under
+    # `Recreate` every Keel roll opened a zero-pod window, so a slow
+    # cold start or a flaky ghcr image pull took the MCP fully down
+    # (503) until the new pod came up. maxUnavailable:0 makes a
+    # broken/slow replacement a no-op — the old pod stays up.
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: knowledge-api
