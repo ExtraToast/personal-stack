@@ -276,6 +276,149 @@ class AgentKitManifestTest {
     }
 
     @Test
+    fun `installed recall hooks parse payloads dedupe and honor allowlist`() {
+        val installer = repositoryRoot.resolve(manifest["installer"]["path"].asText()).toAbsolutePath()
+        val claudeHome = tempDir.resolve("hook-claude")
+        val codexHome = tempDir.resolve("hook-codex")
+        val installEnvironment =
+            mapOf(
+                "CLAUDE_CONFIG_DIR" to claudeHome.toString(),
+                "CODEX_HOME" to codexHome.toString(),
+            )
+        val installResult =
+            runProcessWithEnv(
+                installEnvironment,
+                "bash",
+                installer.toString(),
+                "--agent",
+                "all",
+            )
+
+        assertThat(installResult.exitCode)
+            .describedAs(installResult.stderr)
+            .isEqualTo(0)
+
+        val curlLog = tempDir.resolve("curl-payloads.jsonl")
+        val fakeBin = tempDir.resolve("bin").also { Files.createDirectories(it) }
+        fakeBin.resolve("curl").writeExecutable(
+            """
+            #!/usr/bin/env bash
+            while [ "${'$'}#" -gt 0 ]; do
+              case "${'$'}1" in
+                -d)
+                  shift
+                  printf '%s\n' "${'$'}1" >> "${'$'}{CURL_CAPTURE_FILE}"
+                  ;;
+              esac
+              shift || true
+            done
+            cat <<'JSON'
+            {"jsonrpc":"2.0","result":{"structuredContent":{"hits":[{"title":"Prior capture","scope":"project:personal-stack","score":0.92,"id":"01H","snippet":"Remember this module"}]}}}
+            JSON
+            """,
+        )
+
+        val hookEnvironment =
+            installEnvironment +
+                mapOf(
+                    "KB_BEARER_TOKEN" to "test-token",
+                    "KB_URL" to "http://knowledge.local",
+                    "CURL_CAPTURE_FILE" to curlLog.toString(),
+                    "PATH" to "${fakeBin}:${System.getenv("PATH")}",
+                )
+
+        val promptCurlLog = tempDir.resolve("prompt-curl-payloads.jsonl")
+        val promptResult =
+            runProcessWithInput(
+                hookEnvironment + ("CURL_CAPTURE_FILE" to promptCurlLog.toString()),
+                """
+                {
+                  "user_prompt": "Please improve the personal-stack agent kit memory hooks and installer validation coverage."
+                }
+                """.trimIndent(),
+                claudeHome.resolve("hooks/user-prompt-submit-recall.sh").toAbsolutePath().toString(),
+            )
+
+        assertThat(promptResult.exitCode)
+            .describedAs(promptResult.stderr)
+            .isEqualTo(0)
+        assertThat(promptResult.stdout).contains("Knowledge base", "Prior capture", "score 0.92")
+        val promptPayload = readCurlPayloads(promptCurlLog).single()
+        assertThat(toolArguments(promptPayload)["query"].asText())
+            .contains("personal-stack agent kit memory hooks")
+        assertThat(toolArguments(promptPayload)["mode"].asText()).isEqualTo("hybrid")
+        assertThat(toolArguments(promptPayload)["limit"].asInt()).isEqualTo(3)
+
+        val claudeResult =
+            runProcessWithInput(
+                hookEnvironment + ("CLAUDE_SESSION_ID" to "claude-edit-session"),
+                """{"tool_input":{"file_path":"platform/agents/kit/manifest.yaml"}}""",
+                claudeHome.resolve("hooks/pre-tool-use-edit-recall.sh").toAbsolutePath().toString(),
+            )
+
+        assertThat(claudeResult.exitCode)
+            .describedAs(claudeResult.stderr)
+            .isEqualTo(0)
+        val claudePayload = readCurlPayloads(curlLog).single()
+        assertThat(toolArguments(claudePayload)["query"].asText())
+            .contains("manifest.yaml", "platform/agents/kit/manifest.yaml")
+        assertThat(toolArguments(claudePayload)["scope"].asText()).isEqualTo("project:personal-stack")
+        assertThat(toolArguments(claudePayload)["mode"].asText()).isEqualTo("hybrid")
+        assertThat(toolArguments(claudePayload)["limit"].asInt()).isEqualTo(2)
+        assertThat(claudeResult.stdout).contains("Related captures for this file", "Prior capture")
+
+        runProcessWithInput(
+            hookEnvironment + ("CLAUDE_SESSION_ID" to "claude-edit-session"),
+            """{"tool_input":{"file_path":"platform/agents/kit/manifest.yaml"}}""",
+            claudeHome.resolve("hooks/pre-tool-use-edit-recall.sh").toAbsolutePath().toString(),
+        )
+        assertThat(readCurlPayloads(curlLog))
+            .describedAs("same session and file should be deduped")
+            .hasSize(1)
+
+        val codexResult =
+            runProcessWithInput(
+                hookEnvironment +
+                    mapOf(
+                        "KB_AUTO_MCP_HOME" to codexHome.toString(),
+                        "CODEX_THREAD_ID" to "codex-edit-session",
+                    ),
+                """
+                {
+                  "tool": {
+                    "input": {
+                      "patch": "*** Begin Patch\n*** Update File: platform/agents/kit/render-agent-kit.py\n@@\n*** End Patch"
+                    }
+                  }
+                }
+                """.trimIndent(),
+                codexHome.resolve("hooks/pre-tool-use-edit-recall.sh").toAbsolutePath().toString(),
+            )
+
+        assertThat(codexResult.exitCode)
+            .describedAs(codexResult.stderr)
+            .isEqualTo(0)
+        assertThat(codexResult.stdout).contains("Related captures for this file", "Prior capture")
+        val codexPayload = readCurlPayloads(curlLog).last()
+        assertThat(toolArguments(codexPayload)["query"].asText())
+            .contains("render-agent-kit.py", "platform/agents/kit/render-agent-kit.py")
+        assertThat(toolArguments(codexPayload)["scope"].asText()).isEqualTo("project:personal-stack")
+
+        runProcessWithInput(
+            hookEnvironment +
+                mapOf(
+                    "KB_AUTO_MCP_HOME" to codexHome.toString(),
+                    "CODEX_THREAD_ID" to "codex-secret-session",
+                ),
+            """{"tool_input":{"file_path":".env"}}""",
+            codexHome.resolve("hooks/pre-tool-use-edit-recall.sh").toAbsolutePath().toString(),
+        )
+        assertThat(readCurlPayloads(curlLog))
+            .describedAs("allowlisted files should not call the MCP")
+            .hasSize(2)
+    }
+
+    @Test
     fun `hook settings reference only manifest hooks`() {
         val manifestHookPaths = manifestTargetPaths("hooks").filter { it.contains("/hooks/") }.toSet()
         val settingsHookPaths =
@@ -552,6 +695,17 @@ class AgentKitManifestTest {
             .map { it["command"].asText() }
             .toList()
 
+    private fun readCurlPayloads(path: Path): List<JsonNode> =
+        if (!Files.exists(path)) {
+            emptyList()
+        } else {
+            Files.readAllLines(path)
+                .filter { it.isNotBlank() }
+                .map { jsonMapper.readTree(it) }
+        }
+
+    private fun toolArguments(payload: JsonNode): JsonNode = payload["params"]["arguments"]
+
     private fun rendererManagedPathList(): List<String> =
         manifest["renderer"]["managed_paths"]
             .elements()
@@ -621,11 +775,39 @@ class AgentKitManifestTest {
         )
     }
 
+    private fun runProcessWithInput(
+        environment: Map<String, String>,
+        input: String,
+        vararg command: String,
+    ): AgentKitProcessResult {
+        val process =
+            ProcessBuilder(command.toList())
+                .directory(repositoryRoot.toFile())
+                .also { it.environment().putAll(environment) }
+                .start()
+        process.outputStream.use { stdin ->
+            stdin.write(input.toByteArray())
+        }
+        val stdout = process.inputStream.readAllBytes().decodeToString()
+        val stderr = process.errorStream.readAllBytes().decodeToString()
+        return AgentKitProcessResult(
+            exitCode = process.waitFor(),
+            stdout = stdout,
+            stderr = stderr,
+        )
+    }
+
     private fun relativePath(root: Path, path: Path): String = root.relativize(path).toString().replace('\\', '/')
 
     private fun sha256(path: Path): String {
         val digest = MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(path))
         return digest.joinToString("") { "%02x".format(it.toInt() and 0xff) }
+    }
+
+    private fun Path.writeExecutable(contents: String): String {
+        Files.writeString(this, contents.trimIndent() + "\n")
+        toFile().setExecutable(true)
+        return toAbsolutePath().toString()
     }
 
     private data class PinnedPath(

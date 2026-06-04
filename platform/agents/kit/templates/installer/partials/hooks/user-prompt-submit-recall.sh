@@ -58,7 +58,14 @@ try:
     print("## Knowledge base — relevant prior captures")
     print()
     for h in hits:
-        print(f"- **{h[\"title\"]}** (`{h[\"scope\"]}`, score {h[\"score\"]:.2f}) — id `{h[\"id\"]}`")
+        title = h.get("title", "")
+        scope = h.get("scope", "")
+        note_id = h.get("id", "")
+        try:
+            score = f"{float(h.get('score', 0.0)):.2f}"
+        except Exception:
+            score = str(h.get("score", ""))
+        print(f"- **{title}** (`{scope}`, score {score}) — id `{note_id}`")
         snip = h.get("snippet","").replace("\n"," ").strip()
         if snip: print(f"  > {snip[:220]}")
 except Exception:
