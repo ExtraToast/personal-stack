@@ -492,13 +492,19 @@ class Fabric8AgentRunnerOrchestrator(
         private const val RUN_AS_GID = 1000L
         private const val FS_GROUP = 1000L
 
-        // Resource sizing. Cold start needs headroom for `git clone`
-        // + tmux + the gateway jar; runtime steady state is much
-        // lighter. Tuned against typical Claude / Codex session.
+        // Resource sizing. One Pod hosts the gateway JVM, the agent CLIs
+        // (Claude Code, Codex) and the workspace's own processes in a
+        // single memory cgroup. At a 3Gi limit a real Claude session
+        // alongside the JVM tripped the cgroup OOM killer (exit 137),
+        // taking every tmux session in the Pod down at once. The gateway
+        // heap is now capped small (see agent-runner entrypoint), and the
+        // limit is raised to 10Gi so the CLIs and build tooling have real
+        // headroom; the request reserves a baseline that covers the JVM
+        // plus an idle CLI.
         private const val CPU_REQUEST = "250m"
-        private const val MEMORY_REQUEST = "768Mi"
+        private const val MEMORY_REQUEST = "2Gi"
         private const val CPU_LIMIT = "2000m"
-        private const val MEMORY_LIMIT = "3Gi"
+        private const val MEMORY_LIMIT = "10Gi"
 
         // Probe cadence. The startup probe loops 60×5s = 5 min so the
         // gateway's JVM cold start (slower on a fresh image pull)

@@ -204,7 +204,14 @@ fi
 git config --global url.https://github.com/.insteadOf git@github.com:
 git config --global url.https://github.com/.insteadOf ssh://git@github.com/
 
+# The gateway shares this Pod's memory cgroup with the agent CLIs it
+# launches (Claude Code, Codex) and whatever the workspace itself runs.
+# MaxRAMPercentage made the JVM lazily fill 75% of the Pod limit with
+# garbage before collecting, starving those co-tenants and getting the
+# whole Pod OOMKilled. The gateway is a thin streaming relay with a tiny
+# live set, so an absolute 1g heap is ample and leaves the rest of the
+# Pod's RAM for the CLIs regardless of the limit.
 exec java \
   -XX:+UseZGC \
-  -XX:MaxRAMPercentage=75 \
+  -Xmx1g \
   -jar /opt/agent-gateway.jar
