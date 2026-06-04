@@ -27,6 +27,18 @@ platform/agents/kit/render-agent-kit.py --output /tmp/agent-kit-render
 Use `--write` only when intentionally updating checked-in repo mirrors or
 installer resources from `platform/agents/kit/templates`.
 
+Install the generated client kit through the served installer:
+
+```bash
+curl -fsSL -H "Authorization: Bearer ${KB_BEARER_TOKEN}" \
+  "${KB_URL}/install.sh" | bash -s -- --agent all --scope user
+```
+
+Use `--scope project` with `AGENT_KIT_PROJECT_ROOT` when the kit should write
+repo-local `.claude` and `.codex` directories instead of user config homes.
+See [PORTABILITY.md](PORTABILITY.md) for uninstall, backup/export, restore, and
+compatibility-matrix details.
+
 Run the read-only doctor when debugging runner memory, MCP, or installer
 drift:
 
