@@ -5,6 +5,8 @@ import com.jorisjonkers.personalstack.agentgateway.tmux.AgentSessionManager
 import com.jorisjonkers.personalstack.agentgateway.web.dto.AgentResponse
 import com.jorisjonkers.personalstack.agentgateway.web.dto.SendInputRequest
 import com.jorisjonkers.personalstack.agentgateway.web.dto.SpawnAgentRequest
+import com.jorisjonkers.personalstack.agentgateway.web.dto.StageInputRequest
+import com.jorisjonkers.personalstack.agentgateway.web.dto.StagedInputResponse
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -45,6 +47,17 @@ class AgentController(
     ): ResponseEntity<Void> {
         sessions.send(id, req.input, req.enter)
         return ResponseEntity.accepted().build()
+    }
+
+    @PostMapping("/{id}/staged-inputs")
+    fun stageInput(
+        @PathVariable id: String,
+        @RequestBody req: StageInputRequest,
+    ): ResponseEntity<StagedInputResponse> {
+        val staged = sessions.stageInput(id, req.content, req.name)
+        return ResponseEntity
+            .status(HttpStatus.CREATED)
+            .body(StagedInputResponse(path = staged.path, bytes = staged.bytes, name = staged.name))
     }
 
     @GetMapping("/{id}/capture")

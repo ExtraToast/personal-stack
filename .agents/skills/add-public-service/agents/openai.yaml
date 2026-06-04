@@ -1,4 +1,4 @@
 interface:
-  display_name: "Add Public Service"
-  short_description: "Add stack public services safely"
-  default_prompt: "Use $add-public-service to add a new SSO-protected public app."
+  display_name: 'Add Public Service'
+  short_description: 'Add stack public services safely'
+  default_prompt: 'Use $add-public-service to add a new SSO-protected public app.'

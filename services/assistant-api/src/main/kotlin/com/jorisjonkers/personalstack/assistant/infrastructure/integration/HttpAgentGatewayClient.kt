@@ -40,6 +40,17 @@ class HttpAgentGatewayClient(
         val enter: Boolean,
     )
 
+    private data class StageInputBody(
+        val content: String,
+        val name: String?,
+    )
+
+    private data class StagedInputDto(
+        val path: String,
+        val bytes: Long,
+        val name: String,
+    )
+
     private data class CloneBody(
         val repoUrl: String,
         val branch: String? = null,
@@ -119,6 +130,23 @@ class HttpAgentGatewayClient(
             .body(SendBody(input, enter))
             .retrieve()
             .toBodilessEntity()
+    }
+
+    override fun stageInput(
+        workspace: Workspace,
+        gatewayAgentId: String,
+        content: String,
+        name: String?,
+    ): AgentGatewayClient.StagedInput {
+        val dto =
+            restClient
+                .post()
+                .uri("${endpoint(workspace)}/agents/$gatewayAgentId/staged-inputs")
+                .body(StageInputBody(content, name))
+                .retrieve()
+                .body(StagedInputDto::class.java)
+                ?: error("empty staged input response from gateway")
+        return AgentGatewayClient.StagedInput(path = dto.path, bytes = dto.bytes, name = dto.name)
     }
 
     override fun capture(

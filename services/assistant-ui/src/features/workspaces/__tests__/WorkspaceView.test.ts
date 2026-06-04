@@ -52,6 +52,8 @@ vi.mock('../services/sessionSocket', () => ({
 }))
 
 const getWorkspace = vi.fn<(id: string) => Promise<WorkspaceDetail>>()
+const sendInput = vi.fn()
+const stageInput = vi.fn()
 vi.mock('../services/workspaceService', () => ({
   listWorkspaces: vi.fn(),
   getWorkspace: (id: string) => getWorkspace(id),
@@ -60,7 +62,8 @@ vi.mock('../services/workspaceService', () => ({
   startSession: vi.fn(),
   stopSession: vi.fn(),
   getTurns: vi.fn(async () => []),
-  sendInput: vi.fn(),
+  sendInput: (...args: unknown[]) => sendInput(...args),
+  stageInput: (...args: unknown[]) => stageInput(...args),
 }))
 
 function fakeSession(over: Partial<AgentSession> = {}): AgentSession {
@@ -118,6 +121,12 @@ async function mountView() {
   return wrapper
 }
 
+function requireElement<T extends Element>(selector: string): T {
+  const el = document.querySelector<T>(selector)
+  if (!el) throw new Error(`missing element: ${selector}`)
+  return el
+}
+
 describe('workspaceView terminal persistence', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -125,6 +134,8 @@ describe('workspaceView terminal persistence', () => {
     Object.values(socket).forEach((m) => m.mockClear())
     attachSessionSocket.mockClear()
     getWorkspace.mockReset()
+    sendInput.mockReset()
+    stageInput.mockReset()
     vi.stubGlobal(
       'ResizeObserver',
       class {
@@ -169,6 +180,38 @@ describe('workspaceView terminal persistence', () => {
     expect(wrapper.findAll('[data-testid="session-terminal"]').length).toBe(1)
     expect(socket.close).toHaveBeenCalledTimes(1)
     expect(term.dispose).toHaveBeenCalledTimes(1)
+  })
+
+  it('stages large text then sends only a pointer prompt to the active session', async () => {
+    getWorkspace.mockResolvedValue(detail([fakeSession({ id: 'sess-a', gatewayAgentId: 'abc12345' })]))
+    stageInput.mockResolvedValue({
+      path: '/workspace/.agent-inputs/20260604-source.txt',
+      bytes: 14,
+      name: 'source.txt',
+    })
+    const wrapper = await mountView()
+
+    await wrapper.find('[data-testid="stage-input-open"]').trigger('click')
+    await flush()
+    const name = requireElement<HTMLInputElement>('[data-testid="stage-input-name"]')
+    const content = requireElement<HTMLTextAreaElement>('[data-testid="stage-input-content"]')
+    const submit = requireElement<HTMLButtonElement>('[data-testid="stage-input-submit"]')
+    name.value = 'source.txt'
+    name.dispatchEvent(new Event('input'))
+    content.value = 'large document'
+    content.dispatchEvent(new Event('input'))
+    await wrapper.vm.$nextTick()
+    submit.click()
+    await flush()
+
+    expect(stageInput).toHaveBeenCalledWith('ws-1', 'sess-a', 'large document', 'source.txt')
+    expect(sendInput).toHaveBeenCalledWith(
+      'ws-1',
+      'sess-a',
+      'Please read /workspace/.agent-inputs/20260604-source.txt and use it as the source document for the next task.',
+      true,
+    )
+    expect(sendInput.mock.calls[0]?.[2]).not.toContain('large document')
   })
 })
 

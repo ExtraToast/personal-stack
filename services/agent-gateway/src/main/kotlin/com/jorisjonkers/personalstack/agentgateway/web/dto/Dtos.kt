@@ -13,6 +13,17 @@ data class SendInputRequest(
     val enter: Boolean = true,
 )
 
+data class StageInputRequest(
+    val content: String,
+    val name: String? = null,
+)
+
+data class StagedInputResponse(
+    val path: String,
+    val bytes: Long,
+    val name: String,
+)
+
 data class AgentResponse(
     val id: String,
     val kind: AgentKind,

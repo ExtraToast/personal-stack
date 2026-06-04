@@ -5,6 +5,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.awaitility.Awaitility.await
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -15,7 +16,10 @@ import java.time.Duration
 class AgentSessionManagerTest {
     private val tmux = mockk<TmuxClient>(relaxed = true)
 
-    private fun manager(tmp: Path): AgentSessionManager {
+    private fun manager(
+        tmp: Path,
+        stagedInputs: GatewayProperties.StagedInputs = GatewayProperties.StagedInputs(),
+    ): AgentSessionManager {
         val props =
             GatewayProperties(
                 workspaceRoot = "/workspace",
@@ -28,6 +32,7 @@ class AgentSessionManagerTest {
                         codexArgs = listOf("--dangerously-bypass-approvals-and-sandbox"),
                     ),
                 git = GatewayProperties.Git(deployKeyDir = "/x"),
+                stagedInputs = stagedInputs,
             )
         every { tmux.ensureStateDir() } returns tmp
         return AgentSessionManager(tmux, props)
@@ -202,6 +207,46 @@ class AgentSessionManagerTest {
         val s = mgr.spawn(AgentKind.CLAUDE)
         mgr.send(s.id, "list files", enter = true)
         verify { tmux.sendKeys(s.tmuxSession, "list files", enter = true) }
+    }
+
+    @Test
+    fun `stageInput writes content under session cwd with sanitized name`(
+        @TempDir tmp: Path,
+    ) {
+        val workspace = tmp.resolve("workspace")
+        val mgr = manager(tmp)
+        val s = mgr.spawn(AgentKind.CLAUDE, workspacePath = workspace.toString())
+
+        val staged = mgr.stageInput(s.id, "large document", "../source notes?.md")
+
+        assertThat(staged.name).isEqualTo("source-notes-.md")
+        assertThat(staged.bytes).isEqualTo("large document".toByteArray().size.toLong())
+        assertThat(Path.of(staged.path).parent).isEqualTo(workspace.resolve(".agent-inputs"))
+        assertThat(Files.readString(Path.of(staged.path))).isEqualTo("large document")
+    }
+
+    @Test
+    fun `stageInput rejects content over configured byte cap`(
+        @TempDir tmp: Path,
+    ) {
+        val mgr = manager(tmp, GatewayProperties.StagedInputs(maxBytes = 4))
+        val s = mgr.spawn(AgentKind.SHELL, workspacePath = tmp.resolve("workspace").toString())
+
+        assertThatThrownBy { mgr.stageInput(s.id, "12345", "too-large.txt") }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("exceeds 4 bytes")
+    }
+
+    @Test
+    fun `stageInput rejects staging directory outside workspace`(
+        @TempDir tmp: Path,
+    ) {
+        val mgr = manager(tmp, GatewayProperties.StagedInputs(dirName = "../outside"))
+        val s = mgr.spawn(AgentKind.SHELL, workspacePath = tmp.resolve("workspace").toString())
+
+        assertThatThrownBy { mgr.stageInput(s.id, "content", "input.txt") }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("inside the workspace")
     }
 
     @Test

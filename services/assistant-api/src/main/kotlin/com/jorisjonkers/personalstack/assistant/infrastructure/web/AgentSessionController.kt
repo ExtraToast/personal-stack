@@ -6,7 +6,12 @@ import com.jorisjonkers.personalstack.assistant.application.command.StopAgentSes
 import com.jorisjonkers.personalstack.assistant.application.query.GetTurnHistoryQueryService
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSessionId
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId
+import com.jorisjonkers.personalstack.assistant.domain.port.AgentGatewayClient
+import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceAgentSessionRepository
+import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepository
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.SendUserInputRequest
+import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.StageInputRequest
+import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.StagedInputResponse
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.StartAgentSessionRequest
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.TurnResponse
 import com.jorisjonkers.personalstack.common.command.CommandBus
@@ -34,6 +39,9 @@ import java.util.UUID
 class AgentSessionController(
     private val commandBus: CommandBus,
     private val turnHistory: GetTurnHistoryQueryService,
+    private val sessions: WorkspaceAgentSessionRepository,
+    private val workspaces: WorkspaceRepository,
+    private val gateway: AgentGatewayClient,
 ) {
     @PostMapping
     fun start(
@@ -65,6 +73,25 @@ class AgentSessionController(
             ),
         )
         return ResponseEntity.accepted().build()
+    }
+
+    @PostMapping("/{sessionId}/staged-inputs")
+    fun stageInput(
+        @PathVariable workspaceId: UUID,
+        @PathVariable sessionId: UUID,
+        @RequestBody req: StageInputRequest,
+    ): ResponseEntity<StagedInputResponse> {
+        val workspaceModelId = WorkspaceId(workspaceId)
+        val session =
+            sessions.findById(WorkspaceAgentSessionId(sessionId))
+                ?: error("session not found: $sessionId")
+        require(session.workspaceId == workspaceModelId) { "session does not belong to workspace: $sessionId" }
+        val workspace = workspaces.findById(workspaceModelId) ?: error("workspace not found: $workspaceId")
+        val gatewayAgentId = session.gatewayAgentId ?: error("session not bound to a gateway agent yet")
+        val staged = gateway.stageInput(workspace, gatewayAgentId, req.content, req.name)
+        return ResponseEntity
+            .status(HttpStatus.CREATED)
+            .body(StagedInputResponse(path = staged.path, bytes = staged.bytes, name = staged.name))
     }
 
     @GetMapping("/{sessionId}/turns")

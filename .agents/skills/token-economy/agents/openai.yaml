@@ -1,11 +1,11 @@
 interface:
-  display_name: "Token Economy"
-  short_description: "Reduce agent token usage cleanly"
-  default_prompt: "Use $token-economy to keep this agent workflow token-efficient."
+  display_name: 'Token Economy'
+  short_description: 'Reduce agent token usage cleanly'
+  default_prompt: 'Use $token-economy to keep this agent workflow token-efficient.'
 dependencies:
   tools:
-    - type: "mcp"
-      value: "knowledge"
-      description: "Knowledge-base MCP server"
-      transport: "streamable_http"
-      url: "http://knowledge-api.knowledge-system.svc.cluster.local:8080/mcp"
+    - type: 'mcp'
+      value: 'knowledge'
+      description: 'Knowledge-base MCP server'
+      transport: 'streamable_http'
+      url: 'http://knowledge-api.knowledge-system.svc.cluster.local:8080/mcp'

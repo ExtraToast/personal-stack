@@ -3,6 +3,7 @@ package com.jorisjonkers.personalstack.agentgateway.web
 import com.jorisjonkers.personalstack.agentgateway.tmux.AgentKind
 import com.jorisjonkers.personalstack.agentgateway.tmux.AgentSession
 import com.jorisjonkers.personalstack.agentgateway.tmux.AgentSessionManager
+import com.jorisjonkers.personalstack.agentgateway.tmux.StagedInput
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Test
@@ -80,5 +81,37 @@ class AgentControllerTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""{"input":"hi","enter":true}"""),
             ).andExpect(status().isAccepted)
+    }
+
+    @Test
+    fun `POST agents id staged-inputs returns staged file metadata`() {
+        every {
+            sessions.stageInput("abc12345", "large document", "source.txt")
+        } returns StagedInput(path = "/workspace/.agent-inputs/20260604-source.txt", bytes = 14, name = "source.txt")
+
+        mockMvc
+            .perform(
+                post("/agents/abc12345/staged-inputs")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"content":"large document","name":"source.txt"}"""),
+            ).andExpect(status().isCreated)
+            .andExpect(jsonPath("$.path").value("/workspace/.agent-inputs/20260604-source.txt"))
+            .andExpect(jsonPath("$.bytes").value(14))
+            .andExpect(jsonPath("$.name").value("source.txt"))
+    }
+
+    @Test
+    fun `POST agents id staged-inputs returns 400 on invalid content`() {
+        every {
+            sessions.stageInput("abc12345", "", "source.txt")
+        } throws IllegalArgumentException("staged input content is empty")
+
+        mockMvc
+            .perform(
+                post("/agents/abc12345/staged-inputs")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"content":"","name":"source.txt"}"""),
+            ).andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.error").value("staged input content is empty"))
     }
 }

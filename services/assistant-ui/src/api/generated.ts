@@ -44,6 +44,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/sessions/{sessionId}/staged-inputs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["stageInput"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/sessions/{sessionId}/input": {
         parameters: {
             query?: never;
@@ -475,6 +491,16 @@ export interface components {
             /** @enum {string} */
             kind: "CLAUDE" | "CODEX" | "SHELL";
         };
+        StageInputRequest: {
+            content: string;
+            name?: string | null;
+        };
+        StagedInputResponse: {
+            path: string;
+            /** Format: int64 */
+            bytes: number;
+            name: string;
+        };
         SendUserInputRequest: {
             text: string;
             enter: boolean;
@@ -714,6 +740,33 @@ export interface operations {
                     "*/*": {
                         [key: string]: string;
                     };
+                };
+            };
+        };
+    };
+    stageInput: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StageInputRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["StagedInputResponse"];
                 };
             };
         };

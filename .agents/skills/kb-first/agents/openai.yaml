@@ -1,11 +1,11 @@
 interface:
-  display_name: "KB First"
-  short_description: "Recall and capture KB context"
-  default_prompt: "Use $kb-first to gather compact KB context before this task."
+  display_name: 'KB First'
+  short_description: 'Recall and capture KB context'
+  default_prompt: 'Use $kb-first to gather compact KB context before this task.'
 dependencies:
   tools:
-    - type: "mcp"
-      value: "knowledge"
-      description: "Knowledge-base MCP server"
-      transport: "streamable_http"
-      url: "http://knowledge-api.knowledge-system.svc.cluster.local:8080/mcp"
+    - type: 'mcp'
+      value: 'knowledge'
+      description: 'Knowledge-base MCP server'
+      transport: 'streamable_http'
+      url: 'http://knowledge-api.knowledge-system.svc.cluster.local:8080/mcp'

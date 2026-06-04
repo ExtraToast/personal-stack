@@ -1,4 +1,4 @@
 interface:
-  display_name: "Open PR"
-  short_description: "Create repo-standard pull requests"
-  default_prompt: "Use $open-pr to open a personal-stack pull request."
+  display_name: 'Open PR'
+  short_description: 'Create repo-standard pull requests'
+  default_prompt: 'Use $open-pr to open a personal-stack pull request.'
