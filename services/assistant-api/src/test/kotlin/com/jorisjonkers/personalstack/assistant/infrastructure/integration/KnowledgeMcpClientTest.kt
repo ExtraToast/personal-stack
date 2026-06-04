@@ -1,6 +1,7 @@
 package com.jorisjonkers.personalstack.assistant.infrastructure.integration
 
 import com.jorisjonkers.personalstack.assistant.config.RagProperties
+import com.jorisjonkers.personalstack.assistant.domain.port.KnowledgeWritePort
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
@@ -90,6 +91,9 @@ class KnowledgeMcpClientTest {
             .andExpect(jsonPath("$.params.arguments.title").value("Canonical MCP names"))
             .andExpect(jsonPath("$.params.arguments.body").value("Assistant API uses dot-form tool names."))
             .andExpect(jsonPath("$.params.arguments.scope").value("project:personal-stack"))
+            .andExpect(jsonPath("$.params.arguments.source").value("assistant-ui:auto-capture:session-1"))
+            .andExpect(jsonPath("$.params.arguments.session_id").value("session-1"))
+            .andExpect(jsonPath("$.params.arguments.confidence").value(0.74))
             .andExpect(jsonPath("$.params.arguments.tags[0]").value("mcp"))
             .andRespond(
                 withSuccess(
@@ -99,12 +103,63 @@ class KnowledgeMcpClientTest {
             )
 
         client.ingestNote(
-            title = "Canonical MCP names",
-            body = "Assistant API uses dot-form tool names.",
-            scope = "project:personal-stack",
-            tags = listOf("mcp"),
+            KnowledgeWritePort.CaptureRequest(
+                title = "Canonical MCP names",
+                body = "Assistant API uses dot-form tool names.",
+                scope = "project:personal-stack",
+                tags = listOf("mcp"),
+                source = "assistant-ui:auto-capture:session-1",
+                sessionId = "session-1",
+                confidence = 0.74,
+            ),
         )
 
+        server.verify()
+    }
+
+    @Test
+    fun `findDuplicateEvidence returns the top recall hit when it clears the threshold`() {
+        val builder = RestClient.builder()
+        val server = MockRestServiceServer.bindTo(builder).build()
+        val client = KnowledgeMcpClient(builder.build(), props())
+
+        server
+            .expect(requestTo("http://kb/mcp"))
+            .andExpect(method(HttpMethod.POST))
+            .andExpect(jsonPath("$.params.name").value("knowledge.recall"))
+            .andExpect(jsonPath("$.params.arguments.query").value("duplicate query"))
+            .andExpect(jsonPath("$.params.arguments.limit").value(1))
+            .andRespond(
+                withSuccess(
+                    """
+                    {
+                      "jsonrpc": "2.0",
+                      "id": 1,
+                      "result": {
+                        "structuredContent": {
+                          "hits": [
+                            {
+                              "id": "01KDUPLICATE",
+                              "scope": "project:personal-stack",
+                              "title": "Existing capture",
+                              "snippet": "Existing body.",
+                              "score": 0.9
+                            }
+                          ]
+                        }
+                      }
+                    }
+                    """.trimIndent(),
+                    MediaType.APPLICATION_JSON,
+                ),
+            )
+
+        val duplicate = client.findDuplicateEvidence("duplicate query", minScore = 0.86)
+
+        assertThat(duplicate).isNotNull
+        assertThat(duplicate!!.id).isEqualTo("01KDUPLICATE")
+        assertThat(duplicate.source).isEqualTo("kb:project:personal-stack:Existing capture")
+        assertThat(duplicate.score).isEqualTo(0.9)
         server.verify()
     }
 

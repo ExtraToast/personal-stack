@@ -20,4 +20,11 @@ data class RagProperties(
     // Passed to knowledge.recall as the `mode` parameter. `deep` runs
     // hybrid retrieval + listwise reranker on the knowledge-api side.
     val recallMode: String = "deep",
+    // Assistant-ui auto-capture uses the same policy shape as CLI
+    // digest hooks: bounded writes, duplicate suppression, explicit
+    // confidence, and review routing for weak candidates.
+    val autoCaptureSessionCapacity: Int = 3,
+    val autoCaptureBucketRefillMinutes: Long = 15,
+    val autoCaptureDedupeScore: Double = 0.86,
+    val autoCaptureScopedMinConfidence: Double = 0.55,
 )

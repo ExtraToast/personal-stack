@@ -43,20 +43,35 @@ class LessonAutoCaptureTest {
         val s = session(ws.id)
         every { sessions.findById(s.id) } returns s
         every { workspaces.findById(ws.id) } returns ws
+        every { kbWrite.findDuplicateEvidence(any(), any()) } returns null
         every { turns.findBySessionId(s.id, any()) } returns
             listOf(
                 turn(TurnRole.USER, "how does flannel work over tailscale?", 1, s.id),
-                turn(TurnRole.AGENT, "It uses --flannel-iface=tailscale0. ".repeat(20), 2, s.id),
+                turn(TurnRole.AGENT, "Lesson: It uses --flannel-iface=tailscale0. ".repeat(40), 2, s.id),
             )
 
         capture.capture(s.id)
 
         verify {
             kbWrite.ingestNote(
-                match { it.contains("how does flannel") },
-                match { it.startsWith("Q: how does flannel") },
-                "project:personal-stack",
-                match { it.contains("source:agents-ui") },
+                match {
+                    it.title.contains("how does flannel") &&
+                        it.body.contains("Trigger:") &&
+                        it.body.contains("Capture policy:") &&
+                        it.scope == "project:personal-stack" &&
+                        it.source == "assistant-ui:auto-capture:${s.id}" &&
+                        it.sessionId == s.id.toString() &&
+                        (it.confidence ?: 0.0) >= 0.55 &&
+                        it.tags.containsAll(
+                            listOf(
+                                "auto-capture",
+                                "assistant-ui",
+                                "agent:claude",
+                                "dedupe:checked",
+                                "repo:personal-stack",
+                            ),
+                        )
+                },
             )
         }
     }
@@ -66,7 +81,7 @@ class LessonAutoCaptureTest {
         val disabledRag = rag.copy(enabled = false)
         val withDisabled = LessonAutoCapture(workspaces, sessions, turns, extractor, kbWrite, disabledRag)
         withDisabled.capture(WorkspaceAgentSessionId.random())
-        verify(exactly = 0) { kbWrite.ingestNote(any(), any(), any(), any()) }
+        verify(exactly = 0) { kbWrite.ingestNote(any<KnowledgeWritePort.CaptureRequest>()) }
     }
 
     @Test
@@ -75,6 +90,7 @@ class LessonAutoCaptureTest {
         val s = session(ws.id)
         every { sessions.findById(s.id) } returns s
         every { workspaces.findById(ws.id) } returns ws
+        every { kbWrite.findDuplicateEvidence(any(), any()) } returns null
         // Five capture-worthy pairs in a row, bucket capacity is 3.
         val pairs =
             (1..5).flatMap { i ->
@@ -87,7 +103,57 @@ class LessonAutoCaptureTest {
 
         capture.capture(s.id)
 
-        verify(exactly = 3) { kbWrite.ingestNote(any(), any(), any(), any()) }
+        verify(exactly = 3) { kbWrite.ingestNote(any<KnowledgeWritePort.CaptureRequest>()) }
+    }
+
+    @Test
+    fun `capture skips likely duplicates before consuming write budget`() {
+        val ws = workspace(repoUrl = "git@github.com:owner/personal-stack.git")
+        val s = session(ws.id)
+        every { sessions.findById(s.id) } returns s
+        every { workspaces.findById(ws.id) } returns ws
+        every { kbWrite.findDuplicateEvidence(any(), 0.86) } returns
+            KnowledgeWritePort.DuplicateEvidence(
+                id = "01KDUPLICATE",
+                source = "kb:project:personal-stack:Existing lesson",
+                score = 0.91,
+            )
+        every { turns.findBySessionId(s.id, any()) } returns
+            listOf(
+                turn(TurnRole.USER, "how does duplicate capture work?", 1, s.id),
+                turn(TurnRole.AGENT, "Lesson: duplicate answer. ".repeat(40), 2, s.id),
+            )
+
+        capture.capture(s.id)
+
+        verify(exactly = 0) { kbWrite.ingestNote(any<KnowledgeWritePort.CaptureRequest>()) }
+    }
+
+    @Test
+    fun `capture routes weak candidates to inbox for curator review`() {
+        val ws = workspace(repoUrl = "git@github.com:owner/personal-stack.git")
+        val s = session(ws.id)
+        every { sessions.findById(s.id) } returns s
+        every { workspaces.findById(ws.id) } returns ws
+        every { kbWrite.findDuplicateEvidence(any(), any()) } returns null
+        every { turns.findBySessionId(s.id, any()) } returns
+            listOf(
+                turn(TurnRole.USER, "how does low confidence capture work?", 1, s.id),
+                turn(TurnRole.AGENT, "short but still capture-worthy explanation. ".repeat(8), 2, s.id),
+            )
+
+        capture.capture(s.id)
+
+        verify {
+            kbWrite.ingestNote(
+                match {
+                    it.scope == "_inbox" &&
+                        it.body.contains("inferred_scope: project:personal-stack") &&
+                        it.body.contains("capture_scope: _inbox") &&
+                        it.tags.contains("confidence:low")
+                },
+            )
+        }
     }
 
     private fun workspace(repoUrl: String? = null) =

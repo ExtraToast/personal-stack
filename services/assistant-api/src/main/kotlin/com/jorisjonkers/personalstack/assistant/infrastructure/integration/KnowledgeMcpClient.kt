@@ -79,25 +79,39 @@ class KnowledgeMcpClient(
             )
         }
 
-    override fun ingestNote(
-        title: String,
-        body: String,
-        scope: String,
-        tags: List<String>,
-    ) {
+    override fun ingestNote(request: KnowledgeWritePort.CaptureRequest) {
         if (!props.enabled) return
         runCatching {
+            val args =
+                mutableMapOf<String, Any?>(
+                    "title" to request.title,
+                    "body" to request.body,
+                    "scope" to request.scope,
+                    "tags" to request.tags,
+                )
+            request.source?.let { args["source"] = it }
+            request.sessionId?.let { args["session_id"] = it }
+            request.confidence?.let { args["confidence"] = it }
             callTool(
                 CAPTURE_LESSON_TOOL,
-                mapOf(
-                    "title" to title,
-                    "body" to body,
-                    "scope" to scope,
-                    "tags" to tags,
-                ),
+                args,
             )
         }.onFailure { log.warn("knowledge.capture failed: {}", it.message) }
     }
+
+    override fun findDuplicateEvidence(
+        query: String,
+        minScore: Double,
+    ): KnowledgeWritePort.DuplicateEvidence? =
+        retrieve(query, limit = 1)
+            .firstOrNull { it.score >= minScore }
+            ?.let { hit ->
+                KnowledgeWritePort.DuplicateEvidence(
+                    id = hit.id,
+                    source = hit.source,
+                    score = hit.score,
+                )
+            }
 
     private fun callTool(
         name: String,

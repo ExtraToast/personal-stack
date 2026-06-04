@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Component
 import java.time.Duration
+import java.util.Locale
 
 /**
  * Orchestrates the auto-capture pipeline:
@@ -21,9 +22,10 @@ import java.time.Duration
  *
  * `capture(sessionId)` is the public entrypoint and is `@Async` so
  * the WS handler's hot path stays out of the LLM/MCP round trip.
- * The token bucket holds capacity = 3 with a 15-minute refill, so a
- * single session can't flood the KB even if every turn is
- * marker-flagged.
+ * The token bucket defaults to capacity = 3 with a 15-minute refill,
+ * so a single session can't flood the KB even if every turn is
+ * marker-flagged. Dedupe runs before token consumption so skipped
+ * candidates do not burn the write budget.
  */
 @Component
 open class LessonAutoCapture(
@@ -37,8 +39,8 @@ open class LessonAutoCapture(
     private val log = LoggerFactory.getLogger(LessonAutoCapture::class.java)
     private val bucket =
         TokenBucket(
-            capacity = BUCKET_CAPACITY,
-            refillInterval = Duration.ofMinutes(BUCKET_REFILL_MINUTES),
+            capacity = rag.autoCaptureSessionCapacity,
+            refillInterval = Duration.ofMinutes(rag.autoCaptureBucketRefillMinutes),
         )
 
     @Async
@@ -48,12 +50,18 @@ open class LessonAutoCapture(
         val history = turns.findBySessionId(sessionId, limit = TURN_FETCH_LIMIT)
         val candidates = extractor.extract(resolved.workspace, history)
         if (candidates.isEmpty()) return
-        ingestUpToBucket(sessionId, resolved.workspace, candidates)
+        ingestUpToBucket(resolved.session, resolved.workspace, candidates)
     }
 
     private data class Resolved(
         val session: WorkspaceAgentSession,
         val workspace: Workspace,
+    )
+
+    private data class CapturePolicyContext(
+        val sessionId: String,
+        val agentKind: String,
+        val inferredScope: String,
     )
 
     private fun resolveSession(sessionId: WorkspaceAgentSessionId): Resolved? {
@@ -63,25 +71,122 @@ open class LessonAutoCapture(
     }
 
     private fun ingestUpToBucket(
-        sessionId: WorkspaceAgentSessionId,
+        session: WorkspaceAgentSession,
         workspace: Workspace,
         candidates: List<LessonExtractor.Candidate>,
     ) {
-        val key = sessionId.toString()
-        val scope = ScopeInference.scopeFor(workspace)
+        val context =
+            CapturePolicyContext(
+                sessionId = session.id.toString(),
+                agentKind = session.kind.name.lowercase(),
+                inferredScope = ScopeInference.scopeFor(workspace),
+            )
         for (c in candidates) {
-            if (!bucket.tryAcquire(key)) {
-                log.info("auto-capture bucket exhausted for session {}", key)
+            if (isDuplicate(context, c)) continue
+            if (!bucket.tryAcquire(context.sessionId)) {
+                log.info("auto-capture bucket exhausted for session {}", context.sessionId)
                 return
             }
-            runCatching { knowledgeWrite.ingestNote(c.title, c.body, scope, c.tags) }
-                .onFailure { log.warn("auto-capture ingest failed: {}", it.message) }
+            ingestCandidate(context, c)
         }
     }
 
+    private fun isDuplicate(
+        context: CapturePolicyContext,
+        candidate: LessonExtractor.Candidate,
+    ): Boolean {
+        val duplicate =
+            runCatching { knowledgeWrite.findDuplicateEvidence(candidate.dedupeQuery, rag.autoCaptureDedupeScore) }
+                .onFailure { log.warn("auto-capture dedupe failed: {}", it.message) }
+                .getOrNull()
+        if (duplicate == null) return false
+        log.info(
+            "auto-capture skipped duplicate for session {} source={} score={}",
+            context.sessionId,
+            duplicate.source,
+            duplicate.score,
+        )
+        return true
+    }
+
+    private fun ingestCandidate(
+        context: CapturePolicyContext,
+        candidate: LessonExtractor.Candidate,
+    ) {
+        val request = captureRequest(context, candidate)
+        runCatching { knowledgeWrite.ingestNote(request) }
+            .onFailure { log.warn("auto-capture ingest failed: {}", it.message) }
+    }
+
+    private fun captureRequest(
+        context: CapturePolicyContext,
+        candidate: LessonExtractor.Candidate,
+    ): KnowledgeWritePort.CaptureRequest {
+        val scope = captureScope(context, candidate)
+        return KnowledgeWritePort.CaptureRequest(
+            title = candidate.title,
+            body = captureBody(context, candidate, scope),
+            scope = scope,
+            tags = captureTags(context, candidate),
+            source = "assistant-ui:auto-capture:${context.sessionId}",
+            sessionId = context.sessionId,
+            confidence = candidate.confidence,
+        )
+    }
+
+    private fun captureScope(
+        context: CapturePolicyContext,
+        candidate: LessonExtractor.Candidate,
+    ): String =
+        if (candidate.confidence >= rag.autoCaptureScopedMinConfidence) {
+            context.inferredScope
+        } else {
+            INBOX_SCOPE
+        }
+
+    private fun captureTags(
+        context: CapturePolicyContext,
+        candidate: LessonExtractor.Candidate,
+    ): List<String> =
+        (
+            candidate.tags +
+                listOf(
+                    "agent:${context.agentKind}",
+                    confidenceTag(candidate.confidence),
+                    "dedupe:checked",
+                ) +
+                candidate.triggerTerms.take(TRIGGER_TAG_LIMIT).map { "trigger:$it" }
+        ).distinct()
+
+    private fun captureBody(
+        context: CapturePolicyContext,
+        candidate: LessonExtractor.Candidate,
+        scope: String,
+    ): String =
+        buildString {
+            append(candidate.body)
+            append("\n\nCapture policy:\n")
+            append("- source: assistant-ui:auto-capture:${context.sessionId}\n")
+            append("- session_id: ${context.sessionId}\n")
+            append("- agent_kind: ${context.agentKind}\n")
+            append("- inferred_scope: ${context.inferredScope}\n")
+            append("- capture_scope: $scope\n")
+            append("- confidence: ${String.format(Locale.ROOT, "%.2f", candidate.confidence)}\n")
+            append("- dedupe: checked recall threshold ${rag.autoCaptureDedupeScore}; no duplicate hit\n")
+        }
+
+    private fun confidenceTag(confidence: Double): String =
+        when {
+            confidence >= HIGH_CONFIDENCE -> "confidence:high"
+            confidence >= MEDIUM_CONFIDENCE -> "confidence:medium"
+            else -> "confidence:low"
+        }
+
     companion object {
-        private const val BUCKET_CAPACITY = 3
-        private const val BUCKET_REFILL_MINUTES = 15L
         private const val TURN_FETCH_LIMIT = 50
+        private const val INBOX_SCOPE = "_inbox"
+        private const val HIGH_CONFIDENCE = 0.75
+        private const val MEDIUM_CONFIDENCE = 0.55
+        private const val TRIGGER_TAG_LIMIT = 6
     }
 }
