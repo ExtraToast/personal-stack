@@ -1,11 +1,11 @@
 interface:
-  display_name: "Agent Session Bootstrap"
-  short_description: "Bootstrap durable agent context"
-  default_prompt: "Use $agent-session-bootstrap to set up agent hooks, skills, and durable instructions."
+  display_name: 'Agent Session Bootstrap'
+  short_description: 'Bootstrap durable agent context'
+  default_prompt: 'Use $agent-session-bootstrap to set up agent hooks, skills, and durable instructions.'
 dependencies:
   tools:
-    - type: "mcp"
-      value: "knowledge"
-      description: "Knowledge-base MCP server"
-      transport: "streamable_http"
-      url: "http://knowledge-api.knowledge-system.svc.cluster.local:8080/mcp"
+    - type: 'mcp'
+      value: 'knowledge'
+      description: 'Knowledge-base MCP server'
+      transport: 'streamable_http'
+      url: 'http://knowledge-api.knowledge-system.svc.cluster.local:8080/mcp'
