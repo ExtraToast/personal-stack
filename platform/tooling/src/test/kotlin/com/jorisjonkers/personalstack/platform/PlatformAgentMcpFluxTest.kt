@@ -254,6 +254,29 @@ class PlatformAgentMcpFluxTest {
     }
 
     @Test
+    fun `agent runner mcp profile names stay synchronized across api runner and configmap`() {
+        val agentRuntimePropertiesPath =
+            "services/assistant-api/src/main/kotlin/com/jorisjonkers/personalstack/assistant/" +
+                "config/AgentRuntimeProperties.kt"
+        val mcpConfigMapPath = "platform/cluster/flux/apps/agents/mcp/agents-mcp-servers-configmap.yaml"
+        val agentRuntimeProperties = repositoryRoot.resolve(agentRuntimePropertiesPath).toFile().readText()
+        val entrypoint = repositoryRoot.resolve("services/agent-runner/entrypoint.sh").toFile().readText()
+        val mcpConfigMap = repositoryRoot.resolve(mcpConfigMapPath).toFile().readText()
+
+        val assistantProfiles = assistantValidatedProfiles(agentRuntimeProperties)
+
+        assertThat(runnerAcceptedProfiles(entrypoint))
+            .describedAs("services/agent-runner/entrypoint.sh AGENT_MCP_PROFILE allow-list")
+            .containsExactlyElementsOf(assistantProfiles)
+        assertThat(configMapProfiles(mcpConfigMap, prefix = "claude-mcp-servers", extension = "json"))
+            .describedAs("Claude MCP profile ConfigMap keys")
+            .containsExactlyElementsOf(assistantProfiles)
+        assertThat(configMapProfiles(mcpConfigMap, prefix = "codex-mcp-servers", extension = "toml"))
+            .describedAs("Codex MCP profile ConfigMap keys")
+            .containsExactlyElementsOf(assistantProfiles)
+    }
+
+    @Test
     fun `kb installer cronjob refreshes claude and codex homes`() {
         val cronjob =
             repositoryRoot
@@ -300,6 +323,42 @@ class PlatformAgentMcpFluxTest {
         forbidden.forEach { assertThat(block).doesNotContain(it) }
         assertThat(Regex("\\[mcp_servers\\.").findAll(block).count()).isLessThanOrEqualTo(maxServers)
     }
+
+    private fun assistantValidatedProfiles(source: String): Set<String> {
+        val block =
+            Regex("""VALID_MCP_PROFILES:\s*Set<String>\s*=\s*setOf\((.*?)\)""", RegexOption.DOT_MATCHES_ALL)
+                .find(source)
+                ?.groupValues
+                ?.get(1)
+                ?: error("AgentRuntimeProperties.VALID_MCP_PROFILES setOf(...) block not found")
+        return quotedValues(block)
+    }
+
+    private fun runnerAcceptedProfiles(entrypoint: String): Set<String> {
+        val profiles =
+            Regex("""case "\${'$'}AGENT_MCP_PROFILE" in\s+([-A-Za-z0-9_.|]+)\) ;;""")
+                .find(entrypoint)
+                ?.groupValues
+                ?.get(1)
+                ?: error("entrypoint AGENT_MCP_PROFILE case allow-list not found")
+        return profiles.split("|").toCollection(linkedSetOf())
+    }
+
+    private fun configMapProfiles(
+        manifest: String,
+        prefix: String,
+        extension: String,
+    ): Set<String> =
+        Regex("""(?m)^  $prefix\.([-A-Za-z0-9_.]+)\.$extension: \|$""")
+            .findAll(manifest)
+            .map { it.groupValues[1] }
+            .toCollection(linkedSetOf())
+
+    private fun quotedValues(block: String): Set<String> =
+        Regex(""""([^"]+)"""")
+            .findAll(block)
+            .map { it.groupValues[1] }
+            .toCollection(linkedSetOf())
 
     private fun configMapBlock(
         manifest: String,
