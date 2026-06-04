@@ -250,9 +250,13 @@ class AgentKitManifestTest {
     @Test
     fun `renderer templates are declared in the manifest`() {
         val templatePaths = rendererTemplatePaths()
-        val managedPaths = rendererManagedPaths()
+        val managedPathList = rendererManagedPathList()
+        val managedPaths = managedPathList.toSet()
         val pinnedPaths = collectPinnedPaths(manifest).map { it.path }.toSet()
 
+        assertThat(managedPathList)
+            .describedAs("renderer managed paths must not contain duplicates")
+            .doesNotHaveDuplicates()
         assertThat(templatePaths)
             .describedAs("renderer templates must match manifest managed paths exactly")
             .containsExactlyInAnyOrderElementsOf(managedPaths)
@@ -410,12 +414,14 @@ class AgentKitManifestTest {
             .map { it.groupValues[1] }
             .toList()
 
-    private fun rendererManagedPaths(): Set<String> =
+    private fun rendererManagedPathList(): List<String> =
         manifest["renderer"]["managed_paths"]
             .elements()
             .asSequence()
             .map { it.asText() }
-            .toSet()
+            .toList()
+
+    private fun rendererManagedPaths(): Set<String> = rendererManagedPathList().toSet()
 
     private fun rendererTemplatePaths(): Set<String> {
         val templateRoot = repositoryRoot.resolve(manifest["renderer"]["template_root"].asText())
