@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
@@ -17,6 +18,9 @@ class AgentKitManifestTest {
     private val repositoryRoot = RepositoryRootLocator().locate()
     private val manifestPath = repositoryRoot.resolve("platform/agents/kit/manifest.yaml")
     private val manifest = ObjectMapper(YAMLFactory()).readTree(manifestPath.toFile())
+
+    @TempDir
+    lateinit var tempDir: Path
 
     @Test
     fun `manifest pins every checked-in skill hook setting and installer file`() {
@@ -189,28 +193,65 @@ class AgentKitManifestTest {
             .isGreaterThanOrEqualTo(2)
     }
 
+    @Test
+    fun `renderer templates are declared in the manifest`() {
+        val templateRoot = repositoryRoot.resolve(manifest["renderer"]["template_root"].asText())
+        val templatePaths = filesUnder(templateRoot).map { relativePath(templateRoot, it) }.toSet()
+        val managedPaths = rendererManagedPaths()
+        val pinnedPaths = collectPinnedPaths(manifest).map { it.path }.toSet()
+
+        assertThat(templatePaths)
+            .describedAs("renderer templates must match manifest managed paths exactly")
+            .containsExactlyInAnyOrderElementsOf(managedPaths)
+        assertThat(pinnedPaths)
+            .describedAs("renderer-managed live files must still be pinned by manifest sha256")
+            .containsAll(managedPaths)
+    }
+
+    @Test
+    fun `renderer check passes and can render templates to a temp directory`() {
+        val renderer = repositoryRoot.resolve(manifest["renderer"]["script_path"].asText())
+        assertThat(Files.isExecutable(renderer))
+            .describedAs("agent-kit renderer should be directly executable")
+            .isTrue()
+
+        val checkResult = runProcess(renderer.toAbsolutePath().toString(), "--check")
+        assertThat(checkResult.exitCode)
+            .describedAs(checkResult.stderr)
+            .isEqualTo(0)
+        assertThat(checkResult.stdout).contains("agent kit render check passed")
+
+        val outputDir = tempDir.resolve("agent-kit-render")
+        val renderResult =
+            runProcess(
+                renderer.toAbsolutePath().toString(),
+                "--output",
+                outputDir.toAbsolutePath().toString(),
+            )
+        assertThat(renderResult.exitCode)
+            .describedAs(renderResult.stderr)
+            .isEqualTo(0)
+
+        rendererManagedPaths().forEach { path ->
+            assertThat(Files.readAllBytes(outputDir.resolve(path)))
+                .describedAs("rendered output for $path")
+                .isEqualTo(Files.readAllBytes(repositoryRoot.resolve(path)))
+        }
+    }
+
     private fun repoSkillPaths(): Set<String> =
         listOf(".agents/skills", ".claude/skills")
             .flatMap { base ->
-                Files.walk(repositoryRoot.resolve(base)).use { paths ->
-                    paths
-                        .asSequence()
-                        .filter { it.name == "SKILL.md" }
-                        .map { relativePath(it) }
-                        .toList()
-                }
+                filesUnder(repositoryRoot.resolve(base))
+                    .filter { it.name == "SKILL.md" }
+                    .map { relativePath(repositoryRoot, it) }
             }.toSet()
 
     private fun repoHookPaths(): Set<String> =
         listOf(".claude/hooks", ".codex/hooks")
             .flatMap { base ->
-                Files.walk(repositoryRoot.resolve(base)).use { paths ->
-                    paths
-                        .asSequence()
-                        .filter { Files.isRegularFile(it) }
-                        .map { relativePath(it) }
-                        .toList()
-                }
+                filesUnder(repositoryRoot.resolve(base))
+                    .map { relativePath(repositoryRoot, it) }
             }.toSet()
 
     private fun skillNamesUnder(base: String): Set<String> =
@@ -295,7 +336,36 @@ class AgentKitManifestTest {
             .map { it.groupValues[1] }
             .toList()
 
-    private fun relativePath(path: Path): String = repositoryRoot.relativize(path).toString().replace('\\', '/')
+    private fun rendererManagedPaths(): Set<String> =
+        manifest["renderer"]["managed_paths"]
+            .elements()
+            .asSequence()
+            .map { it.asText() }
+            .toSet()
+
+    private fun filesUnder(root: Path): List<Path> =
+        Files.walk(root).use { paths ->
+            paths
+                .asSequence()
+                .filter { Files.isRegularFile(it) }
+                .toList()
+        }
+
+    private fun runProcess(vararg command: String): AgentKitProcessResult {
+        val process =
+            ProcessBuilder(command.toList())
+                .directory(repositoryRoot.toFile())
+                .start()
+        val stdout = process.inputStream.readAllBytes().decodeToString()
+        val stderr = process.errorStream.readAllBytes().decodeToString()
+        return AgentKitProcessResult(
+            exitCode = process.waitFor(),
+            stdout = stdout,
+            stderr = stderr,
+        )
+    }
+
+    private fun relativePath(root: Path, path: Path): String = root.relativize(path).toString().replace('\\', '/')
 
     private fun sha256(path: Path): String {
         val digest = MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(path))
@@ -305,5 +375,11 @@ class AgentKitManifestTest {
     private data class PinnedPath(
         val path: String,
         val sha256: String,
+    )
+
+    private data class AgentKitProcessResult(
+        val exitCode: Int,
+        val stdout: String,
+        val stderr: String,
     )
 }
