@@ -50,8 +50,18 @@ if isinstance(messages, list) and messages:
 project="$(git remote get-url origin 2>/dev/null | sed -e 's#\.git$##' -e 's#.*[/:]##')"
 [ -n "${project}" ] || project="$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")"
 scope="${KB_RECALL_SCOPE:-project:${project}}"
-mode="${KB_RECALL_HOOK_MODE:-hybrid}"
+
+# Adaptive mode: short prompts rarely need semantic search.
+prompt_len="${#prompt}"
+if [ -n "${KB_RECALL_HOOK_MODE:-}" ]; then
+  mode="${KB_RECALL_HOOK_MODE}"
+elif [ "${prompt_len}" -lt 80 ]; then
+  mode="fast"
+else
+  mode="hybrid"
+fi
 limit="${KB_RECALL_HOOK_LIMIT:-3}"
+min_score="${KB_RECALL_MIN_SCORE:-0.004}"
 
 recall_payload() {
   python3 -c 'import json,sys
@@ -84,6 +94,8 @@ try:
     hits = data["result"]["structuredContent"]["hits"]
 except Exception:
     sys.exit(0)
+min_score = float("'"${min_score}"'")
+hits = [h for h in hits if float(h.get("score", 0) or 0) >= min_score]
 if not hits:
     sys.exit(0)
 print("## Knowledge base context")
@@ -96,5 +108,5 @@ for h in hits[:3]:
     print(f"- **{title}** (`{scope}`, score {score:.2f}) - id `{note_id}`")
     snip = (h.get("snippet") or "").replace("\n", " ").strip()
     if snip:
-        print(f"  > {snip[:220]}")
+        print(f"  > {snip[:160]}")
 ' 2>/dev/null || true

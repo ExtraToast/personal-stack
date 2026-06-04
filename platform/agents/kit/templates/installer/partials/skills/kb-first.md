@@ -13,13 +13,16 @@ Use the KB as a small retrieval layer, not as a large context dump.
    `scope=project:personal-stack` for repo behavior, `topic:<slug>`
    for general framework/tool facts, or omit scope for the curated
    default.
-3. Use `mode=hybrid` for normal work. Use `mode=fast` for trivial
-   lookup or when latency matters more than semantic matching. Use
-   `mode=deep` only when fast or hybrid misses something important.
+3. Choose the right mode:
+   - `fast` — short/trivial lookups or latency-sensitive (< 80 chars).
+   - `hybrid` — normal work; FTS + vector + RRF.
+   - `deep` — only after fast or hybrid misses something important.
 4. Read only what is needed. Usually snippets are enough. If a hit
    matters, call `knowledge.relations(id, depth=1)` before fetching
    the full note.
-5. If the KB has no useful context, continue from repo/source
+5. Filter mentally: hits with scores below 0.01 are rarely useful —
+   treat as no match and continue from repo/source inspection.
+6. If the KB has no useful context, continue from repo/source
    inspection and say the KB had no relevant hits.
 
 Capture at the end only when the information is durable and reusable:

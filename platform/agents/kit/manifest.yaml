@@ -91,10 +91,10 @@ skills:
     targets:
       - agent: codex
         path: .agents/skills/kb-first/SKILL.md
-        sha256: 4972c5289cdc248180a4f24b261db5a2ffd7549d87dfab8fcc5ab1507e6be068
+        sha256: efc4ecbd85e9d516f7b6718842c055efcb8406a8911b10c4f4cdd168370f814b
       - agent: claude
         path: .claude/skills/kb-first/SKILL.md
-        sha256: 8a40c12e0d075f2b9f8bc6c7b2e50055cd71d856fba81a30420f88b2a2d78f52
+        sha256: 99f677b9e491be60b35dc72d6abbf87a064ce1f6db83b492af990a467f63881c
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
       target_path: "${CLAUDE_HOME}/skills/kb-first/SKILL.md"
@@ -122,10 +122,10 @@ skills:
     targets:
       - agent: codex
         path: .agents/skills/token-economy/SKILL.md
-        sha256: cf68779f5a33c665fdbf07a7e014ee777eeb04be1012e9747660a4c2ab05f497
+        sha256: d6c34f128273a05dedabbccb12efe3b268a71aec3d2dca2af11b8f47cda69ac2
       - agent: claude
         path: .claude/skills/token-economy/SKILL.md
-        sha256: 0ed2e73feed207b77c59e2f5a8952a084cc9a1b23392fad42c983413753eaf50
+        sha256: 6823d195dbfb99e2bab3bdeed760445d1d0db78600a46405ae605c12fca4467e
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
       target_path: "${CLAUDE_HOME}/skills/token-economy/SKILL.md"
@@ -153,11 +153,11 @@ hooks:
       - agent: claude
         path: .claude/hooks/kb-user-prompt-recall.sh
         settings_path: .claude/settings.json
-        sha256: c95834c6bfe12c724306a555741746f496b1d6adbfc2b336342eb8546866aa43
+        sha256: 241d436a91e1577f7b71d5e5fa0223c63af354056a67df4fb0d9ab6d2ae25be6
       - agent: codex
         path: .codex/hooks/kb-user-prompt-recall.sh
         settings_path: .codex/hooks.json
-        sha256: cf8230fefc6a43bb525bc39d187de4f93603d3e8c5221e1677c50a8a7f6ea002
+        sha256: 50d4579b3e774675326cc76113afebcfe5251c46ea11059cf0a567557e1a6911
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
       target_path: "${CLAUDE_HOME}/hooks/user-prompt-submit-recall.sh"
@@ -171,11 +171,11 @@ hooks:
       - agent: claude
         path: .claude/hooks/kb-stop-digest.sh
         settings_path: .claude/settings.json
-        sha256: 35b74df64c35231bee119b840fa79764c4de3cc8084d46fbc5dfd2defda8634d
+        sha256: e080941bb1074fc0f38b33ba2b627566a81e8303a534f1254f4455d0d1022b5e
       - agent: codex
         path: .codex/hooks/kb-stop-digest.sh
         settings_path: .codex/hooks.json
-        sha256: 6f0f0c06a28e95ef7f5769e130efe34ce08e767fdaf97279e690904f28723927
+        sha256: 193522faf697ca08bc18b0b00d670195efe54d88be4dfca95324dce6910b6e01
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
       target_path: "${CLAUDE_HOME}/hooks/stop-session-digest.sh"
@@ -229,5 +229,5 @@ settings:
 
 installer:
   path: services/knowledge-api/src/main/resources/installer/install.sh
-  sha256: 7de7c3b2e6d469495a55ff36c989ed88c80b6efb05a774c94d02cb5e97bb49fa
+  sha256: e966dc1e6b9924ce27b7c9dd6901cae05420bf7237c0136020d10a2db6c2a4fb
   supported_agents: [codex, claude]
