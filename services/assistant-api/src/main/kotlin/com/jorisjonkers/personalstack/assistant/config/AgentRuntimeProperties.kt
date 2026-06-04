@@ -32,6 +32,9 @@ data class AgentRuntimeProperties(
     // the entrypoint seeds into Claude Code's mcpServers. Optional mount,
     // so an absent ConfigMap just means no managed MCP servers.
     val mcpServersConfigMap: String = "agents-mcp-servers",
+    // MCP server profile selected by the runner entrypoint. Keep the
+    // default narrow; wider diagnostic profiles are explicit opt-ins.
+    val defaultMcpProfile: String = "minimal",
     val nodeSelector: Map<String, String> = mapOf("personal-stack/node" to "enschede-gtx-960m-1"),
     val gatewayConnectTimeoutMs: Long = 5_000,
     val gatewayReadTimeoutMs: Long = 60_000,

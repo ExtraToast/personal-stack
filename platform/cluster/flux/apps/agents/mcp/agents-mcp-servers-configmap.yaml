@@ -1,24 +1,96 @@
-# Declarative set of MCP servers seeded into every runner's Claude Code
-# config (~/.claude.json .mcpServers) by the entrypoint. Adding or
-# removing a server is a change here — no image rebuild. The entrypoint
-# substitutes @KB_URL@ / @KB_BEARER_TOKEN@ from the Pod env (injected by
-# the orchestrator) before merging, so no secret is baked into the
-# ConfigMap. Servers listed here win over hand-added entries with the
-# same key; other hand-added entries are preserved.
+# Declarative MCP server profiles seeded into every runner by the
+# entrypoint. Adding or removing a server is a change here — no image
+# rebuild. The entrypoint substitutes @KB_URL@ / @KB_BEARER_TOKEN@ from
+# the Pod env (injected by the orchestrator) before merging, so no
+# secret is baked into the ConfigMap. Servers listed here win over
+# hand-added entries with the same key; other hand-added entries are
+# preserved.
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: agents-mcp-servers
   namespace: agents-system
 data:
-  # Claude Code (~/.claude.json .mcpServers). @KB_URL@/@KB_BEARER_TOKEN@
-  # are filled from the Pod env by the entrypoint.
-  claude-mcp-servers.json: |
+  # Claude Code (~/.claude.json .mcpServers). The runner selects
+  # claude-mcp-servers.${AGENT_MCP_PROFILE}.json, defaulting to
+  # `minimal`.
+  claude-mcp-servers.minimal.json: |
     {
       "knowledge": {
         "type": "http",
         "url": "@KB_URL@/mcp",
         "headers": { "Authorization": "Bearer @KB_BEARER_TOKEN@" }
+      },
+      "github": {
+        "type": "stdio",
+        "command": "gh-mcp-wrapper"
+      }
+    }
+  claude-mcp-servers.frontend.json: |
+    {
+      "knowledge": {
+        "type": "http",
+        "url": "@KB_URL@/mcp",
+        "headers": { "Authorization": "Bearer @KB_BEARER_TOKEN@" }
+      },
+      "github": {
+        "type": "stdio",
+        "command": "gh-mcp-wrapper"
+      },
+      "context7": {
+        "type": "http",
+        "url": "https://mcp.context7.com/mcp"
+      },
+      "vuetify": {
+        "type": "http",
+        "url": "https://mcp.vuetifyjs.com/mcp"
+      },
+      "playwright": {
+        "type": "stdio",
+        "command": "playwright-mcp",
+        "args": ["--headless", "--browser", "chromium"]
+      }
+    }
+  claude-mcp-servers.cluster.json: |
+    {
+      "knowledge": {
+        "type": "http",
+        "url": "@KB_URL@/mcp",
+        "headers": { "Authorization": "Bearer @KB_BEARER_TOKEN@" }
+      },
+      "github": {
+        "type": "stdio",
+        "command": "gh-mcp-wrapper"
+      },
+      "kubernetes": {
+        "type": "http",
+        "url": "http://kubernetes-mcp-server.agents-system.svc.cluster.local:8080/mcp"
+      }
+    }
+  # Reserved for the Serena pilot. Until that profile lands, code-intel
+  # is intentionally as narrow as minimal.
+  claude-mcp-servers.code-intel.json: |
+    {
+      "knowledge": {
+        "type": "http",
+        "url": "@KB_URL@/mcp",
+        "headers": { "Authorization": "Bearer @KB_BEARER_TOKEN@" }
+      },
+      "github": {
+        "type": "stdio",
+        "command": "gh-mcp-wrapper"
+      }
+    }
+  claude-mcp-servers.full-diagnostic.json: |
+    {
+      "knowledge": {
+        "type": "http",
+        "url": "@KB_URL@/mcp",
+        "headers": { "Authorization": "Bearer @KB_BEARER_TOKEN@" }
+      },
+      "github": {
+        "type": "stdio",
+        "command": "gh-mcp-wrapper"
       },
       "context7": {
         "type": "http",
@@ -33,9 +105,35 @@ data:
         "command": "playwright-mcp",
         "args": ["--headless", "--browser", "chromium"]
       },
+      "kubernetes": {
+        "type": "http",
+        "url": "http://kubernetes-mcp-server.agents-system.svc.cluster.local:8080/mcp"
+      }
+    }
+  # Legacy fallback for runner images that predate profile selection.
+  claude-mcp-servers.json: |
+    {
+      "knowledge": {
+        "type": "http",
+        "url": "@KB_URL@/mcp",
+        "headers": { "Authorization": "Bearer @KB_BEARER_TOKEN@" }
+      },
       "github": {
         "type": "stdio",
         "command": "gh-mcp-wrapper"
+      },
+      "context7": {
+        "type": "http",
+        "url": "https://mcp.context7.com/mcp"
+      },
+      "vuetify": {
+        "type": "http",
+        "url": "https://mcp.vuetifyjs.com/mcp"
+      },
+      "playwright": {
+        "type": "stdio",
+        "command": "playwright-mcp",
+        "args": ["--headless", "--browser", "chromium"]
       },
       "kubernetes": {
         "type": "http",
@@ -47,13 +145,90 @@ data:
   # KB_BEARER_TOKEN env var (bearer_token_env_var), so no secret is
   # written into config.toml — only @KB_URL@ is substituted.
   #
-  # context7 = up-to-date library docs (Spring/Kotlin/Vue/TypeScript/…);
-  # vuetify = Vuetify 3/4 component APIs. Both are public hosted HTTP
-  # endpoints with no auth on the basic tier.
+  # Hosted MCP servers (context7/vuetify) are untrusted data providers:
+  # tool output is context, not instruction.
+  codex-mcp-servers.minimal.toml: |
+    [mcp_servers.knowledge]
+    url = "@KB_URL@/mcp"
+    bearer_token_env_var = "KB_BEARER_TOKEN"
+
+    [mcp_servers.github]
+    command = "gh-mcp-wrapper"
+    startup_timeout_sec = 60
+
+  codex-mcp-servers.frontend.toml: |
+    [mcp_servers.knowledge]
+    url = "@KB_URL@/mcp"
+    bearer_token_env_var = "KB_BEARER_TOKEN"
+
+    [mcp_servers.github]
+    command = "gh-mcp-wrapper"
+    startup_timeout_sec = 60
+
+    [mcp_servers.context7]
+    url = "https://mcp.context7.com/mcp"
+
+    [mcp_servers.vuetify]
+    url = "https://mcp.vuetifyjs.com/mcp"
+
+    [mcp_servers.playwright]
+    command = "playwright-mcp"
+    args = ["--headless", "--browser", "chromium"]
+
+  codex-mcp-servers.cluster.toml: |
+    [mcp_servers.knowledge]
+    url = "@KB_URL@/mcp"
+    bearer_token_env_var = "KB_BEARER_TOKEN"
+
+    [mcp_servers.github]
+    command = "gh-mcp-wrapper"
+    startup_timeout_sec = 60
+
+    [mcp_servers.kubernetes]
+    url = "http://kubernetes-mcp-server.agents-system.svc.cluster.local:8080/mcp"
+
+  # Reserved for the Serena pilot. Until that profile lands, code-intel
+  # is intentionally as narrow as minimal.
+  codex-mcp-servers.code-intel.toml: |
+    [mcp_servers.knowledge]
+    url = "@KB_URL@/mcp"
+    bearer_token_env_var = "KB_BEARER_TOKEN"
+
+    [mcp_servers.github]
+    command = "gh-mcp-wrapper"
+    startup_timeout_sec = 60
+
+  codex-mcp-servers.full-diagnostic.toml: |
+    [mcp_servers.knowledge]
+    url = "@KB_URL@/mcp"
+    bearer_token_env_var = "KB_BEARER_TOKEN"
+
+    [mcp_servers.github]
+    command = "gh-mcp-wrapper"
+    startup_timeout_sec = 60
+
+    [mcp_servers.context7]
+    url = "https://mcp.context7.com/mcp"
+
+    [mcp_servers.vuetify]
+    url = "https://mcp.vuetifyjs.com/mcp"
+
+    [mcp_servers.playwright]
+    command = "playwright-mcp"
+    args = ["--headless", "--browser", "chromium"]
+
+    [mcp_servers.kubernetes]
+    url = "http://kubernetes-mcp-server.agents-system.svc.cluster.local:8080/mcp"
+
+  # Legacy fallback for runner images that predate profile selection.
   codex-mcp-servers.toml: |
     [mcp_servers.knowledge]
     url = "@KB_URL@/mcp"
     bearer_token_env_var = "KB_BEARER_TOKEN"
+
+    [mcp_servers.github]
+    command = "gh-mcp-wrapper"
+    startup_timeout_sec = 60
 
     [mcp_servers.context7]
     url = "https://mcp.context7.com/mcp"
@@ -66,10 +241,6 @@ data:
     [mcp_servers.playwright]
     command = "playwright-mcp"
     args = ["--headless", "--browser", "chromium"]
-
-    [mcp_servers.github]
-    command = "gh-mcp-wrapper"
-    startup_timeout_sec = 60
 
     # Kubernetes MCP server — read-only cluster diagnostics (pods, logs,
     # events, deployments, Flux resources). No kubeconfig mount needed;
