@@ -57,7 +57,7 @@ metadata:
     # 0.13.0-0.13.2 (LightRAG #2495 embedding regression).
     keel.sh/policy: never
 spec:
-  replicas: 0
+  replicas: 1
   progressDeadlineSeconds: 1800
   strategy:
     # RWO model PVC; old pod must release before new pod can mount.
@@ -71,16 +71,13 @@ spec:
         app.kubernetes.io/name: ollama
     spec:
       serviceAccountName: ollama
-      # CPU-only (no runtimeClassName / GPU request), but pinned to the
-      # laptop: the `ollama-models` PVC is ReadWriteOnce local-path and
-      # its PV is node-affined to enschede-gtx-960m-1, so the pod can
-      # only ever bind there anyway. Pinning makes that explicit and
-      # keeps the light fallback off the frankfurt VPS and off the
-      # intermittently-powered desktop (enschede-rx7900xtx-1) — the
-      # laptop is the always-on home for the light model, the desktop
-      # hosts the heavy qwen3:32b model behind the ollama-heavy Service.
+      # Pinned to t1000 (always-on Enschede node): the `ollama-models`
+      # PVC is ReadWriteOnce local-path, so the pod must land on the
+      # same node as its PV. Previously on enschede-gtx-960m-1 (laptop),
+      # relocated here to avoid fan noise and dependency on the laptop
+      # being awake.
       nodeSelector:
-        personal-stack/node: enschede-gtx-960m-1
+        personal-stack/node: enschede-t1000-1
       volumes:
         - name: models
           persistentVolumeClaim:
