@@ -62,13 +62,14 @@ data:
     url = "https://mcp.vuetifyjs.com/mcp"
 
     # stdio servers — their command must exist in the runner image
-    # (playwright-mcp + chromium, and gh-mcp-wrapper → github-mcp-server).
+    # (playwright-mcp + chromium, and gh-mcp-wrapper -> github-mcp-server).
     [mcp_servers.playwright]
     command = "playwright-mcp"
     args = ["--headless", "--browser", "chromium"]
 
     [mcp_servers.github]
     command = "gh-mcp-wrapper"
+    startup_timeout_sec = 60
 
     # Kubernetes MCP server — read-only cluster diagnostics (pods, logs,
     # events, deployments, Flux resources). No kubeconfig mount needed;
