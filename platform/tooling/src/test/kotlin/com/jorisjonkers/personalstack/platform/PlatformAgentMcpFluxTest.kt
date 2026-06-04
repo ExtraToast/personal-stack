@@ -108,4 +108,26 @@ class PlatformAgentMcpFluxTest {
             .contains("command = \"gh-mcp-wrapper\"")
             .contains("startup_timeout_sec = 60")
     }
+
+    @Test
+    fun `kb installer cronjob refreshes claude and codex homes`() {
+        val cronjob =
+            repositoryRoot
+                .resolve("platform/cluster/flux/apps/agents/kb-install/cronjob.yaml")
+                .toFile()
+                .readText()
+
+        assertThat(cronjob)
+            .contains("name: CLAUDE_CONFIG_DIR")
+            .contains("value: /home/agent/.claude")
+            .contains("name: CODEX_HOME")
+            .contains("value: /home/agent/.codex")
+            .contains("| bash -s -- --agent all")
+            .contains("name: claude-credentials")
+            .contains("mountPath: /home/agent/.claude")
+            .contains("claimName: claude-credentials")
+            .contains("name: codex-credentials")
+            .contains("mountPath: /home/agent/.codex")
+            .contains("claimName: codex-credentials")
+    }
 }

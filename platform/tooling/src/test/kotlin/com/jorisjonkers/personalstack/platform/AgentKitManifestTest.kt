@@ -78,7 +78,7 @@ class AgentKitManifestTest {
                 .readText()
 
         val installedSkillNames =
-            Regex("""\$\{SKILLS_DIR}/([^/]+)/SKILL\.md""")
+            Regex("""\$\{(?:CODEX_)?SKILLS_DIR}/([^/]+)/SKILL\.md""")
                 .findAll(installer)
                 .map { it.groupValues[1] }
                 .toSet()
@@ -93,13 +93,17 @@ class AgentKitManifestTest {
             .containsExactlyInAnyOrderElementsOf(installedSkillNames)
 
         val installedHookNames =
-            Regex("""\$\{HOOKS_DIR}/([^"]+\.sh)""")
+            Regex("""\$\{(?:CODEX_)?HOOKS_DIR}/([^"]+\.sh)""")
                 .findAll(installer)
                 .map { it.groupValues[1] }
                 .toSet()
         val manifestInstallerHookNames =
             manifestItems("hooks")
-                .mapNotNull { it["installer"]?.get("target_path")?.asText() }
+                .flatMap { hook ->
+                    val installer = hook["installer"] ?: return@flatMap emptySequence<String>()
+                    sequenceOf("target_path", "codex_target_path")
+                        .mapNotNull { field -> installer[field]?.asText() }
+                }
                 .map { it.substringAfterLast("/") }
                 .toSet()
 

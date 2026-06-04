@@ -80,11 +80,9 @@ canonical `knowledge.*` MCP tool names. The guard lives in
 Current intentional gaps are recorded in the manifest:
 
 - the knowledge-api installer writes Claude-only `PreToolUse` hooks
-  for edit recall and git-commit capture;
-- the installer writes Claude-only `topics` and `audit` skills;
-- the installer itself is still Claude-only.
+  for edit recall and git-commit capture.
 
 Those entries must keep an explicit unsupported reason until a later
-PR renders Claude and Codex installer output from the same kit. A new
-repo hook, skill, or installer-managed surface is incomplete unless it
-is listed in the manifest and passes the platform tooling test.
+PR adds the closest Codex or gateway equivalent. A new repo hook,
+skill, or installer-managed surface is incomplete unless it is listed
+in the manifest and passes the platform tooling test.

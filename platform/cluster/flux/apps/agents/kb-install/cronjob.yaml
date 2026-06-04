@@ -1,9 +1,9 @@
-# One-shot installer for the knowledge-system Claude Code hooks +
-# skills. `knowledge-api` serves a curl-pipe-bash installer at
+# One-shot installer for the knowledge-system Claude Code and Codex
+# hooks + skills. `knowledge-api` serves a curl-pipe-bash installer at
 # /install.sh (see `services/knowledge-api/.../InstallerController`);
 # the script writes hook scripts + skill descriptors into
-# `$CLAUDE_HOME` so every Claude Code invocation auto-calls the MCP
-# recall + capture tools.
+# `$CLAUDE_HOME` and `$CODEX_HOME` so both CLIs auto-call the MCP
+# recall + capture tools where their hook model supports it.
 #
 # Why a CronJob: the script is idempotent (re-running picks up new
 # versions). Running it weekly keeps the install fresh without an
@@ -12,9 +12,9 @@
 #     kubectl -n agents-system create job \
 #       --from=cronjob/agents-kb-install kb-install-now
 #
-# A single Job suffices to populate the shared `claude-credentials`
-# PVC — every runner Pod that mounts the PVC inherits the hooks.
-# Concurrency is therefore safe but pointless.
+# A single Job suffices to populate the shared credentials PVCs —
+# every runner Pod that mounts them inherits the hooks. Concurrency is
+# therefore safe but pointless.
 #
 # In-cluster URL: hits `knowledge-api.knowledge-system.svc.cluster
 # .local:8080/install.sh` directly so the install doesn't depend
@@ -54,6 +54,8 @@ spec:
                   value: /home/agent
                 - name: CLAUDE_CONFIG_DIR
                   value: /home/agent/.claude
+                - name: CODEX_HOME
+                  value: /home/agent/.codex
                 - name: KB_BEARER_TOKEN
                   valueFrom:
                     secretKeyRef:
@@ -72,12 +74,18 @@ spec:
                   curl -fsSL \
                     -H "Authorization: Bearer ${KB_BEARER_TOKEN}" \
                     http://knowledge-api.knowledge-system.svc.cluster.local:8080/install.sh \
-                    | bash
+                    | bash -s -- --agent all
                   echo "[kb-install] done"
-                  ls -la "${CLAUDE_CONFIG_DIR}/hooks" "${CLAUDE_CONFIG_DIR}/skills" 2>/dev/null || true
+                  ls -la \
+                    "${CLAUDE_CONFIG_DIR}/hooks" \
+                    "${CLAUDE_CONFIG_DIR}/skills" \
+                    "${CODEX_HOME}/hooks" \
+                    "${CODEX_HOME}/skills" 2>/dev/null || true
               volumeMounts:
                 - name: claude-credentials
                   mountPath: /home/agent/.claude
+                - name: codex-credentials
+                  mountPath: /home/agent/.codex
               resources:
                 requests:
                   cpu: 50m
@@ -89,3 +97,6 @@ spec:
             - name: claude-credentials
               persistentVolumeClaim:
                 claimName: claude-credentials
+            - name: codex-credentials
+              persistentVolumeClaim:
+                claimName: codex-credentials
