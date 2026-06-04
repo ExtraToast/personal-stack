@@ -166,6 +166,29 @@ class AgentKitManifestTest {
         }
     }
 
+    @Test
+    fun `recall injection hooks fall back to fast mode`() {
+        listOf(
+            ".claude/hooks/kb-user-prompt-recall.sh",
+            ".codex/hooks/kb-user-prompt-recall.sh",
+        ).forEach { path ->
+            val script = repositoryRoot.resolve(path).toFile().readText()
+            assertThat(script)
+                .describedAs("$path should retry prompt recall in fast mode")
+                .contains("""[ "${'$'}{mode}" != "fast" ]""")
+                .contains("""call_recall "${'$'}{prompt}" "${'$'}{limit}" fast""")
+        }
+
+        val installer = manifest["installer"]["path"].asText()
+        val installerScript = repositoryRoot.resolve(installer).toFile().readText()
+        assertThat(
+            Regex("""call_recall "\$\{(?:prompt|query)}" "\$\{limit}" fast""")
+                .findAll(installerScript)
+                .count(),
+        ).describedAs("installer should generate fast fallback for prompt and edit recall")
+            .isGreaterThanOrEqualTo(2)
+    }
+
     private fun repoSkillPaths(): Set<String> =
         listOf(".agents/skills", ".claude/skills")
             .flatMap { base ->

@@ -53,18 +53,29 @@ scope="${KB_RECALL_SCOPE:-project:${project}}"
 mode="${KB_RECALL_HOOK_MODE:-hybrid}"
 limit="${KB_RECALL_HOOK_LIMIT:-3}"
 
-payload="$(python3 -c 'import json,sys
+recall_payload() {
+  python3 -c 'import json,sys
 args = {"query": sys.argv[1], "limit": int(sys.argv[2]), "mode": sys.argv[3]}
 if sys.argv[4]:
     args["scope"] = sys.argv[4]
 print(json.dumps({"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"knowledge.recall","arguments":args}}))' \
-  "${prompt}" "${limit}" "${mode}" "${scope}")"
+    "$1" "$2" "$3" "$4"
+}
 
-response="$(curl -sS --connect-timeout 3 --max-time 5 \
-  -H "Authorization: Bearer ${KB_BEARER_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d "${payload}" \
-  "${KB_MCP_URL}" 2>/dev/null)" || exit 0
+call_recall() {
+  payload="$(recall_payload "$1" "$2" "$3" "$4")" || return 1
+  curl -sS --connect-timeout 3 --max-time 5 \
+    -H "Authorization: Bearer ${KB_BEARER_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "${payload}" \
+    "${KB_MCP_URL}" 2>/dev/null
+}
+
+response="$(call_recall "${prompt}" "${limit}" "${mode}" "${scope}")" || response=""
+if [ -z "${response}" ] && [ "${mode}" != "fast" ]; then
+  response="$(call_recall "${prompt}" "${limit}" fast "${scope}")" || exit 0
+fi
+[ -n "${response}" ] || exit 0
 
 printf '%s' "${response}" | python3 -c '
 import json, sys

@@ -107,11 +107,11 @@ hooks:
       - agent: claude
         path: .claude/hooks/kb-user-prompt-recall.sh
         settings_path: .claude/settings.json
-        sha256: 384403d869e7bed742c3724919ad78970a1abed7ba397b475a8ed67614b70de3
+        sha256: c95834c6bfe12c724306a555741746f496b1d6adbfc2b336342eb8546866aa43
       - agent: codex
         path: .codex/hooks/kb-user-prompt-recall.sh
         settings_path: .codex/hooks.json
-        sha256: 0186bedbadf5e61e9b6f625693b3f7ced6ed675ffa5d39b6c1ae55a612ad062b
+        sha256: cf8230fefc6a43bb525bc39d187de4f93603d3e8c5221e1677c50a8a7f6ea002
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
       target_path: "${CLAUDE_HOME}/hooks/user-prompt-submit-recall.sh"
@@ -167,5 +167,5 @@ settings:
 
 installer:
   path: services/knowledge-api/src/main/resources/installer/install.sh
-  sha256: f874e8ae2f50a7d1fdd518cc38a79a480c13878dfcc8c71a1ba9075639f34414
+  sha256: fadaebbbf64fc9734dba22104fda3698b0a2df87a1763a6a52252f703ef09aae
   supported_agents: [codex, claude]
