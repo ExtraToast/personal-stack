@@ -51,6 +51,9 @@ agent-gateway:
     # The deploy-key Secret is mounted into the Pod at this path by
     # assistant-api when it creates the runner Pod (Step 3).
     deploy-key-dir: /var/run/secrets/agents/github-deploy-key
+  staged-inputs:
+    dir-name: .agent-inputs
+    max-bytes: 5242880
 
 management:
   endpoints:

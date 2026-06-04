@@ -9,6 +9,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.time.Instant
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
@@ -116,6 +118,33 @@ class AgentSessionManager(
         tmux.sendKeys(session.tmuxSession, input, enter = enter)
     }
 
+    fun stageInput(
+        id: String,
+        content: String,
+        requestedName: String?,
+    ): StagedInput {
+        val session = sessions[id] ?: error("unknown agent: $id")
+        val bytes = content.toByteArray(Charsets.UTF_8)
+        require(bytes.isNotEmpty()) { "staged input content is empty" }
+        require(bytes.size.toLong() <= props.stagedInputs.maxBytes) {
+            "staged input exceeds ${props.stagedInputs.maxBytes} bytes"
+        }
+
+        val root = Path(session.cwd).toAbsolutePath().normalize()
+        val dir = root.resolve(props.stagedInputs.dirName).normalize()
+        require(dir.startsWith(root)) { "staged input directory must stay inside the workspace" }
+
+        Files.createDirectories(dir)
+        val safeName = safeFileName(requestedName)
+        val fileName = "${timestamp()}-${UUID.randomUUID().toString().take(ID_PREVIEW_CHARS)}-$safeName"
+        val target = dir.resolve(fileName).normalize()
+        require(target.startsWith(dir)) { "staged input path must stay inside the staging directory" }
+
+        Files.write(target, bytes, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)
+        log.info("staged {} bytes for agent {} at {}", bytes.size, id, target)
+        return StagedInput(path = target.toString(), bytes = bytes.size.toLong(), name = safeName)
+    }
+
     fun capture(
         id: String,
         historyLines: Int = 1_000,
@@ -190,8 +219,27 @@ class AgentSessionManager(
             AgentKind.SHELL -> listOf("/bin/bash", "-l") to null
         }
 
+    private fun safeFileName(requestedName: String?): String {
+        val raw = requestedName?.trim()?.takeIf { it.isNotBlank() } ?: DEFAULT_STAGED_INPUT_NAME
+        val leaf = raw.replace('\\', '/').substringAfterLast('/')
+        val safe =
+            SAFE_NAME_CHARS
+                .replace(leaf, "-")
+                .trim('.', '-', '_')
+                .take(MAX_STAGED_INPUT_NAME_CHARS)
+        return safe.takeIf { it.isNotBlank() } ?: DEFAULT_STAGED_INPUT_NAME
+    }
+
+    private fun timestamp(): String = STAGED_INPUT_TIMESTAMP.format(Instant.now())
+
     companion object {
         /** Sentinel value for [resumeCliSessionId] that tells the gateway to run `codex resume --last`. */
         const val CODEX_RESUME_LAST = "LATEST"
+        private const val DEFAULT_STAGED_INPUT_NAME = "input.txt"
+        private const val ID_PREVIEW_CHARS = 8
+        private const val MAX_STAGED_INPUT_NAME_CHARS = 80
+        private val SAFE_NAME_CHARS = Regex("[^A-Za-z0-9._-]+")
+        private val STAGED_INPUT_TIMESTAMP =
+            DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS").withZone(ZoneOffset.UTC)
     }
 }

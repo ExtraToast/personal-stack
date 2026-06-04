@@ -60,6 +60,12 @@ export interface Turn {
   createdAt: string
 }
 
+export interface StagedInput {
+  path: string
+  bytes: number
+  name: string
+}
+
 export interface WorkspaceDetail {
   workspace: Workspace
   sessions: AgentSession[]

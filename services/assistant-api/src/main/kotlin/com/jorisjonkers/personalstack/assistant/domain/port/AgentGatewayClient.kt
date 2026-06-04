@@ -30,6 +30,12 @@ interface AgentGatewayClient {
         val detail: String,
     )
 
+    data class StagedInput(
+        val path: String,
+        val bytes: Long,
+        val name: String,
+    )
+
     /**
      * Ask the standing agent-gateway to verify deploy-key access to
      * [repoUrl] on [branch] (HEAD when null). Returns null when no
@@ -59,6 +65,13 @@ interface AgentGatewayClient {
         input: String,
         enter: Boolean = true,
     )
+
+    fun stageInput(
+        workspace: Workspace,
+        gatewayAgentId: String,
+        content: String,
+        name: String?,
+    ): StagedInput
 
     fun capture(
         workspace: Workspace,

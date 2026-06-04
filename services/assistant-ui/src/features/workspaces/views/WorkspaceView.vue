@@ -1,23 +1,35 @@
 <script setup lang="ts">
 import type { AgentKind } from '../types'
+import { Modal, useToast } from '@personal-stack/vue-common'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AgentKindPicker from '../components/AgentKindPicker.vue'
 import SessionTabs from '../components/SessionTabs.vue'
 import SessionTerminal from '../components/SessionTerminal.vue'
+import { sendInput, stageInput } from '../services/workspaceService'
 import { useWorkspacesStore } from '../stores/workspaces'
 
 const route = useRoute()
 const router = useRouter()
 const store = useWorkspacesStore()
+const toast = useToast()
 
 const workspaceId = computed(() => String(route.params.id))
 const pickerKind = ref<AgentKind>('CLAUDE')
+const showStageInput = ref(false)
+const stageName = ref('source.txt')
+const stageContent = ref('')
+const isStaging = ref(false)
 
 // Only sessions with a live PTY get a mounted terminal. A session
 // dropping out of this set (STOPPED/FAILED) unmounts its
 // SessionTerminal, which closes the socket and disposes xterm.
 const liveSessions = computed(() => store.sessions.filter((s) => s.status === 'STARTING' || s.status === 'RUNNING'))
+const activeLiveSession = computed(() => liveSessions.value.find((s) => s.id === store.activeSessionId) ?? null)
+const activeStageSession = computed(() => {
+  const session = activeLiveSession.value
+  return session?.status === 'RUNNING' && session.gatewayAgentId ? session : null
+})
 
 onMounted(async () => {
   await store.open(workspaceId.value)
@@ -29,6 +41,31 @@ async function onSpawn(): Promise<void> {
 
 async function onStopSession(id: string): Promise<void> {
   await store.endSession(id)
+}
+
+function closeStageInput(): void {
+  if (isStaging.value) return
+  showStageInput.value = false
+  stageContent.value = ''
+}
+
+async function onStageInput(): Promise<void> {
+  const ws = store.activeWorkspace
+  const session = activeStageSession.value
+  if (!ws || !session || stageContent.value.length === 0) return
+  isStaging.value = true
+  try {
+    const staged = await stageInput(ws.id, session.id, stageContent.value, stageName.value)
+    const prompt = `Please read ${staged.path} and use it as the source document for the next task.`
+    await sendInput(ws.id, session.id, prompt, true)
+    toast.success('Text staged', staged.path)
+    showStageInput.value = false
+    stageContent.value = ''
+  } catch (e) {
+    toast.errorFromCatch('Could not stage text', e)
+  } finally {
+    isStaging.value = false
+  }
 }
 </script>
 
@@ -56,6 +93,15 @@ async function onStopSession(id: string): Promise<void> {
         </p>
       </div>
       <div class="flex items-center gap-2">
+        <button
+          type="button"
+          class="rounded border border-[var(--color-surface-border)] px-3 py-2 text-sm text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="!activeStageSession || isStaging"
+          data-testid="stage-input-open"
+          @click="showStageInput = true"
+        >
+          Stage text
+        </button>
         <AgentKindPicker v-model="pickerKind" />
         <button
           type="button"
@@ -91,5 +137,45 @@ async function onStopSession(id: string): Promise<void> {
         Pick an agent kind above and click "New agent" to start.
       </div>
     </main>
+
+    <Modal :open="showStageInput" title="Stage text" @close="closeStageInput">
+      <form class="space-y-4" data-testid="stage-input-form" @submit.prevent="onStageInput">
+        <label class="block space-y-1 text-sm">
+          <span class="text-[var(--color-text-muted)]">File name</span>
+          <input
+            v-model="stageName"
+            type="text"
+            class="w-full rounded border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-3 py-2"
+            data-testid="stage-input-name"
+          />
+        </label>
+        <label class="block space-y-1 text-sm">
+          <span class="text-[var(--color-text-muted)]">Text</span>
+          <textarea
+            v-model="stageContent"
+            class="min-h-72 w-full rounded border border-[var(--color-surface-border)] bg-[var(--color-surface)] px-3 py-2 font-mono text-sm"
+            data-testid="stage-input-content"
+          />
+        </label>
+        <div class="flex justify-end gap-2">
+          <button
+            type="button"
+            class="rounded border border-[var(--color-surface-border)] px-4 py-2 text-sm"
+            :disabled="isStaging"
+            @click="closeStageInput"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="rounded bg-blue-600 px-4 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="isStaging || stageContent.length === 0"
+            data-testid="stage-input-submit"
+          >
+            {{ isStaging ? 'Staging…' : 'Stage' }}
+          </button>
+        </div>
+      </form>
+    </Modal>
   </div>
 </template>

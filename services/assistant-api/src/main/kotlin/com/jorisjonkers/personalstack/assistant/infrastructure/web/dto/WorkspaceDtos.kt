@@ -109,6 +109,17 @@ data class SendUserInputRequest(
     val enter: Boolean = true,
 )
 
+data class StageInputRequest(
+    val content: String,
+    val name: String? = null,
+)
+
+data class StagedInputResponse(
+    val path: String,
+    val bytes: Long,
+    val name: String,
+)
+
 data class TurnResponse(
     val id: UUID,
     val sessionId: UUID,

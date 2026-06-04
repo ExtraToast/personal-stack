@@ -8,6 +8,7 @@ data class GatewayProperties(
     val tmux: Tmux,
     val cli: Cli,
     val git: Git,
+    val stagedInputs: StagedInputs = StagedInputs(),
 ) {
     data class Tmux(
         val socketName: String,
@@ -35,5 +36,10 @@ data class GatewayProperties(
 
     data class Git(
         val deployKeyDir: String,
+    )
+
+    data class StagedInputs(
+        val dirName: String = ".agent-inputs",
+        val maxBytes: Long = 5L * 1024 * 1024,
     )
 }

@@ -142,6 +142,51 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspaceId}/sessions/{sessionId}/staged-inputs" : {
+      "post" : {
+        "tags" : [ "agent-session-controller" ],
+        "operationId" : "stageInput",
+        "parameters" : [ {
+          "name" : "workspaceId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "sessionId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/StageInputRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StagedInputResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/git/open-pr" : {
       "post" : {
         "tags" : [ "git-controller" ],
@@ -1192,6 +1237,34 @@
           }
         },
         "required" : [ "enter", "text" ]
+      },
+      "StageInputRequest" : {
+        "type" : "object",
+        "properties" : {
+          "content" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "content" ]
+      },
+      "StagedInputResponse" : {
+        "type" : "object",
+        "properties" : {
+          "path" : {
+            "type" : "string"
+          },
+          "bytes" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "bytes", "name", "path" ]
       },
       "OpenPrRequest" : {
         "type" : "object",

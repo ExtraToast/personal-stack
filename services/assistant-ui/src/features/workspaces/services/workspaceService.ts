@@ -1,4 +1,4 @@
-import type { AgentKind, Turn, Workspace, WorkspaceDetail } from '../types'
+import type { AgentKind, StagedInput, Turn, Workspace, WorkspaceDetail } from '../types'
 import { ApiError, useApiWithAuth } from '@personal-stack/vue-common'
 
 function getApi(): ReturnType<typeof useApiWithAuth> {
@@ -98,4 +98,16 @@ export async function getTurns(workspaceId: string, sessionId: string): Promise<
 
 export async function sendInput(workspaceId: string, sessionId: string, text: string, enter = true): Promise<void> {
   return getApi().post(`/workspaces/${workspaceId}/sessions/${sessionId}/input`, { text, enter })
+}
+
+export async function stageInput(
+  workspaceId: string,
+  sessionId: string,
+  content: string,
+  name?: string | null,
+): Promise<StagedInput> {
+  return getApi().post<StagedInput>(`/workspaces/${workspaceId}/sessions/${sessionId}/staged-inputs`, {
+    content,
+    name: name?.trim() || null,
+  })
 }

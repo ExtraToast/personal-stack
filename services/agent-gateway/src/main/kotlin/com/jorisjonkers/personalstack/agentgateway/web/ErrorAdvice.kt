@@ -30,6 +30,10 @@ class ErrorAdvice {
     fun onIllegalState(e: IllegalStateException): ResponseEntity<Map<String, String>> =
         ResponseEntity.status(HttpStatus.NOT_FOUND).body(mapOf("error" to (e.message ?: "not-found")))
 
+    @ExceptionHandler(IllegalArgumentException::class)
+    fun onIllegalArgument(e: IllegalArgumentException): ResponseEntity<Map<String, String>> =
+        ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("error" to (e.message ?: "bad-request")))
+
     companion object {
         private const val STDERR_PREVIEW_CHARS = 2_000
     }
