@@ -26,6 +26,7 @@ renderer:
   managed_paths:
     - .agents/skills/add-public-service/SKILL.md
     - .agents/skills/agent-session-bootstrap/SKILL.md
+    - .agents/skills/council/SKILL.md
     - .agents/skills/fleet-change/SKILL.md
     - .agents/skills/kb-first/SKILL.md
     - .agents/skills/open-pr/SKILL.md
@@ -43,6 +44,7 @@ renderer:
     - .codex/hooks.json
     - .claude/skills/add-public-service/SKILL.md
     - .claude/skills/agent-session-bootstrap/SKILL.md
+    - .claude/skills/council/SKILL.md
     - .claude/skills/fleet-change/SKILL.md
     - .claude/skills/kb-first/SKILL.md
     - .claude/skills/open-pr/SKILL.md
@@ -77,6 +79,15 @@ skills:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
       target_path: "${CLAUDE_HOME}/skills/agent-session-bootstrap/SKILL.md"
       codex_target_path: "${CODEX_HOME}/skills/agent-session-bootstrap/SKILL.md"
+  - name: council
+    supported_agents: [codex, claude]
+    targets:
+      - agent: codex
+        path: .agents/skills/council/SKILL.md
+        sha256: 47f635ecd8c3d3cd060b843364e41f6763ecc0a75a69cf6bb0d882a071dc8eb0
+      - agent: claude
+        path: .claude/skills/council/SKILL.md
+        sha256: 6f3a76b80cd316fff98fa5f1069d239b6042991da3e6979053d04ab0988672b2
   - name: fleet-change
     supported_agents: [codex, claude]
     targets:
