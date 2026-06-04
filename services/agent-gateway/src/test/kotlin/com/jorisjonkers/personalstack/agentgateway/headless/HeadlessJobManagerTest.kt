@@ -23,6 +23,11 @@ class HeadlessJobManagerTest {
                     GatewayProperties.Cli(
                         claude = "/usr/local/bin/claude",
                         codex = "/usr/local/bin/codex",
+                        codexArgs =
+                            listOf(
+                                "--dangerously-bypass-approvals-and-sandbox",
+                                "--dangerously-bypass-hook-trust",
+                            ),
                     ),
                 git = GatewayProperties.Git(deployKeyDir = "/x"),
             )
@@ -86,6 +91,36 @@ class HeadlessJobManagerTest {
         val done = mgr.get(job.id)!!
         assertThat(done.status).isEqualTo(HeadlessJobStatus.FAILED)
         assertThat(done.exitCode).isEqualTo(1)
+        mgr.destroy()
+    }
+
+    @Test
+    fun `launch codex headless uses bypass flags and starts fresh by default`(
+        @TempDir tmp: Path,
+    ) {
+        val latch = CountDownLatch(1)
+        var capturedCommand: List<String>? = null
+        val mgr =
+            manager(tmp) { command, _ ->
+                capturedCommand = command
+                latch.countDown()
+                processOf(exitCode = 0, output = "done")
+            }
+
+        mgr.launch(AgentKind.CODEX, "inspect repo")
+
+        assertThat(latch.await(3, TimeUnit.SECONDS)).isTrue()
+        assertThat(capturedCommand)
+            .containsExactly(
+                "/usr/local/bin/codex",
+                "exec",
+                "--dangerously-bypass-approvals-and-sandbox",
+                "--dangerously-bypass-hook-trust",
+                "--json",
+                "--",
+                "inspect repo",
+            )
+        assertThat(capturedCommand).doesNotContain("resume")
         mgr.destroy()
     }
 

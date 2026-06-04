@@ -24,8 +24,6 @@ import java.time.Instant
 class StartAgentSessionCommandHandlerTest {
     private val workspaces = mockk<WorkspaceRepository>()
 
-    // relaxed = true so findAllByWorkspaceId (called by previousSessionResumeId) returns
-    // empty list by default without needing a per-test stub everywhere.
     private val sessions = mockk<WorkspaceAgentSessionRepository>(relaxed = true)
     private val gateway = mockk<AgentGatewayClient>()
     private val orchestrator = mockk<AgentRunnerOrchestrator>()
@@ -56,6 +54,40 @@ class StartAgentSessionCommandHandlerTest {
         assertThat(saved.first().status).isEqualTo(WorkspaceAgentSessionStatus.STARTING)
         assertThat(saved.last().gatewayAgentId).isEqualTo("abc12345")
         assertThat(saved.last().status).isEqualTo(WorkspaceAgentSessionStatus.RUNNING)
+    }
+
+    @Test
+    fun `handle starts fresh even when prior sessions exist for the same workspace and kind`() {
+        val ws = workspace()
+        every { workspaces.findById(ws.id) } returns ws
+        every { gateway.isReady(ws) } returns true
+        every { sessions.save(any()) } answers { firstArg() }
+        every { sessions.findAllByWorkspaceId(ws.id) } returns
+            listOf(
+                WorkspaceAgentSession(
+                    id = WorkspaceAgentSessionId.random(),
+                    workspaceId = ws.id,
+                    kind = WorkspaceAgentKind.CLAUDE,
+                    gatewayAgentId = "old-agent",
+                    status = WorkspaceAgentSessionStatus.RUNNING,
+                    createdAt = Instant.parse("2026-05-19T10:00:00Z"),
+                    updatedAt = Instant.parse("2026-05-19T10:00:00Z"),
+                    cliSessionId = "old-native-session",
+                ),
+            )
+        every { gateway.spawnAgent(ws, WorkspaceAgentKind.CLAUDE) } returns
+            AgentGatewayClient.GatewayAgent(id = "fresh", kind = WorkspaceAgentKind.CLAUDE, cwd = "/workspace")
+
+        handler.handle(
+            StartAgentSessionCommand(
+                sessionId = WorkspaceAgentSessionId.random(),
+                workspaceId = ws.id,
+                kind = WorkspaceAgentKind.CLAUDE,
+            ),
+        )
+
+        verify(exactly = 0) { sessions.findAllByWorkspaceId(any()) }
+        verify(exactly = 1) { gateway.spawnAgent(ws, WorkspaceAgentKind.CLAUDE) }
     }
 
     @Test

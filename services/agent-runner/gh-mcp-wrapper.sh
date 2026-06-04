@@ -11,8 +11,7 @@ TOKEN_HELPER="${AGENT_GITHUB_TOKEN_HELPER:-/usr/local/bin/agent-github-token}"
 
 can_retry_mint() {
   [ -n "${GITHUB_APP_TOKEN_URL:-}" ] &&
-    [ -n "${GITHUB_APP_TOKEN_BEARER:-}" ] &&
-    [ -n "${REPO_URL:-}" ]
+    [ -n "${GITHUB_APP_TOKEN_BEARER:-}" ]
 }
 
 TOKEN=""
@@ -42,8 +41,9 @@ if [ -z "$TOKEN" ]; then
   cat >&2 <<'EOF'
 [gh-mcp-wrapper] ERROR: no GitHub token available for github-mcp-server.
 [gh-mcp-wrapper] Set GITHUB_PERSONAL_ACCESS_TOKEN/GH_TOKEN, or provide
-[gh-mcp-wrapper] GITHUB_APP_TOKEN_URL, GITHUB_APP_TOKEN_BEARER, and REPO_URL
-[gh-mcp-wrapper] so the runner can mint an installation token.
+[gh-mcp-wrapper] GITHUB_APP_TOKEN_URL and GITHUB_APP_TOKEN_BEARER. The
+[gh-mcp-wrapper] runner also needs REPO_URL or a git remote in /workspace
+[gh-mcp-wrapper] so it can mint a repo-scoped installation token.
 EOF
   exit 78
 fi

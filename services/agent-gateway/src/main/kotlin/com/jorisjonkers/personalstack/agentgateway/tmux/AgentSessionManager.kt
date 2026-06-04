@@ -69,7 +69,6 @@ class AgentSessionManager(
     fun spawn(
         kind: AgentKind,
         workspacePath: String? = null,
-        resumeCliSessionId: String? = null,
     ): AgentSession {
         val id = UUID.randomUUID().toString().substring(0, 8)
         val tmuxSession = "agent-$id"
@@ -79,7 +78,7 @@ class AgentSessionManager(
         Files.deleteIfExists(logFile)
         Files.createFile(logFile)
 
-        val (command, cliSessionId) = commandAndSessionIdFor(kind, resumeCliSessionId)
+        val (command, cliSessionId) = commandAndSessionIdFor(kind)
         tmux.newSession(tmuxSession, command, cwd)
         tmux.startPipeToFile(tmuxSession, logFile)
 
@@ -170,52 +169,26 @@ class AgentSessionManager(
     /**
      * Build the CLI command and return the native session id alongside it.
      *
-     * For Claude: when [resumeCliSessionId] is a UUID the existing session is
-     * continued via `--resume <id>` and that id is echoed back. Otherwise a
-     * fresh UUID is generated and passed as `--session-id <uuid>` so the
-     * conversation can be resumed in a future Pod restart.
+     * For Claude: a fresh UUID is generated and passed as `--session-id
+     * <uuid>` so the CLI process has a stable native identity without
+     * inheriting another conversation.
      *
-     * For Codex: session files live in `$CODEX_HOME/sessions/` and survive Pod
-     * restarts (codex-credentials PVC). When [resumeCliSessionId] is the
-     * sentinel [CODEX_RESUME_LAST], `codex resume --last` picks up the most
-     * recent session whose CWD matches the workspace — no stored ID required.
-     * When it is a specific UUID, `codex resume <id>` targets that session.
+     * For Codex: launch the interactive CLI directly. `codex resume --last`
+     * is intentionally not used here because it can attach a new gateway
+     * agent to a different saved Codex session on the shared credentials PVC.
      *
      * Shell has no session id.
      */
-    private fun commandAndSessionIdFor(
-        kind: AgentKind,
-        resumeCliSessionId: String?,
-    ): Pair<List<String>, String?> =
+    private fun commandAndSessionIdFor(kind: AgentKind): Pair<List<String>, String?> =
         when (kind) {
             AgentKind.CLAUDE -> {
-                if (resumeCliSessionId != null) {
-                    val cmd =
-                        listOf(props.cli.claude) + props.cli.claudeArgs +
-                            listOf("--resume", resumeCliSessionId)
-                    cmd to resumeCliSessionId
-                } else {
-                    val cliSessionId = UUID.randomUUID().toString()
-                    val cmd =
-                        listOf(props.cli.claude) + props.cli.claudeArgs +
-                            listOf("--session-id", cliSessionId)
-                    cmd to cliSessionId
-                }
+                val cliSessionId = UUID.randomUUID().toString()
+                val cmd =
+                    listOf(props.cli.claude) + props.cli.claudeArgs +
+                        listOf("--session-id", cliSessionId)
+                cmd to cliSessionId
             }
-            AgentKind.CODEX -> {
-                when (resumeCliSessionId) {
-                    CODEX_RESUME_LAST -> {
-                        val cmd = listOf(props.cli.codex, "resume", "--last") + props.cli.codexArgs
-                        cmd to null
-                    }
-                    null -> (listOf(props.cli.codex) + props.cli.codexArgs) to null
-                    else -> {
-                        // Specific session UUID — direct resume
-                        val cmd = listOf(props.cli.codex, "resume", resumeCliSessionId) + props.cli.codexArgs
-                        cmd to resumeCliSessionId
-                    }
-                }
-            }
+            AgentKind.CODEX -> (listOf(props.cli.codex) + props.cli.codexArgs) to null
             AgentKind.SHELL -> listOf("/bin/bash", "-l") to null
         }
 
@@ -233,8 +206,6 @@ class AgentSessionManager(
     private fun timestamp(): String = STAGED_INPUT_TIMESTAMP.format(Instant.now())
 
     companion object {
-        /** Sentinel value for [resumeCliSessionId] that tells the gateway to run `codex resume --last`. */
-        const val CODEX_RESUME_LAST = "LATEST"
         private const val DEFAULT_STAGED_INPUT_NAME = "input.txt"
         private const val ID_PREVIEW_CHARS = 8
         private const val MAX_STAGED_INPUT_NAME_CHARS = 80

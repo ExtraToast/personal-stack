@@ -14,8 +14,8 @@ enum class WorkspaceAgentSessionStatus { STARTING, RUNNING, STOPPED, FAILED }
  * `cliSessionId` is the native CLI session id returned by the
  * gateway at spawn time (Claude: from `--session-id <uuid>`;
  * Codex: captured after spawn, null until discovered; Shell: never
- * set). Stored so a wake/re-attach can pass `--resume`/`resume` to
- * the CLI without starting a fresh session.
+ * set). Stored for observability and future explicit continuation
+ * flows; new session starts do not implicitly resume it.
  *
  * `runMode` is `INTERACTIVE` for browser-terminal sessions and will
  * be `HEADLESS` once N4 headless runs land.

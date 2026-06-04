@@ -51,7 +51,6 @@ interface AgentGatewayClient {
         workspace: Workspace,
         kind: WorkspaceAgentKind,
         workspacePath: String? = null,
-        resumeCliSessionId: String? = null,
     ): GatewayAgent
 
     fun stopAgent(

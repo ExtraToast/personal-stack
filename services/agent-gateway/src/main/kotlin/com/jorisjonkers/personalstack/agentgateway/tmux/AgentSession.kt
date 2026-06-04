@@ -10,8 +10,9 @@ data class AgentSession(
     val logFile: Path,
     val cwd: String,
     val createdAt: Instant,
-    // Native CLI session id for resume on wake. Set by the gateway for
-    // Claude (from the --session-id flag); null for Shell sessions and
-    // for Codex until async discovery is implemented.
+    // Native CLI session id for observability and future explicit
+    // continuation flows. Set by the gateway for Claude (from the
+    // --session-id flag); null for Shell sessions and for Codex until
+    // async discovery is implemented.
     val cliSessionId: String? = null,
 )
