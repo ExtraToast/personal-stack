@@ -65,3 +65,22 @@ and onboarding wizard (Claude) and the directory-trust prompt
 
 A new CLI plugs into the same set of seams; nothing in the
 control plane assumes the agent is Claude.
+
+## Hooks, skills, and memory
+
+`platform/agents/kit/manifest.yaml` is the checked-in parity ledger
+for agent memory hooks, repo skills, installer-managed skills, and
+canonical `knowledge.*` MCP tool names. The guard lives in
+`AgentKitManifestTest`.
+
+Current intentional gaps are recorded in the manifest:
+
+- the knowledge-api installer writes Claude-only `PreToolUse` hooks
+  for edit recall and git-commit capture;
+- the installer writes Claude-only `topics` and `audit` skills;
+- the installer itself is still Claude-only.
+
+Those entries must keep an explicit unsupported reason until a later
+PR renders Claude and Codex installer output from the same kit. A new
+repo hook, skill, or installer-managed surface is incomplete unless it
+is listed in the manifest and passes the platform tooling test.
