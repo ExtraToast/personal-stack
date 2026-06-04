@@ -183,12 +183,17 @@ class AgentKitManifestTest {
                 .contains("""call_recall "${'$'}{prompt}" "${'$'}{limit}" fast""")
         }
 
-        val editHook = repositoryRoot.resolve(".claude/hooks/pre-tool-use-edit-recall.sh").toFile().readText()
-        assertThat(editHook)
-            .describedAs("checked-in Claude edit recall hook should retry in fast mode with repo scope")
-            .contains("""[ "${'$'}{mode}" != "fast" ]""")
-            .contains("call_recall \"${'$'}{query}\" \"${'$'}{limit}\" fast \"${'$'}{scope}\"")
-            .contains("""args["scope"] = sys.argv[4]""")
+        listOf(
+            ".claude/hooks/pre-tool-use-edit-recall.sh",
+            ".codex/hooks/pre-tool-use-edit-recall.sh",
+        ).forEach { path ->
+            val editHook = repositoryRoot.resolve(path).toFile().readText()
+            assertThat(editHook)
+                .describedAs("$path should retry edit recall in fast mode with repo scope")
+                .contains("""[ "${'$'}{mode}" != "fast" ]""")
+                .contains("call_recall \"${'$'}{query}\" \"${'$'}{limit}\" fast \"${'$'}{scope}\"")
+                .contains("""args["scope"] = sys.argv[4]""")
+        }
 
         val installer = manifest["installer"]["path"].asText()
         val installerScript = repositoryRoot.resolve(installer).toFile().readText()
