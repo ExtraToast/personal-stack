@@ -2,10 +2,10 @@
 
 This directory is the checked-in control plane for cross-agent memory,
 hook, and skill parity. The current renderer owns repo skills, repo hook
-files, hook settings, and the installer entrypoint. Installer hook
-and Codex hook-setting heredocs are rendered from partial templates;
-later PRs should move the remaining installer skill heredocs into the
-same partial flow.
+files, hook settings, and the installer entrypoint. Installer hook,
+skill, and Codex hook-setting heredocs are rendered from partial
+templates so shared installer content can be updated without editing a
+single large shell template.
 
 The manifest intentionally records today's gaps. A Claude-only installer
 hook or skill must carry an explicit `unsupported_reason` or `follow_up`

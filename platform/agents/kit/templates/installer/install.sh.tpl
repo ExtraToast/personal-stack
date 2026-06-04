@@ -184,31 +184,7 @@ fi
 # Skill: topics
 # -----------------------------------------------------------------
 read -r -d '' TOPICS_SKILL <<'SKILL' || true
----
-name: topics
-description: Inspect the knowledge-base topic vocabulary before capturing or recalling. Use proactively when about to assign a scope or pick a tag — the closed-vocabulary slugs change over time and an incorrect slug routes captures to _inbox/_needs-review/.
----
-
-# Topics + tags discovery
-
-Three MCP tools surface what the knowledge base already knows:
-
-- `knowledge.list_topics` — every topic slug in use, with note count
-  + last-captured-at. Sort by note_count desc by default. Use before
-  picking a `topic:<slug>` scope so a new capture lands on the
-  existing vocabulary instead of forking a near-duplicate.
-- `knowledge.topic_stats(slug)` — per-topic aggregate: count,
-  capture window, type breakdown, top tags. Use to decide whether a
-  topic is well-populated enough to capture into or whether to merge
-  it with a more active neighbour.
-- `knowledge.list_tags(scope?)` — tag frequency, optional scope
-  filter. Use before tagging a new capture so the spelling matches
-  existing tags (`kotlin` vs `Kotlin` vs `kt`).
-
-When in doubt about which slug to use, prefer the one with the
-highest note_count among plausible candidates. If none fit, capture
-without scope — the curator's classifier will assign one against
-the closed vocabulary.
+# @agent-kit-include partials/skills/topics.md
 SKILL
 
 if [ "${INSTALL_CLAUDE}" = 1 ]; then
@@ -219,30 +195,7 @@ fi
 # Skill: audit
 # -----------------------------------------------------------------
 read -r -d '' AUDIT_SKILL <<'SKILL' || true
----
-name: audit
-description: Audit the knowledge base for drift — pending inbox notes, near-duplicate tags, near-duplicate topic slugs. Use periodically (weekly is plenty) or when capture quality feels off.
----
-
-# Knowledge-base audit
-
-Three checks, each a single MCP call:
-
-1. `knowledge.list_inbox(limit=20)` — notes the worker captured but
-   the curator hasn't classified yet. A persistent backlog signals
-   that Ollama is wedged or the classifier is rejecting too much.
-2. `knowledge.list_tags(limit=100)` — scan for near-duplicate
-   spellings (`kotlin` / `Kotlin` / `kt`, `ci` / `CI` / `ci-cd`).
-   Propose `knowledge.rename_tag(from, to)` for the cleanups, but
-   don't run them — those are admin-only mutations.
-3. `knowledge.list_topics(limit=100)` — flag topics with note_count
-   of 1 or 2 (thin) and pairs of slugs that look like duplicates.
-   Propose `knowledge.merge_topics(from_slug, into_slug)` for the
-   candidates.
-
-Report findings in three short sections. Don't mutate anything —
-the operator runs the proposed merges / renames manually after
-review.
+# @agent-kit-include partials/skills/audit.md
 SKILL
 
 if [ "${INSTALL_CLAUDE}" = 1 ]; then
@@ -253,38 +206,7 @@ fi
 # Skill: kb-first
 # -----------------------------------------------------------------
 read -r -d '' KB_FIRST_SKILL <<'SKILL' || true
----
-name: kb-first
-description: Use before designing or changing behavior that may depend on prior knowledge-base captures, repo history, architecture decisions, cluster state, agent conventions, or remembered lessons. Also use near task completion to capture durable lessons or decisions without dumping large KB context.
----
-
-# KB First
-
-Use the KB as a small retrieval layer, not as a large context dump.
-
-1. Distill the task into a short recall query: nouns, service names,
-   file names, and the decision being made.
-2. Call `knowledge.recall` with `limit <= 5`. Prefer
-   `scope=project:personal-stack` for repo behavior, `topic:<slug>`
-   for general framework/tool facts, or omit scope for the curated
-   default.
-3. Use `mode=hybrid` for normal work. Use `mode=fast` for trivial
-   lookup or when latency matters more than semantic matching. Use
-   `mode=deep` only when fast or hybrid misses something important.
-4. Read only what is needed. Usually snippets are enough. If a hit
-   matters, call `knowledge.relations(id, depth=1)` before fetching
-   the full note.
-5. If the KB has no useful context, continue from repo/source
-   inspection and say the KB had no relevant hits.
-
-Capture at the end only when the information is durable and reusable:
-implementation pitfalls, verified behavior, operational runbooks,
-architecture/process choices, or ambiguity that needs operator judgment.
-Keep captures compact. Do not capture secrets, raw logs, full diffs, or
-entire transcripts.
-
-Never run broad `scope=all` recall as a first step. Use it only after
-targeted recall fails and the task genuinely needs cross-scope context.
+# @agent-kit-include partials/skills/kb-first.md
 SKILL
 
 if [ "${INSTALL_CLAUDE}" = 1 ]; then
@@ -295,31 +217,7 @@ fi
 # Skill: token-economy
 # -----------------------------------------------------------------
 read -r -d '' TOKEN_ECONOMY_SKILL <<'SKILL' || true
----
-name: token-economy
-description: Use when the user asks to reduce token usage, agent cost, context bloat, prompt-caching misses, RAG/LightRAG behavior, memory policies, or durable instructions. Also use when installing many skills or designing automatic KB recall so retrieval stays bounded.
----
-
-# Token Economy
-
-- Keep stable instructions in `CLAUDE.md` or skills; keep volatile facts
-  in the KB and retrieve them on demand.
-- Prefer progressive disclosure: list/search first, open small file
-  ranges next, fetch full files or notes only when needed.
-- Keep recall bounded: default to `limit=3` for hook-injected context and
-  `limit <= 5` for manual task setup.
-- Use hybrid retrieval for normal KB recall. Escalate to deep retrieval
-  only after a miss, ambiguity, or non-obvious cross-topic dependency.
-- Do not install or enable low-fit skills just to grow the list. Skill
-  metadata itself consumes prompt budget and very large skill sets can
-  hide useful skills.
-- Preserve prompt-cache-friendly ordering when writing durable
-  instructions: stable policy first, dynamic task-specific context later.
-
-When reporting command results, summarize only the lines needed to
-support the decision. Session digests should capture only reusable
-lessons above a confidence floor and should dedupe against existing KB
-hits before writing.
+# @agent-kit-include partials/skills/token-economy.md
 SKILL
 
 if [ "${INSTALL_CLAUDE}" = 1 ]; then
@@ -330,40 +228,7 @@ fi
 # Skill: agent-session-bootstrap
 # -----------------------------------------------------------------
 read -r -d '' AGENT_SESSION_BOOTSTRAP_SKILL <<'SKILL' || true
----
-name: agent-session-bootstrap
-description: Use when configuring Claude Code or Codex sessions, hooks, skills, MCP servers, durable instructions, agent runners, or future-session defaults. Ensures KB recall/capture and token-efficient behavior are installed without relying on user reminders.
----
-
-# Agent Session Bootstrap
-
-Checklist:
-
-1. Locate the active user and project config layers:
-   `~/.claude/settings.json`, `~/.claude/CLAUDE.md`, project
-   `CLAUDE.md`, project `.claude/settings.json`, project `.claude/hooks`,
-   `~/.claude/skills`, Codex `~/.codex/config.toml`, `~/.codex/hooks.json`,
-   repo `AGENTS.md`, and `.agents/skills`.
-2. Ensure the `knowledge` MCP server is configured and uses
-   `KB_BEARER_TOKEN` rather than an inline secret where possible.
-3. Register bounded recall hooks:
-   `UserPromptSubmit` with `limit=3`/`mode=hybrid`,
-   `PreToolUse` edit recall deduped per session, and `Stop` transcript
-   digest with a per-session capture cap.
-4. Keep hooks silent on KB failure and add `KB_AUTO_MCP_DISABLED=1` as
-   a panic switch.
-5. Add or update memory files so future sessions know to consult and
-   update the KB without user reminders.
-6. Validate with dry-run hook payloads and at least one `tools/list` or
-   `knowledge.recall` MCP call.
-
-Every Codex project skill, hook, or durable instruction must have an
-equivalent Claude implementation in the same branch. Treat Codex-only
-`.agents`/`.codex` files as incomplete until `.claude`/`CLAUDE.md`/
-installer parity exists.
-
-Do not put bearer tokens, secrets, or full transcripts into committed
-files.
+# @agent-kit-include partials/skills/agent-session-bootstrap.md
 SKILL
 
 if [ "${INSTALL_CLAUDE}" = 1 ]; then
