@@ -1,0 +1,170 @@
+version: 1
+generated: false
+notes:
+  - "This manifest pins the current repo and installer agent surfaces. It is the source-of-truth scaffold until PRs move bodies into renderable templates."
+  - "Repo skill bodies are intentionally agent-specific today; parity means every shared skill has both Claude and Codex targets unless an explicit unsupported reason is present."
+
+canonical_mcp_tools:
+  source: services/knowledge-api/src/test/kotlin/com/jorisjonkers/personalstack/knowledge/mcp/McpToolsTest.kt
+  prefix: knowledge.
+
+skills:
+  - name: add-public-service
+    supported_agents: [codex, claude]
+    targets:
+      - agent: codex
+        path: .agents/skills/add-public-service/SKILL.md
+        sha256: 980e0d3014e1fc1055eae090be32689f0d2acf93d18b66e88fb5278b5c311521
+      - agent: claude
+        path: .claude/skills/add-public-service/SKILL.md
+        sha256: 7f48561cc99bc1599a5e0bb75fddd659224e96c141ecb4bdff200e4e939c09ac
+  - name: agent-session-bootstrap
+    supported_agents: [codex, claude]
+    targets:
+      - agent: codex
+        path: .agents/skills/agent-session-bootstrap/SKILL.md
+        sha256: 04b17d97a1bae3cc718a2bd9b4d2c6c62cf49a1a1911dc3e3a0ba4b10303fb08
+      - agent: claude
+        path: .claude/skills/agent-session-bootstrap/SKILL.md
+        sha256: 2545a5e05de2c527aa74babf9b46e6b2ccc34fbea99dffc44e5460318b219130
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      target_path: "${CLAUDE_HOME}/skills/agent-session-bootstrap/SKILL.md"
+  - name: fleet-change
+    supported_agents: [codex, claude]
+    targets:
+      - agent: codex
+        path: .agents/skills/fleet-change/SKILL.md
+        sha256: 33197dd628ed943598578d8abb05e84b35d7985802292ba66565e9814a028c42
+      - agent: claude
+        path: .claude/skills/fleet-change/SKILL.md
+        sha256: da427baa764c7d17667f9faa0b2bdbb467c9a34acaeb1a4df2523d16bdb4e0c5
+  - name: kb-first
+    supported_agents: [codex, claude]
+    targets:
+      - agent: codex
+        path: .agents/skills/kb-first/SKILL.md
+        sha256: 4972c5289cdc248180a4f24b261db5a2ffd7549d87dfab8fcc5ab1507e6be068
+      - agent: claude
+        path: .claude/skills/kb-first/SKILL.md
+        sha256: 8a40c12e0d075f2b9f8bc6c7b2e50055cd71d856fba81a30420f88b2a2d78f52
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      target_path: "${CLAUDE_HOME}/skills/kb-first/SKILL.md"
+  - name: open-pr
+    supported_agents: [codex, claude]
+    targets:
+      - agent: codex
+        path: .agents/skills/open-pr/SKILL.md
+        sha256: 6ca06fa4795b7aa15835f5f5918a90ff6a6495a76b8bc7fcf584aca3f3dfd7d1
+      - agent: claude
+        path: .claude/skills/open-pr/SKILL.md
+        sha256: 1d89e750db26d9c27668612dbdd9f4997da93edfd8d4801c8707b56b856e3c29
+  - name: run-tests
+    supported_agents: [codex, claude]
+    targets:
+      - agent: codex
+        path: .agents/skills/run-tests/SKILL.md
+        sha256: 86d817234ed8fe297acd9827af8fda222aaf792222e18f0e224f632c6e39d1f1
+      - agent: claude
+        path: .claude/skills/run-tests/SKILL.md
+        sha256: 5a302d89748cff71ed3837463b5b1c114e8cd37ddf168ac6fe66cb6183a0ac70
+  - name: token-economy
+    supported_agents: [codex, claude]
+    targets:
+      - agent: codex
+        path: .agents/skills/token-economy/SKILL.md
+        sha256: 3e2dc5e0a739c5d448bf86d8a85dcd45006c12739b5536b9d2b3db969afcfe0a
+      - agent: claude
+        path: .claude/skills/token-economy/SKILL.md
+        sha256: 788d1e07ef60d9c50806dc69bd03630d1f7cde99c11b00eafaaf8eb5c34a1ba2
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      target_path: "${CLAUDE_HOME}/skills/token-economy/SKILL.md"
+  - name: topics
+    supported_agents: [claude]
+    unsupported:
+      codex: "Installer-managed Claude-only skill; PR3 should render installer output for Codex or move this to repo-level .agents skills."
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      target_path: "${CLAUDE_HOME}/skills/topics/SKILL.md"
+  - name: audit
+    supported_agents: [claude]
+    unsupported:
+      codex: "Installer-managed Claude-only skill; PR3 should render installer output for Codex or move this to repo-level .agents skills."
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      target_path: "${CLAUDE_HOME}/skills/audit/SKILL.md"
+
+hooks:
+  - name: kb-user-prompt-recall
+    event: UserPromptSubmit
+    purpose: "Inject bounded knowledge.recall snippets before the agent sees the prompt."
+    supported_agents: [claude, codex]
+    mcp_tools: [knowledge.recall]
+    targets:
+      - agent: claude
+        path: .claude/hooks/kb-user-prompt-recall.sh
+        settings_path: .claude/settings.json
+        sha256: 384403d869e7bed742c3724919ad78970a1abed7ba397b475a8ed67614b70de3
+      - agent: codex
+        path: .codex/hooks/kb-user-prompt-recall.sh
+        settings_path: .codex/hooks.json
+        sha256: 0186bedbadf5e61e9b6f625693b3f7ced6ed675ffa5d39b6c1ae55a612ad062b
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      target_path: "${CLAUDE_HOME}/hooks/user-prompt-submit-recall.sh"
+  - name: kb-stop-digest
+    event: Stop
+    purpose: "Digest the transcript into capped lesson candidates and capture survivors."
+    supported_agents: [claude, codex]
+    mcp_tools: [knowledge.digest_transcript, knowledge.recall, knowledge.capture_lesson]
+    targets:
+      - agent: claude
+        path: .claude/hooks/kb-stop-digest.sh
+        settings_path: .claude/settings.json
+        sha256: 35b74df64c35231bee119b840fa79764c4de3cc8084d46fbc5dfd2defda8634d
+      - agent: codex
+        path: .codex/hooks/kb-stop-digest.sh
+        settings_path: .codex/hooks.json
+        sha256: 6f0f0c06a28e95ef7f5769e130efe34ce08e767fdaf97279e690904f28723927
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      target_path: "${CLAUDE_HOME}/hooks/stop-session-digest.sh"
+  - name: pre-tool-use-edit-recall
+    event: PreToolUse
+    matcher: "Edit|Write|MultiEdit"
+    purpose: "Recall file/module lessons before Claude edits."
+    supported_agents: [claude]
+    unsupported:
+      codex: "Codex repo hooks currently expose UserPromptSubmit and Stop only; PR4 should add the closest Codex or gateway equivalent."
+    mcp_tools: [knowledge.recall]
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      target_path: "${CLAUDE_HOME}/hooks/pre-tool-use-edit-recall.sh"
+  - name: pre-tool-use-git-commit-capture
+    event: PreToolUse
+    matcher: Bash
+    purpose: "Capture non-WIP git commit messages as candidate decisions."
+    supported_agents: [claude]
+    unsupported:
+      codex: "Codex repo hooks currently expose UserPromptSubmit and Stop only; PR4 should add the closest Codex or gateway equivalent."
+    mcp_tools: [knowledge.capture_decision]
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      target_path: "${CLAUDE_HOME}/hooks/pre-tool-use-git-commit-capture.sh"
+
+settings:
+  - agent: claude
+    path: .claude/settings.json
+    sha256: da833d3aaa70bf625b2f64c2a2ab9aee1ed49218b6366881338a24d8b7ac19ba
+  - agent: codex
+    path: .codex/hooks.json
+    sha256: 0635f539b1e29836a605fa1d3b99eff01658713845ab9751fdd112b89f77589f
+
+installer:
+  path: services/knowledge-api/src/main/resources/installer/install.sh
+  sha256: f1a1d751b3bd03940bf100d98565f5f51db24cc5bd756856b39c6ed3541ed28a
+  supported_agents: [claude]
+  unsupported:
+    codex: "PR3 should extend the installer with --agent claude|codex|all and write Codex kit files to CODEX_HOME."
