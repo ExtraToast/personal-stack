@@ -141,12 +141,18 @@ class AgentSessionManager(
     /**
      * Build the CLI command and return the native session id alongside it.
      *
-     * For Claude: when [resumeCliSessionId] is provided the existing session
-     * is continued via `--resume <id>` and that id is echoed back. Otherwise
-     * a fresh UUID is generated and passed as `--session-id <uuid>` so the
-     * conversation can be resumed in a future Pod restart. For Codex no
-     * deterministic create-time flag exists; async discovery from
-     * `$CODEX_HOME/sessions` is a follow-up. Shell has no session id.
+     * For Claude: when [resumeCliSessionId] is a UUID the existing session is
+     * continued via `--resume <id>` and that id is echoed back. Otherwise a
+     * fresh UUID is generated and passed as `--session-id <uuid>` so the
+     * conversation can be resumed in a future Pod restart.
+     *
+     * For Codex: session files live in `$CODEX_HOME/sessions/` and survive Pod
+     * restarts (codex-credentials PVC). When [resumeCliSessionId] is the
+     * sentinel [CODEX_RESUME_LAST], `codex resume --last` picks up the most
+     * recent session whose CWD matches the workspace — no stored ID required.
+     * When it is a specific UUID, `codex resume <id>` targets that session.
+     *
+     * Shell has no session id.
      */
     private fun commandAndSessionIdFor(
         kind: AgentKind,
@@ -167,7 +173,25 @@ class AgentSessionManager(
                     cmd to cliSessionId
                 }
             }
-            AgentKind.CODEX -> (listOf(props.cli.codex) + props.cli.codexArgs) to null
+            AgentKind.CODEX -> {
+                when (resumeCliSessionId) {
+                    CODEX_RESUME_LAST -> {
+                        val cmd = listOf(props.cli.codex, "resume", "--last") + props.cli.codexArgs
+                        cmd to null
+                    }
+                    null -> (listOf(props.cli.codex) + props.cli.codexArgs) to null
+                    else -> {
+                        // Specific session UUID — direct resume
+                        val cmd = listOf(props.cli.codex, "resume", resumeCliSessionId) + props.cli.codexArgs
+                        cmd to resumeCliSessionId
+                    }
+                }
+            }
             AgentKind.SHELL -> listOf("/bin/bash", "-l") to null
         }
+
+    companion object {
+        /** Sentinel value for [resumeCliSessionId] that tells the gateway to run `codex resume --last`. */
+        const val CODEX_RESUME_LAST = "LATEST"
+    }
 }
