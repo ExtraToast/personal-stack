@@ -627,6 +627,149 @@ class AgentKitManifestTest {
     }
 
     @Test
+    fun `installed hooks stay silent when disabled or unauthenticated`() {
+        val installer = repositoryRoot.resolve(manifest["installer"]["path"].asText()).toAbsolutePath()
+        val claudeHome = tempDir.resolve("silent-claude")
+        val codexHome = tempDir.resolve("silent-codex")
+        val installEnvironment =
+            mapOf(
+                "CLAUDE_CONFIG_DIR" to claudeHome.toString(),
+                "CODEX_HOME" to codexHome.toString(),
+            )
+        val installResult =
+            runProcessWithEnv(
+                installEnvironment,
+                "bash",
+                installer.toString(),
+                "--agent",
+                "all",
+            )
+
+        assertThat(installResult.exitCode)
+            .describedAs(installResult.stderr)
+            .isEqualTo(0)
+
+        val curlLog = tempDir.resolve("silent-curl-calls.log")
+        val fakeBin = tempDir.resolve("silent-bin").also { Files.createDirectories(it) }
+        fakeBin.resolve("curl").writeExecutable(
+            """
+            #!/usr/bin/env bash
+            printf 'called\n' >> "${'$'}{CURL_CAPTURE_FILE}"
+            cat <<'JSON'
+            {"jsonrpc":"2.0","result":{"structuredContent":{"hits":[],"candidates":[]}}}
+            JSON
+            """,
+        )
+
+        val claudeTranscript = tempDir.resolve("silent-claude-transcript.jsonl")
+        Files.writeString(
+            claudeTranscript,
+            """{"role":"user","content":"Claude stop transcript should not call MCP when disabled."}""" + "\n",
+        )
+        val codexTranscript = tempDir.resolve("silent-codex-transcript.jsonl")
+        Files.writeString(
+            codexTranscript,
+            """{"source":"user","message":"Codex stop transcript should not call MCP when disabled."}""" + "\n",
+        )
+
+        val hookInvocations =
+            listOf(
+                HookInvocation(
+                    label = "claude prompt recall",
+                    input = """{"user_prompt":"Recall should stay silent when disabled."}""",
+                    command = claudeHome.resolve("hooks/user-prompt-submit-recall.sh").toAbsolutePath().toString(),
+                ),
+                HookInvocation(
+                    label = "codex prompt recall",
+                    input = """{"user_prompt":"Recall should stay silent when disabled."}""",
+                    command = codexHome.resolve("hooks/kb-user-prompt-recall.sh").toAbsolutePath().toString(),
+                ),
+                HookInvocation(
+                    label = "claude edit recall",
+                    input = """{"tool_input":{"file_path":"platform/agents/kit/manifest.yaml"}}""",
+                    command = claudeHome.resolve("hooks/pre-tool-use-edit-recall.sh").toAbsolutePath().toString(),
+                ),
+                HookInvocation(
+                    label = "codex edit recall",
+                    input = """{"tool_input":{"file_path":"platform/agents/kit/manifest.yaml"}}""",
+                    command = codexHome.resolve("hooks/pre-tool-use-edit-recall.sh").toAbsolutePath().toString(),
+                    environment = mapOf("KB_AUTO_MCP_HOME" to codexHome.toString()),
+                ),
+                HookInvocation(
+                    label = "claude git capture",
+                    input = """{"tool_name":"Bash","tool_input":{"command":"git commit -m \"Capture hook silence\""}}""",
+                    command = claudeHome.resolve("hooks/pre-tool-use-git-commit-capture.sh").toAbsolutePath().toString(),
+                ),
+                HookInvocation(
+                    label = "codex git capture",
+                    input = """{"tool":{"name":"Bash","input":{"cmd":"git commit -m 'Capture Codex silence'"}}}""",
+                    command = codexHome.resolve("hooks/pre-tool-use-git-commit-capture.sh").toAbsolutePath().toString(),
+                    environment =
+                        mapOf(
+                            "KB_AUTO_MCP_CLIENT_NAME" to "Codex",
+                            "KB_AUTO_MCP_SOURCE" to "codex:auto-capture:git-commit",
+                        ),
+                ),
+                HookInvocation(
+                    label = "claude stop digest",
+                    input = """{"session_id":"silent-claude","transcript_path":"${claudeTranscript.toAbsolutePath()}"}""",
+                    command = claudeHome.resolve("hooks/stop-session-digest.sh").toAbsolutePath().toString(),
+                ),
+                HookInvocation(
+                    label = "codex stop digest",
+                    input = """{"thread_id":"silent-codex","transcriptPath":"${codexTranscript.toAbsolutePath()}"}""",
+                    command = codexHome.resolve("hooks/kb-stop-digest.sh").toAbsolutePath().toString(),
+                    environment = mapOf("CODEX_HOME" to codexHome.toString()),
+                ),
+            )
+        val hookEnvironment =
+            installEnvironment +
+                mapOf(
+                    "KB_URL" to "http://knowledge.local",
+                    "CURL_CAPTURE_FILE" to curlLog.toString(),
+                    "PATH" to "${fakeBin}:${System.getenv("PATH")}",
+                )
+
+        hookInvocations.forEach { invocation ->
+            val result =
+                runProcessWithInput(
+                    hookEnvironment +
+                        invocation.environment +
+                        mapOf(
+                            "KB_BEARER_TOKEN" to "test-token",
+                            "KB_AUTO_MCP_DISABLED" to "1",
+                        ),
+                    invocation.input,
+                    invocation.command,
+                )
+            assertThat(result.exitCode)
+                .describedAs("${invocation.label}: ${result.stderr}")
+                .isEqualTo(0)
+        }
+        assertThat(Files.exists(curlLog))
+            .describedAs("panic switch should prevent every installed hook from calling curl")
+            .isFalse()
+
+        Files.deleteIfExists(curlLog)
+        hookInvocations.forEach { invocation ->
+            val result =
+                runProcessWithInput(
+                    hookEnvironment +
+                        invocation.environment +
+                        ("KB_BEARER_TOKEN" to ""),
+                    invocation.input,
+                    invocation.command,
+                )
+            assertThat(result.exitCode)
+                .describedAs("${invocation.label}: ${result.stderr}")
+                .isEqualTo(0)
+        }
+        assertThat(Files.exists(curlLog))
+            .describedAs("missing bearer token should prevent every installed hook from calling curl")
+            .isFalse()
+    }
+
+    @Test
     fun `hook settings reference only manifest hooks`() {
         val manifestHookPaths = manifestTargetPaths("hooks").filter { it.contains("/hooks/") }.toSet()
         val settingsHookPaths =
@@ -1032,5 +1175,12 @@ class AgentKitManifestTest {
         val exitCode: Int,
         val stdout: String,
         val stderr: String,
+    )
+
+    private data class HookInvocation(
+        val label: String,
+        val input: String,
+        val command: String,
+        val environment: Map<String, String> = emptyMap(),
     )
 }
