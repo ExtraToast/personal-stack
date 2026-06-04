@@ -1,19 +1,33 @@
 version: 1
 generated: partial
 notes:
-  - "This manifest pins the current repo and installer agent surfaces. Hook and hook-setting mirrors are now rendered from agent-kit templates; installer and skill bodies are still tracked by manifest until later PRs move them."
+  - "This manifest pins the current repo and installer agent surfaces. Repo skills, hooks, and hook settings are rendered from agent-kit templates; installer heredocs are still tracked by manifest until later PRs move them."
   - "Repo skill bodies are intentionally agent-specific today; parity means every shared skill has both Claude and Codex targets unless an explicit unsupported reason is present."
 
 renderer:
   script_path: platform/agents/kit/render-agent-kit.py
   template_root: platform/agents/kit/templates/repo
   managed_paths:
+    - .agents/skills/add-public-service/SKILL.md
+    - .agents/skills/agent-session-bootstrap/SKILL.md
+    - .agents/skills/fleet-change/SKILL.md
+    - .agents/skills/kb-first/SKILL.md
+    - .agents/skills/open-pr/SKILL.md
+    - .agents/skills/run-tests/SKILL.md
+    - .agents/skills/token-economy/SKILL.md
     - .claude/hooks/kb-user-prompt-recall.sh
     - .claude/hooks/kb-stop-digest.sh
     - .codex/hooks/kb-user-prompt-recall.sh
     - .codex/hooks/kb-stop-digest.sh
     - .claude/settings.json
     - .codex/hooks.json
+    - .claude/skills/add-public-service/SKILL.md
+    - .claude/skills/agent-session-bootstrap/SKILL.md
+    - .claude/skills/fleet-change/SKILL.md
+    - .claude/skills/kb-first/SKILL.md
+    - .claude/skills/open-pr/SKILL.md
+    - .claude/skills/run-tests/SKILL.md
+    - .claude/skills/token-economy/SKILL.md
 
 canonical_mcp_tools:
   source: services/knowledge-api/src/test/kotlin/com/jorisjonkers/personalstack/knowledge/mcp/McpToolsTest.kt
