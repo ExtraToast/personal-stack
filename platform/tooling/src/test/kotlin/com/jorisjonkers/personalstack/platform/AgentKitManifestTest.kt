@@ -5,12 +5,15 @@ package com.jorisjonkers.personalstack.platform
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import com.sun.net.httpserver.HttpServer
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import java.net.InetSocketAddress
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
+import java.util.Collections
 import kotlin.io.path.name
 import kotlin.streams.asSequence
 
@@ -1025,6 +1028,72 @@ class AgentKitManifestTest {
                 "fail kb-live: KB_BEARER_TOKEN is not set; live MCP probe skipped",
                 "summary: 3 ok, 2 warn, 1 fail",
             )
+    }
+
+    @Test
+    fun `agent kit doctor probes tools list and fast recall when live kb credentials exist`() {
+        val renderer = repositoryRoot.resolve(manifest["renderer"]["script_path"].asText())
+        val home = tempDir.resolve("doctor-live-ok")
+        val payloads = Collections.synchronizedList(mutableListOf<JsonNode>())
+        val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+        server.createContext("/mcp") { exchange ->
+            val payload = jsonMapper.readTree(exchange.requestBody.readAllBytes())
+            payloads.add(payload)
+            val response =
+                when (payload["method"].asText()) {
+                    "tools/list" ->
+                        """
+                        {"jsonrpc":"2.0","id":"agent-kit-doctor-tools","result":{"tools":[{"name":"knowledge.recall"},{"name":"knowledge.capture_lesson"}]}}
+                        """.trimIndent()
+                    "tools/call" ->
+                        """
+                        {"jsonrpc":"2.0","id":"agent-kit-doctor-recall","result":{"structuredContent":{"hits":[{"id":"01H","title":"Prior note"}]}}}
+                        """.trimIndent()
+                    else ->
+                        """{"jsonrpc":"2.0","error":{"code":-32601,"message":"method not found"}}"""
+                }
+            exchange.responseHeaders.add("Content-Type", "application/json")
+            exchange.sendResponseHeaders(200, response.toByteArray().size.toLong())
+            exchange.responseBody.use { it.write(response.toByteArray()) }
+        }
+        server.start()
+
+        try {
+            val result =
+                runProcessWithEnv(
+                    mapOf(
+                        "HOME" to home.toString(),
+                        "CLAUDE_CONFIG_DIR" to home.resolve(".claude").toString(),
+                        "CODEX_HOME" to home.resolve(".codex").toString(),
+                        "KB_URL" to "http://127.0.0.1:${server.address.port}",
+                        "KB_BEARER_TOKEN" to "test-token",
+                    ),
+                    renderer.toAbsolutePath().toString(),
+                    "--doctor",
+                )
+
+            assertThat(result.exitCode)
+                .describedAs(result.stderr)
+                .isEqualTo(0)
+            assertThat(result.stdout)
+                .contains(
+                    "ok   kb-live: reachable at http://127.0.0.1:${server.address.port}/mcp with 2 tools; " +
+                        "fast recall returned 1 hits",
+                    "summary: 4 ok, 2 warn, 0 fail",
+                )
+            assertThat(payloads.map { it["method"].asText() })
+                .containsExactly("tools/list", "tools/call")
+
+            val recallPayload = payloads[1]
+            assertThat(recallPayload["params"]["name"].asText()).isEqualTo("knowledge.recall")
+            val arguments = recallPayload["params"]["arguments"]
+            assertThat(arguments["query"].asText()).contains("agent kit doctor")
+            assertThat(arguments["scope"].asText()).isEqualTo("project:personal-stack")
+            assertThat(arguments["mode"].asText()).isEqualTo("fast")
+            assertThat(arguments["limit"].asInt()).isEqualTo(1)
+        } finally {
+            server.stop(0)
+        }
     }
 
     private fun repoSkillPaths(): Set<String> =
