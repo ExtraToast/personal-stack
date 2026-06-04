@@ -9,6 +9,42 @@
 #   3. exec the gateway jar as PID 1 (via tini so children reap).
 set -eu
 
+CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
+CLAUDE_CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+
+check_agent_kit_manifest() {
+  agent_name="$1"
+  manifest_path="$2"
+  expected_version="${AGENT_KIT_EXPECTED_VERSION:-}"
+
+  if [ ! -f "$manifest_path" ]; then
+    echo "[entrypoint] WARN: knowledge-system agent kit manifest missing for ${agent_name} at ${manifest_path}; run agents-kb-install or /install.sh --agent all"
+    return
+  fi
+
+  installed_version=$(awk -F= '/^version=/{print $2; exit}' "$manifest_path" 2>/dev/null || true)
+  if [ -z "$installed_version" ]; then
+    echo "[entrypoint] WARN: knowledge-system agent kit manifest for ${agent_name} has no version at ${manifest_path}"
+    return
+  fi
+
+  if [ -n "$expected_version" ] && [ "$installed_version" != "$expected_version" ]; then
+    echo "[entrypoint] WARN: knowledge-system agent kit manifest for ${agent_name} is ${installed_version}, expected ${expected_version}; run agents-kb-install or /install.sh --agent all"
+  fi
+}
+
+check_agent_kit_manifests() {
+  check_agent_kit_manifest "Claude" "${CLAUDE_CONFIG_DIR}/.knowledge-system-version"
+  check_agent_kit_manifest "Codex" "${CODEX_HOME}/.knowledge-system-version"
+}
+
+if [ "${AGENT_RUNNER_ENTRYPOINT_SELF_TEST:-}" = "agent-kit-manifest" ]; then
+  check_agent_kit_manifests
+  exit 0
+fi
+
+check_agent_kit_manifests
+
 # Bootstrap git identity — assistant-api injects GIT_AUTHOR_NAME /
 # GIT_AUTHOR_EMAIL when it creates the Pod; fall back to a clearly
 # non-human identity so accidental commits are easy to spot.

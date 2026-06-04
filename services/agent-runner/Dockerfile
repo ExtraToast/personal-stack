@@ -166,6 +166,21 @@ RUN rm -f /usr/bin/sg \
 COPY --from=gateway-build /app/services/agent-gateway/build/libs/*.jar /opt/agent-gateway.jar
 COPY services/agent-runner/entrypoint.sh /opt/entrypoint.sh
 RUN chmod +x /opt/entrypoint.sh
+RUN set -eu; \
+    tmp="$(mktemp -d)"; \
+    mkdir -p "${tmp}/.claude" "${tmp}/.codex"; \
+    output="$(HOME="${tmp}" CODEX_HOME="${tmp}/.codex" CLAUDE_CONFIG_DIR="${tmp}/.claude" AGENT_RUNNER_ENTRYPOINT_SELF_TEST=agent-kit-manifest /opt/entrypoint.sh)"; \
+    printf '%s\n' "${output}" | grep -q "manifest missing for Claude"; \
+    printf '%s\n' "${output}" | grep -q "manifest missing for Codex"; \
+    printf 'version=old\n' > "${tmp}/.claude/.knowledge-system-version"; \
+    printf 'version=old\n' > "${tmp}/.codex/.knowledge-system-version"; \
+    output="$(HOME="${tmp}" CODEX_HOME="${tmp}/.codex" CLAUDE_CONFIG_DIR="${tmp}/.claude" AGENT_KIT_EXPECTED_VERSION=current AGENT_RUNNER_ENTRYPOINT_SELF_TEST=agent-kit-manifest /opt/entrypoint.sh)"; \
+    printf '%s\n' "${output}" | grep -q "is old, expected current"; \
+    printf 'version=current\n' > "${tmp}/.claude/.knowledge-system-version"; \
+    printf 'version=current\n' > "${tmp}/.codex/.knowledge-system-version"; \
+    output="$(HOME="${tmp}" CODEX_HOME="${tmp}/.codex" CLAUDE_CONFIG_DIR="${tmp}/.claude" AGENT_KIT_EXPECTED_VERSION=current AGENT_RUNNER_ENTRYPOINT_SELF_TEST=agent-kit-manifest /opt/entrypoint.sh)"; \
+    test -z "${output}"; \
+    rm -rf "${tmp}"
 
 # Shared token helper used by gh, GitHub MCP, and Git's credential
 # helper. Centralising cache/minting logic keeps push + PR creation on
