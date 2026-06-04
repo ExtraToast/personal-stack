@@ -39,4 +39,5 @@ By default, doctor fails static repo drift and MCP profile mismatches. Missing
 local Claude/Codex installs and skipped live KB probes are warnings so the
 command remains portable in CI and fresh clones. Use `--strict` to make
 warnings fail, and use `--require-live-kb` when `KB_URL` and
-`KB_BEARER_TOKEN` must be present and the MCP server must answer `tools/list`.
+`KB_BEARER_TOKEN` must be present, the MCP server must answer `tools/list`,
+and `knowledge.recall(mode=fast, limit=1)` must complete.

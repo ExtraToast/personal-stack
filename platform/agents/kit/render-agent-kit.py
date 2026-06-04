@@ -301,26 +301,67 @@ def kb_reachability_check(require_live_kb: bool, timeout_seconds: float) -> Doct
         status = "fail" if require_live_kb else "warn"
         return DoctorCheck(name="kb-live", status=status, detail="KB_BEARER_TOKEN is not set; live MCP probe skipped")
 
-    payload = json.dumps({"jsonrpc": "2.0", "id": "agent-kit-doctor", "method": "tools/list"}).encode()
+    try:
+        tools_body = mcp_post(
+            kb_url=kb_url,
+            token=token,
+            payload={"jsonrpc": "2.0", "id": "agent-kit-doctor-tools", "method": "tools/list"},
+            timeout_seconds=timeout_seconds,
+        )
+    except (OSError, error.URLError, json.JSONDecodeError) as exc:
+        return DoctorCheck(name="kb-live", status="fail", detail=f"MCP tools/list probe failed: {exc}")
+
+    if "error" in tools_body:
+        return DoctorCheck(name="kb-live", status="fail", detail=f"MCP tools/list returned error: {tools_body['error']}")
+
+    tool_names = {tool.get("name") for tool in tools_body.get("result", {}).get("tools", [])}
+    if "knowledge.recall" not in tool_names:
+        return DoctorCheck(name="kb-live", status="fail", detail="MCP tools/list did not include knowledge.recall")
+
+    recall_payload = {
+        "jsonrpc": "2.0",
+        "id": "agent-kit-doctor-recall",
+        "method": "tools/call",
+        "params": {
+            "name": "knowledge.recall",
+            "arguments": {
+                "query": "agent kit doctor reachability",
+                "scope": "project:personal-stack",
+                "mode": "fast",
+                "limit": 1,
+            },
+        },
+    }
+    try:
+        recall_body = mcp_post(kb_url=kb_url, token=token, payload=recall_payload, timeout_seconds=timeout_seconds)
+    except (OSError, error.URLError, json.JSONDecodeError) as exc:
+        return DoctorCheck(name="kb-live", status="fail", detail=f"MCP knowledge.recall probe failed: {exc}")
+
+    if "error" in recall_body:
+        return DoctorCheck(name="kb-live", status="fail", detail=f"MCP knowledge.recall returned error: {recall_body['error']}")
+
+    structured = recall_body.get("result", {}).get("structuredContent", {})
+    hits = structured.get("hits")
+    hit_count = len(hits) if isinstance(hits, list) else 0
+    return DoctorCheck(
+        name="kb-live",
+        status="ok",
+        detail=f"reachable at {kb_url}/mcp with {len(tool_names)} tools; fast recall returned {hit_count} hits",
+    )
+
+
+def mcp_post(kb_url: str, token: str, payload: dict, timeout_seconds: float) -> dict:
     probe = request.Request(
         f"{kb_url}/mcp",
-        data=payload,
+        data=json.dumps(payload).encode(),
         headers={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
         },
         method="POST",
     )
-    try:
-        with request.urlopen(probe, timeout=timeout_seconds) as response:
-            body = json.loads(response.read().decode())
-    except (OSError, error.URLError, json.JSONDecodeError) as exc:
-        return DoctorCheck(name="kb-live", status="fail", detail=f"MCP probe failed: {exc}")
-
-    tool_names = {tool.get("name") for tool in body.get("result", {}).get("tools", [])}
-    if "knowledge.recall" not in tool_names:
-        return DoctorCheck(name="kb-live", status="fail", detail="MCP tools/list did not include knowledge.recall")
-    return DoctorCheck(name="kb-live", status="ok", detail=f"reachable at {kb_url}/mcp with {len(tool_names)} tools")
+    with request.urlopen(probe, timeout=timeout_seconds) as response:
+        return json.loads(response.read().decode())
 
 
 def doctor(args: argparse.Namespace) -> int:
