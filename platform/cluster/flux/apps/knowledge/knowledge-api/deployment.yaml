@@ -65,6 +65,15 @@ spec:
         - name: knowledge-api
           image: ghcr.io/extratoast/personal-stack/knowledge-api:latest
           imagePullPolicy: Always
+          # CRIU restore (when crac-launch.sh restores a baked checkpoint)
+          # needs these two capabilities to re-map the saved process image.
+          # Harmless on the cold-start path. Not privileged — only the
+          # specific caps CRaC restore requires.
+          securityContext:
+            capabilities:
+              add:
+                - CHECKPOINT_RESTORE
+                - SYS_PTRACE
           command:
             - /bin/sh
             - -ec
@@ -73,11 +82,7 @@ spec:
               . /vault/secrets/knowledge-api.env
               . /vault/secrets/rabbitmq.env
               set +a
-              exec java \
-                -XX:+UseZGC \
-                -XX:MaxRAMPercentage=75 \
-                -javaagent:/app/otel-javaagent.jar \
-                -jar /app/app.jar
+              exec /app/crac-launch.sh
           # VSO projects every field under
           # `secret/data/knowledge-system/mcp-bearer` into the
           # knowledge-api-mcp-tokens Secret. `KNOWLEDGE_MCP_TOKENS_`
@@ -91,6 +96,18 @@ spec:
                 name: knowledge-api-mcp-tokens
               prefix: KNOWLEDGE_MCP_TOKENS_
           env:
+            # Attempt CRaC restore from the checkpoint baked into the image.
+            # crac-launch.sh cold-starts anyway when no *.img is present (the
+            # default placeholder build) or when a restore exits non-zero, so
+            # this is safe before a CI-baked image exists. KNOWN LIMITATION:
+            # a checkpoint restored from CI training holds CI's DB/RabbitMQ
+            # connection config, so a successful restore cannot reach the
+            # production database until an afterRestore re-bind lands in
+            # kotlin-common — set this to 'false' to force cold start if a
+            # baked image stalls the rollout (RollingUpdate maxUnavailable:0
+            # keeps the old pod serving meanwhile, so there is no outage).
+            - name: CRAC_RESTORE_ENABLED
+              value: 'true'
             - name: SERVER_PORT
               value: '8080'
             - name: SPRING_PROFILES_ACTIVE
