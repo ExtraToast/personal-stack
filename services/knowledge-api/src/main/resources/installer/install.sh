@@ -324,8 +324,9 @@ Checklist:
 
 1. Locate the active user and project config layers:
    `~/.claude/settings.json`, `~/.claude/CLAUDE.md`, project
-   `CLAUDE.md`, `~/.claude/skills`, Codex `~/.codex/config.toml`,
-   `~/.codex/hooks.json`, repo `AGENTS.md`, and `.agents/skills`.
+   `CLAUDE.md`, project `.claude/settings.json`, project `.claude/hooks`,
+   `~/.claude/skills`, Codex `~/.codex/config.toml`, `~/.codex/hooks.json`,
+   repo `AGENTS.md`, and `.agents/skills`.
 2. Ensure the `knowledge` MCP server is configured and uses
    `KB_BEARER_TOKEN` rather than an inline secret where possible.
 3. Register bounded recall hooks:
@@ -338,6 +339,11 @@ Checklist:
    update the KB without user reminders.
 6. Validate with dry-run hook payloads and at least one `tools/list` or
    `knowledge.recall` MCP call.
+
+Every Codex project skill, hook, or durable instruction must have an
+equivalent Claude implementation in the same branch. Treat Codex-only
+`.agents`/`.codex` files as incomplete until `.claude`/`CLAUDE.md`/
+installer parity exists.
 
 Do not put bearer tokens, secrets, or full transcripts into committed
 files.

@@ -9,7 +9,8 @@ description: Use when configuring Claude Code or Codex sessions, hooks, skills, 
 
 1. Locate the active user and project config layers:
    - Claude: `~/.claude/settings.json`, `~/.claude/CLAUDE.md`, project
-     `CLAUDE.md`, and `~/.claude/skills`.
+     `CLAUDE.md`, project `.claude/settings.json`, project `.claude/hooks`,
+     and `~/.claude/skills`.
    - Codex: `~/.codex/config.toml`, `~/.codex/hooks.json`, repo `AGENTS.md`,
      and `.agents/skills`.
 2. Ensure the `knowledge` MCP server is configured and uses
@@ -24,5 +25,9 @@ description: Use when configuring Claude Code or Codex sessions, hooks, skills, 
    update the KB without user reminders.
 6. Validate with dry-run hook payloads and at least one `tools/list` or
    `knowledge.recall` MCP call.
+
+Every Codex project skill, hook, or durable instruction must have an equivalent
+Claude implementation in the same branch. Treat Codex-only `.agents`/`.codex`
+files as incomplete until `.claude`/`CLAUDE.md`/installer parity exists.
 
 Do not put bearer tokens, secrets, or full transcripts into committed files.

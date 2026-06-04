@@ -23,6 +23,9 @@ out task context.
   summaries of command output, and focused MCP calls.
 - Commit only intentional changes, in small logical commits. Never stage or
   revert unrelated dirty files.
+- Maintain Claude/Codex parity. Any project skill, hook, memory rule, or
+  installer behavior added for Codex must get the Claude equivalent in the same
+  branch, and vice versa.
 
 ## Verification
 

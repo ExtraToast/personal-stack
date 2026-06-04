@@ -86,6 +86,12 @@ workstation so they survive across every Claude Code session, not just
 this checkout. Project-scoped mirrors can also live in this repo for
 agents that load repository skills directly.
 
+Claude/Codex parity is mandatory for project agent features. The
+checked-in `.codex/hooks.json` + `.codex/hooks/*` prompt-recall and
+stop-digest hooks are mirrored by `.claude/settings.json` +
+`.claude/hooks/*`; future agent skills or hooks should keep both sides
+aligned.
+
 - `~/.claude/skills/topics/SKILL.md` — inspect the closed topic/tag
   vocabulary before scoping captures.
 - `~/.claude/skills/audit/SKILL.md` — audit inbox backlog, duplicate

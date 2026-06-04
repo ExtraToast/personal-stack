@@ -54,6 +54,11 @@ platform operator running ambitious multi-component changes end-to-end.
   Start from snippets, then relations, then full notes only when
   needed. At the end, capture durable lessons or decisions to the KB.
   Never paste broad KB dumps or full transcripts into the prompt.
+- **Claude/Codex parity is mandatory.** Any agent skill, hook, memory
+  rule, or installer behavior added for Codex must get the Claude
+  equivalent in the same branch, and vice versa. Codex-only `.agents` or
+  `.codex` changes are incomplete until `.claude`, `CLAUDE.md`, or the
+  installer carries the matching behavior.
 
 ## Repo layout
 
