@@ -1,5 +1,6 @@
 package com.jorisjonkers.personalstack.assistant.infrastructure.ws
 
+import com.jorisjonkers.personalstack.assistant.application.idle.ConnectedClientTracker
 import com.jorisjonkers.personalstack.assistant.application.idle.WorkspaceActivityTracker
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSessionId
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceAgentSessionRepository
@@ -38,11 +39,13 @@ class SessionAttachHandler(
     private val sessions: WorkspaceAgentSessionRepository,
     private val workspaces: WorkspaceRepository,
     private val activity: WorkspaceActivityTracker,
+    private val connected: ConnectedClientTracker,
 ) : TextWebSocketHandler() {
     private val log = LoggerFactory.getLogger(SessionAttachHandler::class.java)
 
     private data class Bridge(
         val sessionId: WorkspaceAgentSessionId,
+        val workspaceId: com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId,
         val upstream: WebSocketSession,
     )
 
@@ -99,12 +102,13 @@ class SessionAttachHandler(
 
     override fun afterConnectionEstablished(clientSession: WebSocketSession) {
         val resolved = resolveAttach(clientSession) ?: return
-        val upstreamHandler = UpstreamHandler(clientSession)
+        val upstreamHandler = UpstreamHandler(clientSession, resolved.workspaceId, activity)
         val upstream =
             client
                 .execute(upstreamHandler, resolved.upstreamUri.toString())
                 .get(UPSTREAM_HANDSHAKE_SECONDS, TimeUnit.SECONDS)
-        bridges[clientSession.id] = Bridge(resolved.sessionId, upstream)
+        bridges[clientSession.id] = Bridge(resolved.sessionId, resolved.workspaceId, upstream)
+        connected.attach(resolved.workspaceId)
         activity.touch(resolved.workspaceId)
         log.info(
             "attached client {} to session {} via {}",
@@ -132,6 +136,7 @@ class SessionAttachHandler(
         status: CloseStatus,
     ) {
         val bridge = bridges.remove(clientSession.id) ?: return
+        connected.detach(bridge.workspaceId)
         runCatching { bridge.upstream.close(status) }
     }
 
@@ -148,10 +153,13 @@ class SessionAttachHandler(
 
     /**
      * Inbound from gateway: shovel the frame straight back to the
-     * browser. No buffering — the terminal stream is not persisted.
+     * browser and record activity so the idle sweep knows the AI is
+     * still producing output (even if the user is not typing).
      */
     private class UpstreamHandler(
         private val client: WebSocketSession,
+        private val workspaceId: com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId,
+        private val activity: WorkspaceActivityTracker,
     ) : TextWebSocketHandler() {
         override fun handleTextMessage(
             session: WebSocketSession,
@@ -160,6 +168,9 @@ class SessionAttachHandler(
             if (client.isOpen) {
                 synchronized(client) { client.sendMessage(message) }
             }
+            // Touch on upstream output: AI streaming → keeps idle timer alive
+            // while the agent is working, even with no user keystrokes.
+            activity.touch(workspaceId)
         }
 
         override fun afterConnectionClosed(

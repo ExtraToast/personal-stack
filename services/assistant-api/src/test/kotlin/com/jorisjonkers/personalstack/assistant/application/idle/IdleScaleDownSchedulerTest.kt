@@ -1,9 +1,12 @@
 package com.jorisjonkers.personalstack.assistant.application.idle
 
 import com.jorisjonkers.personalstack.assistant.domain.model.Workspace
+import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSession
+import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSessionStatus
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceStatus
 import com.jorisjonkers.personalstack.assistant.domain.port.AgentRunnerOrchestrator
+import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceAgentSessionRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepository
 import io.mockk.every
 import io.mockk.mockk
@@ -29,21 +32,31 @@ class IdleScaleDownSchedulerTest {
     private val now = Instant.parse("2026-05-19T12:00:00Z")
     private val clock = FixedClock(now)
     private val workspaces = mockk<WorkspaceRepository>()
+    private val agentSessions = mockk<WorkspaceAgentSessionRepository>()
     private val orchestrator = mockk<AgentRunnerOrchestrator>(relaxed = true)
     private val tracker = WorkspaceActivityTracker(clock)
+    private val connected = ConnectedClientTracker()
     private val scheduler =
         IdleScaleDownScheduler(
             workspaces = workspaces,
+            agentSessions = agentSessions,
             orchestrator = orchestrator,
             tracker = tracker,
+            connected = connected,
             clock = clock,
             idleAfterSeconds = 1_800,
+            agentIdleAfterSeconds = 14_400,
         )
+
+    private fun noRunningSessions(ws: Workspace) {
+        every { agentSessions.findAllByWorkspaceId(ws.id) } returns emptyList()
+    }
 
     @Test
     fun `sweep scales down a READY workspace whose last activity is older than the threshold`() {
         val ws = workspace(updatedAt = now.minusSeconds(7_200))
         every { workspaces.findAllByStatusNot(WorkspaceStatus.DESTROYED) } returns listOf(ws)
+        noRunningSessions(ws)
         val saved = slot<Workspace>()
         every { workspaces.save(capture(saved)) } answers { saved.captured }
 
@@ -60,6 +73,7 @@ class IdleScaleDownSchedulerTest {
     fun `sweep leaves recently active workspaces alone`() {
         val ws = workspace(updatedAt = now.minusSeconds(60))
         every { workspaces.findAllByStatusNot(WorkspaceStatus.DESTROYED) } returns listOf(ws)
+        noRunningSessions(ws)
         tracker.touch(ws.id)
 
         scheduler.sweep()
@@ -85,12 +99,52 @@ class IdleScaleDownSchedulerTest {
         val ws = workspace(updatedAt = now.minusSeconds(7_200))
         tracker.touch(ws.id) // fresh-as-now
         every { workspaces.findAllByStatusNot(WorkspaceStatus.DESTROYED) } returns listOf(ws)
+        noRunningSessions(ws)
 
         scheduler.sweep()
 
         verify(exactly = 0) { orchestrator.scaleDown(any()) }
         verify(exactly = 0) { orchestrator.destroy(any()) }
     }
+
+    @Test
+    fun `sweep skips a workspace with a connected browser client regardless of idle time`() {
+        val ws = workspace(updatedAt = now.minusSeconds(7_200))
+        every { workspaces.findAllByStatusNot(WorkspaceStatus.DESTROYED) } returns listOf(ws)
+        connected.attach(ws.id)
+
+        scheduler.sweep()
+
+        verify(exactly = 0) { orchestrator.scaleDown(any()) }
+    }
+
+    @Test
+    fun `sweep skips a workspace with RUNNING sessions inside the agent idle threshold`() {
+        val ws = workspace(updatedAt = now.minusSeconds(7_200))
+        every { workspaces.findAllByStatusNot(WorkspaceStatus.DESTROYED) } returns listOf(ws)
+        every { agentSessions.findAllByWorkspaceId(ws.id) } returns listOf(runningSession())
+
+        scheduler.sweep()
+
+        verify(exactly = 0) { orchestrator.scaleDown(any()) }
+    }
+
+    @Test
+    fun `sweep scales down a workspace with RUNNING sessions once agent idle threshold expires`() {
+        val ws = workspace(updatedAt = now.minusSeconds(14_401))
+        every { workspaces.findAllByStatusNot(WorkspaceStatus.DESTROYED) } returns listOf(ws)
+        every { agentSessions.findAllByWorkspaceId(ws.id) } returns listOf(runningSession())
+        every { workspaces.save(any()) } answers { firstArg() }
+
+        scheduler.sweep()
+
+        verify { orchestrator.scaleDown(ws) }
+    }
+
+    private fun runningSession() =
+        mockk<WorkspaceAgentSession> {
+            every { status } returns WorkspaceAgentSessionStatus.RUNNING
+        }
 
     private fun workspace(
         updatedAt: Instant,

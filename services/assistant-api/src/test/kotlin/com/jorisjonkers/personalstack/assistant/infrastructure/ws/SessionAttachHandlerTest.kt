@@ -1,5 +1,6 @@
 package com.jorisjonkers.personalstack.assistant.infrastructure.ws
 
+import com.jorisjonkers.personalstack.assistant.application.idle.ConnectedClientTracker
 import com.jorisjonkers.personalstack.assistant.application.idle.WorkspaceActivityTracker
 import com.jorisjonkers.personalstack.assistant.domain.model.Workspace
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentKind
@@ -56,7 +57,7 @@ class SessionAttachHandlerTest {
             anyConstructed<StandardWebSocketClient>().execute(any(), any<String>())
         } returns CompletableFuture.completedFuture(upstream)
 
-        handler = SessionAttachHandler(sessions, workspaces, activity)
+        handler = SessionAttachHandler(sessions, workspaces, activity, ConnectedClientTracker())
 
         every { sessions.findById(sessionId) } returns agentSession()
         every { workspaces.findById(workspaceId) } returns workspace()

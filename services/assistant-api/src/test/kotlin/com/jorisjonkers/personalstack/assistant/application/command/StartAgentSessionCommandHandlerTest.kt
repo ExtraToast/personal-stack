@@ -23,7 +23,10 @@ import java.time.Instant
 
 class StartAgentSessionCommandHandlerTest {
     private val workspaces = mockk<WorkspaceRepository>()
-    private val sessions = mockk<WorkspaceAgentSessionRepository>()
+
+    // relaxed = true so findAllByWorkspaceId (called by previousSessionResumeId) returns
+    // empty list by default without needing a per-test stub everywhere.
+    private val sessions = mockk<WorkspaceAgentSessionRepository>(relaxed = true)
     private val gateway = mockk<AgentGatewayClient>()
     private val orchestrator = mockk<AgentRunnerOrchestrator>()
 

@@ -27,7 +27,7 @@ class AgentController(
     fun spawn(
         @RequestBody req: SpawnAgentRequest,
     ): ResponseEntity<AgentResponse> {
-        val session = sessions.spawn(req.kind, req.workspacePath)
+        val session = sessions.spawn(req.kind, req.workspacePath, req.resumeCliSessionId)
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(session))
     }
 
