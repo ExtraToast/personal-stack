@@ -37,13 +37,37 @@ Loop:
 5. Checkpoint 2: present `report.md` — what merged, what failed, the integration
    branch to review. Collect feedback; re-loop into `plan` or re-run tasks.
 
+## Controlling models & intensity
+
+Council is driven by an intensity preset plus optional per-role overrides in
+`platform/agents/council/council.toml`. Manage it conversationally — translate
+"use thorough intensity" or "switch planners to sonnet" into a flag or a
+`config` command.
+
+| preset | rounds | codex effort | workers | max workers |
+|---|---|---|---|---|
+| quick | 1 | low | haiku | 4 |
+| standard (default) | 2 | high | haiku | 6 |
+| thorough | 3 | high | sonnet | 6 |
+| max | 3 | xhigh | sonnet | 8 |
+
+```bash
+# one-off:
+python3 platform/agents/council/council.py plan --brief brief.md --intensity thorough
+python3 platform/agents/council/council.py fanout --run <dir> --worker claude:sonnet
+# persist (edits council.toml):
+python3 platform/agents/council/council.py config show
+python3 platform/agents/council/council.py config set intensity thorough
+python3 platform/agents/council/council.py config set planner_b codex:gpt-5.5
+```
+
+Override flags: `--intensity`, `--rounds`, `--planner-a`, `--planner-b`,
+`--consolidator`, `--worker`, `--verifier`, `--codex-effort`, `--max-workers`.
+Precedence: preset < council.toml < CLI flag. Workers must be `claude:<model>`.
+
 Notes:
 
-- Both `codex` and `claude` CLIs must be authenticated. Codex plans/critiques at
-  reasoning effort high; the consolidator and verifier are Claude.
-- Defaults: 2 rounds, planners `codex:gpt-5.5` + `claude:opus`, workers
-  `claude:haiku` (hard tasks bumped to sonnet). Override with `--rounds`,
-  `--planner-a`, `--planner-b`, `--max-workers`.
+- Both `codex` and `claude` CLIs must be authenticated.
 - Runs are resumable: stages are idempotent on their output files; re-run with
   `--run <dir>`.
 - Full design: `docs/private/council-orchestrator-design.md`.

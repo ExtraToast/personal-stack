@@ -55,10 +55,29 @@ conflicts are left out and reported. **Nothing is merged into your branch** —
 `fanout` prints the integration branch name for review. See `report.md` in the
 run dir.
 
-## Knobs
-- `--rounds N` — critique rounds (default 2).
-- `--planner-a cli:model`, `--planner-b cli:model` — override the planning tier
-  (default `claude:opus` and `codex:gpt-5.5`).
+## Models & intensity
+
+Driven by an intensity preset plus optional per-role overrides in `council.toml`.
+
+| preset | rounds | codex effort | workers | max workers |
+|---|---|---|---|---|
+| `quick` | 1 | low | haiku | 4 |
+| `standard` (default) | 2 | high | haiku | 6 |
+| `thorough` | 3 | high | sonnet | 6 |
+| `max` | 3 | xhigh | sonnet | 8 |
+
+```bash
+council.py plan --brief b.md --intensity thorough     # one-off
+council.py config show                                # see resolved config
+council.py config set intensity thorough              # persist (edits council.toml)
+council.py config set planner_b codex:gpt-5.5
+council.py config unset worker                         # back to preset
+```
+
+Override flags (precedence: preset < `council.toml` < CLI): `--intensity`,
+`--rounds`, `--planner-a`, `--planner-b`, `--consolidator`, `--worker`,
+`--verifier`, `--codex-effort`, `--max-workers`. Workers must be `claude:<model>`
+(codex workers aren't supported yet).
 
 ## Run layout (`.council/runs/<id>/`, gitignored)
 ```

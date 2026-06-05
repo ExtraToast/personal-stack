@@ -24,6 +24,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Optional, TypeVar
@@ -63,13 +64,30 @@ class Engine:
         return f"{self.cli}:{self.model}"
 
 
-# Tiers. Expensive models plan / critique / judge (errors propagate there);
-# cheap models do the fan-out. Overridable via CLI flags.
-PLANNER_A = Engine("claude", "opus")
-PLANNER_B = Engine("codex", "gpt-5.5")
-CONSOLIDATOR = Engine("claude", "opus")
+# Model tiers are driven by an intensity preset plus optional per-role overrides
+# (council.toml + CLI flags). A preset bundles the dials that scale with effort;
+# the expensive-tier role models stay constant across presets. Expensive models
+# plan / critique / judge (errors propagate there); cheap models do the fan-out.
+BASE_ROLES = {
+    "planner_a": "claude:opus",
+    "planner_b": "codex:gpt-5.5",
+    "consolidator": "claude:opus",
+    "verifier": "claude:sonnet",
+}
+PRESETS = {
+    "quick":    {"rounds": 1, "codex_effort": "low",   "worker": "claude:haiku",  "max_workers": 4},
+    "standard": {"rounds": 2, "codex_effort": "high",  "worker": "claude:haiku",  "max_workers": 6},
+    "thorough": {"rounds": 3, "codex_effort": "high",  "worker": "claude:sonnet", "max_workers": 6},
+    "max":      {"rounds": 3, "codex_effort": "xhigh", "worker": "claude:sonnet", "max_workers": 8},
+}
+DEFAULT_INTENSITY = "standard"
+ROLE_KEYS = ("planner_a", "planner_b", "consolidator", "worker", "verifier")
+INT_KEYS = ("rounds", "max_workers")
+CODEX_EFFORTS = ("low", "medium", "high", "xhigh")
+CONFIG_KEYS = ("intensity",) + ROLE_KEYS + ("codex_effort",) + INT_KEYS
+CONFIG_PATH = HERE / "council.toml"
 
-DEFAULT_ROUNDS = 2
+# codex reasoning effort; resolved per-run from config and set at command entry.
 CODEX_REASONING = os.environ.get("COUNCIL_CODEX_REASONING", "high")
 PLAN_TIMEOUT_S = int(os.environ.get("COUNCIL_PLAN_TIMEOUT_S", "1200"))
 
@@ -77,8 +95,6 @@ PLAN_TIMEOUT_S = int(os.environ.get("COUNCIL_PLAN_TIMEOUT_S", "1200"))
 WORKER_PERMISSION_MODE = "acceptEdits"   # auto-accept edits; no command approval
 WORKER_TIMEOUT_S = int(os.environ.get("COUNCIL_WORKER_TIMEOUT_S", "1800"))
 VERIFY_TIMEOUT_S = int(os.environ.get("COUNCIL_VERIFY_TIMEOUT_S", "600"))
-VERIFIER = Engine("claude", "sonnet")
-DEFAULT_MAX_WORKERS = 6
 WT_ROOT = Path(tempfile.gettempdir()) / "council-worktrees"
 
 
@@ -383,11 +399,11 @@ def stage_critique_round(run: Run, brief: str, a: Engine, b: Engine,
 
 
 def stage_consolidate(run: Run, brief: str, plan_a: dict, plan_b: dict,
-                      rounds: int) -> dict:
+                      rounds: int, consolidator: Engine) -> dict:
     if run.has("tasks.json") and run.has("consolidated_plan.md"):
         log("stage 4: consolidation already present, skipping")
         return run.read_json("tasks.json")
-    log(f"stage 4: consolidation  ({CONSOLIDATOR.label})")
+    log(f"stage 4: consolidation  ({consolidator.label})")
     history_parts = []
     for r in range(1, rounds + 1):
         for side in ("A", "B"):
@@ -401,7 +417,7 @@ def stage_consolidate(run: Run, brief: str, plan_a: dict, plan_b: dict,
         history="\n\n".join(history_parts) or "(no critiques recorded)",
         schema=load_schema_text("consolidated"),
     )
-    res = run.record(run_engine(CONSOLIDATOR, prompt))
+    res = run.record(run_engine(consolidator, prompt))
     obj = extract_json(res.text)
     tasks = obj.get("tasks", [])
     validate_tasks(tasks)
@@ -458,7 +474,8 @@ def run_verify(cmd: str, cwd: Path) -> tuple[Optional[int], str]:
 
 
 def run_verifier(run: Run, task: dict, diff: str, verify_cmd: str,
-                 verify_rc: Optional[int], verify_out: str) -> Optional[dict]:
+                 verify_rc: Optional[int], verify_out: str,
+                 verifier: Engine) -> Optional[dict]:
     prompt = render(
         load_prompt("verifier"), objective=task.get("objective", ""),
         output_format=task.get("output_format", ""),
@@ -468,21 +485,22 @@ def run_verifier(run: Run, task: dict, diff: str, verify_cmd: str,
         schema=load_schema_text("verdict"),
     )
     try:
-        res = run.record(run_engine(VERIFIER, prompt, retries=0))
+        res = run.record(run_engine(verifier, prompt, retries=0))
         return extract_json(res.text)
     except Exception as exc:  # verifier is advisory; never fail the run on it
         log(f"verifier for {task['id']} errored: {exc}")
         return None
 
 
-def run_worker(run: Run, task: dict, base_ref: str, run_name: str) -> dict:
+def run_worker(run: Run, task: dict, base_ref: str, run_name: str,
+               worker: Engine, verifier: Engine) -> dict:
     tid = task["id"]
     paths = list(task.get("paths", []))
     branch = f"council/{run_name}/{tid}"
     wt = WT_ROOT / run_name / tid
     result: dict = {"task_id": tid, "title": task.get("title", tid),
-                    "model": task.get("model"), "branch": branch,
-                    "worktree": str(wt), "committed": False}
+                    "model": worker.label, "suggested_model": task.get("model"),
+                    "branch": branch, "worktree": str(wt), "committed": False}
     try:
         wt.parent.mkdir(parents=True, exist_ok=True)
         git("worktree", "remove", "--force", str(wt), check=False)
@@ -496,7 +514,7 @@ def run_worker(run: Run, task: dict, base_ref: str, run_name: str) -> dict:
                 paths="\n".join(f"- {p}" for p in paths),
                 boundaries=task.get("boundaries", ""),
                 output_format=task.get("output_format", ""), cwd=str(wt))
-            res = run.record(run_claude(prompt, task["model"], cwd=wt,
+            res = run.record(run_claude(prompt, worker.model, cwd=wt,
                                         permission_mode=WORKER_PERMISSION_MODE,
                                         timeout=WORKER_TIMEOUT_S))
             result["summary"] = res.text[-2000:]
@@ -525,7 +543,7 @@ def run_worker(run: Run, task: dict, base_ref: str, run_name: str) -> dict:
         result["verify_rc"] = rc
         result["verify_output"] = out[-4000:]
 
-        verdict = run_verifier(run, task, diff, verify_cmd, rc, out)
+        verdict = run_verifier(run, task, diff, verify_cmd, rc, out, verifier)
         result["verdict"] = verdict
 
         if out_of_bounds:
@@ -555,18 +573,29 @@ def cmd_fanout(args: argparse.Namespace) -> int:
     tasks = run.read_json("tasks.json")
     by_id = {t["id"]: t for t in tasks}
     waves = plan_waves(tasks)
+
+    cfg = resolve_config({"intensity": args.intensity, "worker": args.worker,
+                          "verifier": args.verifier, "codex_effort": args.codex_effort,
+                          "max_workers": args.max_workers})
+    global CODEX_REASONING
+    CODEX_REASONING = cfg["codex_effort"]
+    worker = parse_engine_value(cfg["worker"])
+    verifier = parse_engine_value(cfg["verifier"])
+    if worker.cli != "claude":
+        raise SystemExit(f"workers must be claude:<model>, got {cfg['worker']!r} "
+                         "(codex workers are not yet supported)")
     cores = max(1, (os.cpu_count() or 3) - 2)
-    cap = min(args.max_workers, cores)
+    cap = min(cfg["max_workers"], cores)
 
     if args.estimate:
-        print(f"council fanout — {len(tasks)} tasks in {len(waves)} wave(s), "
-              f"concurrency {cap}")
+        print(f"council fanout — {len(tasks)} tasks in {len(waves)} wave(s); "
+              f"intensity {cfg['intensity']}; worker {worker.label}; "
+              f"verifier {verifier.label}; concurrency {cap}")
         for i, wave in enumerate(waves, 1):
-            models = ", ".join(f"{t}:{by_id[t].get('model')}" for t in wave)
-            print(f"  wave {i}: {models}")
-        print("Each task spawns one worker (cheap model) + one verifier "
-              "(claude:sonnet). Worktrees are isolated; nothing is merged into "
-              "your branch — results land on an integration branch for review.")
+            print(f"  wave {i}: {', '.join(wave)}")
+        print("Each task spawns one worker + one verifier. Worktrees are "
+              "isolated; nothing is merged into your branch — results land on an "
+              "integration branch for review.")
         return 0
 
     run_name = run.path.name
@@ -584,7 +613,8 @@ def cmd_fanout(args: argparse.Namespace) -> int:
     for wi, wave in enumerate(waves, 1):
         wave_base = git("rev-parse", "HEAD", cwd=integ_wt).stdout.strip()
         log(f"wave {wi}/{len(waves)}: {wave}  (base {wave_base[:8]})")
-        thunks = [(lambda t=t: run_worker(run, by_id[t], wave_base, run_name))
+        thunks = [(lambda t=t: run_worker(run, by_id[t], wave_base, run_name,
+                                           worker, verifier))
                   for t in wave]
         for tid, res in zip(wave, parallel_bounded(thunks, cap)):
             results[tid] = res
@@ -696,17 +726,25 @@ def read_brief(arg: str) -> str:
 
 
 def cmd_plan(args: argparse.Namespace) -> int:
-    a = parse_engine(args.planner_a, PLANNER_A)
-    b = parse_engine(args.planner_b, PLANNER_B)
-    rounds = args.rounds
+    cfg = resolve_config({"intensity": args.intensity, "planner_a": args.planner_a,
+                          "planner_b": args.planner_b, "consolidator": args.consolidator,
+                          "rounds": args.rounds, "codex_effort": args.codex_effort})
+    global CODEX_REASONING
+    CODEX_REASONING = cfg["codex_effort"]
+    a = parse_engine_value(cfg["planner_a"])
+    b = parse_engine_value(cfg["planner_b"])
+    consolidator = parse_engine_value(cfg["consolidator"])
+    rounds = cfg["rounds"]
 
     if args.estimate:
         calls = 2 + rounds * 4 + 1
-        print(f"council plan — estimated model calls: {calls}")
+        print(f"council plan — intensity {cfg['intensity']}, "
+              f"estimated model calls: {calls}")
         print(f"  stage 1 dual plans      : 2  ({a.label}, {b.label})")
         print(f"  stage 2 critique+revise : {rounds * 4}  ({rounds} rounds x "
               f"[2 critiques + 2 revisions])")
-        print(f"  stage 4 consolidation   : 1  ({CONSOLIDATOR.label})")
+        print(f"  stage 4 consolidation   : 1  ({consolidator.label})")
+        print(f"  codex reasoning effort  : {cfg['codex_effort']}")
         print("These are expensive-tier calls; fan-out (cheap workers) is "
               "separate. Multi-agent runs ~15x the tokens of a single chat — "
               "use council only for large, decomposable work.")
@@ -715,14 +753,16 @@ def cmd_plan(args: argparse.Namespace) -> int:
     brief = read_brief(args.brief)
     run = Run.open(Path(args.run)) if args.run else Run.create(brief, args.slug)
     run.write_text("brief.md", brief)
-    run.set_state(stage="plan", rounds=rounds, planner_a=a.label,
-                  planner_b=b.label)
+    run.set_state(stage="plan", intensity=cfg["intensity"], rounds=rounds,
+                  planner_a=a.label, planner_b=b.label)
     log(f"run dir: {run.path}")
+    log(f"intensity {cfg['intensity']}: {a.label} ║ {b.label}, {rounds} round(s), "
+        f"codex effort {cfg['codex_effort']}")
 
     plan_a, plan_b = stage_plan(run, brief, a, b)
     for rnd in range(1, rounds + 1):
         plan_a, plan_b = stage_critique_round(run, brief, a, b, plan_a, plan_b, rnd)
-    tasks = stage_consolidate(run, brief, plan_a, plan_b, rounds)
+    tasks = stage_consolidate(run, brief, plan_a, plan_b, rounds, consolidator)
     run.set_state(stage="planned", task_count=len(tasks))
 
     waves = plan_waves(tasks)
@@ -733,16 +773,142 @@ def cmd_plan(args: argparse.Namespace) -> int:
     return 0
 
 
-def parse_engine(spec: Optional[str], default: Engine) -> Engine:
+def parse_engine_value(spec: str) -> Engine:
     """spec form: "cli:model" e.g. "claude:opus" or "codex:gpt-5.5"."""
-    if not spec:
-        return default
-    if ":" not in spec:
-        raise SystemExit(f"engine must be cli:model, got {spec!r}")
-    cli, model = spec.split(":", 1)
-    if cli not in ("claude", "codex"):
-        raise SystemExit(f"engine cli must be claude|codex, got {cli!r}")
+    cli, _, model = spec.partition(":")
+    if cli not in ("claude", "codex") or not model:
+        raise SystemExit(f"engine must be claude:<model> or codex:<model>, "
+                         f"got {spec!r}")
     return Engine(cli, model)
+
+
+# --------------------------------------------------------------------------
+# config: intensity presets + per-role overrides (council.toml)
+# --------------------------------------------------------------------------
+
+def load_config_file() -> dict:
+    if not CONFIG_PATH.exists():
+        return {}
+    with CONFIG_PATH.open("rb") as fh:
+        raw = tomllib.load(fh)
+    return {k: v for k, v in raw.items() if k in CONFIG_KEYS}
+
+
+def merge_config(file_cfg: dict, cli_overrides: dict) -> dict:
+    """Resolve final settings: intensity preset < council.toml < CLI flags.
+    Pure (no IO) so it is covered by --self-test."""
+    intensity = (cli_overrides.get("intensity") or file_cfg.get("intensity")
+                 or DEFAULT_INTENSITY)
+    if intensity not in PRESETS:
+        raise ValueError(f"unknown intensity {intensity!r}; choose from "
+                         f"{', '.join(PRESETS)}")
+    resolved = dict(BASE_ROLES)
+    resolved.update(PRESETS[intensity])
+    for src in (file_cfg, cli_overrides):
+        for key, val in src.items():
+            if key == "intensity" or val is None or key not in CONFIG_KEYS:
+                continue
+            resolved[key] = val
+    resolved["intensity"] = intensity
+    return resolved
+
+
+def resolve_config(cli_overrides: dict) -> dict:
+    return merge_config(load_config_file(), cli_overrides)
+
+
+def coerce_config_value(key: str, raw: str):
+    """Validate + type a `config set` value. Raises ValueError on bad input
+    (callers convert to a clean CLI exit)."""
+    if key not in CONFIG_KEYS:
+        raise ValueError(f"unknown key {key!r}; choose from {', '.join(CONFIG_KEYS)}")
+    if key == "intensity":
+        if raw not in PRESETS:
+            raise ValueError(f"intensity must be one of {', '.join(PRESETS)}")
+        return raw
+    if key in INT_KEYS:
+        try:
+            return int(raw)
+        except ValueError:
+            raise ValueError(f"{key} must be an integer, got {raw!r}")
+    if key == "codex_effort":
+        if raw not in CODEX_EFFORTS:
+            raise ValueError(f"codex_effort must be one of {', '.join(CODEX_EFFORTS)}")
+        return raw
+    if key in ROLE_KEYS:
+        if ":" not in raw or raw.split(":", 1)[0] not in ("claude", "codex"):
+            raise ValueError(f"{key} must be claude:<model> or codex:<model>, "
+                             f"got {raw!r}")
+        if key == "worker" and not raw.startswith("claude:"):
+            raise ValueError("worker must be claude:<model> (codex workers "
+                             "are not yet supported)")
+        return raw
+    return raw
+
+
+def save_config_file(cfg: dict) -> None:
+    lines = ["# council configuration. CLI flags override these per run;",
+             "# `council config set <key> <value>` edits this file. Keys not",
+             "# listed follow the chosen intensity preset (quick|standard|"
+             "thorough|max).", ""]
+    for key in CONFIG_KEYS:
+        if key in cfg and cfg[key] is not None:
+            val = cfg[key]
+            if isinstance(val, bool):  # not expected, but keep TOML valid
+                lines.append(f"{key} = {str(val).lower()}")
+            elif isinstance(val, int):
+                lines.append(f"{key} = {val}")
+            else:
+                lines.append(f'{key} = "{val}"')
+    CONFIG_PATH.write_text("\n".join(lines) + "\n")
+
+
+def cmd_config(args: argparse.Namespace) -> int:
+    file_cfg = load_config_file()
+    action = args.action
+    if action == "path":
+        print(CONFIG_PATH)
+        return 0
+    if action == "show":
+        resolved = resolve_config({})
+        present = "" if CONFIG_PATH.exists() else "  (not present; preset defaults)"
+        print(f"config file: {CONFIG_PATH}{present}")
+        print(f"intensity: {resolved['intensity']}")
+        for key in CONFIG_KEYS[1:]:
+            src = " (file)" if key in file_cfg else ""
+            print(f"  {key} = {resolved[key]}{src}")
+        return 0
+    if action == "get":
+        if not args.key:
+            raise SystemExit("config get requires a key")
+        print(resolve_config({})[args.key] if args.key in CONFIG_KEYS
+              else _unknown_key(args.key))
+        return 0
+    if action == "set":
+        if not args.key or args.value is None:
+            raise SystemExit("config set requires <key> <value>")
+        try:
+            file_cfg[args.key] = coerce_config_value(args.key, args.value)
+        except ValueError as exc:
+            raise SystemExit(str(exc))
+        save_config_file(file_cfg)
+        print(f"set {args.key} = {file_cfg[args.key]!r} in {CONFIG_PATH}")
+        return 0
+    if action == "unset":
+        if not args.key:
+            raise SystemExit("config unset requires a key")
+        if args.key in file_cfg:
+            del file_cfg[args.key]
+            save_config_file(file_cfg)
+            print(f"unset {args.key} in {CONFIG_PATH}")
+        else:
+            print(f"{args.key} not set in {CONFIG_PATH}")
+        return 0
+    raise SystemExit(f"unknown config action {action!r}")
+
+
+def _unknown_key(key: str) -> str:
+    raise SystemExit(f"unknown key {key!r}; choose from {', '.join(CONFIG_KEYS)}")
 
 
 def cmd_self_test(_args: argparse.Namespace) -> int:
@@ -793,6 +959,29 @@ def cmd_self_test(_args: argparse.Namespace) -> int:
     check("validate_tasks rejects missing fields",
           _raises(lambda: validate_tasks([{"id": "a"}])))
 
+    # merge_config (intensity presets + precedence)
+    std = merge_config({}, {})
+    check("default intensity is standard",
+          std["intensity"] == "standard" and std["rounds"] == 2
+          and std["worker"] == "claude:haiku" and std["codex_effort"] == "high")
+    thorough = merge_config({"intensity": "thorough"}, {})
+    check("thorough preset bumps rounds + worker",
+          thorough["rounds"] == 3 and thorough["worker"] == "claude:sonnet")
+    check("cli overrides preset",
+          merge_config({"intensity": "quick"}, {"rounds": 5})["rounds"] == 5)
+    check("file overrides preset, cli overrides file",
+          merge_config({"worker": "claude:sonnet"},
+                       {"worker": "claude:opus"})["worker"] == "claude:opus")
+    check("file intensity used when no cli",
+          merge_config({"intensity": "max"}, {})["codex_effort"] == "xhigh")
+    check("merge_config rejects bad intensity",
+          _raises(lambda: merge_config({}, {"intensity": "nope"})))
+    check("coerce rejects unknown key",
+          _raises(lambda: coerce_config_value("bogus", "x")))
+    check("coerce rejects codex worker",
+          _raises(lambda: coerce_config_value("worker", "codex:gpt-5.5")))
+    check("coerce types ints", coerce_config_value("rounds", "3") == 3)
+
     print(f"\n{'PASS' if not failures else 'FAIL: ' + ', '.join(failures)}")
     return 1 if failures else 0
 
@@ -815,10 +1004,14 @@ def build_parser() -> argparse.ArgumentParser:
     pl.add_argument("--brief", help="brief file path, or - for stdin")
     pl.add_argument("--run", help="existing run dir to resume")
     pl.add_argument("--slug", help="slug for the run dir name")
-    pl.add_argument("--rounds", type=int, default=DEFAULT_ROUNDS,
-                    help=f"critique rounds (default {DEFAULT_ROUNDS})")
-    pl.add_argument("--planner-a", help="override, form cli:model")
-    pl.add_argument("--planner-b", help="override, form cli:model")
+    pl.add_argument("--intensity", choices=list(PRESETS),
+                    help="preset (overrides council.toml for this run)")
+    pl.add_argument("--rounds", type=int, default=None, help="override critique rounds")
+    pl.add_argument("--planner-a", default=None, help="override, form cli:model")
+    pl.add_argument("--planner-b", default=None, help="override, form cli:model")
+    pl.add_argument("--consolidator", default=None, help="override, form cli:model")
+    pl.add_argument("--codex-effort", default=None, choices=list(CODEX_EFFORTS),
+                    help="override codex reasoning effort")
     pl.add_argument("--estimate", action="store_true",
                     help="print planned call count and exit without spending")
     pl.set_defaults(func=cmd_plan)
@@ -826,14 +1019,27 @@ def build_parser() -> argparse.ArgumentParser:
     fo = sub.add_parser("fanout", help="stages 5-6: execute the task DAG, "
                                        "verify, reconcile onto a branch")
     fo.add_argument("--run", required=True, help="run dir with a tasks.json")
-    fo.add_argument("--max-workers", type=int, default=DEFAULT_MAX_WORKERS,
-                    help=f"max concurrent workers (default {DEFAULT_MAX_WORKERS}, "
-                         "clamped to cores-2)")
+    fo.add_argument("--intensity", choices=list(PRESETS),
+                    help="preset (overrides council.toml for this run)")
+    fo.add_argument("--max-workers", type=int, default=None,
+                    help="override max concurrent workers (clamped to cores-2)")
+    fo.add_argument("--worker", default=None,
+                    help="override worker model, form claude:model")
+    fo.add_argument("--verifier", default=None, help="override verifier, form cli:model")
+    fo.add_argument("--codex-effort", default=None, choices=list(CODEX_EFFORTS),
+                    help="override codex reasoning effort")
     fo.add_argument("--keep-worktrees", action="store_true",
                     help="keep per-task worktrees for inspection")
     fo.add_argument("--estimate", action="store_true",
                     help="print the wave/worker plan and exit without spending")
     fo.set_defaults(func=cmd_fanout)
+
+    cf = sub.add_parser("config", help="show or change model/intensity config "
+                                       "(council.toml)")
+    cf.add_argument("action", choices=["show", "get", "set", "unset", "path"])
+    cf.add_argument("key", nargs="?", help="config key (see `config show`)")
+    cf.add_argument("value", nargs="?", help="value (for `set`)")
+    cf.set_defaults(func=cmd_config)
     return p
 
 
@@ -846,7 +1052,11 @@ def main(argv: Optional[list[str]] = None) -> int:
         return 2
     if args.command == "plan" and not args.estimate and not args.brief:
         raise SystemExit("plan requires --brief (or --brief -)")
-    return args.func(args)
+    try:
+        return args.func(args)
+    except ValueError as exc:  # e.g. bad intensity in council.toml
+        print(f"council: {exc}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

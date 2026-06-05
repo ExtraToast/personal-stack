@@ -84,10 +84,10 @@ skills:
     targets:
       - agent: codex
         path: .agents/skills/council/SKILL.md
-        sha256: 47f635ecd8c3d3cd060b843364e41f6763ecc0a75a69cf6bb0d882a071dc8eb0
+        sha256: 3d34b2f72029ef3279a7169be4f23191ab43b03736f435fcb6e10835875b7484
       - agent: claude
         path: .claude/skills/council/SKILL.md
-        sha256: 6f3a76b80cd316fff98fa5f1069d239b6042991da3e6979053d04ab0988672b2
+        sha256: 49f55560ed93d0372f5e3429186d33516e9d2d48c6bdc57a878b5431ddb3bd48
   - name: fleet-change
     supported_agents: [codex, claude]
     targets:
