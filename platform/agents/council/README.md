@@ -68,16 +68,33 @@ Driven by an intensity preset plus optional per-role overrides in `council.toml`
 
 ```bash
 council.py plan --brief b.md --intensity thorough     # one-off
-council.py config show                                # see resolved config
-council.py config set intensity thorough              # persist (edits council.toml)
+council.py config show                                # resolved config + sources
+council.py config set intensity thorough              # persist (user-global)
 council.py config set planner_b codex:gpt-5.5
+council.py config set worker claude:sonnet --project  # persist for THIS repo only
 council.py config unset worker                         # back to preset
 ```
 
-Override flags (precedence: preset < `council.toml` < CLI): `--intensity`,
-`--rounds`, `--planner-a`, `--planner-b`, `--consolidator`, `--worker`,
-`--verifier`, `--codex-effort`, `--max-workers`. Workers must be `claude:<model>`
-(codex workers aren't supported yet).
+Override flags: `--intensity`, `--rounds`, `--planner-a`, `--planner-b`,
+`--consolidator`, `--worker`, `--verifier`, `--codex-effort`, `--max-workers`.
+Workers must be `claude:<model>` (codex workers aren't supported yet).
+
+**Config layering** (each overrides the previous):
+1. intensity preset
+2. user-global `council.toml` (next to the driver — the committed default
+   in-repo, or `~/.claude/skills/council/council.toml` when installed globally)
+3. per-project `./.council.toml` in the repo you run council from
+4. CLI flags
+
+`config set` writes the user-global file by default; `--project` writes the
+repo's `./.council.toml`.
+
+## Portability
+
+council operates on **the repository of your current working directory** — run
+it from inside whatever project you want it to orchestrate (it resolves the repo
+via `git rev-parse --show-toplevel` of the CWD, not the toolkit's own location).
+This is what lets a globally installed council work in any project.
 
 ## Run layout (`.council/runs/<id>/`, gitignored)
 ```
