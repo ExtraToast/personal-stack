@@ -199,6 +199,11 @@ class AgentKitManifestTest {
                 "skills/kb-first/SKILL.md",
                 "skills/token-economy/SKILL.md",
                 "skills/agent-session-bootstrap/SKILL.md",
+                "skills/council/SKILL.md",
+                "skills/council/council.py",
+                "skills/council/council.toml",
+                "skills/council/prompts/planner.md",
+                "skills/council/schemas/plan.schema.json",
                 ".knowledge-system-allowlist",
                 ".knowledge-system-version",
             ).map { claudeHome.resolve(it) }
@@ -213,6 +218,11 @@ class AgentKitManifestTest {
                 "skills/kb-first/SKILL.md",
                 "skills/token-economy/SKILL.md",
                 "skills/agent-session-bootstrap/SKILL.md",
+                "skills/council/SKILL.md",
+                "skills/council/council.py",
+                "skills/council/council.toml",
+                "skills/council/prompts/planner.md",
+                "skills/council/schemas/plan.schema.json",
                 ".knowledge-system-allowlist",
                 ".knowledge-system-version",
                 "hooks.json",
@@ -232,6 +242,8 @@ class AgentKitManifestTest {
             codexHome.resolve("hooks/pre-tool-use-edit-recall.sh"),
             codexHome.resolve("hooks/pre-tool-use-git-commit-capture.sh"),
             codexHome.resolve("hooks/kb-stop-digest.sh"),
+            claudeHome.resolve("skills/council/council.py"),
+            codexHome.resolve("skills/council/council.py"),
         ).forEach { hook ->
             assertThat(Files.isExecutable(hook))
                 .describedAs("installer made hook executable: $hook")

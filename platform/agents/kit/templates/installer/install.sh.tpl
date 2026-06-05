@@ -160,6 +160,7 @@ claude_managed_paths=(
   "${SKILLS_DIR}/kb-first/SKILL.md"
   "${SKILLS_DIR}/token-economy/SKILL.md"
   "${SKILLS_DIR}/agent-session-bootstrap/SKILL.md"
+# @agent-kit-council-managed claude
   "${ALLOWLIST}"
 )
 
@@ -173,6 +174,7 @@ codex_managed_paths=(
   "${CODEX_SKILLS_DIR}/kb-first/SKILL.md"
   "${CODEX_SKILLS_DIR}/token-economy/SKILL.md"
   "${CODEX_SKILLS_DIR}/agent-session-bootstrap/SKILL.md"
+# @agent-kit-council-managed codex
   "${CODEX_ALLOWLIST}"
   "${CODEX_HOOKS_CONFIG}"
 )
@@ -265,6 +267,13 @@ SKILL
 if [ "${INSTALL_CLAUDE}" = 1 ]; then
   write_file "${SKILLS_DIR}/agent-session-bootstrap/SKILL.md" 0644 "${AGENT_SESSION_BOOTSTRAP_SKILL}"
 fi
+
+# -----------------------------------------------------------------
+# Skill: council (multi-file toolkit — driver + prompts + schemas +
+# default config). Installs into ${SKILLS_DIR}/council and
+# ${CODEX_SKILLS_DIR}/council. council.toml is preserved on upgrade.
+# -----------------------------------------------------------------
+# @agent-kit-council-bundle
 
 # -----------------------------------------------------------------
 # Path allowlist (gitignore-style). Hooks below skip any tool input
