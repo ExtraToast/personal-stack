@@ -44,13 +44,40 @@ and present the two checkpoints.
    the integration branch to review. Collect feedback; re-loop into `plan` or
    re-run specific tasks as needed.
 
+## Controlling models & intensity
+
+Council is driven by an **intensity preset** plus optional **per-role
+overrides**, stored in `platform/agents/council/council.toml`. Manage it
+conversationally — when the user says "use thorough intensity" or "switch the
+planners to sonnet", translate to a flag or a `config` command:
+
+| preset | rounds | codex effort | workers | max workers |
+|---|---|---|---|---|
+| `quick` | 1 | low | haiku | 4 |
+| `standard` (default) | 2 | high | haiku | 6 |
+| `thorough` | 3 | high | sonnet | 6 |
+| `max` | 3 | xhigh | sonnet | 8 |
+
+```bash
+# one-off for this run:
+python3 platform/agents/council/council.py plan --brief brief.md --intensity thorough
+python3 platform/agents/council/council.py fanout --run <dir> --worker claude:sonnet
+
+# persist defaults (edits council.toml):
+python3 platform/agents/council/council.py config show
+python3 platform/agents/council/council.py config set intensity thorough
+python3 platform/agents/council/council.py config set planner_b codex:gpt-5.5
+python3 platform/agents/council/council.py config unset worker
+```
+
+Per-role override flags: `--intensity`, `--rounds`, `--planner-a`, `--planner-b`,
+`--consolidator`, `--worker`, `--verifier`, `--codex-effort`, `--max-workers`.
+Precedence: intensity preset < `council.toml` < CLI flag. Workers must be
+`claude:<model>` (codex workers aren't supported yet).
+
 ## Notes
 
-- Both `claude` and `codex` CLIs must be authenticated. Codex plans/critiques at
-  reasoning effort high; the consolidator and verifier are Claude.
-- Defaults: 2 critique rounds, planners `claude:opus` + `codex:gpt-5.5`, workers
-  `claude:haiku` (consolidator bumps hard tasks to sonnet). Override with
-  `--rounds`, `--planner-a`, `--planner-b`, `--max-workers`.
+- Both `claude` and `codex` CLIs must be authenticated.
 - Runs are resumable: stages are idempotent on their output files; re-run with
   `--run <dir>` to continue.
 - Full design and rationale: `docs/private/council-orchestrator-design.md`.
