@@ -6,9 +6,15 @@ description: Orchestrate a large, decomposable problem across two model families
 # council
 
 A cross-model orchestrator for problems too big for one pass. The driver is
-`platform/agents/council/council.py` (stdlib-only; shells out to `codex exec`
-and `claude -p`). Around it, you handle the human-facing part: clarify the brief
-and present the two checkpoints.
+`~/.codex/skills/council/council.py` (stdlib-only; shells out to `codex exec`
+and `claude -p`); inside the personal-stack repo it also lives at
+`platform/agents/council/council.py`. Around it, you handle the human-facing
+part: clarify the brief and present the two checkpoints.
+
+Run it from the project you want council to work on — it targets the repository
+of the current working directory. It installs into `~/.codex/skills/council`
+(and `~/.claude/skills/council`) via the agent-kit installer
+(`curl …/install.sh | bash`); re-run that to upgrade.
 
 Use it for large work that decomposes into independent parallel pieces and is
 worth the spend (multi-agent uses roughly 15x the tokens of a single chat). Do
@@ -22,7 +28,7 @@ Loop:
    result to `brief.md`.
 2. Plan:
    ```bash
-   python3 platform/agents/council/council.py plan --brief brief.md
+   python3 ~/.codex/skills/council/council.py plan --brief brief.md
    ```
    Two independent plans, two cross-critique rounds, one consolidation. Prints
    the run dir. Use `--estimate` for the call count first.
@@ -30,7 +36,7 @@ Loop:
    from the run dir. Get approval or edits before any fan-out spend.
 4. Fan out, on approval:
    ```bash
-   python3 platform/agents/council/council.py fanout --run <run-dir>
+   python3 ~/.codex/skills/council/council.py fanout --run <run-dir>
    ```
    Cheap workers execute the DAG in isolated worktrees; results land on a
    `council/<run>/integration` branch. The working branch is untouched.
@@ -53,12 +59,12 @@ Council is driven by an intensity preset plus optional per-role overrides in
 
 ```bash
 # one-off:
-python3 platform/agents/council/council.py plan --brief brief.md --intensity thorough
-python3 platform/agents/council/council.py fanout --run <dir> --worker claude:sonnet
+python3 ~/.codex/skills/council/council.py plan --brief brief.md --intensity thorough
+python3 ~/.codex/skills/council/council.py fanout --run <dir> --worker claude:sonnet
 # persist (edits council.toml):
-python3 platform/agents/council/council.py config show
-python3 platform/agents/council/council.py config set intensity thorough
-python3 platform/agents/council/council.py config set planner_b codex:gpt-5.5
+python3 ~/.codex/skills/council/council.py config show
+python3 ~/.codex/skills/council/council.py config set intensity thorough
+python3 ~/.codex/skills/council/council.py config set planner_b codex:gpt-5.5
 ```
 
 Override flags: `--intensity`, `--rounds`, `--planner-a`, `--planner-b`,

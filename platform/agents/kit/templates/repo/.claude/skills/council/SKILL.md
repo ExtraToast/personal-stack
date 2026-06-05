@@ -6,9 +6,16 @@ description: Orchestrate a large, decomposable problem across two model families
 # council
 
 A cross-model orchestrator for problems too big for one pass. The driver is
-`platform/agents/council/council.py` (stdlib-only; shells out to `claude -p` and
-`codex exec`). Your job around it is the human-facing part: clarify the brief
-and present the two checkpoints.
+`~/.claude/skills/council/council.py` (stdlib-only; shells out to `claude -p` and
+`codex exec`); inside the personal-stack repo it also lives at
+`platform/agents/council/council.py`. Your job around it is the human-facing
+part: clarify the brief and present the two checkpoints.
+
+**Run it from the project you want council to work on** — it targets the
+repository of the current working directory, so a globally installed council
+orchestrates whatever repo you're in. It installs into `~/.claude/skills/council`
+(and `~/.codex/skills/council`) via the agent-kit installer
+(`curl …/install.sh | bash`); re-run that to upgrade.
 
 ## When to use / when not
 
@@ -28,7 +35,7 @@ and present the two checkpoints.
 2. **Plan (council.py).** Run the `plan` phase — two independent plans, two
    cross-critique rounds, one consolidation:
    ```bash
-   python3 platform/agents/council/council.py plan --brief brief.md
+   python3 ~/.claude/skills/council/council.py plan --brief brief.md
    ```
    It prints the run dir. (`--estimate` first if you want the call count.)
 3. **Checkpoint 1 (you → user).** Show the user `consolidated_plan.md` and the
@@ -36,7 +43,7 @@ and present the two checkpoints.
    spend. This is the cheap gate before the expensive wave.
 4. **Fan out (council.py).** On approval:
    ```bash
-   python3 platform/agents/council/council.py fanout --run <run-dir>
+   python3 ~/.claude/skills/council/council.py fanout --run <run-dir>
    ```
    Cheap workers execute the DAG in isolated worktrees; results land on a
    `council/<run>/integration` branch. Your working branch is untouched.
@@ -60,14 +67,14 @@ planners to sonnet", translate to a flag or a `config` command:
 
 ```bash
 # one-off for this run:
-python3 platform/agents/council/council.py plan --brief brief.md --intensity thorough
-python3 platform/agents/council/council.py fanout --run <dir> --worker claude:sonnet
+python3 ~/.claude/skills/council/council.py plan --brief brief.md --intensity thorough
+python3 ~/.claude/skills/council/council.py fanout --run <dir> --worker claude:sonnet
 
 # persist defaults (edits council.toml):
-python3 platform/agents/council/council.py config show
-python3 platform/agents/council/council.py config set intensity thorough
-python3 platform/agents/council/council.py config set planner_b codex:gpt-5.5
-python3 platform/agents/council/council.py config unset worker
+python3 ~/.claude/skills/council/council.py config show
+python3 ~/.claude/skills/council/council.py config set intensity thorough
+python3 ~/.claude/skills/council/council.py config set planner_b codex:gpt-5.5
+python3 ~/.claude/skills/council/council.py config unset worker
 ```
 
 Per-role override flags: `--intensity`, `--rounds`, `--planner-a`, `--planner-b`,
