@@ -35,16 +35,22 @@ SCHEMAS_DIR = HERE / "schemas"
 
 
 def repo_root() -> Path:
+    """The repository council operates on — the git toplevel of the CURRENT
+    working directory (i.e. the project the agent invoked council from), NOT the
+    directory the toolkit happens to live in. This is what makes a globally
+    installed council orchestrate whatever project you're in."""
     try:
         out = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"],
-            capture_output=True, text=True, check=True, cwd=str(HERE),
+            capture_output=True, text=True, check=True,
         )
         return Path(out.stdout.strip())
     except Exception:
-        return HERE.parents[2]
+        return Path.cwd()
 
 
+# HERE is where the toolkit lives (prompts, schemas, user config); REPO_ROOT is
+# the project being worked on. They differ once council is installed globally.
 REPO_ROOT = repo_root()
 RUNS_ROOT = REPO_ROOT / ".council" / "runs"
 
@@ -85,7 +91,11 @@ ROLE_KEYS = ("planner_a", "planner_b", "consolidator", "worker", "verifier")
 INT_KEYS = ("rounds", "max_workers")
 CODEX_EFFORTS = ("low", "medium", "high", "xhigh")
 CONFIG_KEYS = ("intensity",) + ROLE_KEYS + ("codex_effort",) + INT_KEYS
-CONFIG_PATH = HERE / "council.toml"
+# User-global config lives next to the toolkit (council.toml beside the script,
+# i.e. the committed default in-repo, or ~/.claude/skills/council/ when
+# installed). A per-project ./.council.toml in the target repo overrides it.
+USER_CONFIG_PATH = HERE / "council.toml"
+PROJECT_CONFIG_PATH = REPO_ROOT / ".council.toml"
 
 # codex reasoning effort; resolved per-run from config and set at command entry.
 CODEX_REASONING = os.environ.get("COUNCIL_CODEX_REASONING", "high")
@@ -786,10 +796,10 @@ def parse_engine_value(spec: str) -> Engine:
 # config: intensity presets + per-role overrides (council.toml)
 # --------------------------------------------------------------------------
 
-def load_config_file() -> dict:
-    if not CONFIG_PATH.exists():
+def load_config_at(path: Path) -> dict:
+    if not path.exists():
         return {}
-    with CONFIG_PATH.open("rb") as fh:
+    with path.open("rb") as fh:
         raw = tomllib.load(fh)
     return {k: v for k, v in raw.items() if k in CONFIG_KEYS}
 
@@ -814,7 +824,10 @@ def merge_config(file_cfg: dict, cli_overrides: dict) -> dict:
 
 
 def resolve_config(cli_overrides: dict) -> dict:
-    return merge_config(load_config_file(), cli_overrides)
+    # precedence: preset < user council.toml < project .council.toml < CLI
+    file_cfg = {**load_config_at(USER_CONFIG_PATH),
+                **load_config_at(PROJECT_CONFIG_PATH)}
+    return merge_config(file_cfg, cli_overrides)
 
 
 def coerce_config_value(key: str, raw: str):
@@ -846,7 +859,7 @@ def coerce_config_value(key: str, raw: str):
     return raw
 
 
-def save_config_file(cfg: dict) -> None:
+def save_config_at(path: Path, cfg: dict) -> None:
     lines = ["# council configuration. CLI flags override these per run;",
              "# `council config set <key> <value>` edits this file. Keys not",
              "# listed follow the chosen intensity preset (quick|standard|"
@@ -860,55 +873,60 @@ def save_config_file(cfg: dict) -> None:
                 lines.append(f"{key} = {val}")
             else:
                 lines.append(f'{key} = "{val}"')
-    CONFIG_PATH.write_text("\n".join(lines) + "\n")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n")
 
 
 def cmd_config(args: argparse.Namespace) -> int:
-    file_cfg = load_config_file()
+    target = PROJECT_CONFIG_PATH if getattr(args, "project", False) else USER_CONFIG_PATH
     action = args.action
     if action == "path":
-        print(CONFIG_PATH)
+        print(f"user:    {USER_CONFIG_PATH}")
+        print(f"project: {PROJECT_CONFIG_PATH}")
         return 0
     if action == "show":
+        user_cfg = load_config_at(USER_CONFIG_PATH)
+        proj_cfg = load_config_at(PROJECT_CONFIG_PATH)
         resolved = resolve_config({})
-        present = "" if CONFIG_PATH.exists() else "  (not present; preset defaults)"
-        print(f"config file: {CONFIG_PATH}{present}")
+        print(f"user config:    {USER_CONFIG_PATH}"
+              f"{'' if USER_CONFIG_PATH.exists() else '  (none)'}")
+        print(f"project config: {PROJECT_CONFIG_PATH}"
+              f"{'' if PROJECT_CONFIG_PATH.exists() else '  (none)'}")
         print(f"intensity: {resolved['intensity']}")
         for key in CONFIG_KEYS[1:]:
-            src = " (file)" if key in file_cfg else ""
+            src = (" (project)" if key in proj_cfg
+                   else " (user)" if key in user_cfg else "")
             print(f"  {key} = {resolved[key]}{src}")
         return 0
     if action == "get":
-        if not args.key:
-            raise SystemExit("config get requires a key")
-        print(resolve_config({})[args.key] if args.key in CONFIG_KEYS
-              else _unknown_key(args.key))
+        if not args.key or args.key not in CONFIG_KEYS:
+            raise SystemExit(f"config get requires a known key "
+                             f"({', '.join(CONFIG_KEYS)})")
+        print(resolve_config({})[args.key])
         return 0
     if action == "set":
         if not args.key or args.value is None:
             raise SystemExit("config set requires <key> <value>")
+        file_cfg = load_config_at(target)
         try:
             file_cfg[args.key] = coerce_config_value(args.key, args.value)
         except ValueError as exc:
             raise SystemExit(str(exc))
-        save_config_file(file_cfg)
-        print(f"set {args.key} = {file_cfg[args.key]!r} in {CONFIG_PATH}")
+        save_config_at(target, file_cfg)
+        print(f"set {args.key} = {file_cfg[args.key]!r} in {target}")
         return 0
     if action == "unset":
         if not args.key:
             raise SystemExit("config unset requires a key")
+        file_cfg = load_config_at(target)
         if args.key in file_cfg:
             del file_cfg[args.key]
-            save_config_file(file_cfg)
-            print(f"unset {args.key} in {CONFIG_PATH}")
+            save_config_at(target, file_cfg)
+            print(f"unset {args.key} in {target}")
         else:
-            print(f"{args.key} not set in {CONFIG_PATH}")
+            print(f"{args.key} not set in {target}")
         return 0
     raise SystemExit(f"unknown config action {action!r}")
-
-
-def _unknown_key(key: str) -> str:
-    raise SystemExit(f"unknown key {key!r}; choose from {', '.join(CONFIG_KEYS)}")
 
 
 def cmd_self_test(_args: argparse.Namespace) -> int:
@@ -1039,6 +1057,9 @@ def build_parser() -> argparse.ArgumentParser:
     cf.add_argument("action", choices=["show", "get", "set", "unset", "path"])
     cf.add_argument("key", nargs="?", help="config key (see `config show`)")
     cf.add_argument("value", nargs="?", help="value (for `set`)")
+    cf.add_argument("--project", action="store_true",
+                    help="target the per-project .council.toml instead of the "
+                         "user-global config (for set/unset)")
     cf.set_defaults(func=cmd_config)
     return p
 
