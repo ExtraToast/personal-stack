@@ -44,6 +44,14 @@ class OrchestratorPassRow:
 class CuratorStore(Protocol):
     def existing_ids(self, ids: Iterable[str]) -> set[str]: ...
 
+    def has_inbox_notes(self) -> bool:
+        """Return True if any note with scope='_inbox' exists in kb_notes,
+        excluding files already routed to ``_inbox/_needs-review/``.
+        Fast existence check used by InboxPass.has_work as a DB fallback
+        when the vault clone appears empty (DB/git desync recovery).
+        """
+        ...
+
     def promote_note(
         self,
         *,
@@ -253,6 +261,19 @@ class PostgresCuratorStore:
                 (wanted,),
             )
             return {row[0] for row in cur.fetchall()}
+
+    def has_inbox_notes(self) -> bool:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                sql.SQL(
+                    "SELECT 1 FROM kb_notes "
+                    "WHERE scope = '_inbox' "
+                    "  AND vault_path IS NOT NULL "
+                    "  AND vault_path NOT LIKE '_inbox/_needs-review/%' "
+                    "LIMIT 1"
+                )
+            )
+            return cur.fetchone() is not None
 
     def promote_note(
         self,
@@ -599,9 +620,19 @@ class InMemoryCuratorStore:
         # returns every queued row that lacks a see_also edge in
         # `self.relations`.
         self.relation_enrichment_queue: list[tuple[str, str, str, str]] = []
+        # Simulated kb_notes rows with scope='_inbox' for has_inbox_notes()
+        # tests. Populate with vault_path strings — mirrors the Postgres
+        # query which excludes '_inbox/_needs-review/%' paths.
+        self.inbox_vault_paths: list[str] = []
 
     def existing_ids(self, ids: Iterable[str]) -> set[str]:
         return {i for i in ids if i in self._existing}
+
+    def has_inbox_notes(self) -> bool:
+        return any(
+            p is not None and not p.startswith("_inbox/_needs-review/")
+            for p in self.inbox_vault_paths
+        )
 
     def promote_note(
         self,

@@ -110,6 +110,37 @@ def test_inbox_pass_has_work_returns_true_when_promotable_file_present(tmp_path:
     assert pass_.has_work(_state("inbox")) is True
 
 
+def test_inbox_pass_has_work_falls_back_to_db_when_filesystem_empty(tmp_path: Path) -> None:
+    # Filesystem is empty but the DB has an _inbox note — the case
+    # that caused the May-2026 stuck note (captured to kb_notes and
+    # pushed to the remote but absent from the local vault clone).
+    store = InMemoryCuratorStore()
+    store.inbox_vault_paths = ["_inbox/2026-05-18/200949-some-note--abcdef01.md"]
+    pass_ = InboxPass(
+        vault_clone_dir=tmp_path,
+        promoter=_StubPromoter(),  # type: ignore[arg-type]
+        vault=_StubVault(),  # type: ignore[arg-type]
+        store=store,
+        regenerate_indexes=lambda: None,
+    )
+    assert pass_.has_work(_state("inbox")) is True
+
+
+def test_inbox_pass_has_work_ignores_needs_review_paths_in_db_fallback(tmp_path: Path) -> None:
+    # Only _needs-review paths in the DB — not work for the inbox pass;
+    # those are owned by NeedsReviewDrainPass.
+    store = InMemoryCuratorStore()
+    store.inbox_vault_paths = ["_inbox/_needs-review/stale.md"]
+    pass_ = InboxPass(
+        vault_clone_dir=tmp_path,
+        promoter=_StubPromoter(),  # type: ignore[arg-type]
+        vault=_StubVault(),  # type: ignore[arg-type]
+        store=store,
+        regenerate_indexes=lambda: None,
+    )
+    assert pass_.has_work(_state("inbox")) is False
+
+
 def test_inbox_pass_run_processes_files_and_calls_regenerate_when_promotions_happen(
     tmp_path: Path,
 ) -> None:
