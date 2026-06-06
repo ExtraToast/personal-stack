@@ -1,13 +1,16 @@
 package com.jorisjonkers.personalstack.assistant.infrastructure.web
 
+import com.jorisjonkers.personalstack.assistant.application.command.AttachWorkspaceRepositoryCommand
 import com.jorisjonkers.personalstack.assistant.application.command.CreateWorkspaceCommand
 import com.jorisjonkers.personalstack.assistant.application.command.DestroyWorkspaceCommand
+import com.jorisjonkers.personalstack.assistant.application.command.DetachWorkspaceRepositoryCommand
 import com.jorisjonkers.personalstack.assistant.application.query.GetWorkspaceQueryService
 import com.jorisjonkers.personalstack.assistant.application.query.ListWorkspacesQueryService
 import com.jorisjonkers.personalstack.assistant.domain.model.GithubLinkId
 import com.jorisjonkers.personalstack.assistant.domain.model.ProjectId
 import com.jorisjonkers.personalstack.assistant.domain.model.RepositoryId
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId
+import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.AttachWorkspaceRepositoryRequest
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.CreateWorkspaceRequest
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.WorkspaceAgentSessionResponse
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.WorkspaceResponse
@@ -78,6 +81,28 @@ class WorkspaceController(
         @PathVariable id: UUID,
     ): ResponseEntity<Void> {
         commandBus.dispatch(DestroyWorkspaceCommand(WorkspaceId(id)))
+        return ResponseEntity.noContent().build()
+    }
+
+    @PostMapping("/{id}/repositories")
+    fun attachRepository(
+        @PathVariable id: UUID,
+        @Valid @RequestBody req: AttachWorkspaceRepositoryRequest,
+    ): ResponseEntity<Void> {
+        commandBus.dispatch(
+            AttachWorkspaceRepositoryCommand(WorkspaceId(id), RepositoryId(req.repositoryId)),
+        )
+        return ResponseEntity.noContent().build()
+    }
+
+    @DeleteMapping("/{id}/repositories/{repositoryId}")
+    fun detachRepository(
+        @PathVariable id: UUID,
+        @PathVariable repositoryId: UUID,
+    ): ResponseEntity<Void> {
+        commandBus.dispatch(
+            DetachWorkspaceRepositoryCommand(WorkspaceId(id), RepositoryId(repositoryId)),
+        )
         return ResponseEntity.noContent().build()
     }
 }

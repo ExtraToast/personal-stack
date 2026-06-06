@@ -10,6 +10,11 @@ import jakarta.validation.constraints.Size
 import java.time.Instant
 import java.util.UUID
 
+/** Attach an additional repository (by id) to an existing workspace. */
+data class AttachWorkspaceRepositoryRequest(
+    val repositoryId: UUID,
+)
+
 data class CreateWorkspaceRequest(
     @field:NotBlank
     @field:Size(min = 1, max = 80)
