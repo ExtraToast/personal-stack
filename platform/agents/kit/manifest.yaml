@@ -244,5 +244,5 @@ settings:
 
 installer:
   path: services/knowledge-api/src/main/resources/installer/install.sh
-  sha256: 7f1b3a6b5d02fa4db8176db3e1dd0c51d8dcffac8fcea4977348e2468d0ad2ae
+  sha256: 91d1e81fea82f70b63a970959544f9db8fcf515cfa7ad7e20db0fae645cc807e
   supported_agents: [codex, claude]

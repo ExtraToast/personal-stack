@@ -225,6 +225,12 @@ def load_prompt(name: str) -> str:
     return (PROMPTS_DIR / f"{name}.md").read_text()
 
 
+# Durable rules every agent must follow regardless of role (no attribution,
+# match conventions, stay in scope, validate against real code). Injected into
+# every prompt via the {{baseline}} token. Loaded once at import.
+BASELINE_PROMPT = load_prompt("_baseline")
+
+
 def load_schema_text(name: str) -> str:
     return json.dumps(json.loads((SCHEMAS_DIR / f"{name}.schema.json").read_text()),
                       indent=2)
@@ -360,7 +366,8 @@ def stage_plan(run: Run, brief: str, a: Engine, b: Engine) -> tuple[dict, dict]:
 
     def mk(engine: Engine) -> Callable[[], EngineResult]:
         prompt = render(tmpl, engine_label=engine.label, brief=brief,
-                        repo_root=str(REPO_ROOT), schema=schema)
+                        repo_root=str(REPO_ROOT), schema=schema,
+                        baseline=BASELINE_PROMPT)
         return lambda: run.record(run_engine(engine, prompt))
 
     res_a, res_b = parallel([mk(a), mk(b)])
@@ -384,7 +391,8 @@ def stage_critique_round(run: Run, brief: str, a: Engine, b: Engine,
     def crit(critic: Engine, plan: dict) -> Callable[[], EngineResult]:
         prompt = render(critic_tmpl, engine_label=critic.label, brief=brief,
                         repo_root=str(REPO_ROOT),
-                        plan=json.dumps(plan, indent=2))
+                        plan=json.dumps(plan, indent=2),
+                        baseline=BASELINE_PROMPT)
         return lambda: run.record(run_engine(critic, prompt))
 
     crit_of_a, crit_of_b = parallel([crit(b, plan_a), crit(a, plan_b)])
@@ -397,7 +405,8 @@ def stage_critique_round(run: Run, brief: str, a: Engine, b: Engine,
     def rev(author: Engine, plan: dict, critique: str) -> Callable[[], EngineResult]:
         prompt = render(rev_tmpl, engine_label=author.label, brief=brief,
                         repo_root=str(REPO_ROOT), plan=json.dumps(plan, indent=2),
-                        critique=critique, schema=schema)
+                        critique=critique, schema=schema,
+                        baseline=BASELINE_PROMPT)
         return lambda: run.record(run_engine(author, prompt))
 
     rev_a, rev_b = parallel([rev(a, plan_a, crit_of_a.text),
@@ -426,6 +435,7 @@ def stage_consolidate(run: Run, brief: str, plan_a: dict, plan_b: dict,
         plan_a=json.dumps(plan_a, indent=2), plan_b=json.dumps(plan_b, indent=2),
         history="\n\n".join(history_parts) or "(no critiques recorded)",
         schema=load_schema_text("consolidated"),
+        baseline=BASELINE_PROMPT,
     )
     res = run.record(run_engine(consolidator, prompt))
     obj = extract_json(res.text)
@@ -450,6 +460,9 @@ def validate_tasks(tasks: list[dict]) -> None:
         if t["id"] in seen:
             raise ValueError(f"duplicate task id: {t['id']}")
         seen.add(t["id"])
+        if not str(t.get("verify", "")).strip():
+            log(f"warning: task {t['id']} has no verify command — its result "
+                "is unchecked except by the adversarial verifier")
     plan_waves(tasks)  # raises on cycle / unknown dep
 
 
@@ -493,6 +506,7 @@ def run_verifier(run: Run, task: dict, diff: str, verify_cmd: str,
         diff=diff[:16000] or "(no changes)", verify_cmd=verify_cmd or "(none)",
         verify_rc=str(verify_rc), verify_output=verify_out[:6000] or "(none)",
         schema=load_schema_text("verdict"),
+        baseline=BASELINE_PROMPT,
     )
     try:
         res = run.record(run_engine(verifier, prompt, retries=0))
@@ -523,7 +537,8 @@ def run_worker(run: Run, task: dict, base_ref: str, run_name: str,
                 objective=task["objective"],
                 paths="\n".join(f"- {p}" for p in paths),
                 boundaries=task.get("boundaries", ""),
-                output_format=task.get("output_format", ""), cwd=str(wt))
+                output_format=task.get("output_format", ""), cwd=str(wt),
+                baseline=BASELINE_PROMPT)
             res = run.record(run_claude(prompt, worker.model, cwd=wt,
                                         permission_mode=WORKER_PERMISSION_MODE,
                                         timeout=WORKER_TIMEOUT_S))
@@ -651,7 +666,7 @@ def cmd_fanout(args: argparse.Namespace) -> int:
             git("worktree", "remove", "--force", str(WT_ROOT / run_name / tid),
                 check=False)
 
-    report = build_report(run, integ_branch, str(integ_wt), waves, results)
+    report = build_report(run, integ_branch, str(integ_wt), waves, results, tasks)
     run.write_json("report.json", report)
     run.write_text("report.md", render_report_md(report))
     run.set_state(stage="fanned-out", integration_branch=integ_branch)
@@ -663,7 +678,11 @@ def cmd_fanout(args: argparse.Namespace) -> int:
 
 
 def build_report(run: Run, integ_branch: str, integ_wt: str,
-                 waves: list[list[str]], results: dict[str, dict]) -> dict:
+                 waves: list[list[str]], results: dict[str, dict],
+                 task_defs: list[dict]) -> dict:
+    task_map = {t["id"]: t for t in task_defs}
+    no_verify = sorted(tid for tid in results
+                       if not str(task_map.get(tid, {}).get("verify", "")).strip())
     rows = []
     ok = failed = merged = 0
     for tid, r in results.items():
@@ -683,6 +702,7 @@ def build_report(run: Run, integ_branch: str, integ_wt: str,
     return {
         "run": run.path.name, "integration_branch": integ_branch,
         "integration_worktree": integ_wt, "waves": waves, "tasks": rows,
+        "no_verify": no_verify,
         "summary": {"total": len(results), "ok": ok, "failed": failed,
                     "merged": merged},
     }
@@ -713,6 +733,12 @@ def render_report_md(report: dict) -> str:
             if t["out_of_bounds"]:
                 note += f" (touched out-of-bounds: {t['out_of_bounds']})"
             lines.append(f"- `{t['task_id']}`: {note}")
+    no_verify = report.get("no_verify", [])
+    if no_verify:
+        lines += ["", "## Tasks with no verify command", "",
+                  "These ran without an automated check — only the adversarial "
+                  "verifier reviewed them:", ""]
+        lines += [f"- `{tid}`" for tid in no_verify]
     lines += ["", f"Review: `git -C {report['integration_worktree']} log --oneline`"
               f" or `git checkout {report['integration_branch']}`."]
     return "\n".join(lines) + "\n"
@@ -976,6 +1002,20 @@ def cmd_self_test(_args: argparse.Namespace) -> int:
     check("validate_tasks rejects empty", _raises(lambda: validate_tasks([])))
     check("validate_tasks rejects missing fields",
           _raises(lambda: validate_tasks([{"id": "a"}])))
+
+    # baseline rules + verify checks
+    check("_baseline loadable and non-empty", bool(BASELINE_PROMPT.strip()))
+    global log
+    captured: list[str] = []
+    orig_log = log
+    log = lambda m: captured.append(m)  # noqa: E731
+    try:
+        validate_tasks([{"id": "t1", "objective": "o", "depends_on": [],
+                         "paths": [], "model": "haiku", "verify": "  "}])
+    finally:
+        log = orig_log
+    check("validate_tasks warns on empty verify",
+          any("no verify" in m for m in captured))
 
     # merge_config (intensity presets + precedence)
     std = merge_config({}, {})
