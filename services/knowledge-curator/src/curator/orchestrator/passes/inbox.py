@@ -71,18 +71,20 @@ class InboxPass:
         self._regenerate_indexes = regenerate_indexes
 
     def has_work(self, state: PassState) -> bool:
-        # Cheapest possible probe: short-circuit on the first
-        # promotable `.md` file we see. The filesystem itself is the
-        # watermark — successful promotions move files out, so an
-        # empty inbox implies no work.
+        # Fast path: scan the local vault clone. Successful promotions
+        # git-mv files out, so a non-empty inbox always means work.
         inbox_root = self._vault_clone_dir / INBOX_DIRNAME
-        if not inbox_root.exists():
-            return False
-        for path in inbox_root.rglob("*.md"):
-            rel = path.relative_to(self._vault_clone_dir).as_posix()
-            if not rel.startswith(NEEDS_REVIEW_PREFIX):
-                return True
-        return False
+        if inbox_root.exists():
+            for path in inbox_root.rglob("*.md"):
+                rel = path.relative_to(self._vault_clone_dir).as_posix()
+                if not rel.startswith(NEEDS_REVIEW_PREFIX):
+                    return True
+        # Filesystem found nothing. Fall back to the DB to catch
+        # DB/git desync — a note in kb_notes whose file was never
+        # committed to (or was lost from) the local vault clone.
+        # run() calls vault.sync() first, so if the file exists on
+        # the remote it will be pulled before the inbox scan runs.
+        return self._store.has_inbox_notes()
 
     def run(self, state: PassState) -> PassOutcome:
         # Pull + rebase so concurrent captures from the ingest-worker
