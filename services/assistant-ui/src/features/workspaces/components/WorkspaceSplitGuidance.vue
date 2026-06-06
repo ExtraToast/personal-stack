@@ -53,7 +53,13 @@ const splitCommand = computed(() =>
 const inProject = computed(() => Boolean(props.projectId))
 
 function repositoryDirName(repository: WorkspaceRepository): string {
-  return repository.repoUrl.trim().replace(/\.git$/, '').split('/').pop() || repository.name
+  return (
+    repository.repoUrl
+      .trim()
+      .replace(/\.git$/, '')
+      .split('/')
+      .pop() || repository.name
+  )
 }
 
 function repositorySlug(repository: WorkspaceRepository): string {

@@ -81,9 +81,9 @@ watch(selectedPrimaryRepositoryId, async (id) => {
 const projectRepos = computed(() => projects.repositories)
 const selectedRepo = computed(() =>
   selectedPrimaryRepositoryId.value
-    ? (repos.detailById[selectedPrimaryRepositoryId.value]?.repository
-      ?? projectRepos.value.find((r) => r.id === selectedPrimaryRepositoryId.value)
-      ?? null)
+    ? (repos.detailById[selectedPrimaryRepositoryId.value]?.repository ??
+      projectRepos.value.find((r) => r.id === selectedPrimaryRepositoryId.value) ??
+      null)
     : null,
 )
 const selectedRepositories = computed(() => {
