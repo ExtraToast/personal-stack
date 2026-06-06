@@ -55,6 +55,33 @@ conflicts are left out and reported. **Nothing is merged into your branch** —
 `fanout` prints the integration branch name for review. See `report.md` in the
 run dir.
 
+```bash
+# ad-hoc, engine-agnostic worker pool over any tasks.json (no plan phase)
+python3 platform/agents/council/council.py fleet \
+  --tasks tasks.json --agents 'codex:gpt-5.5*3,claude:haiku*2'
+```
+
+`fleet` round-robins the tasks across the declared pool — workers may be Claude
+or Codex — and runs them through the same worktree/verify/reconcile path as
+`fanout`. Use it to drive a mixed fleet over an already-decomposed batch.
+
+## split — extract a subtree into a new repo
+
+```bash
+# preview only:
+python3 platform/agents/council/council.py split \
+  --path services/foo --dest myorg/foo --dry-run
+# extract (history preserved), create the remote, push:
+python3 platform/agents/council/council.py split --path services/foo --dest myorg/foo
+```
+
+`split` runs `git subtree split` on a throwaway `council/split/<name>` branch so
+the path's history is preserved, creates the destination repo with `gh` (skipped
+if it already exists), and pushes. The working branch is untouched. `--no-push`
+stops at the local branch; `--visibility public` makes the new repo public. The
+GitHub App must be installed on the destination owner for the push to
+authenticate.
+
 ## Models & intensity
 
 Driven by an intensity preset plus optional per-role overrides in `council.toml`.

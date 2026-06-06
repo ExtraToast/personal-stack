@@ -79,8 +79,47 @@ python3 ~/.claude/skills/council/council.py config unset worker
 
 Per-role override flags: `--intensity`, `--rounds`, `--planner-a`, `--planner-b`,
 `--consolidator`, `--worker`, `--verifier`, `--codex-effort`, `--max-workers`.
-Precedence: intensity preset < `council.toml` < CLI flag. Workers must be
-`claude:<model>` (codex workers aren't supported yet).
+Precedence: intensity preset < `council.toml` < CLI flag. Every role — workers
+included — can be `claude:<model>` or `codex:<model>`, so a run can mix engines.
+
+## Fleet — ad-hoc, engine-agnostic worker pool
+
+`fleet` runs an existing task DAG against a declared pool of agents on either
+CLI, skipping the plan phase. Point it at any `tasks.json`, give it a pool, and
+tasks are round-robined across the pool, then verified and reconciled exactly
+like `fanout` (isolated worktrees, integration branch, your branch untouched).
+
+```bash
+python3 ~/.claude/skills/council/council.py fleet \
+  --tasks tasks.json --agents 'codex:gpt-5.5*3,claude:haiku*2'
+python3 ~/.claude/skills/council/council.py fleet \
+  --tasks tasks.json --agents 'claude:haiku*4' --estimate
+```
+
+The `--agents` spec is comma-separated `cli:model[*count]` entries (count
+defaults to 1). Use it to drive a mixed Claude+Codex fleet over a big,
+already-decomposed batch — e.g. cross-agent cleanups managed from either CLI.
+
+## split — extract a subtree into a new repo
+
+`split` carves a path out of the current repo into a brand-new GitHub repo with
+that path's history preserved (`git subtree split`). It works on a throwaway
+`council/split/<name>` branch and never touches your working branch.
+
+```bash
+# preview the exact commands, touch nothing:
+python3 ~/.claude/skills/council/council.py split \
+  --path services/foo --dest myorg/foo --dry-run
+# extract, create the (private) remote, push:
+python3 ~/.claude/skills/council/council.py split --path services/foo --dest myorg/foo
+# extract to a local branch only; push it yourself later:
+python3 ~/.claude/skills/council/council.py split --path services/foo --dest myorg/foo --no-push
+```
+
+`--visibility public` makes the new repo public. After extracting, it prints how
+to optionally replace the in-repo copy with a submodule in a separate change.
+The GitHub App must be installed on the destination owner for the push to
+authenticate.
 
 ## Notes
 

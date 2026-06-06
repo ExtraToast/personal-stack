@@ -84,10 +84,10 @@ skills:
     targets:
       - agent: codex
         path: .agents/skills/council/SKILL.md
-        sha256: cd7636804f16da68393cbfe076c1abbfbf64ac0327e6616425d55448ae4c7f6e
+        sha256: b7f73e380fc03a5fd672b0e533459dd1a833fc56de766242a675b892e5bcf9c3
       - agent: claude
         path: .claude/skills/council/SKILL.md
-        sha256: 89d83aa9316f120ec87a8bd81cd9ddf08ecfaa06bff550c0035d103e5c23dad4
+        sha256: 0453a7fe2373cc46cf6e17122788ef7a99a5d8c7f2e0387ff7962265c088500a
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
       target_path: "${CLAUDE_HOME}/skills/council/SKILL.md"
@@ -244,5 +244,5 @@ settings:
 
 installer:
   path: services/knowledge-api/src/main/resources/installer/install.sh
-  sha256: 91d1e81fea82f70b63a970959544f9db8fcf515cfa7ad7e20db0fae645cc807e
+  sha256: 68d38c29f3e755f6dae9f916379867893f4ad0d4307f71f2cadf33e6662ccd0a
   supported_agents: [codex, claude]
