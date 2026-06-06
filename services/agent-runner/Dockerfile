@@ -185,6 +185,9 @@ RUN set -eu; \
     printf 'version=current\n' > "${tmp}/.codex/.knowledge-system-version"; \
     output="$(HOME="${tmp}" CODEX_HOME="${tmp}/.codex" CLAUDE_CONFIG_DIR="${tmp}/.claude" AGENT_KIT_EXPECTED_VERSION=current AGENT_RUNNER_ENTRYPOINT_SELF_TEST=agent-kit-manifest /opt/entrypoint.sh)"; \
     test -z "${output}"; \
+    allow="$(REPO_URL='git@github.com:o/primary.git' REPO_URLS='https://github.com/o/extra.git#dev git@github.com:o/second.git' AGENT_RUNNER_ENTRYPOINT_SELF_TEST=repo-allow /opt/entrypoint.sh)"; \
+    test "${allow}" = 'o/primary o/extra o/second'; \
+    test -z "$(REPO_URL='' REPO_URLS='' AGENT_RUNNER_ENTRYPOINT_SELF_TEST=repo-allow /opt/entrypoint.sh)"; \
     rm -rf "${tmp}"
 
 # Shared token helper used by gh, GitHub MCP, and Git's credential

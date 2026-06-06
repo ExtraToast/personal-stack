@@ -38,8 +38,63 @@ check_agent_kit_manifests() {
   check_agent_kit_manifest "Codex" "${CODEX_HOME}/.knowledge-system-version"
 }
 
+# Strip a GitHub remote (ssh or https) down to its owner/repo slug.
+repo_slug() {
+  printf '%s' "$1" | sed \
+    -e 's#^git@github.com:##' \
+    -e 's#^ssh://git@github.com/##' \
+    -e 's#^https://github.com/##' \
+    -e 's#^http://github.com/##' \
+    -e 's#\.git$##'
+}
+
+# The credential-helper allow-list: owner/repo slugs for the primary REPO_URL
+# plus every REPO_URLS entry ("url[#branch]"). Bounding the helper to exactly
+# the workspace's repos keeps the App token's blast radius the same as the old
+# single-repo gate even though the helper now serves more than one repo.
+derive_repo_allow() {
+  _allow=""
+  [ -n "${REPO_URL:-}" ] && _allow="$(repo_slug "$REPO_URL")"
+  for _entry in $(printf '%s' "${REPO_URLS:-}" | tr ';\n' '  '); do
+    _allow="${_allow} $(repo_slug "${_entry%%#*}")"
+  done
+  printf '%s' "$_allow" | tr -s ' ' | sed -e 's/^ *//' -e 's/ *$//'
+}
+
+# Trust a cloned repo dir for git, Claude Code, and Codex so the CLIs do not
+# stop to ask. Mirrors the WORKSPACE_ROOT trust seeded below, per extra repo.
+register_repo_trust() {
+  _dir="$1"
+  if ! git config --global --get-all safe.directory | grep -Fxq "$_dir"; then
+    git config --global --add safe.directory "$_dir"
+  fi
+  if [ -f "$HOME/.claude.json" ]; then
+    _ctmp=$(mktemp)
+    if jq --arg d "$_dir" '
+          (.projects //= {})
+          | (.projects[$d] //= {})
+          | (.projects[$d].hasTrustDialogAccepted //= true)
+          | (.projects[$d].hasCompletedProjectOnboarding //= true)
+        ' "$HOME/.claude.json" > "$_ctmp"; then
+      mv "$_ctmp" "$HOME/.claude.json"
+    else
+      rm -f "$_ctmp"
+    fi
+  fi
+  if [ -f "$CODEX_HOME/config.toml" ] &&
+     ! grep -q "^\[projects\.\"${_dir}\"\]" "$CODEX_HOME/config.toml"; then
+    printf '\n[projects."%s"]\ntrust_level = "trusted"\n' "$_dir" \
+      >> "$CODEX_HOME/config.toml"
+  fi
+}
+
 if [ "${AGENT_RUNNER_ENTRYPOINT_SELF_TEST:-}" = "agent-kit-manifest" ]; then
   check_agent_kit_manifests
+  exit 0
+fi
+
+if [ "${AGENT_RUNNER_ENTRYPOINT_SELF_TEST:-}" = "repo-allow" ]; then
+  derive_repo_allow
   exit 0
 fi
 
@@ -280,6 +335,40 @@ fi
 # and it also covers `gh pr create` when gh shells out to git.
 git config --global url.https://github.com/.insteadOf git@github.com:
 git config --global url.https://github.com/.insteadOf ssh://git@github.com/
+
+# Bound the App-token credential helper to exactly this workspace's repos
+# (primary + REPO_URLS), exported so the helper and the gateway's child git
+# processes inherit it. Empty (no repo configured) leaves the helper's own
+# default. Set before the multi-repo clone so those clones authenticate.
+REPO_ALLOW="$(derive_repo_allow)"
+if [ -n "$REPO_ALLOW" ]; then
+  export REPO_ALLOW
+fi
+
+# Multi-repo workspaces: clone every repo in REPO_URLS (space/newline/semicolon
+# separated, each "url[#branch]") into its own subdir of the workspace over
+# HTTPS, authenticated by the App-token credential helper — no per-repo deploy
+# key needed. The primary REPO_URL clone above stays on the deploy-key SSH path
+# for back-compat. Idempotent: a repo already cloned is left alone.
+if [ -n "${REPO_URLS:-}" ]; then
+  for entry in $(printf '%s' "$REPO_URLS" | tr ';\n' '  '); do
+    repo_clone_url="${entry%%#*}"
+    repo_branch=""
+    case "$entry" in *"#"*) repo_branch="${entry#*#}" ;; esac
+    repo_name="$(basename "$repo_clone_url" .git)"
+    repo_target="${WORKSPACE_ROOT}/${repo_name}"
+    if [ -d "${repo_target}/.git" ]; then
+      echo "[entrypoint] ${repo_name} already present; skipping clone"
+    elif [ -n "$repo_branch" ]; then
+      git clone --branch "$repo_branch" "$repo_clone_url" "$repo_target" \
+        || echo "[entrypoint] WARN: clone of ${repo_clone_url} failed; continuing"
+    else
+      git clone "$repo_clone_url" "$repo_target" \
+        || echo "[entrypoint] WARN: clone of ${repo_clone_url} failed; continuing"
+    fi
+    register_repo_trust "$repo_target"
+  done
+fi
 
 # The gateway shares this Pod's memory cgroup with the agent CLIs it
 # launches (Claude Code, Codex) and whatever the workspace itself runs.
