@@ -88,6 +88,11 @@ class PlatformAgentMcpFluxTest {
             .contains("git config --global --add safe.directory \"\$WORKSPACE_ROOT\"")
             .contains("url.https://github.com/.insteadOf git@github.com:")
             .contains("url.https://github.com/.insteadOf ssh://git@github.com/")
+            // Multi-repo: clone every REPO_URLS entry and bound the credential
+            // helper to the workspace's repos via REPO_ALLOW.
+            .contains("REPO_URLS")
+            .contains("export REPO_ALLOW")
+            .contains("register_repo_trust")
 
         assertThat(agentGatewayConfig)
             .contains("--dangerously-bypass-approvals-and-sandbox")
@@ -106,7 +111,9 @@ class PlatformAgentMcpFluxTest {
         assertThat(githubTokenHelper)
             .contains("WORKSPACE_ROOT=\"\${WORKSPACE_ROOT:-/workspace}\"")
             .contains("git -C \"\$WORKSPACE_ROOT\" remote get-url origin")
-            .contains("--arg repoUrl \"\$repo_url\"")
+            .contains("--arg repoUrl \"\$REPO_URL_RESOLVED\"")
+            // Per-repo minting: the credential helper passes the requested repo.
+            .contains("AGENT_GITHUB_REPO_URL")
 
         assertThat(mcpConfigMap)
             .contains("[mcp_servers.github]")
