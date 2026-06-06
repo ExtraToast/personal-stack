@@ -5,6 +5,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AccessStatusBadge from '../components/AccessStatusBadge.vue'
 import AttachKeyWizard from '../components/AttachKeyWizard.vue'
+import GitHubAppPanel from '../components/GitHubAppPanel.vue'
 import { useRepositoriesStore } from '../stores/repositories'
 
 const route = useRoute()
@@ -128,6 +129,8 @@ async function onDestroy(): Promise<void> {
         />
       </div>
     </section>
+
+    <GitHubAppPanel :repo-url="detail.repository.repoUrl" />
 
     <section class="mb-6 rounded-lg border border-[var(--color-surface-border)] bg-[var(--color-surface-card)] p-4">
       <div class="flex items-baseline justify-between">

@@ -4,6 +4,7 @@ import { Card, Modal, useToast } from '@personal-stack/vue-common'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import CreateRepositoryForm from '../components/CreateRepositoryForm.vue'
+import GitHubAppReference from '../components/GitHubAppReference.vue'
 import { useRepositoriesStore } from '../stores/repositories'
 
 const store = useRepositoriesStore()
@@ -51,6 +52,8 @@ async function onCreateSuccess(created: Repository): Promise<void> {
         New repository
       </button>
     </header>
+
+    <GitHubAppReference class="mb-6" />
 
     <p v-if="store.error" class="mb-4 text-sm text-red-400">{{ store.error }}</p>
 
