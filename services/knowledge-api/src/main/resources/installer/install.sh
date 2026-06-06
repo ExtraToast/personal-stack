@@ -1082,9 +1082,21 @@ def parallel_bounded(thunks: list[Callable[[], T]], cap: int) -> list[T]:
         return list(ex.map(lambda t: t(), thunks))
 
 
+def localize_verify(cmd: str, repo_root: str, cwd: str) -> str:
+    """Point a verify command at the worktree it runs in. The consolidator is
+    told to write repo-relative commands, but a stray absolute repo-root path
+    (e.g. `cd /workspace/services/foo`) would otherwise check the host tree, not
+    the worker's worktree. Rewrite the repo root to the worktree so such a
+    command still verifies the right files. Pure (covered by --self-test)."""
+    if repo_root and repo_root != cwd and repo_root in cmd:
+        return cmd.replace(repo_root, cwd)
+    return cmd
+
+
 def run_verify(cmd: str, cwd: Path) -> tuple[Optional[int], str]:
     if not cmd.strip():
         return None, "(no verify command)"
+    cmd = localize_verify(cmd, str(REPO_ROOT), str(cwd))
     try:
         proc = subprocess.run(["bash", "-lc", cmd], cwd=str(cwd),
                               capture_output=True, text=True, env=child_env(),
@@ -1814,6 +1826,14 @@ def cmd_self_test(_args: argparse.Namespace) -> int:
     check("_split_dest_url canonical ssh remote",
           _split_dest_url("o", "n") == "git@github.com:o/n.git")
 
+    # localize_verify (verify runs in the worktree, not the host repo root)
+    check("localize_verify rewrites repo root to the worktree",
+          localize_verify("cd /workspace/services/foo && npm test",
+                          "/workspace", "/tmp/wt/T1")
+          == "cd /tmp/wt/T1/services/foo && npm test")
+    check("localize_verify leaves relative commands untouched",
+          localize_verify("npm test", "/workspace", "/tmp/wt/T1") == "npm test")
+
     print(f"\n{'PASS' if not failures else 'FAIL: ' + ', '.join(failures)}")
     return 1 if failures else 0
 
@@ -1970,23 +1990,30 @@ each. Do not merely pick one and discard the other; the best ideas are often
 split across both.
 
 # Task brief
+
 {{brief}}
 
 # Plan A (final)
+
 {{plan_a}}
 
 # Plan B (final)
+
 {{plan_b}}
 
 # Critique history (rounds 1-2, both directions)
+
 {{history}}
 
 # Repository
+
 Ground every task in the real codebase at {{repo_root}}. Do not invent paths.
 
 # Your job
+
 Produce (1) a clear consolidated plan in Markdown, and (2) a task DAG for
 parallel execution. Each task must:
+
 - be independently executable by a cheap worker agent given only its own fields,
 - touch a NON-OVERLAPPING set of files from every task it does not depend on
   (overlapping files across parallel tasks cause merge conflicts — partition the
@@ -1997,6 +2024,10 @@ parallel execution. Each task must:
   no markdown, no parenthetical asides. Chain steps with `&&`. Right:
   `python3 foo.py --version && python3 -m pytest -q`. Wrong:
   `run the script (expect "ok") and check it passes`.
+  The command runs from the ROOT of the worker's isolated worktree (a fresh
+  checkout of this repo), so use REPO-RELATIVE paths only — never an absolute
+  path and never `cd /abs/...`. Right: `cd services/foo && npm test`. Wrong:
+  `cd /workspace/services/foo && npm test`.
 - be tagged with a difficulty and a worker model (haiku for trivial/moderate,
   sonnet for hard).
 
@@ -2007,6 +2038,7 @@ should be a single task with a clear ordering, not forced into false parallelism
 {{baseline}}
 
 # Output
+
 Return ONLY a JSON object — no prose, no code fences — matching this schema:
 
 {{schema}}

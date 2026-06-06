@@ -1,8 +1,8 @@
 version: 1
 generated: partial
 notes:
-  - "This manifest pins the current repo and installer agent surfaces. Repo skills, hooks, hook settings, and the installer entrypoint are rendered from agent-kit templates; installer heredoc bodies, including hooks, skills, settings, and allowlists, are rendered from partial templates."
-  - "Repo skill bodies are intentionally agent-specific today; parity means every shared skill has both Claude and Codex targets unless an explicit unsupported reason is present."
+  - 'This manifest pins the current repo and installer agent surfaces. Repo skills, hooks, hook settings, and the installer entrypoint are rendered from agent-kit templates; installer heredoc bodies, including hooks, skills, settings, and allowlists, are rendered from partial templates.'
+  - 'Repo skill bodies are intentionally agent-specific today; parity means every shared skill has both Claude and Codex targets unless an explicit unsupported reason is present.'
 
 renderer:
   script_path: platform/agents/kit/render-agent-kit.py
@@ -77,8 +77,8 @@ skills:
         sha256: d9c050e9c9dc1714129e545559f8f42ead5f0b6bc4cb28f4af74b3610542e596
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
-      target_path: "${CLAUDE_HOME}/skills/agent-session-bootstrap/SKILL.md"
-      codex_target_path: "${CODEX_HOME}/skills/agent-session-bootstrap/SKILL.md"
+      target_path: '${CLAUDE_HOME}/skills/agent-session-bootstrap/SKILL.md'
+      codex_target_path: '${CODEX_HOME}/skills/agent-session-bootstrap/SKILL.md'
   - name: council
     supported_agents: [codex, claude]
     targets:
@@ -90,8 +90,8 @@ skills:
         sha256: 0453a7fe2373cc46cf6e17122788ef7a99a5d8c7f2e0387ff7962265c088500a
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
-      target_path: "${CLAUDE_HOME}/skills/council/SKILL.md"
-      codex_target_path: "${CODEX_HOME}/skills/council/SKILL.md"
+      target_path: '${CLAUDE_HOME}/skills/council/SKILL.md'
+      codex_target_path: '${CODEX_HOME}/skills/council/SKILL.md'
   - name: fleet-change
     supported_agents: [codex, claude]
     targets:
@@ -112,8 +112,8 @@ skills:
         sha256: 99f677b9e491be60b35dc72d6abbf87a064ce1f6db83b492af990a467f63881c
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
-      target_path: "${CLAUDE_HOME}/skills/kb-first/SKILL.md"
-      codex_target_path: "${CODEX_HOME}/skills/kb-first/SKILL.md"
+      target_path: '${CLAUDE_HOME}/skills/kb-first/SKILL.md'
+      codex_target_path: '${CODEX_HOME}/skills/kb-first/SKILL.md'
   - name: open-pr
     supported_agents: [codex, claude]
     targets:
@@ -143,25 +143,25 @@ skills:
         sha256: 6823d195dbfb99e2bab3bdeed760445d1d0db78600a46405ae605c12fca4467e
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
-      target_path: "${CLAUDE_HOME}/skills/token-economy/SKILL.md"
-      codex_target_path: "${CODEX_HOME}/skills/token-economy/SKILL.md"
+      target_path: '${CLAUDE_HOME}/skills/token-economy/SKILL.md'
+      codex_target_path: '${CODEX_HOME}/skills/token-economy/SKILL.md'
   - name: topics
     supported_agents: [codex, claude]
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
-      target_path: "${CLAUDE_HOME}/skills/topics/SKILL.md"
-      codex_target_path: "${CODEX_HOME}/skills/topics/SKILL.md"
+      target_path: '${CLAUDE_HOME}/skills/topics/SKILL.md'
+      codex_target_path: '${CODEX_HOME}/skills/topics/SKILL.md'
   - name: audit
     supported_agents: [codex, claude]
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
-      target_path: "${CLAUDE_HOME}/skills/audit/SKILL.md"
-      codex_target_path: "${CODEX_HOME}/skills/audit/SKILL.md"
+      target_path: '${CLAUDE_HOME}/skills/audit/SKILL.md'
+      codex_target_path: '${CODEX_HOME}/skills/audit/SKILL.md'
 
 hooks:
   - name: kb-user-prompt-recall
     event: UserPromptSubmit
-    purpose: "Inject bounded knowledge.recall snippets before the agent sees the prompt."
+    purpose: 'Inject bounded knowledge.recall snippets before the agent sees the prompt.'
     supported_agents: [claude, codex]
     mcp_tools: [knowledge.recall]
     targets:
@@ -175,11 +175,11 @@ hooks:
         sha256: 50d4579b3e774675326cc76113afebcfe5251c46ea11059cf0a567557e1a6911
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
-      target_path: "${CLAUDE_HOME}/hooks/user-prompt-submit-recall.sh"
-      codex_target_path: "${CODEX_HOME}/hooks/kb-user-prompt-recall.sh"
+      target_path: '${CLAUDE_HOME}/hooks/user-prompt-submit-recall.sh'
+      codex_target_path: '${CODEX_HOME}/hooks/kb-user-prompt-recall.sh'
   - name: kb-stop-digest
     event: Stop
-    purpose: "Digest the transcript into capped lesson candidates and capture survivors."
+    purpose: 'Digest the transcript into capped lesson candidates and capture survivors.'
     supported_agents: [claude, codex]
     mcp_tools: [knowledge.digest_transcript, knowledge.recall, knowledge.capture_lesson]
     targets:
@@ -193,12 +193,12 @@ hooks:
         sha256: 193522faf697ca08bc18b0b00d670195efe54d88be4dfca95324dce6910b6e01
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
-      target_path: "${CLAUDE_HOME}/hooks/stop-session-digest.sh"
-      codex_target_path: "${CODEX_HOME}/hooks/kb-stop-digest.sh"
+      target_path: '${CLAUDE_HOME}/hooks/stop-session-digest.sh'
+      codex_target_path: '${CODEX_HOME}/hooks/kb-stop-digest.sh'
   - name: pre-tool-use-edit-recall
     event: PreToolUse
-    matcher: "Edit|Write|MultiEdit|apply_patch"
-    purpose: "Recall file/module lessons before edits."
+    matcher: 'Edit|Write|MultiEdit|apply_patch'
+    purpose: 'Recall file/module lessons before edits.'
     supported_agents: [claude, codex]
     targets:
       - agent: claude
@@ -212,12 +212,12 @@ hooks:
     mcp_tools: [knowledge.recall]
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
-      target_path: "${CLAUDE_HOME}/hooks/pre-tool-use-edit-recall.sh"
-      codex_target_path: "${CODEX_HOME}/hooks/pre-tool-use-edit-recall.sh"
+      target_path: '${CLAUDE_HOME}/hooks/pre-tool-use-edit-recall.sh'
+      codex_target_path: '${CODEX_HOME}/hooks/pre-tool-use-edit-recall.sh'
   - name: pre-tool-use-git-commit-capture
     event: PreToolUse
     matcher: Bash
-    purpose: "Capture non-WIP git commit messages as candidate decisions."
+    purpose: 'Capture non-WIP git commit messages as candidate decisions.'
     supported_agents: [claude, codex]
     targets:
       - agent: claude
@@ -231,8 +231,8 @@ hooks:
     mcp_tools: [knowledge.capture_decision]
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
-      target_path: "${CLAUDE_HOME}/hooks/pre-tool-use-git-commit-capture.sh"
-      codex_target_path: "${CODEX_HOME}/hooks/pre-tool-use-git-commit-capture.sh"
+      target_path: '${CLAUDE_HOME}/hooks/pre-tool-use-git-commit-capture.sh'
+      codex_target_path: '${CODEX_HOME}/hooks/pre-tool-use-git-commit-capture.sh'
 
 settings:
   - agent: claude
@@ -244,5 +244,5 @@ settings:
 
 installer:
   path: services/knowledge-api/src/main/resources/installer/install.sh
-  sha256: a3356d48c5b98b4f21632717b785c14cf08c7ee11106274a0bef40992d72bf77
+  sha256: 68d38c29f3e755f6dae9f916379867893f4ad0d4307f71f2cadf33e6662ccd0a
   supported_agents: [codex, claude]

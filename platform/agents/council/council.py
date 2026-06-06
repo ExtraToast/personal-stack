@@ -505,9 +505,21 @@ def parallel_bounded(thunks: list[Callable[[], T]], cap: int) -> list[T]:
         return list(ex.map(lambda t: t(), thunks))
 
 
+def localize_verify(cmd: str, repo_root: str, cwd: str) -> str:
+    """Point a verify command at the worktree it runs in. The consolidator is
+    told to write repo-relative commands, but a stray absolute repo-root path
+    (e.g. `cd /workspace/services/foo`) would otherwise check the host tree, not
+    the worker's worktree. Rewrite the repo root to the worktree so such a
+    command still verifies the right files. Pure (covered by --self-test)."""
+    if repo_root and repo_root != cwd and repo_root in cmd:
+        return cmd.replace(repo_root, cwd)
+    return cmd
+
+
 def run_verify(cmd: str, cwd: Path) -> tuple[Optional[int], str]:
     if not cmd.strip():
         return None, "(no verify command)"
+    cmd = localize_verify(cmd, str(REPO_ROOT), str(cwd))
     try:
         proc = subprocess.run(["bash", "-lc", cmd], cwd=str(cwd),
                               capture_output=True, text=True, env=child_env(),
@@ -1236,6 +1248,14 @@ def cmd_self_test(_args: argparse.Namespace) -> int:
     # split
     check("_split_dest_url canonical ssh remote",
           _split_dest_url("o", "n") == "git@github.com:o/n.git")
+
+    # localize_verify (verify runs in the worktree, not the host repo root)
+    check("localize_verify rewrites repo root to the worktree",
+          localize_verify("cd /workspace/services/foo && npm test",
+                          "/workspace", "/tmp/wt/T1")
+          == "cd /tmp/wt/T1/services/foo && npm test")
+    check("localize_verify leaves relative commands untouched",
+          localize_verify("npm test", "/workspace", "/tmp/wt/T1") == "npm test")
 
     print(f"\n{'PASS' if not failures else 'FAIL: ' + ', '.join(failures)}")
     return 1 if failures else 0
