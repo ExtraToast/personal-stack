@@ -354,6 +354,13 @@ def _slugify(text: str) -> str:
     return (s[:48] or "run")
 
 
+def _split_dest_url(owner: str, name: str) -> str:
+    """Canonical SSH remote for a GitHub owner/name. Pure (covered by
+    --self-test). In runner workspaces git rewrites git@github.com: to https so
+    the App-token credential helper serves the push."""
+    return f"git@github.com:{owner}/{name}.git"
+
+
 # --------------------------------------------------------------------------
 # stages 1-4
 # --------------------------------------------------------------------------
@@ -477,6 +484,18 @@ def git(*args: str, cwd: Optional[Path] = None, check: bool = True,
     return subprocess.run(["git", *args], cwd=str(cwd or REPO_ROOT),
                           capture_output=True, text=True, check=check,
                           timeout=timeout)
+
+
+def gh(*args: str, check: bool = True,
+       timeout: int = 120) -> subprocess.CompletedProcess:
+    return subprocess.run(["gh", *args], cwd=str(REPO_ROOT),
+                          capture_output=True, text=True, check=check,
+                          timeout=timeout)
+
+
+def have_git_subtree() -> bool:
+    r = subprocess.run(["git", "subtree", "-h"], capture_output=True, text=True)
+    return "is not a git command" not in (r.stdout + r.stderr).lower()
 
 
 def parallel_bounded(thunks: list[Callable[[], T]], cap: int) -> list[T]:
@@ -770,6 +789,65 @@ def cmd_fleet(args: argparse.Namespace) -> int:
     _report, integ_branch = execute_dag(run, tasks, lambda tid: assignment[tid],
                                         verifier, cap, args.keep_worktrees)
     print(integ_branch)
+    return 0
+
+
+def cmd_split(args: argparse.Namespace) -> int:
+    """Carve a path subtree out into a new GitHub repo with its history
+    preserved (git subtree split). Never touches the host branch — it works on
+    a throwaway council/split/<name> branch."""
+    path = args.path.rstrip("/")
+    if not (REPO_ROOT / path).exists():
+        raise SystemExit(f"path not found in repo: {path}")
+    owner, sep, name = args.dest.partition("/")
+    if not sep or not owner or not name or "/" in name:
+        raise SystemExit(f"--dest must be owner/name, got {args.dest!r}")
+    if not have_git_subtree():
+        raise SystemExit("git subtree is unavailable; install git-subtree "
+                         "(git contrib / git-extras package)")
+    dest_url = _split_dest_url(owner, name)
+    branch = f"council/split/{_slugify(name)}"
+
+    if args.dry_run:
+        print(f"[dry-run] extract '{path}' into {owner}/{name}, history preserved:")
+        print(f"  git subtree split --prefix {path} -b {branch}")
+        if args.push:
+            print(f"  gh repo create {owner}/{name} --{args.visibility}   "
+                  "# if it does not already exist")
+            print(f"  git push {dest_url} {branch}:main")
+        print(f"  # then, as a separate change, optionally replace the in-repo "
+              f"copy:\n  #   git rm -r {path} && git submodule add {dest_url} {path}")
+        return 0
+
+    git("branch", "-D", branch, check=False)
+    log(f"splitting {path} -> {branch} (history-preserving)")
+    git("subtree", "split", "--prefix", path, "-b", branch, timeout=600)
+
+    if not args.push:
+        print(f"created local branch {branch} with the extracted history of "
+              f"{path}. Push it to a new repo when ready:")
+        print(f"  gh repo create {owner}/{name} --{args.visibility}")
+        print(f"  git push {dest_url} {branch}:main")
+        return 0
+
+    try:
+        if gh("repo", "view", f"{owner}/{name}", check=False).returncode == 0:
+            log(f"{owner}/{name} already exists; skipping create")
+        else:
+            log(f"creating {owner}/{name} ({args.visibility})")
+            gh("repo", "create", f"{owner}/{name}", f"--{args.visibility}")
+        log(f"pushing {branch} -> {dest_url}:main")
+        git("push", dest_url, f"{branch}:main")
+    except subprocess.CalledProcessError as exc:
+        detail = (exc.stderr or exc.stdout or str(exc)).strip()[:300]
+        raise SystemExit(f"split push failed (branch {branch} kept for retry): "
+                         f"{detail}")
+    git("branch", "-D", branch, check=False)
+
+    print(f"extracted {path} into {owner}/{name} with history preserved.")
+    print("To replace the in-repo copy with a reference, in a separate change:")
+    print(f"  git rm -r {path}")
+    print(f"  git submodule add {dest_url} {path}")
     return 0
 
 
@@ -1155,6 +1233,10 @@ def cmd_self_test(_args: argparse.Namespace) -> int:
     check("assign_agents rejects empty pool",
           _raises(lambda: assign_agents(["t1"], [])))
 
+    # split
+    check("_split_dest_url canonical ssh remote",
+          _split_dest_url("o", "n") == "git@github.com:o/n.git")
+
     print(f"\n{'PASS' if not failures else 'FAIL: ' + ', '.join(failures)}")
     return 1 if failures else 0
 
@@ -1227,6 +1309,20 @@ def build_parser() -> argparse.ArgumentParser:
     fl.add_argument("--estimate", action="store_true",
                     help="print the pool/wave/assignment plan and exit")
     fl.set_defaults(func=cmd_fleet)
+
+    sp = sub.add_parser("split", help="extract a path subtree into a new GitHub "
+                                      "repo, preserving that path's history")
+    sp.add_argument("--path", required=True,
+                    help="path under the repo to extract, e.g. services/foo")
+    sp.add_argument("--dest", required=True, help="new repo as owner/name")
+    sp.add_argument("--visibility", choices=["private", "public"],
+                    default="private", help="new repo visibility (default private)")
+    sp.add_argument("--no-push", dest="push", action="store_false",
+                    help="only create the local extracted branch; don't create "
+                         "or push the remote")
+    sp.add_argument("--dry-run", action="store_true",
+                    help="print the commands and exit without touching anything")
+    sp.set_defaults(func=cmd_split, push=True)
 
     cf = sub.add_parser("config", help="show or change model/intensity config "
                                        "(council.toml)")
