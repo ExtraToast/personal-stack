@@ -1,8 +1,11 @@
 package com.jorisjonkers.personalstack.assistant.infrastructure.web
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.jorisjonkers.personalstack.assistant.application.command.AttachWorkspaceRepositoryCommand
+import com.jorisjonkers.personalstack.assistant.application.command.DetachWorkspaceRepositoryCommand
 import com.jorisjonkers.personalstack.assistant.application.query.GetWorkspaceQueryService
 import com.jorisjonkers.personalstack.assistant.application.query.ListWorkspacesQueryService
+import com.jorisjonkers.personalstack.assistant.domain.model.Repository
 import com.jorisjonkers.personalstack.assistant.domain.model.RepositoryId
 import com.jorisjonkers.personalstack.assistant.domain.model.Workspace
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId
@@ -66,12 +69,25 @@ class WorkspaceControllerTest {
         )
     }
 
+    private fun repository(id: RepositoryId = RepositoryId.random()) =
+        Repository(
+            id = id,
+            name = "personal-stack",
+            repoUrl = "git@github.com:owner/personal-stack.git",
+            defaultBranch = "main",
+            vaultKeyPath = "secret/data/agents/repositories/${id.value}",
+            deployKeyFingerprint = null,
+            deployKeyAddedAt = null,
+            createdAt = Instant.now(),
+            updatedAt = Instant.now(),
+        )
+
     @Test
     fun `POST creates a workspace and returns 201 with the new shape`() {
         val w = workspace(kind = WorkspaceKind.REPO_BACKED, repositoryId = RepositoryId.random())
         every {
-            getQuery.get(any())
-        } returns GetWorkspaceQueryService.WorkspaceView(w, emptyList())
+            getQuery.getSummary(any())
+        } returns w
 
         mockMvc
             .perform(
@@ -89,6 +105,7 @@ class WorkspaceControllerTest {
             ).andExpect(status().isCreated)
             .andExpect(jsonPath("$.kind").value("REPO_BACKED"))
             .andExpect(jsonPath("$.status").value("READY"))
+            .andExpect(jsonPath("$.repositories").doesNotExist())
 
         verify { commandBus.dispatch(any()) }
     }
@@ -120,13 +137,16 @@ class WorkspaceControllerTest {
     }
 
     @Test
-    fun `GET by id returns workspace + sessions envelope`() {
+    fun `GET by id returns workspace detail with repositories under workspace`() {
         val w = workspace()
-        every { getQuery.get(w.id) } returns GetWorkspaceQueryService.WorkspaceView(w, emptyList())
+        val r = repository()
+        every { getQuery.get(w.id) } returns GetWorkspaceQueryService.WorkspaceView(w, emptyList(), listOf(r))
         mockMvc
             .perform(get("/api/v1/workspaces/${w.id.value}"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.workspace.id").value(w.id.value.toString()))
+            .andExpect(jsonPath("$.workspace.repositories[0].id").value(r.id.value.toString()))
+            .andExpect(jsonPath("$.workspace.repositories[0].name").value("personal-stack"))
             .andExpect(jsonPath("$.sessions").isArray)
     }
 
@@ -144,5 +164,60 @@ class WorkspaceControllerTest {
             .perform(delete("/api/v1/workspaces/${UUID.randomUUID()}"))
             .andExpect(status().isNoContent)
         verify { commandBus.dispatch(any()) }
+    }
+
+    @Test
+    fun `POST repositories attaches repository and returns 204`() {
+        val workspaceId = WorkspaceId.random()
+        val repositoryId = RepositoryId.random()
+
+        mockMvc
+            .perform(
+                post("/api/v1/workspaces/${workspaceId.value}/repositories")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(mapOf("repositoryId" to repositoryId.value.toString()))),
+            ).andExpect(status().isNoContent)
+
+        verify {
+            commandBus.dispatch(
+                match<AttachWorkspaceRepositoryCommand> {
+                    it.workspaceId == workspaceId && it.repositoryId == repositoryId
+                },
+            )
+        }
+    }
+
+    @Test
+    fun `POST repositories rejects missing repositoryId`() {
+        mockMvc
+            .perform(
+                post("/api/v1/workspaces/${UUID.randomUUID()}/repositories")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(emptyMap<String, String>())),
+            ).andExpect { result ->
+                require(result.response.status in 400..499) {
+                    "expected client error, got ${result.response.status}"
+                }
+            }
+
+        verify(exactly = 0) { commandBus.dispatch(any()) }
+    }
+
+    @Test
+    fun `DELETE repositories detaches repository and returns 204`() {
+        val workspaceId = WorkspaceId.random()
+        val repositoryId = RepositoryId.random()
+
+        mockMvc
+            .perform(delete("/api/v1/workspaces/${workspaceId.value}/repositories/${repositoryId.value}"))
+            .andExpect(status().isNoContent)
+
+        verify {
+            commandBus.dispatch(
+                match<DetachWorkspaceRepositoryCommand> {
+                    it.workspaceId == workspaceId && it.repositoryId == repositoryId
+                },
+            )
+        }
     }
 }

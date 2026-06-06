@@ -6,6 +6,9 @@ import { useRoute, useRouter } from 'vue-router'
 import AgentKindPicker from '../components/AgentKindPicker.vue'
 import SessionTabs from '../components/SessionTabs.vue'
 import SessionTerminal from '../components/SessionTerminal.vue'
+import WorkspaceRepositoriesPanel from '../components/WorkspaceRepositoriesPanel.vue'
+import WorkspaceRepositoryPicker from '../components/WorkspaceRepositoryPicker.vue'
+import WorkspaceSplitGuidance from '../components/WorkspaceSplitGuidance.vue'
 import { sendInput, stageInput } from '../services/workspaceService'
 import { useWorkspacesStore } from '../stores/workspaces'
 
@@ -17,9 +20,13 @@ const toast = useToast()
 const workspaceId = computed(() => String(route.params.id))
 const pickerKind = ref<AgentKind>('CLAUDE')
 const showStageInput = ref(false)
+const showRepositoryPicker = ref(false)
 const stageName = ref('source.txt')
 const stageContent = ref('')
 const isStaging = ref(false)
+const isAttachingRepository = ref(false)
+const detachingRepositoryId = ref<string | null>(null)
+const repositoryActionError = ref<string | null>(null)
 
 // Only sessions with a live PTY get a mounted terminal. A session
 // dropping out of this set (STOPPED/FAILED) unmounts its
@@ -65,6 +72,35 @@ async function onStageInput(): Promise<void> {
     toast.errorFromCatch('Could not stage text', e)
   } finally {
     isStaging.value = false
+  }
+}
+
+async function onAttachRepository(repositoryId: string): Promise<void> {
+  repositoryActionError.value = null
+  isAttachingRepository.value = true
+  try {
+    await store.attachRepository(repositoryId)
+    showRepositoryPicker.value = false
+    toast.success('Repository attached')
+  } catch (e) {
+    repositoryActionError.value = 'Could not attach the repository'
+    toast.errorFromCatch('Could not attach the repository', e)
+  } finally {
+    isAttachingRepository.value = false
+  }
+}
+
+async function onDetachRepository(repositoryId: string, repositoryName: string): Promise<void> {
+  repositoryActionError.value = null
+  detachingRepositoryId.value = repositoryId
+  try {
+    await store.detachRepository(repositoryId)
+    toast.success(`Removed ${repositoryName}`)
+  } catch (e) {
+    repositoryActionError.value = 'Could not remove the repository'
+    toast.errorFromCatch('Could not remove the repository', e)
+  } finally {
+    detachingRepositoryId.value = null
   }
 }
 </script>
@@ -121,22 +157,48 @@ async function onStageInput(): Promise<void> {
       @stop="onStopSession"
     />
 
-    <main class="flex flex-col flex-1 overflow-hidden p-4 gap-3">
-      <!-- One terminal per live session, all kept mounted; v-show (not
-           v-if/:key) so switching tabs preserves each xterm buffer and
-           its WebSocket. A session leaving the live set (stopped/failed)
-           unmounts, which disposes its terminal + socket. -->
-      <SessionTerminal
-        v-for="s in liveSessions"
-        v-show="s.id === store.activeSessionId"
-        :key="s.id"
-        :session-id="s.id"
-        :active="s.id === store.activeSessionId"
-      />
-      <div v-if="liveSessions.length === 0" class="text-center text-[var(--color-text-muted)] italic py-4">
-        Pick an agent kind above and click "New agent" to start.
-      </div>
+    <main class="flex flex-1 gap-3 overflow-hidden p-4">
+      <section class="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <!-- One terminal per live session, all kept mounted; v-show (not
+             v-if/:key) so switching tabs preserves each xterm buffer and
+             its WebSocket. A session leaving the live set (stopped/failed)
+             unmounts, which disposes its terminal + socket. -->
+        <SessionTerminal
+          v-for="s in liveSessions"
+          v-show="s.id === store.activeSessionId"
+          :key="s.id"
+          :session-id="s.id"
+          :active="s.id === store.activeSessionId"
+        />
+        <div v-if="liveSessions.length === 0" class="py-4 text-center italic text-[var(--color-text-muted)]">
+          Pick an agent kind above and click "New agent" to start.
+        </div>
+      </section>
+
+      <aside v-if="store.activeWorkspace" class="flex w-96 shrink-0 flex-col gap-3 overflow-y-auto">
+        <WorkspaceRepositoriesPanel
+          :repositories="store.activeWorkspace.repositories ?? []"
+          :attach-pending="isAttachingRepository"
+          :detach-pending-id="detachingRepositoryId"
+          :error="repositoryActionError"
+          @add="showRepositoryPicker = true"
+          @detach="onDetachRepository"
+        />
+        <WorkspaceSplitGuidance
+          :repositories="store.activeWorkspace.repositories ?? []"
+          :project-id="store.activeWorkspace.projectId"
+        />
+      </aside>
     </main>
+
+    <Modal :open="showRepositoryPicker" title="Attach repository" @close="showRepositoryPicker = false">
+      <WorkspaceRepositoryPicker
+        :already-attached="store.activeWorkspace?.repositories ?? []"
+        :pending="isAttachingRepository"
+        @pick="onAttachRepository"
+        @cancel="showRepositoryPicker = false"
+      />
+    </Modal>
 
     <Modal :open="showStageInput" title="Stage text" @close="closeStageInput">
       <form class="space-y-4" data-testid="stage-input-form" @submit.prevent="onStageInput">

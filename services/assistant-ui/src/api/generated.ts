@@ -92,6 +92,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{id}/repositories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["attachRepository"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/repositories": {
         parameters: {
             query?: never;
@@ -413,6 +429,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{id}/repositories/{repoId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["detachRepository"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{projectId}/links/{linkId}": {
         parameters: {
             query?: never;
@@ -510,6 +542,10 @@ export interface components {
             title: string;
             body: string;
             base: string;
+        };
+        AttachWorkspaceRepositoryRequest: {
+            /** Format: uuid */
+            repositoryId: string | null;
         };
         CreateRepositoryRequest: {
             name: string;
@@ -663,6 +699,62 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
         };
+        WorkspaceAgentSessionResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            workspaceId: string;
+            /** @enum {string} */
+            kind: "CLAUDE" | "CODEX" | "SHELL";
+            gatewayAgentId?: string | null;
+            status: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        WorkspaceDetailResponse: {
+            workspace: components["schemas"]["WorkspaceWithRepositoriesResponse"];
+            sessions: components["schemas"]["WorkspaceAgentSessionResponse"][];
+        };
+        WorkspaceRepositoryResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            repoUrl: string;
+            defaultBranch: string;
+            vaultKeyPath: string;
+            deployKeyFingerprint?: string | null;
+            /** Format: date-time */
+            deployKeyAddedAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            verification?: components["schemas"]["AccessVerificationResponse"] | null;
+        };
+        WorkspaceWithRepositoriesResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            repoUrl?: string | null;
+            branch?: string | null;
+            podName?: string | null;
+            gatewayEndpoint?: string | null;
+            status: string;
+            kind: string;
+            /** Format: uuid */
+            projectId?: string | null;
+            /** Format: uuid */
+            repositoryId?: string | null;
+            /** Format: uuid */
+            githubLinkId?: string | null;
+            repositories: components["schemas"]["WorkspaceRepositoryResponse"][];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -808,6 +900,30 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["OpenPrRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    attachRepository: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AttachWorkspaceRepositoryRequest"];
             };
         };
         responses: {
@@ -1243,9 +1359,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": {
-                        [key: string]: unknown;
-                    };
+                    "*/*": components["schemas"]["WorkspaceDetailResponse"];
                 };
             };
         };
@@ -1481,6 +1595,27 @@ export interface operations {
             path: {
                 workspaceId: string;
                 sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    detachRepository: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                repoId: string;
             };
             cookie?: never;
         };

@@ -1,9 +1,11 @@
-import type { AgentSession, Workspace, WorkspaceDetail } from '../types'
+import type { AgentSession, Workspace, WorkspaceDetail, WorkspaceRepository } from '../types'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  attachRepository,
   createWorkspace,
   destroyWorkspace,
+  detachRepository,
   getTurns,
   getWorkspace,
   listWorkspaces,
@@ -17,6 +19,8 @@ vi.mock('../services/workspaceService', () => ({
   getWorkspace: vi.fn(),
   createWorkspace: vi.fn(),
   destroyWorkspace: vi.fn(),
+  attachRepository: vi.fn(),
+  detachRepository: vi.fn(),
   startSession: vi.fn(),
   stopSession: vi.fn(),
   getTurns: vi.fn(),
@@ -28,6 +32,8 @@ const mocked = {
   getWorkspace: vi.mocked(getWorkspace),
   createWorkspace: vi.mocked(createWorkspace),
   destroyWorkspace: vi.mocked(destroyWorkspace),
+  attachRepository: vi.mocked(attachRepository),
+  detachRepository: vi.mocked(detachRepository),
   startSession: vi.mocked(startSession),
   getTurns: vi.mocked(getTurns),
 }
@@ -64,6 +70,23 @@ function fakeSession(over: Partial<AgentSession> = {}): AgentSession {
   }
 }
 
+function fakeRepository(over: Partial<WorkspaceRepository> = {}): WorkspaceRepository {
+  return {
+    id: 'repo-1',
+    name: 'demo-repo',
+    repoUrl: 'git@github.com:owner/demo.git',
+    defaultBranch: 'main',
+    vaultKeyPath: 'secret/data/agents/repositories/repo-1',
+    deployKeyFingerprint: null,
+    deployKeyAddedAt: null,
+    createdAt: '2026-05-20T10:00:00Z',
+    updatedAt: '2026-05-20T10:00:00Z',
+    isPrimary: false,
+    attachedAt: '2026-05-20T10:00:00Z',
+    ...over,
+  }
+}
+
 describe('useWorkspacesStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -81,7 +104,7 @@ describe('useWorkspacesStore', () => {
 
   it('open loads workspace + sessions and auto-selects first session turns', async () => {
     const detail: WorkspaceDetail = {
-      workspace: fakeWorkspace(),
+      workspace: { ...fakeWorkspace(), repositories: [] },
       sessions: [fakeSession()],
     }
     mocked.getWorkspace.mockResolvedValue(detail)
@@ -90,6 +113,17 @@ describe('useWorkspacesStore', () => {
     await store.open('11111111-1111-1111-1111-111111111111')
     expect(store.sessions).toHaveLength(1)
     expect(store.activeSessionId).toBe('sess-1')
+    expect(store.activeWorkspace?.repositories).toEqual([])
+  })
+
+  it('open defaults missing detail repositories to an empty list', async () => {
+    mocked.getWorkspace.mockResolvedValue({
+      workspace: fakeWorkspace(),
+      sessions: [],
+    })
+    const store = useWorkspacesStore()
+    await store.open('11111111-1111-1111-1111-111111111111')
+    expect(store.activeWorkspace?.repositories).toEqual([])
   })
 
   it('open prefers a live session over a stopped first session after refresh', async () => {
@@ -142,6 +176,53 @@ describe('useWorkspacesStore', () => {
     await store.destroy('a')
     expect(store.workspaces).toHaveLength(0)
     expect(store.activeWorkspace).toBeNull()
+  })
+
+  it('attachRepository attaches to the active workspace and refreshes detail', async () => {
+    const repo = fakeRepository({ id: 'repo-a' })
+    mocked.attachRepository.mockResolvedValue([repo])
+    mocked.getWorkspace.mockResolvedValue({
+      workspace: { ...fakeWorkspace(), repositories: [repo] },
+      sessions: [],
+    })
+
+    const store = useWorkspacesStore()
+    store.activeWorkspace = { ...fakeWorkspace(), repositories: [] }
+    await store.attachRepository('repo-a')
+
+    expect(mocked.attachRepository).toHaveBeenCalledWith(fakeWorkspace().id, 'repo-a')
+    expect(mocked.getWorkspace).toHaveBeenCalledWith(fakeWorkspace().id)
+    expect(store.activeWorkspace?.repositories?.map((r) => r.id)).toEqual(['repo-a'])
+  })
+
+  it('attachRepository no-ops when no workspace is active', async () => {
+    const store = useWorkspacesStore()
+    await store.attachRepository('repo-a')
+    expect(mocked.attachRepository).not.toHaveBeenCalled()
+  })
+
+  it('detachRepository removes from the active workspace and refreshes detail', async () => {
+    const a = fakeRepository({ id: 'repo-a' })
+    const b = fakeRepository({ id: 'repo-b' })
+    mocked.detachRepository.mockResolvedValue()
+    mocked.getWorkspace.mockResolvedValue({
+      workspace: { ...fakeWorkspace(), repositories: [b] },
+      sessions: [],
+    })
+
+    const store = useWorkspacesStore()
+    store.activeWorkspace = { ...fakeWorkspace(), repositories: [a, b] }
+    await store.detachRepository('repo-a')
+
+    expect(mocked.detachRepository).toHaveBeenCalledWith(fakeWorkspace().id, 'repo-a')
+    expect(mocked.getWorkspace).toHaveBeenCalledWith(fakeWorkspace().id)
+    expect(store.activeWorkspace?.repositories?.map((r) => r.id)).toEqual(['repo-b'])
+  })
+
+  it('detachRepository no-ops when no workspace is active', async () => {
+    const store = useWorkspacesStore()
+    await store.detachRepository('repo-a')
+    expect(mocked.detachRepository).not.toHaveBeenCalled()
   })
 
   it('appendStreamedOutput appends to the trailing streamed turn rather than creating new ones', () => {

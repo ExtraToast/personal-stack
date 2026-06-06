@@ -1,15 +1,18 @@
 package com.jorisjonkers.personalstack.assistant.infrastructure.web
 
+import com.jorisjonkers.personalstack.assistant.application.command.AttachWorkspaceRepositoryCommand
 import com.jorisjonkers.personalstack.assistant.application.command.CreateWorkspaceCommand
 import com.jorisjonkers.personalstack.assistant.application.command.DestroyWorkspaceCommand
+import com.jorisjonkers.personalstack.assistant.application.command.DetachWorkspaceRepositoryCommand
 import com.jorisjonkers.personalstack.assistant.application.query.GetWorkspaceQueryService
 import com.jorisjonkers.personalstack.assistant.application.query.ListWorkspacesQueryService
 import com.jorisjonkers.personalstack.assistant.domain.model.GithubLinkId
 import com.jorisjonkers.personalstack.assistant.domain.model.ProjectId
 import com.jorisjonkers.personalstack.assistant.domain.model.RepositoryId
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId
+import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.AttachWorkspaceRepositoryRequest
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.CreateWorkspaceRequest
-import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.WorkspaceAgentSessionResponse
+import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.WorkspaceDetailResponse
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.WorkspaceResponse
 import com.jorisjonkers.personalstack.common.command.CommandBus
 import jakarta.validation.Valid
@@ -50,11 +53,11 @@ class WorkspaceController(
             ),
         )
         val view =
-            getQuery.get(id)
+            getQuery.getSummary(id)
                 ?: throw IllegalStateException(
                     "Workspace $id was created but not yet visible to the read model; retry the GET in a moment",
                 )
-        return ResponseEntity.status(HttpStatus.CREATED).body(WorkspaceResponse.of(view.workspace))
+        return ResponseEntity.status(HttpStatus.CREATED).body(WorkspaceResponse.of(view))
     }
 
     @GetMapping
@@ -63,14 +66,37 @@ class WorkspaceController(
     @GetMapping("/{id}")
     fun get(
         @PathVariable id: UUID,
-    ): ResponseEntity<Map<String, Any>> {
+    ): ResponseEntity<WorkspaceDetailResponse> {
         val view = getQuery.get(WorkspaceId(id)) ?: return ResponseEntity.notFound().build()
-        return ResponseEntity.ok(
-            mapOf(
-                "workspace" to WorkspaceResponse.of(view.workspace),
-                "sessions" to view.sessions.map(WorkspaceAgentSessionResponse::of),
+        return ResponseEntity.ok(WorkspaceDetailResponse.of(view.workspace, view.repositories, view.sessions))
+    }
+
+    @PostMapping("/{id}/repositories")
+    fun attachRepository(
+        @PathVariable id: UUID,
+        @Valid @RequestBody req: AttachWorkspaceRepositoryRequest,
+    ): ResponseEntity<Void> {
+        commandBus.dispatch(
+            AttachWorkspaceRepositoryCommand(
+                workspaceId = WorkspaceId(id),
+                repositoryId = RepositoryId(requireNotNull(req.repositoryId)),
             ),
         )
+        return ResponseEntity.noContent().build()
+    }
+
+    @DeleteMapping("/{id}/repositories/{repoId}")
+    fun detachRepository(
+        @PathVariable id: UUID,
+        @PathVariable repoId: UUID,
+    ): ResponseEntity<Void> {
+        commandBus.dispatch(
+            DetachWorkspaceRepositoryCommand(
+                workspaceId = WorkspaceId(id),
+                repositoryId = RepositoryId(repoId),
+            ),
+        )
+        return ResponseEntity.noContent().build()
     }
 
     @DeleteMapping("/{id}")

@@ -1,16 +1,8 @@
 import type { CreateWorkspaceInput } from '../services/workspaceService'
-import type { AgentKind, AgentSession, Turn, Workspace } from '../types'
+import type { AgentKind, AgentSession, Turn, Workspace, WorkspaceDetailWorkspace } from '../types'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import {
-  createWorkspace,
-  destroyWorkspace,
-  getTurns,
-  getWorkspace,
-  listWorkspaces,
-  startSession,
-  stopSession,
-} from '../services/workspaceService'
+import * as workspaceService from '../services/workspaceService'
 
 const ACTIVE_SESSION_STORAGE_KEY = 'assistant-ui:workspace-active-session'
 
@@ -62,9 +54,16 @@ function chooseActiveSession(all: AgentSession[], preferredId: string | null): s
   return live[0]?.id ?? all[0]?.id ?? null
 }
 
+function withRepositoryList(workspace: WorkspaceDetailWorkspace): WorkspaceDetailWorkspace {
+  return {
+    ...workspace,
+    repositories: workspace.repositories ?? [],
+  }
+}
+
 export const useWorkspacesStore = defineStore('workspaces', () => {
   const workspaces = ref<Workspace[]>([])
-  const activeWorkspace = ref<Workspace | null>(null)
+  const activeWorkspace = ref<WorkspaceDetailWorkspace | null>(null)
   const sessions = ref<AgentSession[]>([])
   const activeSessionId = ref<string | null>(null)
   const turns = ref<Turn[]>([])
@@ -78,7 +77,7 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
     isLoading.value = true
     error.value = null
     try {
-      workspaces.value = await listWorkspaces()
+      workspaces.value = await workspaceService.listWorkspaces()
     } catch {
       error.value = 'Failed to load workspaces'
     } finally {
@@ -90,9 +89,9 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
     isLoading.value = true
     error.value = null
     try {
-      const detail = await getWorkspace(id)
+      const detail = await workspaceService.getWorkspace(id)
       const preferredId = activeWorkspace.value?.id === id ? activeSessionId.value : readPreferredSession(id)
-      activeWorkspace.value = detail.workspace
+      activeWorkspace.value = withRepositoryList(detail.workspace)
       sessions.value = detail.sessions
       activeSessionId.value = chooseActiveSession(sessions.value, preferredId)
       if (activeSessionId.value) {
@@ -109,13 +108,13 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
   }
 
   async function create(input: CreateWorkspaceInput): Promise<Workspace> {
-    const ws = await createWorkspace(input)
+    const ws = await workspaceService.createWorkspace(input)
     workspaces.value.unshift(ws)
     return ws
   }
 
   async function destroy(id: string): Promise<void> {
-    await destroyWorkspace(id)
+    await workspaceService.destroyWorkspace(id)
     workspaces.value = workspaces.value.filter((w) => w.id !== id)
     if (activeWorkspace.value?.id === id) {
       activeWorkspace.value = null
@@ -130,7 +129,7 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
     if (!ws) return null
     startingSession.value = true
     try {
-      const { sessionId } = await startSession(ws.id, kind, () => {
+      const { sessionId } = await workspaceService.startSession(ws.id, kind, () => {
         startingSession.value = true
       })
       activeSessionId.value = sessionId
@@ -145,7 +144,7 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
   async function endSession(sessionId: string): Promise<void> {
     const ws = activeWorkspace.value
     if (!ws) return
-    await stopSession(ws.id, sessionId)
+    await workspaceService.stopSession(ws.id, sessionId)
     if (activeSessionId.value === sessionId) activeSessionId.value = null
     await open(ws.id)
   }
@@ -153,7 +152,28 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
   async function loadTurns(sessionId: string): Promise<void> {
     const ws = activeWorkspace.value
     if (!ws) return
-    turns.value = await getTurns(ws.id, sessionId)
+    turns.value = await workspaceService.getTurns(ws.id, sessionId)
+  }
+
+  async function attachRepository(repositoryId: string): Promise<void> {
+    const ws = activeWorkspace.value
+    if (!ws) return
+    activeWorkspace.value = {
+      ...ws,
+      repositories: await workspaceService.attachRepository(ws.id, repositoryId),
+    }
+    await open(ws.id)
+  }
+
+  async function detachRepository(repositoryId: string): Promise<void> {
+    const ws = activeWorkspace.value
+    if (!ws) return
+    await workspaceService.detachRepository(ws.id, repositoryId)
+    activeWorkspace.value = {
+      ...ws,
+      repositories: (ws.repositories ?? []).filter((r) => r.id !== repositoryId),
+    }
+    await open(ws.id)
   }
 
   function selectSession(sessionId: string): void {
@@ -204,6 +224,8 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
     newSession,
     endSession,
     loadTurns,
+    attachRepository,
+    detachRepository,
     selectSession,
     appendStreamedOutput,
     appendUserTurn,

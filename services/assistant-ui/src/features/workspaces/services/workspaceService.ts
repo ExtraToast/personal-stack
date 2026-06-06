@@ -1,4 +1,4 @@
-import type { AgentKind, StagedInput, Turn, Workspace, WorkspaceDetail } from '../types'
+import type { AgentKind, StagedInput, Turn, Workspace, WorkspaceDetail, WorkspaceRepository } from '../types'
 import { ApiError, useApiWithAuth } from '@personal-stack/vue-common'
 
 function getApi(): ReturnType<typeof useApiWithAuth> {
@@ -65,6 +65,14 @@ export async function createWorkspace(input: CreateWorkspaceInput): Promise<Work
 
 export async function destroyWorkspace(id: string): Promise<void> {
   return getApi().del(`/workspaces/${id}`)
+}
+
+export async function attachRepository(workspaceId: string, repositoryId: string): Promise<WorkspaceRepository[]> {
+  return getApi().post<WorkspaceRepository[]>(`/workspaces/${workspaceId}/repositories`, { repositoryId })
+}
+
+export async function detachRepository(workspaceId: string, repositoryId: string): Promise<void> {
+  await getApi().del(`/workspaces/${workspaceId}/repositories/${repositoryId}`)
 }
 
 export async function startSession(
