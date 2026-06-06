@@ -40,8 +40,9 @@ agent-gateway:
   cli:
     claude: ${CLAUDE_BIN:claude}
     codex: ${CODEX_BIN:codex}
-    # The runner container is the sandbox, so agents launch with all
-    # approval/permission/sandbox prompts bypassed. Listed here so an
+    # The runner Pod is the outer sandbox. Docker-socket-enabled runners are
+    # host-equivalent for Docker/Testcontainers, while the CLIs still launch
+    # with approval/permission/sandbox prompts bypassed. Listed here so an
     # upstream flag rename is a config flip, not an image rebuild.
     claude-args:
       - --dangerously-skip-permissions
