@@ -79,13 +79,15 @@ watch(selectedPrimaryRepositoryId, async (id) => {
 })
 
 const projectRepos = computed(() => projects.repositories)
-const selectedRepo = computed(() =>
-  selectedPrimaryRepositoryId.value
-    ? (repos.detailById[selectedPrimaryRepositoryId.value]?.repository ??
-      projectRepos.value.find((r) => r.id === selectedPrimaryRepositoryId.value) ??
-      null)
-    : null,
-)
+const selectedRepo = computed(() => {
+  const primaryId = selectedPrimaryRepositoryId.value
+  if (!primaryId) return null
+
+  const loadedRepo = repos.detailById[primaryId]?.repository
+  if (loadedRepo) return loadedRepo
+
+  return projectRepos.value.find((r) => r.id === primaryId) ?? null
+})
 const selectedRepositories = computed(() => {
   const ids = new Set(selectedRepositoryIds.value)
   return projectRepos.value.filter((r) => ids.has(r.id))
