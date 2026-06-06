@@ -1,5 +1,7 @@
 package com.jorisjonkers.personalstack.assistant.infrastructure.web.dto
 
+import com.fasterxml.jackson.annotation.JsonProperty
+import com.jorisjonkers.personalstack.assistant.application.query.GetWorkspaceQueryService.WorkspaceRepositoryView
 import com.jorisjonkers.personalstack.assistant.domain.model.Repository
 import com.jorisjonkers.personalstack.assistant.domain.model.Turn
 import com.jorisjonkers.personalstack.assistant.domain.model.Workspace
@@ -34,6 +36,20 @@ data class CreateWorkspaceRequest(
      * Repository row.
      */
     val repositoryId: UUID? = null,
+    /**
+     * Primary repo for the multi-repository request shape. Kept
+     * separate from [repositoryIds] so clients can submit an ordered
+     * or unordered selected set without relying on list position.
+     * [repositoryId] remains the backwards-compatible alias and wins
+     * when both fields match.
+     */
+    val primaryRepositoryId: UUID? = null,
+    /**
+     * Selected repositories for a multi-repo workspace. When no
+     * primary field is set, the first entry becomes the primary and
+     * the remaining distinct ids are attached as extras.
+     */
+    val repositoryIds: List<UUID>? = null,
     /**
      * Deprecated alias for [repositoryId]. Kept until PR F migrates
      * the assistant-ui to the new field. The server prefers
@@ -87,6 +103,9 @@ data class WorkspaceResponse(
 data class WorkspaceRepositoryResponse(
     val id: UUID,
     val name: String,
+    @get:JsonProperty("isPrimary")
+    val isPrimary: Boolean,
+    val attachedAt: Instant,
     val repoUrl: String,
     val defaultBranch: String,
     val vaultKeyPath: String,
@@ -97,10 +116,30 @@ data class WorkspaceRepositoryResponse(
     val verification: AccessVerificationResponse?,
 ) {
     companion object {
+        fun of(view: WorkspaceRepositoryView): WorkspaceRepositoryResponse {
+            val r = view.repository
+            return WorkspaceRepositoryResponse(
+                id = r.id.value,
+                name = r.name,
+                isPrimary = view.isPrimary,
+                attachedAt = view.attachedAt,
+                repoUrl = r.repoUrl,
+                defaultBranch = r.defaultBranch,
+                vaultKeyPath = r.vaultKeyPath,
+                deployKeyFingerprint = r.deployKeyFingerprint,
+                deployKeyAddedAt = r.deployKeyAddedAt,
+                createdAt = r.createdAt,
+                updatedAt = r.updatedAt,
+                verification = r.verification?.let(AccessVerificationResponse::of),
+            )
+        }
+
         fun of(r: Repository) =
             WorkspaceRepositoryResponse(
                 id = r.id.value,
                 name = r.name,
+                isPrimary = false,
+                attachedAt = r.createdAt,
                 repoUrl = r.repoUrl,
                 defaultBranch = r.defaultBranch,
                 vaultKeyPath = r.vaultKeyPath,
@@ -133,7 +172,7 @@ data class WorkspaceWithRepositoriesResponse(
     companion object {
         fun of(
             w: Workspace,
-            repositories: List<Repository>,
+            repositories: List<WorkspaceRepositoryView>,
         ) = WorkspaceWithRepositoriesResponse(
             id = w.id.value,
             name = w.name,
@@ -160,7 +199,7 @@ data class WorkspaceDetailResponse(
     companion object {
         fun of(
             workspace: Workspace,
-            repositories: List<Repository>,
+            repositories: List<WorkspaceRepositoryView>,
             sessions: List<WorkspaceAgentSession>,
         ) = WorkspaceDetailResponse(
             workspace = WorkspaceWithRepositoriesResponse.of(workspace, repositories),

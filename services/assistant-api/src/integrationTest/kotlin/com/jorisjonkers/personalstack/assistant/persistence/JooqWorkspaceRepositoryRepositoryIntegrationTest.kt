@@ -74,6 +74,22 @@ class JooqWorkspaceRepositoryRepositoryIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
+    fun `attaching a repository as primary promotes it and clears previous primary`() {
+        val w = workspace()
+        val r1 = repository()
+        val r2 = repository()
+        junction.attach(w.id, r1.id, isPrimary = true)
+        junction.attach(w.id, r2.id)
+
+        val promoted = junction.attach(w.id, r2.id, isPrimary = true)
+
+        assertThat(promoted.isPrimary).isTrue
+        val links = junction.findAllByWorkspaceId(w.id)
+        assertThat(links.filter { it.isPrimary }.map { it.repositoryId }).containsExactly(r2.id)
+        assertThat(links.first().repositoryId).isEqualTo(r2.id)
+    }
+
+    @Test
     fun `detach removes the row`() {
         val w = workspace()
         val r = repository()

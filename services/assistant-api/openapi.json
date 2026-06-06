@@ -241,8 +241,8 @@
           "required" : true
         },
         "responses" : {
-          "200" : {
-            "description" : "OK"
+          "204" : {
+            "description" : "No Content"
           }
         }
       }
@@ -1213,6 +1213,17 @@
             "type" : [ "string", "null" ],
             "format" : "uuid"
           },
+          "primaryRepositoryId" : {
+            "type" : [ "string", "null" ],
+            "format" : "uuid"
+          },
+          "repositoryIds" : {
+            "type" : [ "array", "null" ],
+            "items" : {
+              "type" : "string",
+              "format" : "uuid"
+            }
+          },
           "githubLinkId" : {
             "type" : [ "string", "null" ],
             "format" : "uuid",
@@ -1825,6 +1836,13 @@
           "name" : {
             "type" : "string"
           },
+          "isPrimary" : {
+            "type" : "boolean"
+          },
+          "attachedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
           "repoUrl" : {
             "type" : "string"
           },
@@ -1857,7 +1875,7 @@
             } ]
           }
         },
-        "required" : [ "createdAt", "defaultBranch", "id", "name", "repoUrl", "updatedAt", "vaultKeyPath" ]
+        "required" : [ "attachedAt", "createdAt", "defaultBranch", "id", "isPrimary", "name", "repoUrl", "updatedAt", "vaultKeyPath" ]
       },
       "WorkspaceWithRepositoriesResponse" : {
         "type" : "object",

@@ -264,6 +264,8 @@ class CreateWorkspaceCommandHandlerTest {
                 updatedAt = Instant.now(),
             )
         every { repositories.findById(primaryRepoId) } returns repository
+        every { repositories.findById(extraRepoId) } returns repository(extraRepoId, "extra-one")
+        every { repositories.findById(secondExtraRepoId) } returns repository(secondExtraRepoId, "extra-two")
         every { githubLinks.findById(GithubLinkId(primaryRepoId.value)) } returns null
         every { projectRepositoryLinks.findAllByProjectId(projectId) } returns
             listOf(
@@ -289,6 +291,41 @@ class CreateWorkspaceCommandHandlerTest {
 
         verifyOrder {
             workspaces.save(match { it.id == workspaceId && it.status == WorkspaceStatus.PENDING })
+            workspaceRepositoryLinks.attach(workspaceId, primaryRepoId, isPrimary = true)
+            workspaceRepositoryLinks.attach(workspaceId, extraRepoId, isPrimary = false)
+            workspaceRepositoryLinks.attach(workspaceId, secondExtraRepoId, isPrimary = false)
+            orchestrator.provision(match { it.id == workspaceId })
+        }
+    }
+
+    @Test
+    fun `repositoryIds-only create treats first selected repository as primary and attaches distinct extras`() {
+        val primaryRepoId = RepositoryId.random()
+        val extraRepoId = RepositoryId.random()
+        val secondExtraRepoId = RepositoryId.random()
+        every { repositories.findById(primaryRepoId) } returns repository(primaryRepoId, "primary")
+        every { repositories.findById(extraRepoId) } returns repository(extraRepoId, "extra")
+        every { repositories.findById(secondExtraRepoId) } returns repository(secondExtraRepoId, "docs")
+        every { githubLinks.findById(GithubLinkId(primaryRepoId.value)) } returns null
+        val saved = mutableListOf<Workspace>()
+        every { workspaces.save(capture(saved)) } answers { firstArg() }
+        every { orchestrator.provision(any()) } returns
+            AgentRunnerOrchestrator.RunnerHandle("p", "v", "http://p.svc:8090")
+        val workspaceId = WorkspaceId.random()
+
+        handler.handle(
+            CreateWorkspaceCommand(
+                workspaceId = workspaceId,
+                name = "demo",
+                repoUrl = null,
+                branch = null,
+                repositoryIds = listOf(primaryRepoId, extraRepoId, primaryRepoId, secondExtraRepoId),
+            ),
+        )
+
+        assertThat(saved.first().repositoryId).isEqualTo(primaryRepoId)
+        verifyOrder {
+            workspaces.save(match { it.id == workspaceId && it.repositoryId == primaryRepoId })
             workspaceRepositoryLinks.attach(workspaceId, primaryRepoId, isPrimary = true)
             workspaceRepositoryLinks.attach(workspaceId, extraRepoId, isPrimary = false)
             workspaceRepositoryLinks.attach(workspaceId, secondExtraRepoId, isPrimary = false)
@@ -667,4 +704,19 @@ class CreateWorkspaceCommandHandlerTest {
 
         verify(exactly = 0) { verifyAccess.verify(any(), any()) }
     }
+
+    private fun repository(
+        id: RepositoryId,
+        name: String,
+    ) = Repository(
+        id = id,
+        name = name,
+        repoUrl = "git@github.com:ExtraToast/$name.git",
+        defaultBranch = "main",
+        vaultKeyPath = "secret/data/agents/repositories/$id",
+        deployKeyFingerprint = null,
+        deployKeyAddedAt = null,
+        createdAt = Instant.now(),
+        updatedAt = Instant.now(),
+    )
 }

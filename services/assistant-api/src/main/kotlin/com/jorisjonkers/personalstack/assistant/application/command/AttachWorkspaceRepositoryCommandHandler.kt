@@ -1,5 +1,6 @@
 package com.jorisjonkers.personalstack.assistant.application.command
 
+import com.jorisjonkers.personalstack.assistant.domain.port.AgentGatewayClient
 import com.jorisjonkers.personalstack.assistant.domain.port.RepositoryRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepositoryRepository
@@ -12,13 +13,19 @@ class AttachWorkspaceRepositoryCommandHandler(
     private val workspaces: WorkspaceRepository,
     private val repositories: RepositoryRepository,
     private val links: WorkspaceRepositoryRepository,
+    private val gateway: AgentGatewayClient,
 ) : CommandHandler<AttachWorkspaceRepositoryCommand> {
     @Transactional
     override fun handle(command: AttachWorkspaceRepositoryCommand) {
-        workspaces.findById(command.workspaceId)
-            ?: throw NoSuchElementException("workspace not found: ${command.workspaceId}")
-        repositories.findById(command.repositoryId)
-            ?: throw NoSuchElementException("repository not found: ${command.repositoryId}")
+        val workspace =
+            workspaces.findById(command.workspaceId)
+                ?: throw NoSuchElementException("workspace not found: ${command.workspaceId}")
+        val repository =
+            repositories.findById(command.repositoryId)
+                ?: throw NoSuchElementException("repository not found: ${command.repositoryId}")
         links.attach(command.workspaceId, command.repositoryId, isPrimary = false)
+        if (workspace.gatewayEndpoint != null && gateway.isReady(workspace)) {
+            gateway.clone(workspace, repository.repoUrl, repository.defaultBranch)
+        }
     }
 }

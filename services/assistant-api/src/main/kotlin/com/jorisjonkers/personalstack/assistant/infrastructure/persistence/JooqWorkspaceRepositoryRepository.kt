@@ -22,16 +22,51 @@ class JooqWorkspaceRepositoryRepository(
         isPrimary: Boolean,
     ): WorkspaceRepositoryRepository.Link {
         val now = Instant.now()
+        if (isPrimary) {
+            attachPrimary(workspaceId, repositoryId, now)
+        } else {
+            attachSecondary(workspaceId, repositoryId, now)
+        }
+        return findLink(workspaceId, repositoryId)
+            ?: WorkspaceRepositoryRepository.Link(workspaceId, repositoryId, isPrimary, now)
+    }
+
+    private fun attachPrimary(
+        workspaceId: WorkspaceId,
+        repositoryId: RepositoryId,
+        now: Instant,
+    ) {
+        dsl
+            .update(JUNCTION)
+            .set(IS_PRIMARY, false)
+            .where(WORKSPACE_ID.eq(workspaceId.value))
+            .execute()
         dsl
             .insertInto(JUNCTION)
             .set(WORKSPACE_ID, workspaceId.value)
             .set(REPOSITORY_ID, repositoryId.value)
-            .set(IS_PRIMARY, isPrimary)
+            .set(IS_PRIMARY, true)
+            .set(ATTACHED_AT, now.atOffset(ZoneOffset.UTC))
+            .onConflict(WORKSPACE_ID, REPOSITORY_ID)
+            .doUpdate()
+            .set(IS_PRIMARY, true)
+            .execute()
+    }
+
+    private fun attachSecondary(
+        workspaceId: WorkspaceId,
+        repositoryId: RepositoryId,
+        now: Instant,
+    ) {
+        dsl
+            .insertInto(JUNCTION)
+            .set(WORKSPACE_ID, workspaceId.value)
+            .set(REPOSITORY_ID, repositoryId.value)
+            .set(IS_PRIMARY, false)
             .set(ATTACHED_AT, now.atOffset(ZoneOffset.UTC))
             .onConflict(WORKSPACE_ID, REPOSITORY_ID)
             .doNothing()
             .execute()
-        return WorkspaceRepositoryRepository.Link(workspaceId, repositoryId, isPrimary, now)
     }
 
     override fun detach(
@@ -49,9 +84,20 @@ class JooqWorkspaceRepositoryRepository(
         dsl
             .selectFrom(JUNCTION)
             .where(WORKSPACE_ID.eq(workspaceId.value))
-            .orderBy(ATTACHED_AT.asc())
+            .orderBy(IS_PRIMARY.desc(), ATTACHED_AT.asc())
             .fetch()
             .map { it.toLink() }
+
+    private fun findLink(
+        workspaceId: WorkspaceId,
+        repositoryId: RepositoryId,
+    ): WorkspaceRepositoryRepository.Link? =
+        dsl
+            .selectFrom(JUNCTION)
+            .where(WORKSPACE_ID.eq(workspaceId.value))
+            .and(REPOSITORY_ID.eq(repositoryId.value))
+            .fetchOne()
+            ?.toLink()
 
     private fun Record.toLink(): WorkspaceRepositoryRepository.Link =
         WorkspaceRepositoryRepository.Link(

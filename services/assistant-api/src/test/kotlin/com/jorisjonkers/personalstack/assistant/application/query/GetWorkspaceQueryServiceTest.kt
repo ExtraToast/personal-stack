@@ -57,7 +57,25 @@ class GetWorkspaceQueryServiceTest {
 
         assertThat(result.workspace).isEqualTo(w)
         assertThat(result.sessions).isEmpty()
-        assertThat(result.repositories).containsExactly(r1, r2)
+        assertThat(result.repositories.map { it.repository }).containsExactly(r1, r2)
+        assertThat(result.repositories.map { it.isPrimary }).containsExactly(true, false)
+    }
+
+    @Test
+    fun `get includes denormalized primary repository when junction row is missing`() {
+        val repoId = RepositoryId.random()
+        val w = workspace(repositoryId = repoId)
+        val r = repository(id = repoId)
+        every { workspaces.findById(w.id) } returns w
+        every { sessions.findAllByWorkspaceId(w.id) } returns emptyList()
+        every { workspaceRepositories.findAllByWorkspaceId(w.id) } returns emptyList()
+        every { repositories.findById(repoId) } returns r
+
+        val result = service.get(w.id) ?: error("expected workspace detail")
+
+        assertThat(result.repositories.map { it.repository }).containsExactly(r)
+        assertThat(result.repositories.single().isPrimary).isTrue
+        assertThat(result.repositories.single().attachedAt).isEqualTo(w.createdAt)
     }
 
     @Test
@@ -87,19 +105,22 @@ class GetWorkspaceQueryServiceTest {
             .hasMessageContaining("references missing repository ${missingRepositoryId.value}")
     }
 
-    private fun workspace(id: WorkspaceId = WorkspaceId.random()) =
-        Workspace(
-            id = id,
-            name = "demo",
-            repoUrl = "git@github.com:owner/repo.git",
-            branch = "main",
-            podName = "pod",
-            pvcName = "pvc",
-            gatewayEndpoint = "http://endpoint:8090",
-            status = WorkspaceStatus.READY,
-            createdAt = Instant.now(),
-            updatedAt = Instant.now(),
-        )
+    private fun workspace(
+        id: WorkspaceId = WorkspaceId.random(),
+        repositoryId: RepositoryId? = null,
+    ) = Workspace(
+        id = id,
+        name = "demo",
+        repoUrl = "git@github.com:owner/repo.git",
+        branch = "main",
+        podName = "pod",
+        pvcName = "pvc",
+        gatewayEndpoint = "http://endpoint:8090",
+        status = WorkspaceStatus.READY,
+        createdAt = Instant.now(),
+        updatedAt = Instant.now(),
+        repositoryId = repositoryId,
+    )
 
     private fun repository(
         id: RepositoryId = RepositoryId.random(),

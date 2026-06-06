@@ -24,7 +24,7 @@ import java.time.Instant
  * Creates the workspace record and provisions the runner Pod. For a
  * repo-backed workspace the clone happens inside the runner at boot
  * (the orchestrator passes REPO_URL/REPO_BRANCH and the entrypoint
- * clones into /workspace with the mounted deploy key) — not from here.
+ * clones into /workspace/<repo-name> with the mounted deploy key) — not from here.
  * An earlier create-time `gateway.clone` raced the runner's startup:
  * it fired before the gateway was up, failed, and was swallowed,
  * leaving the workspace empty.
@@ -81,7 +81,7 @@ class CreateWorkspaceCommandHandler(
             verifyOrFail(resolved.repoUrl, resolved.branch, resolved.repositoryId)
         }
         val workspace = persistInitial(command, resolved)
-        seedRepositoryMembership(workspace)
+        seedRepositoryMembership(workspace, command)
         val withPod = provisionAndUpdate(workspace)
         log.info("workspace {} provisioned as pod {}", workspace.id, withPod.podName)
     }
@@ -137,24 +137,52 @@ class CreateWorkspaceCommandHandler(
         return workspace
     }
 
-    private fun seedRepositoryMembership(workspace: Workspace) {
+    private fun seedRepositoryMembership(
+        workspace: Workspace,
+        command: CreateWorkspaceCommand,
+    ) {
         val repoId = workspace.repositoryId ?: return
+        val repoPort = repositories.ifAvailable ?: return
         val realPrimaryRepoId =
-            repositories
-                .ifAvailable
-                ?.findById(repoId)
+            repoPort
+                .findById(repoId)
                 ?.id
                 ?: return
 
         workspaceRepositories.attach(workspace.id, realPrimaryRepoId, isPrimary = true)
-        workspace.projectId
-            ?.let { projectRepositories.findAllByProjectId(it) }
-            .orEmpty()
-            .map { it.repositoryId }
-            .filterNot { it == realPrimaryRepoId }
-            .distinct()
-            .forEach { workspaceRepositories.attach(workspace.id, it, isPrimary = false) }
+        selectedExtraRepositoryIds(command, realPrimaryRepoId)
+            .forEach { repositoryId ->
+                val repository = requireRepository(repoPort, repositoryId)
+                workspaceRepositories.attach(
+                    workspace.id,
+                    repository.id,
+                    isPrimary = false,
+                )
+            }
     }
+
+    private fun selectedExtraRepositoryIds(
+        command: CreateWorkspaceCommand,
+        primaryRepoId: RepositoryId,
+    ): List<RepositoryId> {
+        val extras =
+            if (command.repositoryIds.isNotEmpty()) {
+                command.repositoryIds.filterNot { it == primaryRepoId }
+            } else {
+                command.projectId
+                    ?.let { projectRepositories.findAllByProjectId(it) }
+                    .orEmpty()
+                    .map { it.repositoryId }
+                    .filterNot { it == primaryRepoId }
+            }
+        return extras.distinct()
+    }
+
+    private fun requireRepository(
+        repos: RepositoryRepository,
+        repositoryId: RepositoryId,
+    ) = repos.findById(repositoryId)
+        ?: throw NoSuchElementException("repository not found: repositoryId=${repositoryId.value}")
 
     private fun provisionAndUpdate(workspace: Workspace): Workspace {
         val handle = orchestrator.provision(workspace)
@@ -175,13 +203,18 @@ class CreateWorkspaceCommandHandler(
         val legacyLinkId: GithubLinkId?,
     )
 
-    private fun resolveRepo(command: CreateWorkspaceCommand): ResolvedRepo =
-        when {
+    private fun resolveRepo(command: CreateWorkspaceCommand): ResolvedRepo {
+        val primaryRepositoryId = primaryRepositoryId(command)
+        return when {
             command.kind == WorkspaceKind.SCRATCH -> ResolvedRepo(null, null, null, null)
-            command.repositoryId != null -> resolveFromRepository(command, command.repositoryId)
+            primaryRepositoryId != null -> resolveFromRepository(command, primaryRepositoryId)
             command.githubLinkId != null -> resolveFromLegacyLink(command, command.githubLinkId)
             else -> ResolvedRepo(command.repoUrl, command.branch, null, null)
         }
+    }
+
+    private fun primaryRepositoryId(command: CreateWorkspaceCommand): RepositoryId? =
+        command.repositoryId ?: command.repositoryIds.firstOrNull()
 
     private fun resolveFromRepository(
         command: CreateWorkspaceCommand,

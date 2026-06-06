@@ -9,6 +9,7 @@ import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceAgentSessio
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepositoryRepository
 import org.springframework.stereotype.Service
+import java.time.Instant
 
 @Service
 class GetWorkspaceQueryService(
@@ -20,22 +21,43 @@ class GetWorkspaceQueryService(
     data class WorkspaceView(
         val workspace: Workspace,
         val sessions: List<WorkspaceAgentSession>,
-        val repositories: List<Repository>,
+        val repositories: List<WorkspaceRepositoryView>,
+    )
+
+    data class WorkspaceRepositoryView(
+        val repository: Repository,
+        val isPrimary: Boolean,
+        val attachedAt: Instant,
     )
 
     fun getSummary(id: WorkspaceId): Workspace? = workspaces.findById(id)
 
     fun get(id: WorkspaceId): WorkspaceView? {
         val workspace = workspaces.findById(id) ?: return null
+        val links = repositoryLinks(workspace)
         val resolvedRepositories =
-            workspaceRepositories
-                .findAllByWorkspaceId(id)
-                .map { link ->
+            links.map { link ->
+                val repository =
                     repositories.findById(link.repositoryId)
                         ?: throw IllegalStateException(
                             "Workspace ${id.value} references missing repository ${link.repositoryId.value}",
                         )
-                }
+                WorkspaceRepositoryView(repository, link.isPrimary, link.attachedAt)
+            }
         return WorkspaceView(workspace, sessions.findAllByWorkspaceId(id), resolvedRepositories)
+    }
+
+    private fun repositoryLinks(workspace: Workspace): List<WorkspaceRepositoryRepository.Link> {
+        val links = workspaceRepositories.findAllByWorkspaceId(workspace.id)
+        val primaryRepositoryId = workspace.repositoryId ?: return links
+        if (links.any { it.repositoryId == primaryRepositoryId }) return links
+        val primaryLink =
+            WorkspaceRepositoryRepository.Link(
+                workspaceId = workspace.id,
+                repositoryId = primaryRepositoryId,
+                isPrimary = true,
+                attachedAt = workspace.createdAt,
+            )
+        return listOf(primaryLink) + links
     }
 }
