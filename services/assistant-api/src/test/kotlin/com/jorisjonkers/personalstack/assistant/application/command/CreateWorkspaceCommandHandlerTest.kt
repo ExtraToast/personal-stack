@@ -10,14 +10,18 @@ import com.jorisjonkers.personalstack.assistant.domain.model.RepositoryId
 import com.jorisjonkers.personalstack.assistant.domain.model.Workspace
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceKind
+import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceStatus
 import com.jorisjonkers.personalstack.assistant.domain.port.AgentRunnerOrchestrator
 import com.jorisjonkers.personalstack.assistant.domain.port.GithubLinkRepository
+import com.jorisjonkers.personalstack.assistant.domain.port.ProjectRepositoryRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.RepositoryRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepository
+import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepositoryRepository
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import io.mockk.verifyOrder
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -28,12 +32,14 @@ import java.time.Instant
 class CreateWorkspaceCommandHandlerTest {
     private val workspaces = mockk<WorkspaceRepository>()
     private val orchestrator = mockk<AgentRunnerOrchestrator>()
+    private val projectRepositoryLinks = mockk<ProjectRepositoryRepository>(relaxed = true)
+    private val workspaceRepositoryLinks = mockk<WorkspaceRepositoryRepository>(relaxed = true)
     private val githubLinks = mockk<GithubLinkRepository>()
     private val linkProvider =
         mockk<ObjectProvider<GithubLinkRepository>> {
             every { ifAvailable } returns githubLinks
         }
-    private val repositories = mockk<RepositoryRepository>()
+    private val repositories = mockk<RepositoryRepository>(relaxed = true)
     private val repositoryProvider =
         mockk<ObjectProvider<RepositoryRepository>> {
             every { ifAvailable } returns repositories
@@ -55,6 +61,8 @@ class CreateWorkspaceCommandHandlerTest {
         CreateWorkspaceCommandHandler(
             workspaces,
             orchestrator,
+            projectRepositoryLinks,
+            workspaceRepositoryLinks,
             linkProvider,
             repositoryProvider,
             verifyAccess,
@@ -83,6 +91,7 @@ class CreateWorkspaceCommandHandlerTest {
 
         verify { orchestrator.provision(any()) }
         verify(exactly = 2) { workspaces.save(any()) }
+        verify(exactly = 0) { workspaceRepositoryLinks.attach(any(), any(), any()) }
     }
 
     @Test
@@ -198,6 +207,96 @@ class CreateWorkspaceCommandHandlerTest {
     }
 
     @Test
+    fun `repositoryId create persists then attaches primary before provisioning`() {
+        val repoId = RepositoryId.random()
+        val repository =
+            Repository(
+                id = repoId,
+                name = "personal-stack",
+                repoUrl = "git@github.com:ExtraToast/personal-stack.git",
+                defaultBranch = "main",
+                vaultKeyPath = "secret/data/agents/repositories/$repoId",
+                deployKeyFingerprint = null,
+                deployKeyAddedAt = null,
+                createdAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
+        every { repositories.findById(repoId) } returns repository
+        every { githubLinks.findById(GithubLinkId(repoId.value)) } returns null
+        every { workspaces.save(any()) } answers { firstArg() }
+        every { orchestrator.provision(any()) } returns
+            AgentRunnerOrchestrator.RunnerHandle("p", "v", "http://p.svc:8090")
+        val workspaceId = WorkspaceId.random()
+
+        handler.handle(
+            CreateWorkspaceCommand(
+                workspaceId = workspaceId,
+                name = "demo",
+                repoUrl = null,
+                branch = null,
+                repositoryId = repoId,
+            ),
+        )
+
+        verifyOrder {
+            workspaces.save(match { it.id == workspaceId && it.status == WorkspaceStatus.PENDING })
+            workspaceRepositoryLinks.attach(workspaceId, repoId, isPrimary = true)
+            orchestrator.provision(match { it.id == workspaceId })
+        }
+    }
+
+    @Test
+    fun `project repositoryId create attaches primary and project extras before provisioning`() {
+        val projectId = ProjectId.random()
+        val primaryRepoId = RepositoryId.random()
+        val extraRepoId = RepositoryId.random()
+        val secondExtraRepoId = RepositoryId.random()
+        val repository =
+            Repository(
+                id = primaryRepoId,
+                name = "personal-stack",
+                repoUrl = "git@github.com:ExtraToast/personal-stack.git",
+                defaultBranch = "main",
+                vaultKeyPath = "secret/data/agents/repositories/$primaryRepoId",
+                deployKeyFingerprint = null,
+                deployKeyAddedAt = null,
+                createdAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
+        every { repositories.findById(primaryRepoId) } returns repository
+        every { githubLinks.findById(GithubLinkId(primaryRepoId.value)) } returns null
+        every { projectRepositoryLinks.findAllByProjectId(projectId) } returns
+            listOf(
+                ProjectRepositoryRepository.Link(projectId, primaryRepoId, Instant.now()),
+                ProjectRepositoryRepository.Link(projectId, extraRepoId, Instant.now()),
+                ProjectRepositoryRepository.Link(projectId, secondExtraRepoId, Instant.now()),
+            )
+        every { workspaces.save(any()) } answers { firstArg() }
+        every { orchestrator.provision(any()) } returns
+            AgentRunnerOrchestrator.RunnerHandle("p", "v", "http://p.svc:8090")
+        val workspaceId = WorkspaceId.random()
+
+        handler.handle(
+            CreateWorkspaceCommand(
+                workspaceId = workspaceId,
+                name = "demo",
+                repoUrl = null,
+                branch = null,
+                projectId = projectId,
+                repositoryId = primaryRepoId,
+            ),
+        )
+
+        verifyOrder {
+            workspaces.save(match { it.id == workspaceId && it.status == WorkspaceStatus.PENDING })
+            workspaceRepositoryLinks.attach(workspaceId, primaryRepoId, isPrimary = true)
+            workspaceRepositoryLinks.attach(workspaceId, extraRepoId, isPrimary = false)
+            workspaceRepositoryLinks.attach(workspaceId, secondExtraRepoId, isPrimary = false)
+            orchestrator.provision(match { it.id == workspaceId })
+        }
+    }
+
+    @Test
     fun `handle leaves legacy linkId null when no github_links mirror exists`() {
         // Regression for the production workspace 500: post-V9
         // repositories created directly (no project link first) have
@@ -243,6 +342,41 @@ class CreateWorkspaceCommandHandlerTest {
     }
 
     @Test
+    fun `legacy githubLinkId create does not attach a synthetic repository id`() {
+        val linkId = GithubLinkId.random()
+        val link =
+            GithubLink(
+                id = linkId,
+                projectId = ProjectId.random(),
+                name = "personal-stack",
+                repoUrl = "git@github.com:ExtraToast/personal-stack.git",
+                defaultBranch = "main",
+                vaultKeyPath = "secret/data/agents/projects/x/repos/y",
+                deployKeyFingerprint = "SHA256:abcd",
+                deployKeyAddedAt = Instant.now(),
+                createdAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
+        every { githubLinks.findById(linkId) } returns link
+        every { repositories.findById(RepositoryId(linkId.value)) } returns null
+        every { workspaces.save(any()) } answers { firstArg() }
+        every { orchestrator.provision(any()) } returns
+            AgentRunnerOrchestrator.RunnerHandle("p", "v", "http://p.svc:8090")
+
+        handler.handle(
+            CreateWorkspaceCommand(
+                workspaceId = WorkspaceId.random(),
+                name = "demo",
+                repoUrl = null,
+                branch = null,
+                githubLinkId = linkId,
+            ),
+        )
+
+        verify(exactly = 0) { workspaceRepositoryLinks.attach(any(), any(), any()) }
+    }
+
+    @Test
     fun `handle SCRATCH kind ignores repoUrl`() {
         every { workspaces.save(any()) } answers { firstArg() }
         every { orchestrator.provision(any()) } returns
@@ -263,6 +397,7 @@ class CreateWorkspaceCommandHandlerTest {
         verify { orchestrator.provision(any()) }
         assertThat(saved.first().repoUrl).isNull()
         assertThat(saved.first().kind).isEqualTo(WorkspaceKind.SCRATCH)
+        verify(exactly = 0) { workspaceRepositoryLinks.attach(any(), any(), any()) }
     }
 
     @Test

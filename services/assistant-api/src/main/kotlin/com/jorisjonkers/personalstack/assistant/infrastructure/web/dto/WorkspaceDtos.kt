@@ -1,11 +1,13 @@
 package com.jorisjonkers.personalstack.assistant.infrastructure.web.dto
 
+import com.jorisjonkers.personalstack.assistant.domain.model.Repository
 import com.jorisjonkers.personalstack.assistant.domain.model.Turn
 import com.jorisjonkers.personalstack.assistant.domain.model.Workspace
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentKind
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceAgentSession
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceKind
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
 import java.time.Instant
 import java.util.UUID
@@ -41,6 +43,11 @@ data class CreateWorkspaceRequest(
     val githubLinkId: UUID? = null,
 )
 
+data class AttachWorkspaceRepositoryRequest(
+    @field:NotNull
+    val repositoryId: UUID? = null,
+)
+
 @Suppress("DEPRECATION")
 data class WorkspaceResponse(
     val id: UUID,
@@ -74,6 +81,91 @@ data class WorkspaceResponse(
                 createdAt = w.createdAt,
                 updatedAt = w.updatedAt,
             )
+    }
+}
+
+data class WorkspaceRepositoryResponse(
+    val id: UUID,
+    val name: String,
+    val repoUrl: String,
+    val defaultBranch: String,
+    val vaultKeyPath: String,
+    val deployKeyFingerprint: String?,
+    val deployKeyAddedAt: Instant?,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    val verification: AccessVerificationResponse?,
+) {
+    companion object {
+        fun of(r: Repository) =
+            WorkspaceRepositoryResponse(
+                id = r.id.value,
+                name = r.name,
+                repoUrl = r.repoUrl,
+                defaultBranch = r.defaultBranch,
+                vaultKeyPath = r.vaultKeyPath,
+                deployKeyFingerprint = r.deployKeyFingerprint,
+                deployKeyAddedAt = r.deployKeyAddedAt,
+                createdAt = r.createdAt,
+                updatedAt = r.updatedAt,
+                verification = r.verification?.let(AccessVerificationResponse::of),
+            )
+    }
+}
+
+@Suppress("DEPRECATION")
+data class WorkspaceWithRepositoriesResponse(
+    val id: UUID,
+    val name: String,
+    val repoUrl: String?,
+    val branch: String?,
+    val podName: String?,
+    val gatewayEndpoint: String?,
+    val status: String,
+    val kind: String,
+    val projectId: UUID?,
+    val repositoryId: UUID?,
+    val githubLinkId: UUID?,
+    val repositories: List<WorkspaceRepositoryResponse>,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+) {
+    companion object {
+        fun of(
+            w: Workspace,
+            repositories: List<Repository>,
+        ) = WorkspaceWithRepositoriesResponse(
+            id = w.id.value,
+            name = w.name,
+            repoUrl = w.repoUrl,
+            branch = w.branch,
+            podName = w.podName,
+            gatewayEndpoint = w.gatewayEndpoint,
+            status = w.status.name,
+            kind = w.kind.name,
+            projectId = w.projectId?.value,
+            repositoryId = w.repositoryId?.value,
+            githubLinkId = w.githubLinkId?.value,
+            repositories = repositories.map(WorkspaceRepositoryResponse::of),
+            createdAt = w.createdAt,
+            updatedAt = w.updatedAt,
+        )
+    }
+}
+
+data class WorkspaceDetailResponse(
+    val workspace: WorkspaceWithRepositoriesResponse,
+    val sessions: List<WorkspaceAgentSessionResponse>,
+) {
+    companion object {
+        fun of(
+            workspace: Workspace,
+            repositories: List<Repository>,
+            sessions: List<WorkspaceAgentSession>,
+        ) = WorkspaceDetailResponse(
+            workspace = WorkspaceWithRepositoriesResponse.of(workspace, repositories),
+            sessions = sessions.map(WorkspaceAgentSessionResponse::of),
+        )
     }
 }
 

@@ -1,4 +1,5 @@
-import type { AgentSession, WorkspaceDetail } from '../types'
+import type { AgentSession, WorkspaceDetail, WorkspaceRepository } from '../types'
+import type { Repository } from '@/features/repositories'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -52,6 +53,8 @@ vi.mock('../services/sessionSocket', () => ({
 }))
 
 const getWorkspace = vi.fn<(id: string) => Promise<WorkspaceDetail>>()
+const attachRepository = vi.fn()
+const detachRepository = vi.fn()
 const sendInput = vi.fn()
 const stageInput = vi.fn()
 vi.mock('../services/workspaceService', () => ({
@@ -61,9 +64,21 @@ vi.mock('../services/workspaceService', () => ({
   destroyWorkspace: vi.fn(),
   startSession: vi.fn(),
   stopSession: vi.fn(),
+  attachRepository: (...args: unknown[]) => attachRepository(...args),
+  detachRepository: (...args: unknown[]) => detachRepository(...args),
   getTurns: vi.fn(async () => []),
   sendInput: (...args: unknown[]) => sendInput(...args),
   stageInput: (...args: unknown[]) => stageInput(...args),
+}))
+
+const listRepositories = vi.fn<() => Promise<Repository[]>>()
+vi.mock('@/features/repositories/services/repositoriesService', () => ({
+  listRepositories: () => listRepositories(),
+  getRepository: vi.fn(),
+  createRepository: vi.fn(),
+  attachDeployKey: vi.fn(),
+  deleteRepository: vi.fn(),
+  verifyRepositoryAccess: vi.fn(),
 }))
 
 function fakeSession(over: Partial<AgentSession> = {}): AgentSession {
@@ -79,7 +94,33 @@ function fakeSession(over: Partial<AgentSession> = {}): AgentSession {
   }
 }
 
-function detail(sessions: AgentSession[]): WorkspaceDetail {
+function fakeRepository(over: Partial<Repository> = {}): Repository {
+  return {
+    id: 'repo-primary',
+    name: 'primary',
+    repoUrl: 'git@github.com:owner/primary.git',
+    defaultBranch: 'main',
+    vaultKeyPath: 'secret/data/agents/repositories/repo-primary',
+    deployKeyFingerprint: 'SHA256:primary',
+    deployKeyAddedAt: '2026-05-19T10:00:00Z',
+    createdAt: '2026-05-19T10:00:00Z',
+    updatedAt: '2026-05-19T10:00:00Z',
+    ...over,
+  }
+}
+
+function fakeWorkspaceRepository(over: Partial<WorkspaceRepository> = {}): WorkspaceRepository {
+  const repo = fakeRepository(over)
+  return {
+    ...repo,
+    verification: null,
+    isPrimary: false,
+    attachedAt: '2026-05-20T10:00:00Z',
+    ...over,
+  }
+}
+
+function detail(sessions: AgentSession[], workspace: Partial<WorkspaceDetail['workspace']> = {}): WorkspaceDetail {
   return {
     workspace: {
       id: 'ws-1',
@@ -95,6 +136,8 @@ function detail(sessions: AgentSession[]): WorkspaceDetail {
       githubLinkId: null,
       createdAt: '2026-05-19T10:00:00Z',
       updatedAt: '2026-05-19T10:00:00Z',
+      repositories: [],
+      ...workspace,
     },
     sessions,
   }
@@ -104,6 +147,8 @@ const router = createRouter({
   history: createMemoryHistory(),
   routes: [
     { path: '/sessions', component: { template: '<div />' } },
+    { path: '/repositories', component: { template: '<div />' } },
+    { path: '/repositories/:id', component: { template: '<div />' } },
     { path: '/workspaces/:id', component: WorkspaceView },
   ],
 })
@@ -134,6 +179,10 @@ describe('workspaceView terminal persistence', () => {
     Object.values(socket).forEach((m) => m.mockClear())
     attachSessionSocket.mockClear()
     getWorkspace.mockReset()
+    attachRepository.mockReset()
+    detachRepository.mockReset()
+    listRepositories.mockReset()
+    listRepositories.mockResolvedValue([])
     sendInput.mockReset()
     stageInput.mockReset()
     vi.stubGlobal(
@@ -212,6 +261,102 @@ describe('workspaceView terminal persistence', () => {
       true,
     )
     expect(sendInput.mock.calls[0]?.[2]).not.toContain('large document')
+  })
+
+  it('renders attached repositories, marks the primary, and shows split guidance', async () => {
+    const primary = fakeWorkspaceRepository({ id: 'repo-primary', name: 'primary', isPrimary: true })
+    const destination = fakeWorkspaceRepository({
+      id: 'repo-dest',
+      name: 'split-dest',
+      repoUrl: 'git@github.com:owner/split-dest.git',
+    })
+    getWorkspace.mockResolvedValue(
+      detail([fakeSession({ id: 'sess-a' })], { projectId: 'project-1', repositories: [primary, destination] }),
+    )
+
+    const wrapper = await mountView()
+
+    expect(wrapper.find('[data-testid="workspace-repositories-panel"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="workspace-repository-primary-repo-primary"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="workspace-detach-repository-repo-primary"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="workspace-detach-repository-repo-dest"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="workspace-split-command"]').text()).toBe(
+      'council split --path path/to/subtree --dest owner/split-dest',
+    )
+    expect(wrapper.find('[data-testid="split-follow-up"]').text()).toContain(
+      'Keep owner/split-dest linked in the project repository pool',
+    )
+    expect(wrapper.find('[data-testid="split-follow-up"]').text()).toContain(
+      'Start the next runner from owner/split-dest after the split lands.',
+    )
+  })
+
+  it('shows non-project split follow-up wording', async () => {
+    const primary = fakeWorkspaceRepository({ id: 'repo-primary', name: 'primary', isPrimary: true })
+    const destination = fakeWorkspaceRepository({
+      id: 'repo-dest',
+      name: 'split-dest',
+      repoUrl: 'git@github.com:owner/split-dest.git',
+    })
+    getWorkspace.mockResolvedValue(detail([fakeSession({ id: 'sess-a' })], { repositories: [primary, destination] }))
+
+    const wrapper = await mountView()
+
+    expect(wrapper.find('[data-testid="split-follow-up"]').text()).toContain(
+      'Keep owner/split-dest attached here, or open a new workspace from that repository.',
+    )
+  })
+
+  it('loads candidate repositories, filters attached repositories, and attaches the selected one', async () => {
+    const primary = fakeWorkspaceRepository({ id: 'repo-primary', name: 'primary', isPrimary: true })
+    const extra = fakeWorkspaceRepository({
+      id: 'repo-extra',
+      name: 'extra',
+      repoUrl: 'git@github.com:owner/extra.git',
+    })
+    getWorkspace
+      .mockResolvedValueOnce(detail([fakeSession({ id: 'sess-a' })], { repositories: [primary] }))
+      .mockResolvedValueOnce(detail([fakeSession({ id: 'sess-a' })], { repositories: [primary, extra] }))
+    listRepositories.mockResolvedValue([
+      fakeRepository({ id: 'repo-primary', name: 'primary' }),
+      fakeRepository({ id: 'repo-extra', name: 'extra', repoUrl: 'git@github.com:owner/extra.git' }),
+    ])
+    attachRepository.mockResolvedValue([extra])
+    const wrapper = await mountView()
+
+    await wrapper.find('[data-testid="workspace-add-repository"]').trigger('click')
+    await flush()
+
+    expect(listRepositories).toHaveBeenCalledOnce()
+    expect(document.querySelector('[data-testid="repository-picker-radio-repo-primary"]')).toBeNull()
+    const extraRadio = requireElement<HTMLInputElement>('[data-testid="repository-picker-radio-repo-extra"]')
+    extraRadio.click()
+    await wrapper.vm.$nextTick()
+    requireElement<HTMLButtonElement>('[data-testid="repository-picker-submit"]').click()
+    await flush()
+
+    expect(attachRepository).toHaveBeenCalledWith('ws-1', 'repo-extra')
+    expect(wrapper.find('[data-testid="workspace-repository-repo-extra"]').exists()).toBe(true)
+  })
+
+  it('removes non-primary repositories and reports detach failures', async () => {
+    const primary = fakeWorkspaceRepository({ id: 'repo-primary', name: 'primary', isPrimary: true })
+    const destination = fakeWorkspaceRepository({
+      id: 'repo-dest',
+      name: 'split-dest',
+      repoUrl: 'git@github.com:owner/split-dest.git',
+    })
+    getWorkspace.mockResolvedValue(detail([fakeSession({ id: 'sess-a' })], { repositories: [primary, destination] }))
+    detachRepository.mockRejectedValue(new Error('detach failed'))
+    const wrapper = await mountView()
+
+    await wrapper.find('[data-testid="workspace-detach-repository-repo-dest"]').trigger('click')
+    await flush()
+
+    expect(detachRepository).toHaveBeenCalledWith('ws-1', 'repo-dest')
+    expect(wrapper.find('[data-testid="workspace-repositories-panel"]').text()).toContain(
+      'Could not remove the repository',
+    )
   })
 })
 

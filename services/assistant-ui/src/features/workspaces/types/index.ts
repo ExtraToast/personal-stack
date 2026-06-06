@@ -36,6 +36,33 @@ export interface Workspace {
   updatedAt: string
 }
 
+export interface WorkspaceRepositoryVerification {
+  read?: boolean | null
+  write?: boolean | null
+  defaultBranchProtected?: boolean | null
+  checkedAt?: string | null
+  messages: string[]
+}
+
+export interface WorkspaceRepository {
+  id: string
+  name: string
+  repoUrl: string
+  defaultBranch: string
+  vaultKeyPath: string
+  deployKeyFingerprint?: string | null
+  deployKeyAddedAt?: string | null
+  createdAt: string
+  updatedAt: string
+  verification?: WorkspaceRepositoryVerification | null
+  isPrimary: boolean
+  attachedAt: string
+}
+
+export interface WorkspaceDetailWorkspace extends Workspace {
+  repositories?: WorkspaceRepository[]
+}
+
 export type AgentKind = 'CLAUDE' | 'CODEX' | 'SHELL'
 
 export type AgentSessionStatus = 'STARTING' | 'RUNNING' | 'STOPPED' | 'FAILED'
@@ -67,6 +94,6 @@ export interface StagedInput {
 }
 
 export interface WorkspaceDetail {
-  workspace: Workspace
+  workspace: WorkspaceDetailWorkspace
   sessions: AgentSession[]
 }

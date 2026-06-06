@@ -9,8 +9,10 @@ import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceKind
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceStatus
 import com.jorisjonkers.personalstack.assistant.domain.port.AgentRunnerOrchestrator
 import com.jorisjonkers.personalstack.assistant.domain.port.GithubLinkRepository
+import com.jorisjonkers.personalstack.assistant.domain.port.ProjectRepositoryRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.RepositoryRepository
 import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepository
+import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepositoryRepository
 import com.jorisjonkers.personalstack.common.command.CommandHandler
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
@@ -38,6 +40,8 @@ import java.time.Instant
 class CreateWorkspaceCommandHandler(
     private val workspaces: WorkspaceRepository,
     private val orchestrator: AgentRunnerOrchestrator,
+    private val projectRepositories: ProjectRepositoryRepository,
+    private val workspaceRepositories: WorkspaceRepositoryRepository,
     /**
      * Optional — present only when the Projects feature is wired
      * (Vault enabled). When absent, every CreateWorkspace must
@@ -77,6 +81,7 @@ class CreateWorkspaceCommandHandler(
             verifyOrFail(resolved.repoUrl, resolved.branch, resolved.repositoryId)
         }
         val workspace = persistInitial(command, resolved)
+        seedRepositoryMembership(workspace)
         val withPod = provisionAndUpdate(workspace)
         log.info("workspace {} provisioned as pod {}", workspace.id, withPod.podName)
     }
@@ -130,6 +135,25 @@ class CreateWorkspaceCommandHandler(
             )
         workspaces.save(workspace)
         return workspace
+    }
+
+    private fun seedRepositoryMembership(workspace: Workspace) {
+        val repoId = workspace.repositoryId ?: return
+        val realPrimaryRepoId =
+            repositories
+                .ifAvailable
+                ?.findById(repoId)
+                ?.id
+                ?: return
+
+        workspaceRepositories.attach(workspace.id, realPrimaryRepoId, isPrimary = true)
+        workspace.projectId
+            ?.let { projectRepositories.findAllByProjectId(it) }
+            .orEmpty()
+            .map { it.repositoryId }
+            .filterNot { it == realPrimaryRepoId }
+            .distinct()
+            .forEach { workspaceRepositories.attach(workspace.id, it, isPrimary = false) }
     }
 
     private fun provisionAndUpdate(workspace: Workspace): Workspace {
