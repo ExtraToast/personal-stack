@@ -69,7 +69,24 @@ python3 ~/.codex/skills/council/council.py config set planner_b codex:gpt-5.5
 
 Override flags: `--intensity`, `--rounds`, `--planner-a`, `--planner-b`,
 `--consolidator`, `--worker`, `--verifier`, `--codex-effort`, `--max-workers`.
-Precedence: preset < council.toml < CLI flag. Workers must be `claude:<model>`.
+Precedence: preset < council.toml < CLI flag. Every role, workers included, can
+be `codex:<model>` or `claude:<model>`, so a run can mix engines.
+
+## Fleet — ad-hoc, engine-agnostic worker pool
+
+`fleet` runs an existing task DAG against a declared pool of agents on either
+CLI, with no plan phase. Point it at any `tasks.json` and a pool; tasks are
+round-robined across the pool, then verified and reconciled like `fanout`.
+
+```bash
+python3 ~/.codex/skills/council/council.py fleet \
+  --tasks tasks.json --agents 'codex:gpt-5.5*3,claude:haiku*2'
+python3 ~/.codex/skills/council/council.py fleet \
+  --tasks tasks.json --agents 'codex:gpt-5.5*4' --estimate
+```
+
+The `--agents` spec is comma-separated `cli:model[*count]` entries (count
+defaults to 1) — a mixed Codex+Claude fleet over an already-decomposed batch.
 
 Notes:
 
