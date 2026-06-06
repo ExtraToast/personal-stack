@@ -9,6 +9,8 @@ import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId
 import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceStatus
 import com.jorisjonkers.personalstack.assistant.domain.port.DeployKeyStore
 import com.jorisjonkers.personalstack.assistant.domain.port.GithubLinkRepository
+import com.jorisjonkers.personalstack.assistant.domain.port.RepositoryRepository
+import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepositoryRepository
 import com.jorisjonkers.personalstack.assistant.infrastructure.k8s.Fabric8AgentRunnerOrchestrator
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
@@ -379,12 +381,16 @@ class Fabric8AgentRunnerOrchestratorIntegrationTest {
         client: KubernetesClient,
         deployKeysProvider: ObjectProvider<DeployKeyStore>,
         githubLinks: ObjectProvider<GithubLinkRepository>,
+        workspaceRepos: ObjectProvider<WorkspaceRepositoryRepository> = empty(),
+        repositories: ObjectProvider<RepositoryRepository> = empty(),
     ): Fabric8AgentRunnerOrchestrator =
         Fabric8AgentRunnerOrchestrator(
             client = client,
             props = testProps(),
             deployKeysProvider = deployKeysProvider,
             githubLinks = githubLinks,
+            workspaceRepos = workspaceRepos,
+            repositories = repositories,
         )
 
     private fun testProps(): AgentRuntimeProperties =

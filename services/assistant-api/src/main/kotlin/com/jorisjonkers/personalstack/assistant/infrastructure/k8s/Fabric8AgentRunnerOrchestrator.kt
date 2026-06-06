@@ -6,6 +6,8 @@ import com.jorisjonkers.personalstack.assistant.domain.model.Workspace
 import com.jorisjonkers.personalstack.assistant.domain.port.AgentRunnerOrchestrator
 import com.jorisjonkers.personalstack.assistant.domain.port.DeployKeyStore
 import com.jorisjonkers.personalstack.assistant.domain.port.GithubLinkRepository
+import com.jorisjonkers.personalstack.assistant.domain.port.RepositoryRepository
+import com.jorisjonkers.personalstack.assistant.domain.port.WorkspaceRepositoryRepository
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder
 import io.fabric8.kubernetes.api.model.EnvVarBuilder
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim
@@ -53,6 +55,8 @@ class Fabric8AgentRunnerOrchestrator(
     private val props: AgentRuntimeProperties,
     private val deployKeysProvider: ObjectProvider<DeployKeyStore>,
     private val githubLinks: ObjectProvider<GithubLinkRepository>,
+    private val workspaceRepos: ObjectProvider<WorkspaceRepositoryRepository>,
+    private val repositories: ObjectProvider<RepositoryRepository>,
 ) : AgentRunnerOrchestrator {
     private val log = LoggerFactory.getLogger(Fabric8AgentRunnerOrchestrator::class.java)
 
@@ -377,7 +381,24 @@ class Fabric8AgentRunnerOrchestrator(
                 add(EnvVarBuilder().withName("REPO_URL").withValue(url).build())
                 workspace.branch?.let { add(EnvVarBuilder().withName("REPO_BRANCH").withValue(it).build()) }
             }
+            // REPO_URLS carries the workspace's additional repos (everything
+            // attached that is not the primary). The entrypoint clones each
+            // into its own subdir over the App-token credential helper. Only
+            // emitted when there are extras, so single-repo workspaces look
+            // identical to before to an older runner image.
+            additionalRepoUrls(workspace).takeIf { it.isNotEmpty() }?.let { urls ->
+                add(EnvVarBuilder().withName("REPO_URLS").withValue(urls.joinToString(" ")).build())
+            }
         }
+
+    private fun additionalRepoUrls(workspace: Workspace): List<String> {
+        val links = workspaceRepos.ifAvailable ?: return emptyList()
+        val repos = repositories.ifAvailable ?: return emptyList()
+        return links
+            .findAllByWorkspaceId(workspace.id)
+            .filterNot { it.isPrimary }
+            .mapNotNull { repos.findById(it.repositoryId)?.repoUrl }
+    }
 
     // KB_URL + KB_BEARER_TOKEN are the exact names the knowledge-system
     // install.sh hooks read; without the bearer every hook short-circuits
