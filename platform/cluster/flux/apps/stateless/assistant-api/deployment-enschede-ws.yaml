@@ -70,6 +70,14 @@ spec:
       priorityClassName: platform-critical-app
       nodeSelector:
         personal-stack/site: enschede
+        # The assistant-api image is built amd64-only. The Enschede site
+        # spans both amd64 nodes and the arm64 Pis (pi-1/2/3); without
+        # this constraint the scheduler can place the surge pod on a Pi,
+        # where the image fails with "no match for platform in manifest"
+        # → ImagePullBackOff while the old pod is torn down. Keel's
+        # force-poll rolls a new pod every 2 min, so that coin-flip took
+        # the terminal WS down repeatedly. Pin to amd64.
+        kubernetes.io/arch: amd64
       initContainers:
         - name: download-pyroscope-agent
           image: curlimages/curl:8.10.1
