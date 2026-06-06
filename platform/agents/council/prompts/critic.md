@@ -27,6 +27,8 @@ List specific, actionable weaknesses:
 Prioritise issues that would make the plan FAIL or produce conflicts during
 parallel execution.
 
+{{baseline}}
+
 # Output
 Return a concise Markdown critique: a bulleted list of concrete problems, each
 with WHY it matters and a suggested fix. End with one line: `VERDICT:` followed

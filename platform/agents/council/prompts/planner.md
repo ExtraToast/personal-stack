@@ -17,6 +17,8 @@ much as possible can run in PARALLEL across independent worker agents, each
 touching a NON-OVERLAPPING set of files (parallel workers that edit the same
 file will collide). Be concrete: name real files and real commands.
 
+{{baseline}}
+
 # Output
 Return ONLY a JSON object — no prose, no code fences — matching this schema:
 

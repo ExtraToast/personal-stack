@@ -17,6 +17,8 @@ not allowed.
 # Repository
 Re-check claims against the real code at {{repo_root}} as needed.
 
+{{baseline}}
+
 # Output
 Return ONLY the revised JSON object — no prose, no code fences — matching this
 schema:

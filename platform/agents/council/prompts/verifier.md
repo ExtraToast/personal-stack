@@ -30,6 +30,8 @@ Check, concretely:
   (not just exit 0 for an unrelated reason)?
 - Any obvious bug, omission, or regression introduced by the diff?
 
+{{baseline}}
+
 # Output
 Return ONLY a JSON object — no prose, no code fences — matching this schema:
 

@@ -30,6 +30,8 @@ for context, but only WRITE within the files listed above.
 - Match the surrounding code's style and conventions.
 - Keep the change minimal and focused on the objective; no tangential cleanup.
 
+{{baseline}}
+
 # Final message
 End with a short plain-text summary: what you changed, in which files, and any
 caveat the orchestrator should know. This summary is read by the orchestrator,

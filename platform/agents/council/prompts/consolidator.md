@@ -39,6 +39,8 @@ Keep the task count proportional to the work: a handful for a focused change,
 more only when the work genuinely decomposes. Sequential, tightly-coupled work
 should be a single task with a clear ordering, not forced into false parallelism.
 
+{{baseline}}
+
 # Output
 Return ONLY a JSON object — no prose, no code fences — matching this schema:
 
