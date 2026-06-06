@@ -88,6 +88,21 @@ python3 ~/.codex/skills/council/council.py fleet \
 The `--agents` spec is comma-separated `cli:model[*count]` entries (count
 defaults to 1) — a mixed Codex+Claude fleet over an already-decomposed batch.
 
+## split — extract a subtree into a new repo
+
+`split` carves a path out of the current repo into a new GitHub repo with that
+path's history preserved (`git subtree split`), on a throwaway
+`council/split/<name>` branch; the working branch is untouched.
+
+```bash
+python3 ~/.codex/skills/council/council.py split \
+  --path services/foo --dest myorg/foo --dry-run
+python3 ~/.codex/skills/council/council.py split --path services/foo --dest myorg/foo
+```
+
+`--no-push` stops at the local branch; `--visibility public` for a public repo.
+The GitHub App must be installed on the destination owner for the push.
+
 Notes:
 
 - Both `codex` and `claude` CLIs must be authenticated.

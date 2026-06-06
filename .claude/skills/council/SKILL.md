@@ -100,6 +100,27 @@ The `--agents` spec is comma-separated `cli:model[*count]` entries (count
 defaults to 1). Use it to drive a mixed Claude+Codex fleet over a big,
 already-decomposed batch — e.g. cross-agent cleanups managed from either CLI.
 
+## split — extract a subtree into a new repo
+
+`split` carves a path out of the current repo into a brand-new GitHub repo with
+that path's history preserved (`git subtree split`). It works on a throwaway
+`council/split/<name>` branch and never touches your working branch.
+
+```bash
+# preview the exact commands, touch nothing:
+python3 ~/.claude/skills/council/council.py split \
+  --path services/foo --dest myorg/foo --dry-run
+# extract, create the (private) remote, push:
+python3 ~/.claude/skills/council/council.py split --path services/foo --dest myorg/foo
+# extract to a local branch only; push it yourself later:
+python3 ~/.claude/skills/council/council.py split --path services/foo --dest myorg/foo --no-push
+```
+
+`--visibility public` makes the new repo public. After extracting, it prints how
+to optionally replace the in-repo copy with a submodule in a separate change.
+The GitHub App must be installed on the destination owner for the push to
+authenticate.
+
 ## Notes
 
 - Both `claude` and `codex` CLIs must be authenticated.
