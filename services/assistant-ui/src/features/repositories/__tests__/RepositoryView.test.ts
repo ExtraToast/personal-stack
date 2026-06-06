@@ -106,6 +106,32 @@ describe('repositoryView access status', () => {
     expect(wrapper.find('[data-testid="repository-protection-unknown"]').exists()).toBe(true)
   })
 
+  it('renders GitHub App owner guidance and canonical external links', async () => {
+    getRepository.mockResolvedValue(detail({ repository: fakeRepo({ repoUrl: 'git@github.com:ExtraToast/demo.git' }) }))
+    const wrapper = await mountView()
+
+    expect(wrapper.find('[data-testid="github-app-owner"]').text()).toBe('ExtraToast')
+    expect(wrapper.find('[data-testid="github-app-permissions"]').text()).toMatch(/Contents:\s+write/)
+    expect(wrapper.find('[data-testid="github-app-permissions"]').text()).toMatch(/Pull requests:\s+write/)
+    expect(wrapper.find('[data-testid="github-app-permissions"]').text()).toMatch(/Actions:\s+write/)
+    expect(wrapper.find('[data-testid="github-app-approval-note"]').text()).toContain('approval on each installation')
+
+    const expectedLinks = {
+      'github-app-install-link': 'https://github.com/apps/personal-stack-agents/installations/new?state=ExtraToast',
+      'github-app-user-installations-link': 'https://github.com/settings/installations',
+      'github-app-organization-installations-link':
+        'https://github.com/organizations/ExtraToast/settings/installations',
+      'github-app-permissions-link': 'https://github.com/settings/apps/personal-stack-agents/permissions',
+    }
+
+    for (const [testId, href] of Object.entries(expectedLinks)) {
+      const link = wrapper.find(`[data-testid="${testId}"]`)
+      expect(link.attributes('href')).toBe(href)
+      expect(link.attributes('target')).toBe('_blank')
+      expect(link.attributes('rel')).toBe('noopener noreferrer')
+    }
+  })
+
   it('verify-access button calls the verify endpoint and stores the result', async () => {
     getRepository.mockResolvedValue(detail())
     verifyRepositoryAccess.mockResolvedValue({

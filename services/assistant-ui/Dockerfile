@@ -13,8 +13,10 @@ COPY libs/vue-common/ libs/vue-common/
 COPY services/assistant-ui/ services/assistant-ui/
 ARG VITE_AUTH_URL=https://auth.jorisjonkers.dev
 ARG VITE_FARO_URL=https://faro.jorisjonkers.dev/collect
+ARG VITE_GITHUB_APP_SLUG=personal-stack-agents
 RUN VITE_AUTH_URL=${VITE_AUTH_URL} \
     VITE_FARO_URL=${VITE_FARO_URL} \
+    VITE_GITHUB_APP_SLUG=${VITE_GITHUB_APP_SLUG} \
     pnpm --filter @personal-stack/assistant-ui build
 
 FROM nginx:alpine
