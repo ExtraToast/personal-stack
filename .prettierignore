@@ -14,3 +14,12 @@ playwright-report
 services/assistant-api/openapi.json
 **/src/api/generated.ts
 .gradle
+
+# Agent-kit content: prompts, templates, rendered skills, the manifest, and
+# design notes are authored/generated text (and prompt wording), not JS sources.
+# Keep prettier off them so it neither churns prompt text nor fights the
+# agent-kit renderer / manifest sha pins.
+.agents/skills/
+.claude/skills/
+platform/agents/
+docs/private/
