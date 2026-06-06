@@ -3,9 +3,10 @@
 # GH_TOKEN/GITHUB_PERSONAL_ACCESS_TOKEN wins; otherwise the helper mints
 # a short-lived GitHub App installation token through assistant-api and
 # caches it per repo until it is close to expiry. The target repo is the
-# first argument, else AGENT_GITHUB_REPO_URL, else REPO_URL, else the
-# workspace's origin — so the same helper serves every repo a multi-repo
-# workspace clones (the credential helper passes AGENT_GITHUB_REPO_URL).
+# first argument, else AGENT_GITHUB_REPO_URL, else the current git
+# remote, else REPO_URL. That keeps commands run inside
+# /workspace/<repo-name> scoped to that repo, while root-level commands
+# still fall back to the primary repository.
 set -u
 
 CACHE_DIR="${GH_APP_TOKEN_CACHE_DIR:-/tmp}"
@@ -44,13 +45,17 @@ target_repo_url() {
     printf '%s' "$AGENT_GITHUB_REPO_URL"
     return 0
   fi
+  if git -C "$WORKSPACE_ROOT" remote get-url origin 2>/dev/null; then
+    return 0
+  fi
+  if git remote get-url origin 2>/dev/null; then
+    return 0
+  fi
   if [ -n "${REPO_URL:-}" ]; then
     printf '%s' "$REPO_URL"
     return 0
   fi
-  git -C "$WORKSPACE_ROOT" remote get-url origin 2>/dev/null ||
-    git remote get-url origin 2>/dev/null ||
-    return 1
+  return 1
 }
 
 REPO_URL_RESOLVED="$(target_repo_url "${1:-}")" || exit 1

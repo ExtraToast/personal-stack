@@ -94,17 +94,21 @@ object K3sTestSupport {
      * apply); safe to call once per test.
      */
     fun bootstrapNamespacesAndServiceAccount(admin: KubernetesClient) {
-        listOf(AGENTS_NAMESPACE, ASSISTANT_NAMESPACE).forEach { ns ->
+        val agentsNamespace = repoRoot().resolve("platform/cluster/flux/apps/agents/namespace.yaml")
+        Files.newInputStream(agentsNamespace).use { stream ->
             admin
-                .namespaces()
-                .resource(
-                    NamespaceBuilder()
-                        .withNewMetadata()
-                        .withName(ns)
-                        .endMetadata()
-                        .build(),
-                ).serverSideApply()
+                .load(stream)
+                .serverSideApply()
         }
+        admin
+            .namespaces()
+            .resource(
+                NamespaceBuilder()
+                    .withNewMetadata()
+                    .withName(ASSISTANT_NAMESPACE)
+                    .endMetadata()
+                    .build(),
+            ).serverSideApply()
         admin
             .serviceAccounts()
             .inNamespace(ASSISTANT_NAMESPACE)

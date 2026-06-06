@@ -182,6 +182,9 @@ spec:
             # Runner Pods must co-locate with the credential PVCs.
             - name: AGENT_RUNTIME_NODE
               value: enschede-gtx-960m-1
+            # Must match users.groups.docker.gid on the selected Nix host.
+            - name: AGENT_RUNTIME_DOCKER_SOCKET_SUPPLEMENTAL_GROUPS
+              value: '131'
             # Read-only GitHub token for the deploy-key branch-protection
             # check. Sourced from the github-api-token Secret (key
             # `token`), which a VaultStaticSecret projects from Vault —

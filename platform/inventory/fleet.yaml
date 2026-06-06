@@ -80,6 +80,10 @@ nodes:
       - tailscale
       - lan-ingress
       - game-streaming
+      # agent-runner Pods mount this node's /var/run/docker.sock for
+      # Docker/Testcontainers. The matching k3s label is required by
+      # assistant-api before scheduling host-equivalent runner Pods here.
+      - docker-socket
       - nvidia
 
   enschede-t1000-1:

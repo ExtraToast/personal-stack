@@ -116,6 +116,14 @@ agent-runtime:
   # Runner MCP profile. Keep default tool count low; wider profiles are
   # opt-ins via AGENT_RUNTIME_DEFAULT_MCP_PROFILE.
   default-mcp-profile: ${AGENT_RUNTIME_DEFAULT_MCP_PROFILE:minimal}
+  # Runner Pods mount the host Docker socket so future agent sessions can run
+  # Docker CLI commands and JVM Testcontainers suites. This is host-equivalent
+  # access. The default gid is pinned in the Nix host definition for the
+  # Docker-socket-capable runner node; override both values together when
+  # moving runners.
+  docker-socket-enabled: ${AGENT_RUNTIME_DOCKER_SOCKET_ENABLED:true}
+  docker-socket-path: ${AGENT_RUNTIME_DOCKER_SOCKET_PATH:/var/run/docker.sock}
+  docker-socket-supplemental-groups: ${AGENT_RUNTIME_DOCKER_SOCKET_SUPPLEMENTAL_GROUPS:131}
   # Pinning to a single node is mandatory because the shared
   # credential PVCs (claude-credentials / codex-credentials) are
   # backed by local-path RWO — every runner Pod must land on the
@@ -131,6 +139,7 @@ agent-runtime:
   # https://docs.spring.io/spring-boot/reference/features/external-config.html#features.external-config.typesafe-configuration-properties.relaxed-binding.maps
   node-selector:
     '[personal-stack/node]': ${AGENT_RUNTIME_NODE:enschede-gtx-960m-1}
+    '[personal-stack/capability-docker-socket]': ${AGENT_RUNTIME_DOCKER_SOCKET_CAPABILITY:true}
   # Idle scale-down. A workspace whose last observed activity is
   # older than `idle-after-seconds` gets its Pod + Service + per-
   # workspace Secret deleted; the workspace PVC survives so a

@@ -100,6 +100,29 @@ class AgentRuntimePropertiesBindingTest {
             .hasMessageContaining("frontned")
     }
 
+    @Test
+    fun `docker socket defaults keep testcontainers available in runner pods`() {
+        val props = bind(base)
+
+        assertThat(props.dockerSocketEnabled).isTrue()
+        assertThat(props.dockerSocketPath).isEqualTo("/var/run/docker.sock")
+        assertThat(props.dockerSocketSupplementalGroups).containsExactly(131L)
+        assertThat(props.nodeSelector).containsEntry("personal-stack/capability-docker-socket", "true")
+    }
+
+    @Test
+    fun `docker socket supplemental groups bind from comma separated environment value`() {
+        val props =
+            bind(
+                base +
+                    mapOf(
+                        "agent-runtime.docker-socket-supplemental-groups" to "44,45",
+                    ),
+            )
+
+        assertThat(props.dockerSocketSupplementalGroups).containsExactly(44L, 45L)
+    }
+
     private fun bind(properties: Map<String, String>): AgentRuntimeProperties {
         val source = MapConfigurationPropertySource(properties)
         return Binder(source)

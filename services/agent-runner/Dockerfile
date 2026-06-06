@@ -33,9 +33,9 @@ ARG GIT_SHA=unknown
 ENV SERVICE_VERSION=${GIT_SHA}
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Base tools. `gh` from the official apt source; node 22 LTS via the
-# nodesource one-liner; Temurin JDK 21 from the Adoptium apt source;
-# python from Debian.
+# Base tools. `gh` from the official apt source; Docker CLI / Compose
+# from Docker's apt source; node 22 LTS via the nodesource one-liner;
+# Temurin JDK 21 from the Adoptium apt source; python from Debian.
 #
 # Java must be 21, not Debian bookworm's `default-jdk` — that resolves
 # to openjdk-17, and the gateway jar is compiled to Java 21 bytecode
@@ -58,8 +58,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
        | gpg --dearmor -o /usr/share/keyrings/adoptium.gpg \
     && echo "deb [signed-by=/usr/share/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb bookworm main" \
        > /etc/apt/sources.list.d/adoptium.list \
+    && curl -fsSL https://download.docker.com/linux/debian/gpg \
+       | gpg --dearmor -o /usr/share/keyrings/docker.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker.gpg] https://download.docker.com/linux/debian bookworm stable" \
+       > /etc/apt/sources.list.d/docker.list \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y --no-install-recommends gh nodejs temurin-21-jdk \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+      gh nodejs temurin-21-jdk \
+      docker-ce-cli docker-buildx-plugin docker-compose-plugin \
+    && docker --version >/dev/null \
+    && docker compose version >/dev/null \
     && rm -rf /var/lib/apt/lists/*
 
 # Claude Code + Codex CLIs. Both ship via npm; pin to the versions
@@ -188,6 +197,8 @@ RUN set -eu; \
     allow="$(REPO_URL='git@github.com:o/primary.git' REPO_URLS='https://github.com/o/extra.git#dev git@github.com:o/second.git' AGENT_RUNNER_ENTRYPOINT_SELF_TEST=repo-allow /opt/entrypoint.sh)"; \
     test "${allow}" = 'o/primary o/extra o/second'; \
     test -z "$(REPO_URL='' REPO_URLS='' AGENT_RUNNER_ENTRYPOINT_SELF_TEST=repo-allow /opt/entrypoint.sh)"; \
+    test "$(REPO_URL='git@github.com:o/personal-stack.git' AGENT_RUNNER_ENTRYPOINT_SELF_TEST=repo-dir /opt/entrypoint.sh)" = 'personal-stack'; \
+    test "$(REPO_URL='https://github.com/o/website.git' AGENT_RUNNER_ENTRYPOINT_SELF_TEST=repo-dir /opt/entrypoint.sh)" = 'website'; \
     rm -rf "${tmp}"
 
 # Shared token helper used by gh, GitHub MCP, and Git's credential
@@ -217,8 +228,14 @@ RUN chmod +x /usr/local/bin/gh-mcp-wrapper
 
 # Non-root agent user, with /workspace writable. /home/agent is the
 # anchor for ~/.claude, ~/.codex, ~/.gitconfig, ~/.ssh — all mounted
-# from PVCs/Secrets at runtime.
-RUN useradd -m -u 1000 -s /bin/bash agent \
+# from PVCs/Secrets at runtime. The runtime Pod also injects the host
+# Docker socket's supplemental group; the image-level docker group keeps
+# local/manual runs usable when the host happens to use the common GID.
+ARG DOCKER_GROUP_ID=999
+RUN if getent group docker >/dev/null; then :; \
+      elif getent group "${DOCKER_GROUP_ID}" >/dev/null; then groupadd docker; \
+      else groupadd --gid "${DOCKER_GROUP_ID}" docker; fi \
+    && useradd -m -u 1000 -G docker -s /bin/bash agent \
     && mkdir -p /workspace /home/agent/.claude /home/agent/.codex /home/agent/.ssh \
     && chown -R agent:agent /workspace /home/agent
 USER agent
