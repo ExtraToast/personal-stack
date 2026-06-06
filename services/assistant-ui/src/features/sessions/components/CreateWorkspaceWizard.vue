@@ -32,7 +32,8 @@ const toast = useToast()
 
 const step = ref<'pick-project' | 'pick-repo' | 'pick-branch'>('pick-project')
 const selectedProjectId = ref<string | null>(null)
-const selectedRepositoryId = ref<string | null>(null)
+const selectedPrimaryRepositoryId = ref<string | null>(null)
+const selectedRepositoryIds = ref<string[]>([])
 const branch = ref('main')
 const name = ref('')
 
@@ -53,7 +54,8 @@ onMounted(async () => {
 
 watch(selectedProjectId, async (id) => {
   if (!id) return
-  selectedRepositoryId.value = null
+  selectedPrimaryRepositoryId.value = null
+  selectedRepositoryIds.value = []
   try {
     await projects.open(id)
   } catch (e) {
@@ -61,7 +63,7 @@ watch(selectedProjectId, async (id) => {
   }
 })
 
-watch(selectedRepositoryId, async (id) => {
+watch(selectedPrimaryRepositoryId, async (id) => {
   if (!id) return
   // Load detail so we can read the default branch + key state.
   try {
@@ -78,12 +80,51 @@ watch(selectedRepositoryId, async (id) => {
 
 const projectRepos = computed(() => projects.repositories)
 const selectedRepo = computed(() =>
-  selectedRepositoryId.value ? (repos.detailById[selectedRepositoryId.value]?.repository ?? null) : null,
+  selectedPrimaryRepositoryId.value
+    ? (repos.detailById[selectedPrimaryRepositoryId.value]?.repository
+      ?? projectRepos.value.find((r) => r.id === selectedPrimaryRepositoryId.value)
+      ?? null)
+    : null,
+)
+const selectedRepositories = computed(() => {
+  const ids = new Set(selectedRepositoryIds.value)
+  return projectRepos.value.filter((r) => ids.has(r.id))
+})
+const additionalRepositoriesMissingKeys = computed(() =>
+  selectedRepositories.value.filter((r) => r.id !== selectedPrimaryRepositoryId.value && !r.deployKeyFingerprint),
 )
 const keyAttached = computed(() => Boolean(selectedRepo.value?.deployKeyFingerprint))
+const selectedRepositoryCount = computed(() => selectedRepositoryIds.value.length)
+
+function ensureRepositorySelected(repositoryId: string): void {
+  if (selectedRepositoryIds.value.includes(repositoryId)) return
+  selectedRepositoryIds.value = [...selectedRepositoryIds.value, repositoryId]
+}
+
+function checked(event: Event): boolean {
+  return event.target instanceof HTMLInputElement && event.target.checked
+}
+
+function onRepositorySelectionChange(repositoryId: string, isSelected: boolean): void {
+  if (isSelected) {
+    ensureRepositorySelected(repositoryId)
+    if (!selectedPrimaryRepositoryId.value) selectedPrimaryRepositoryId.value = repositoryId
+    return
+  }
+
+  selectedRepositoryIds.value = selectedRepositoryIds.value.filter((id) => id !== repositoryId)
+  if (selectedPrimaryRepositoryId.value === repositoryId) {
+    selectedPrimaryRepositoryId.value = selectedRepositoryIds.value[0] ?? null
+  }
+}
+
+function onPrimaryRepositoryChange(repositoryId: string): void {
+  selectedPrimaryRepositoryId.value = repositoryId
+  ensureRepositorySelected(repositoryId)
+}
 
 async function onSubmit(): Promise<void> {
-  if (!selectedProjectId.value || !selectedRepositoryId.value || !name.value.trim()) return
+  if (!selectedProjectId.value || !selectedPrimaryRepositoryId.value || !name.value.trim()) return
   formErrors.clear()
   try {
     await create.run(async () => {
@@ -91,7 +132,9 @@ async function onSubmit(): Promise<void> {
         name: name.value.trim(),
         kind: 'REPO_BACKED',
         projectId: selectedProjectId.value,
-        repositoryId: selectedRepositoryId.value,
+        repositoryId: selectedPrimaryRepositoryId.value,
+        primaryRepositoryId: selectedPrimaryRepositoryId.value,
+        repositoryIds: selectedRepositoryIds.value,
         branch: branch.value.trim() || 'main',
       })
       emit('created', ws.id)
@@ -101,7 +144,8 @@ async function onSubmit(): Promise<void> {
     // Reset for next time.
     step.value = 'pick-project'
     selectedProjectId.value = null
-    selectedRepositoryId.value = null
+    selectedPrimaryRepositoryId.value = null
+    selectedRepositoryIds.value = []
     branch.value = 'main'
     name.value = ''
   } catch (e) {
@@ -119,7 +163,7 @@ async function onSubmit(): Promise<void> {
     <ol class="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
       <li :class="step === 'pick-project' ? 'text-[var(--color-accent-light)]' : ''">1. Project</li>
       <span>→</span>
-      <li :class="step === 'pick-repo' ? 'text-[var(--color-accent-light)]' : ''">2. Repository</li>
+      <li :class="step === 'pick-repo' ? 'text-[var(--color-accent-light)]' : ''">2. Repositories</li>
       <span>→</span>
       <li :class="step === 'pick-branch' ? 'text-[var(--color-accent-light)]' : ''">3. Branch + name</li>
     </ol>
@@ -166,7 +210,8 @@ async function onSubmit(): Promise<void> {
 
     <section v-else-if="step === 'pick-repo'" class="space-y-3">
       <p class="text-sm text-[var(--color-text-muted)]">
-        Pick a repository from the project's pool. Need a different one?
+        Select the repositories to clone into this workspace, then choose one primary repository for the branch and
+        split workflow defaults. Need a different one?
         <RouterLink to="/repositories" class="text-[var(--color-accent-light)] underline">
           Add a repository
         </RouterLink>
@@ -174,25 +219,37 @@ async function onSubmit(): Promise<void> {
       </p>
       <ul v-if="projectRepos.length > 0" class="space-y-2 max-h-72 overflow-y-auto">
         <li v-for="r in projectRepos" :key="r.id">
-          <label
-            class="flex items-baseline gap-3 rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface-card)] p-3 cursor-pointer hover:border-[var(--color-accent)]"
-          >
-            <input
-              v-model="selectedRepositoryId"
-              type="radio"
-              :value="r.id"
-              class="mt-1"
-              :data-testid="`wizard-repo-${r.id}`"
-            />
-            <div class="flex-1">
-              <div class="flex items-baseline justify-between">
-                <span class="font-semibold">{{ r.name }}</span>
-                <span v-if="!r.deployKeyFingerprint" class="text-xs text-amber-400">no key yet</span>
-                <span v-else class="text-xs text-emerald-400">key attached</span>
+          <div class="rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface-card)] p-3">
+            <label class="flex cursor-pointer items-start gap-3">
+              <input
+                :checked="selectedRepositoryIds.includes(r.id)"
+                type="checkbox"
+                :value="r.id"
+                class="mt-1"
+                :data-testid="`wizard-repo-checkbox-${r.id}`"
+                @change="onRepositorySelectionChange(r.id, checked($event))"
+              />
+              <div class="min-w-0 flex-1">
+                <div class="flex items-baseline justify-between">
+                  <span class="font-semibold">{{ r.name }}</span>
+                  <span v-if="!r.deployKeyFingerprint" class="text-xs text-amber-400">no key yet</span>
+                  <span v-else class="text-xs text-emerald-400">key attached</span>
+                </div>
+                <p class="font-mono text-xs text-[var(--color-text-muted)]">{{ r.repoUrl }}</p>
               </div>
-              <p class="font-mono text-xs text-[var(--color-text-muted)]">{{ r.repoUrl }}</p>
-            </div>
-          </label>
+            </label>
+            <label class="mt-3 flex cursor-pointer items-center gap-2 pl-7 text-xs text-[var(--color-text-muted)]">
+              <input
+                :checked="selectedPrimaryRepositoryId === r.id"
+                type="radio"
+                name="workspace-primary-repository"
+                :value="r.id"
+                :data-testid="`wizard-repo-primary-${r.id}`"
+                @change="onPrimaryRepositoryChange(r.id)"
+              />
+              Primary repository
+            </label>
+          </div>
         </li>
       </ul>
       <p v-else class="text-sm text-[var(--color-text-muted)] italic">No repositories linked to this project yet.</p>
@@ -202,17 +259,27 @@ async function onSubmit(): Promise<void> {
         class="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm text-amber-300"
         data-testid="wizard-missing-key-warning"
       >
-        The selected repository has no deploy key yet — the runner Pod won't be able to clone it.
-        <RouterLink :to="`/repositories/${selectedRepositoryId}`" class="underline">Attach a key</RouterLink>
+        The primary repository has no deploy key yet — the runner Pod won't be able to clone it.
+        <RouterLink :to="`/repositories/${selectedPrimaryRepositoryId}`" class="underline">Attach a key</RouterLink>
         first.
+      </div>
+
+      <div
+        v-if="additionalRepositoriesMissingKeys.length > 0"
+        class="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm text-amber-300"
+        data-testid="wizard-missing-selected-keys-warning"
+      >
+        {{ additionalRepositoriesMissingKeys.length }} selected
+        {{ additionalRepositoriesMissingKeys.length === 1 ? 'repository has' : 'repositories have' }} no deploy key yet;
+        additional repositories clone with the GitHub App token when the runner starts.
       </div>
 
       <div class="flex justify-end gap-2">
         <SubmitButton type="button" variant="secondary" label="Back" @click="step = 'pick-project'" />
         <SubmitButton
           type="button"
-          label="Next"
-          :disabled="!selectedRepositoryId || !keyAttached"
+          :label="selectedRepositoryCount > 1 ? `Next (${selectedRepositoryCount} repos)` : 'Next'"
+          :disabled="!selectedPrimaryRepositoryId || !keyAttached"
           data-testid="wizard-step2-next"
           @click="step = 'pick-branch'"
         />

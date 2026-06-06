@@ -5,9 +5,16 @@ import { computed, ref, watch } from 'vue'
 interface Props {
   repositories: WorkspaceRepository[]
   projectId: string | null
+  canSend?: boolean
+  sendPending?: boolean
 }
 
 const props = defineProps<Props>()
+
+const emit = defineEmits<{
+  addDestination: []
+  sendCommand: [command: string]
+}>()
 
 const splitPath = ref('path/to/subtree')
 const selectedDestinationId = ref<string | null>(null)
@@ -34,12 +41,20 @@ watch(
 )
 
 const destinationSlug = computed(() => (selectedDestination.value ? repositorySlug(selectedDestination.value) : null))
+const primaryRepositoryDir = computed(() =>
+  primaryRepository.value ? repositoryDirName(primaryRepository.value) : '<primary-repo>',
+)
 const commandPath = computed(() => splitPath.value.trim() || '<p>')
 const splitCommand = computed(() =>
-  destinationSlug.value ? `council split --path ${commandPath.value} --dest ${destinationSlug.value}` : '',
+  destinationSlug.value
+    ? `cd /workspace/${primaryRepositoryDir.value} && council split --path ${commandPath.value} --dest ${destinationSlug.value}`
+    : '',
 )
 const inProject = computed(() => Boolean(props.projectId))
-const primaryRepositoryName = computed(() => primaryRepository.value?.name ?? '')
+
+function repositoryDirName(repository: WorkspaceRepository): string {
+  return repository.repoUrl.trim().replace(/\.git$/, '').split('/').pop() || repository.name
+}
 
 function repositorySlug(repository: WorkspaceRepository): string {
   const trimmed = repository.repoUrl.trim().replace(/\.git$/, '')
@@ -63,9 +78,19 @@ function repositorySlug(repository: WorkspaceRepository): string {
       Attach a primary repository before preparing a split.
     </p>
 
-    <p v-else-if="destinationRepositories.length === 0" class="mt-3 text-sm text-[var(--color-text-muted)] italic">
-      Attach a destination repository to build a split command.
-    </p>
+    <div v-else-if="destinationRepositories.length === 0" class="mt-3 space-y-3">
+      <p class="text-sm text-[var(--color-text-muted)] italic">
+        Attach a destination repository to build a split command.
+      </p>
+      <button
+        type="button"
+        class="w-full rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-light)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface-dark)] disabled:cursor-not-allowed disabled:opacity-60"
+        data-testid="split-attach-destination"
+        @click="emit('addDestination')"
+      >
+        Attach destination repository
+      </button>
+    </div>
 
     <div v-else class="mt-3 space-y-3">
       <label class="block space-y-1 text-xs">
@@ -95,8 +120,18 @@ function repositorySlug(repository: WorkspaceRepository): string {
         class="overflow-x-auto rounded bg-[#0b0e14] p-3 font-mono text-xs text-[var(--color-terminal-cyan)]"
       ><code data-testid="workspace-split-command">{{ splitCommand }}</code></pre>
 
+      <button
+        type="button"
+        class="w-full rounded-md bg-[var(--color-accent)] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-light)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface-dark)] disabled:cursor-not-allowed disabled:opacity-60"
+        :disabled="!canSend || sendPending"
+        data-testid="split-send-command"
+        @click="emit('sendCommand', splitCommand)"
+      >
+        {{ sendPending ? 'Sending...' : 'Paste command into session' }}
+      </button>
+
       <ol class="list-decimal space-y-1 pl-4 text-xs text-[var(--color-text-muted)]" data-testid="split-follow-up">
-        <li>Run the command from the primary clone, {{ primaryRepositoryName }}.</li>
+        <li>Run the command from the primary clone, /workspace/{{ primaryRepositoryDir }}.</li>
         <li v-if="inProject">
           Keep {{ destinationSlug }} linked in the project repository pool before opening follow-up workspaces.
         </li>

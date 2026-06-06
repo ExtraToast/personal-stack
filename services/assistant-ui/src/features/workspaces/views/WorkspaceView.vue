@@ -24,6 +24,7 @@ const showRepositoryPicker = ref(false)
 const stageName = ref('source.txt')
 const stageContent = ref('')
 const isStaging = ref(false)
+const isSendingSplitCommand = ref(false)
 const isAttachingRepository = ref(false)
 const detachingRepositoryId = ref<string | null>(null)
 const repositoryActionError = ref<string | null>(null)
@@ -37,6 +38,14 @@ const activeStageSession = computed(() => {
   const session = activeLiveSession.value
   return session?.status === 'RUNNING' && session.gatewayAgentId ? session : null
 })
+const agentKindLabels: Record<AgentKind, string> = {
+  CLAUDE: 'Claude Code',
+  CODEX: 'Codex',
+  SHELL: 'shell',
+}
+const spawnButtonLabel = computed(() =>
+  store.startingSession ? 'Starting runner…' : `Start ${agentKindLabels[pickerKind.value]}`,
+)
 
 onMounted(async () => {
   await store.open(workspaceId.value)
@@ -72,6 +81,21 @@ async function onStageInput(): Promise<void> {
     toast.errorFromCatch('Could not stage text', e)
   } finally {
     isStaging.value = false
+  }
+}
+
+async function onSendSplitCommand(command: string): Promise<void> {
+  const ws = store.activeWorkspace
+  const session = activeStageSession.value
+  if (!ws || !session || !command.trim()) return
+  isSendingSplitCommand.value = true
+  try {
+    await sendInput(ws.id, session.id, command.trim(), true)
+    toast.success('Split command sent')
+  } catch (e) {
+    toast.errorFromCatch('Could not send split command', e)
+  } finally {
+    isSendingSplitCommand.value = false
   }
 }
 
@@ -112,8 +136,11 @@ async function onDetachRepository(repositoryId: string, repositoryName: string):
        of the terminal's own scroll. Sizing to the remaining space keeps
        a single scroll region (the xterm viewport). -->
   <div class="flex flex-col h-[calc(100vh-3.5rem)] overflow-hidden">
-    <header class="border-b border-[var(--color-surface-border)] px-6 py-3 flex items-center justify-between">
-      <div>
+    <header
+      class="flex items-center border-b border-[var(--color-surface-border)] px-6 py-3"
+      data-testid="workspace-view-header"
+    >
+      <div class="min-w-0">
         <button
           type="button"
           class="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] mb-1"
@@ -124,41 +151,14 @@ async function onDetachRepository(repositoryId: string, repositoryName: string):
         <h1 class="text-xl font-bold">
           {{ store.activeWorkspace?.name ?? 'Loading…' }}
         </h1>
-        <p v-if="store.activeWorkspace?.repoUrl" class="text-xs text-[var(--color-text-muted)] font-mono">
+        <p v-if="store.activeWorkspace?.repoUrl" class="truncate text-xs text-[var(--color-text-muted)] font-mono">
           {{ store.activeWorkspace.repoUrl }}
         </p>
       </div>
-      <div class="flex items-center gap-2">
-        <button
-          type="button"
-          class="rounded border border-[var(--color-surface-border)] px-3 py-2 text-sm text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-60"
-          :disabled="!activeStageSession || isStaging"
-          data-testid="stage-input-open"
-          @click="showStageInput = true"
-        >
-          Stage text
-        </button>
-        <AgentKindPicker v-model="pickerKind" />
-        <button
-          type="button"
-          class="rounded bg-blue-600 hover:bg-blue-700 px-3 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
-          :disabled="store.startingSession"
-          @click="onSpawn"
-        >
-          {{ store.startingSession ? 'Starting runner…' : 'New agent' }}
-        </button>
-      </div>
     </header>
 
-    <SessionTabs
-      :sessions="store.sessions"
-      :active-id="store.activeSessionId"
-      @select="store.selectSession"
-      @stop="onStopSession"
-    />
-
-    <main class="flex flex-1 gap-3 overflow-hidden p-4">
-      <section class="flex min-w-0 flex-1 flex-col overflow-hidden">
+    <main class="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+      <section class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4">
         <!-- One terminal per live session, all kept mounted; v-show (not
              v-if/:key) so switching tabs preserves each xterm buffer and
              its WebSocket. A session leaving the live set (stopped/failed)
@@ -170,12 +170,82 @@ async function onDetachRepository(repositoryId: string, repositoryName: string):
           :session-id="s.id"
           :active="s.id === store.activeSessionId"
         />
-        <div v-if="liveSessions.length === 0" class="py-4 text-center italic text-[var(--color-text-muted)]">
-          Pick an agent kind above and click "New agent" to start.
+        <div
+          v-if="liveSessions.length === 0"
+          class="flex flex-1 items-center justify-center rounded-md border border-dashed border-[var(--color-surface-border)] text-center text-sm italic text-[var(--color-text-muted)]"
+        >
+          Start an agent from the sidebar.
         </div>
       </section>
 
-      <aside v-if="store.activeWorkspace" class="flex w-96 shrink-0 flex-col gap-3 overflow-y-auto">
+      <aside
+        v-if="store.activeWorkspace"
+        class="flex min-h-0 w-full shrink-0 flex-col gap-4 overflow-y-auto border-t border-[var(--color-surface-border)] bg-[var(--color-surface-card)] p-4 lg:w-[23rem] lg:border-l lg:border-t-0"
+        data-testid="workspace-sidebar"
+        aria-label="Workspace controls"
+      >
+        <section
+          class="rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface-card)] p-4"
+          data-testid="workspace-agent-panel"
+        >
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <h2 class="text-sm font-semibold">Agents</h2>
+            <span
+              class="rounded border border-[var(--color-surface-border)] px-2 py-0.5 text-xs text-[var(--color-text-muted)]"
+            >
+              {{ liveSessions.length }} live
+            </span>
+          </div>
+          <AgentKindPicker v-model="pickerKind" compact />
+          <button
+            type="button"
+            class="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-md border border-transparent bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[var(--color-accent-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-light)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface-dark)] disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="store.startingSession"
+            data-testid="workspace-new-agent"
+            aria-label="Start a new agent session"
+            @click="onSpawn"
+          >
+            {{ spawnButtonLabel }}
+          </button>
+        </section>
+
+        <section
+          class="rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface-card)] p-4"
+          data-testid="workspace-tools-panel"
+        >
+          <h2 class="text-sm font-semibold">Tools</h2>
+          <p id="stage-input-hint" class="sr-only">
+            Stage text is available when the active session is running and attached to a gateway.
+          </p>
+          <button
+            type="button"
+            class="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-light)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface-dark)] disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="!activeStageSession || isStaging"
+            data-testid="stage-input-open"
+            aria-describedby="stage-input-hint"
+            @click="showStageInput = true"
+          >
+            {{ isStaging ? 'Staging…' : 'Stage text' }}
+          </button>
+        </section>
+
+        <section
+          class="rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface-card)] p-4"
+          data-testid="workspace-sessions-panel"
+        >
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <h2 class="text-sm font-semibold">Sessions</h2>
+            <span class="text-xs text-[var(--color-text-muted)]">{{ store.sessions.length }}</span>
+          </div>
+          <SessionTabs
+            :sessions="store.sessions"
+            :active-id="store.activeSessionId"
+            orientation="vertical"
+            @select="store.selectSession"
+            @stop="onStopSession"
+          />
+        </section>
+
         <WorkspaceRepositoriesPanel
           :repositories="store.activeWorkspace.repositories ?? []"
           :attach-pending="isAttachingRepository"
@@ -187,6 +257,10 @@ async function onDetachRepository(repositoryId: string, repositoryName: string):
         <WorkspaceSplitGuidance
           :repositories="store.activeWorkspace.repositories ?? []"
           :project-id="store.activeWorkspace.projectId"
+          :can-send="Boolean(activeStageSession)"
+          :send-pending="isSendingSplitCommand"
+          @add-destination="showRepositoryPicker = true"
+          @send-command="onSendSplitCommand"
         />
       </aside>
     </main>
@@ -222,7 +296,7 @@ async function onDetachRepository(repositoryId: string, repositoryName: string):
         <div class="flex justify-end gap-2">
           <button
             type="button"
-            class="rounded border border-[var(--color-surface-border)] px-4 py-2 text-sm"
+            class="rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface-elevated)] px-4 py-2 text-sm transition-colors hover:bg-[var(--color-surface-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-light)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface-dark)] disabled:cursor-not-allowed disabled:opacity-60"
             :disabled="isStaging"
             @click="closeStageInput"
           >
@@ -230,7 +304,7 @@ async function onDetachRepository(repositoryId: string, repositoryName: string):
           </button>
           <button
             type="submit"
-            class="rounded bg-blue-600 px-4 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+            class="rounded-md bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-light)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface-dark)] disabled:cursor-not-allowed disabled:opacity-60"
             :disabled="isStaging || stageContent.length === 0"
             data-testid="stage-input-submit"
           >

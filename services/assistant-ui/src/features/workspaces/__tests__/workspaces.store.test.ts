@@ -178,9 +178,9 @@ describe('useWorkspacesStore', () => {
     expect(store.activeWorkspace).toBeNull()
   })
 
-  it('attachRepository attaches to the active workspace and refreshes detail', async () => {
+  it('attachRepository refreshes detail without reading an attach response body', async () => {
     const repo = fakeRepository({ id: 'repo-a' })
-    mocked.attachRepository.mockResolvedValue([repo])
+    mocked.attachRepository.mockResolvedValue()
     mocked.getWorkspace.mockResolvedValue({
       workspace: { ...fakeWorkspace(), repositories: [repo] },
       sessions: [],

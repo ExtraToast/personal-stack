@@ -159,7 +159,6 @@ async function mountView() {
   const wrapper = mount(WorkspaceView, {
     global: {
       plugins: [router],
-      stubs: { AgentKindPicker: true, SessionTabs: true },
     },
   })
   await flush()
@@ -263,6 +262,24 @@ describe('workspaceView terminal persistence', () => {
     expect(sendInput.mock.calls[0]?.[2]).not.toContain('large document')
   })
 
+  it('keeps workspace controls in the sidebar', async () => {
+    getWorkspace.mockResolvedValue(detail([fakeSession({ id: 'sess-a', gatewayAgentId: 'abc12345' })]))
+
+    const wrapper = await mountView()
+    const sidebar = wrapper.get('[data-testid="workspace-sidebar"]')
+
+    expect(wrapper.get('[data-testid="workspace-view-header"]').find('[data-testid="stage-input-open"]').exists()).toBe(
+      false,
+    )
+    expect(sidebar.find('[data-testid="workspace-agent-panel"]').exists()).toBe(true)
+    expect(sidebar.find('[data-testid="workspace-new-agent"]').exists()).toBe(true)
+    expect(sidebar.find('[data-testid="workspace-tools-panel"]').exists()).toBe(true)
+    expect(sidebar.find('[data-testid="stage-input-open"]').exists()).toBe(true)
+    expect(sidebar.find('[data-testid="workspace-sessions-panel"]').exists()).toBe(true)
+    expect(sidebar.find('[data-testid="session-tabs"]').exists()).toBe(true)
+    expect(sidebar.find('[data-testid="workspace-repositories-panel"]').exists()).toBe(true)
+  })
+
   it('renders attached repositories, marks the primary, and shows split guidance', async () => {
     const primary = fakeWorkspaceRepository({ id: 'repo-primary', name: 'primary', isPrimary: true })
     const destination = fakeWorkspaceRepository({
@@ -281,7 +298,7 @@ describe('workspaceView terminal persistence', () => {
     expect(wrapper.find('[data-testid="workspace-detach-repository-repo-primary"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="workspace-detach-repository-repo-dest"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="workspace-split-command"]').text()).toBe(
-      'council split --path path/to/subtree --dest owner/split-dest',
+      'cd /workspace/primary && council split --path path/to/subtree --dest owner/split-dest',
     )
     expect(wrapper.find('[data-testid="split-follow-up"]').text()).toContain(
       'Keep owner/split-dest linked in the project repository pool',
@@ -307,6 +324,29 @@ describe('workspaceView terminal persistence', () => {
     )
   })
 
+  it('sends the split command to the active running session', async () => {
+    const primary = fakeWorkspaceRepository({ id: 'repo-primary', name: 'primary', isPrimary: true })
+    const destination = fakeWorkspaceRepository({
+      id: 'repo-dest',
+      name: 'split-dest',
+      repoUrl: 'git@github.com:owner/split-dest.git',
+    })
+    getWorkspace.mockResolvedValue(
+      detail([fakeSession({ id: 'sess-a', gatewayAgentId: 'abc12345' })], { repositories: [primary, destination] }),
+    )
+
+    const wrapper = await mountView()
+    await wrapper.find('[data-testid="split-send-command"]').trigger('click')
+    await flush()
+
+    expect(sendInput).toHaveBeenCalledWith(
+      'ws-1',
+      'sess-a',
+      'cd /workspace/primary && council split --path path/to/subtree --dest owner/split-dest',
+      true,
+    )
+  })
+
   it('loads candidate repositories, filters attached repositories, and attaches the selected one', async () => {
     const primary = fakeWorkspaceRepository({ id: 'repo-primary', name: 'primary', isPrimary: true })
     const extra = fakeWorkspaceRepository({
@@ -321,7 +361,7 @@ describe('workspaceView terminal persistence', () => {
       fakeRepository({ id: 'repo-primary', name: 'primary' }),
       fakeRepository({ id: 'repo-extra', name: 'extra', repoUrl: 'git@github.com:owner/extra.git' }),
     ])
-    attachRepository.mockResolvedValue([extra])
+    attachRepository.mockResolvedValue(undefined)
     const wrapper = await mountView()
 
     await wrapper.find('[data-testid="workspace-add-repository"]').trigger('click')
