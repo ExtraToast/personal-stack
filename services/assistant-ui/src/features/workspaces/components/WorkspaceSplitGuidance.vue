@@ -15,11 +15,8 @@ const selectedDestinationId = ref<string | null>(null)
 const primaryRepository = computed(() => props.repositories.find((r) => r.isPrimary) ?? props.repositories[0] ?? null)
 const destinationRepositories = computed(() => props.repositories.filter((r) => r.id !== primaryRepository.value?.id))
 const selectedDestination = computed(() => {
-  return (
-    destinationRepositories.value.find((r) => r.id === selectedDestinationId.value) ??
-    destinationRepositories.value[0] ??
-    null
-  )
+  const selected = destinationRepositories.value.find((r) => r.id === selectedDestinationId.value)
+  return selected ?? destinationRepositories.value[0] ?? null
 })
 
 watch(
