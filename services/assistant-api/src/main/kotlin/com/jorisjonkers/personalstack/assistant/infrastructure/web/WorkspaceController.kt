@@ -15,6 +15,7 @@ import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.CreateWor
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.WorkspaceDetailResponse
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.WorkspaceResponse
 import com.jorisjonkers.personalstack.common.command.CommandBus
+import io.swagger.v3.oas.annotations.responses.ApiResponse
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -40,6 +41,7 @@ class WorkspaceController(
         @Valid @RequestBody req: CreateWorkspaceRequest,
     ): ResponseEntity<WorkspaceResponse> {
         val id = WorkspaceId.random()
+        val primaryRepositoryId = primaryRepositoryId(req)
         commandBus.dispatch(
             CreateWorkspaceCommand(
                 workspaceId = id,
@@ -48,7 +50,8 @@ class WorkspaceController(
                 branch = req.branch,
                 kind = req.kind,
                 projectId = req.projectId?.let { ProjectId(it) },
-                repositoryId = req.repositoryId?.let { RepositoryId(it) },
+                repositoryId = primaryRepositoryId?.let { RepositoryId(it) },
+                repositoryIds = selectedRepositoryIds(req, primaryRepositoryId).map { RepositoryId(it) },
                 githubLinkId = req.githubLinkId?.let { GithubLinkId(it) },
             ),
         )
@@ -72,6 +75,7 @@ class WorkspaceController(
     }
 
     @PostMapping("/{id}/repositories")
+    @ApiResponse(responseCode = "204", description = "No Content")
     fun attachRepository(
         @PathVariable id: UUID,
         @Valid @RequestBody req: AttachWorkspaceRepositoryRequest,
@@ -105,5 +109,25 @@ class WorkspaceController(
     ): ResponseEntity<Void> {
         commandBus.dispatch(DestroyWorkspaceCommand(WorkspaceId(id)))
         return ResponseEntity.noContent().build()
+    }
+
+    private fun primaryRepositoryId(req: CreateWorkspaceRequest): UUID? {
+        if (req.repositoryId != null &&
+            req.primaryRepositoryId != null &&
+            req.repositoryId != req.primaryRepositoryId
+        ) {
+            throw IllegalArgumentException("repositoryId and primaryRepositoryId must match when both are supplied")
+        }
+        return req.repositoryId ?: req.primaryRepositoryId ?: req.repositoryIds.orEmpty().firstOrNull()
+    }
+
+    private fun selectedRepositoryIds(
+        req: CreateWorkspaceRequest,
+        primaryRepositoryId: UUID?,
+    ): List<UUID> {
+        val repositoryIds = req.repositoryIds.orEmpty()
+        if (repositoryIds.isEmpty()) return emptyList()
+        return (listOfNotNull(primaryRepositoryId) + repositoryIds)
+            .distinct()
     }
 }

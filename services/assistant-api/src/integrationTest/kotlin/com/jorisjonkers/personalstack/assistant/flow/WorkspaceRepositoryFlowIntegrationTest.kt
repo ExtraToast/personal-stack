@@ -58,6 +58,40 @@ class WorkspaceRepositoryFlowIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
+    fun `workspace creation accepts multi-repository selection with explicit primary`() {
+        val unique = unique()
+        val primaryId = createRepository("primary-$unique")
+        val extraOneId = createRepository("extra-one-$unique")
+        val extraTwoId = createRepository("extra-two-$unique")
+
+        val result =
+            mockMvc
+                .perform(
+                    post("/api/v1/workspaces")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            objectMapper.writeValueAsString(
+                                mapOf(
+                                    "name" to "workspace-$unique",
+                                    "kind" to "REPO_BACKED",
+                                    "primaryRepositoryId" to primaryId,
+                                    "repositoryIds" to listOf(extraOneId, primaryId, extraTwoId),
+                                ),
+                            ),
+                        ),
+                ).andExpect(status().isCreated)
+                .andExpect(jsonPath("$.repositoryId").value(primaryId))
+                .andReturn()
+        val workspaceId = objectMapper.readTree(result.response.contentAsString)["id"].asText()
+
+        val repositories = getWorkspaceDetail(workspaceId)["workspace"]["repositories"]
+        assertThat(repositories.map { it["id"].asText() })
+            .containsExactlyInAnyOrder(primaryId, extraOneId, extraTwoId)
+        assertThat(repositories.single { it["isPrimary"].asBoolean() }["id"].asText())
+            .isEqualTo(primaryId)
+    }
+
+    @Test
     fun `attach and detach endpoints mutate workspace detail repositories`() {
         val unique = unique()
         val primaryId = createRepository("primary-$unique")

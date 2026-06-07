@@ -18,6 +18,8 @@ import io.fabric8.kubernetes.api.model.Quantity
 import io.fabric8.kubernetes.api.model.Secret
 import io.fabric8.kubernetes.api.model.SecretBuilder
 import io.fabric8.kubernetes.api.model.ServiceBuilder
+import io.fabric8.kubernetes.api.model.Volume
+import io.fabric8.kubernetes.api.model.VolumeBuilder
 import io.fabric8.kubernetes.api.model.VolumeMountBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
 import org.slf4j.LoggerFactory
@@ -32,7 +34,9 @@ import java.util.Base64
  * (`workspace-<short-id>`), one ClusterIP Service so the gateway has
  * a stable in-cluster name. Adversarial use is anticipated, so the
  * Pod runs as UID 1000, with read-only mounts for the credential
- * PVCs that the agent itself doesn't need to write.
+ * PVCs that the agent itself doesn't need to write. Docker socket
+ * access is intentionally host-equivalent and exists so repo tests
+ * using Testcontainers can run inside future agent sessions.
  *
  * Per-workspace deploy-key isolation: when the workspace's
  * `githubLinkId` is set, the orchestrator looks up the link, reads
@@ -298,6 +302,7 @@ class Fabric8AgentRunnerOrchestrator(
             .withRunAsUser(RUN_AS_UID)
             .withRunAsGroup(RUN_AS_GID)
             .withFsGroup(FS_GROUP)
+            .withSupplementalGroups(podSupplementalGroups())
             .endSecurityContext()
             .addNewContainer()
             .withName("agent-runner")
@@ -364,16 +369,18 @@ class Fabric8AgentRunnerOrchestrator(
                     .build(),
             )
             add(EnvVarBuilder().withName("OTEL_EXPORTER_OTLP_PROTOCOL").withValue("http/protobuf").build())
-            // The runner Pod is the sandbox (unprivileged, no host access,
-            // only its deploy key). IS_SANDBOX tells Claude Code so that
-            // --dangerously-skip-permissions runs without the bypass-mode
-            // warning + acceptance prompt.
+            // The runner Pod is the outer sandbox for the agent process.
+            // Docker socket access is the explicit host-equivalent exception
+            // for Testcontainers and Docker CLI workflows. IS_SANDBOX tells
+            // Claude Code so that --dangerously-skip-permissions runs without
+            // the bypass-mode warning + acceptance prompt.
             add(EnvVarBuilder().withName("IS_SANDBOX").withValue("1").build())
             add(EnvVarBuilder().withName("AGENT_MCP_PROFILE").withValue(props.defaultMcpProfile).build())
+            addAll(dockerEnv())
             addAll(knowledgeEnv())
             addAll(githubAppTokenEnv())
             // REPO_URL/REPO_BRANCH drive the entrypoint's boot-time clone
-            // into /workspace. Cloning in the runner removes the race that
+            // into /workspace/<repo-name>. Cloning in the runner removes the race that
             // left repo-backed workspaces empty: the old create-time
             // gateway.clone fired before the runner gateway was up and was
             // swallowed. Only repo-backed workspaces carry a repoUrl.
@@ -382,10 +389,9 @@ class Fabric8AgentRunnerOrchestrator(
                 workspace.branch?.let { add(EnvVarBuilder().withName("REPO_BRANCH").withValue(it).build()) }
             }
             // REPO_URLS carries the workspace's additional repos (everything
-            // attached that is not the primary). The entrypoint clones each
-            // into its own subdir over the App-token credential helper. Only
-            // emitted when there are extras, so single-repo workspaces look
-            // identical to before to an older runner image.
+            // attached that is not the primary), as url#branch entries. The
+            // entrypoint clones each into /workspace/<repo-name> over the
+            // App-token credential helper.
             additionalRepoUrls(workspace).takeIf { it.isNotEmpty() }?.let { urls ->
                 add(EnvVarBuilder().withName("REPO_URLS").withValue(urls.joinToString(" ")).build())
             }
@@ -397,8 +403,35 @@ class Fabric8AgentRunnerOrchestrator(
         return links
             .findAllByWorkspaceId(workspace.id)
             .filterNot { it.isPrimary }
-            .mapNotNull { repos.findById(it.repositoryId)?.repoUrl }
+            .mapNotNull { link ->
+                repos.findById(link.repositoryId)?.let { repo -> "${repo.repoUrl}#${repo.defaultBranch}" }
+            }
     }
+
+    private fun dockerEnv() =
+        if (!props.dockerSocketEnabled) {
+            emptyList()
+        } else {
+            listOf(
+                EnvVarBuilder().withName("DOCKER_HOST").withValue("unix://${props.dockerSocketPath}").build(),
+                EnvVarBuilder()
+                    .withName("TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE")
+                    .withValue(props.dockerSocketPath)
+                    .build(),
+                EnvVarBuilder()
+                    .withName("AGENT_RUNNER_NODE_HOST_IP")
+                    .withNewValueFrom()
+                    .withNewFieldRef()
+                    .withFieldPath("status.hostIP")
+                    .endFieldRef()
+                    .endValueFrom()
+                    .build(),
+                EnvVarBuilder()
+                    .withName("TESTCONTAINERS_HOST_OVERRIDE")
+                    .withValue("$(AGENT_RUNNER_NODE_HOST_IP)")
+                    .build(),
+            )
+        }
 
     // KB_URL + KB_BEARER_TOKEN are the exact names the knowledge-system
     // install.sh hooks read; without the bearer every hook short-circuits
@@ -435,59 +468,95 @@ class Fabric8AgentRunnerOrchestrator(
         )
 
     private fun podVolumeMounts() =
-        listOf(
-            VolumeMountBuilder().withName("workspace").withMountPath("/workspace").build(),
-            VolumeMountBuilder().withName("claude-credentials").withMountPath("/home/agent/.claude").build(),
-            VolumeMountBuilder().withName("codex-credentials").withMountPath("/home/agent/.codex").build(),
-            VolumeMountBuilder()
-                .withName("github-deploy-key")
-                .withMountPath("/var/run/secrets/agents/github-deploy-key")
-                .withReadOnly(true)
-                .build(),
+        buildList {
+            add(VolumeMountBuilder().withName("workspace").withMountPath("/workspace").build())
+            add(VolumeMountBuilder().withName("claude-credentials").withMountPath("/home/agent/.claude").build())
+            add(VolumeMountBuilder().withName("codex-credentials").withMountPath("/home/agent/.codex").build())
+            if (props.dockerSocketEnabled) {
+                add(
+                    VolumeMountBuilder()
+                        .withName(DOCKER_SOCKET_VOLUME)
+                        .withMountPath(props.dockerSocketPath)
+                        .build(),
+                )
+            }
+            add(
+                VolumeMountBuilder()
+                    .withName("github-deploy-key")
+                    .withMountPath("/var/run/secrets/agents/github-deploy-key")
+                    .withReadOnly(true)
+                    .build(),
+            )
             // Declarative MCP server set; the entrypoint seeds it into
             // ~/.claude.json. Optional volume, so an absent ConfigMap
             // leaves the runner with no managed MCP servers.
-            VolumeMountBuilder()
-                .withName("mcp-config")
-                .withMountPath("/etc/agent-mcp")
-                .withReadOnly(true)
-                .build(),
-        )
+            add(
+                VolumeMountBuilder()
+                    .withName("mcp-config")
+                    .withMountPath("/etc/agent-mcp")
+                    .withReadOnly(true)
+                    .build(),
+            )
+        }
 
     private fun podVolumes(
         workspacePvc: String,
         deployKeySecret: String,
-    ) = listOf(
-        pvcVolume("workspace", workspacePvc),
-        pvcVolume("claude-credentials", props.claudeCredentialsPvc),
-        pvcVolume("codex-credentials", props.codexCredentialsPvc),
-        io.fabric8.kubernetes.api.model
-            .VolumeBuilder()
-            .withName("github-deploy-key")
-            .withNewSecret()
-            .withSecretName(deployKeySecret)
-            .endSecret()
-            .build(),
-        io.fabric8.kubernetes.api.model
-            .VolumeBuilder()
-            .withName("mcp-config")
-            .withNewConfigMap()
-            .withName(props.mcpServersConfigMap)
-            .withOptional(true)
-            .endConfigMap()
-            .build(),
-    )
+    ) = buildList {
+        add(pvcVolume("workspace", workspacePvc))
+        add(pvcVolume("claude-credentials", props.claudeCredentialsPvc))
+        add(pvcVolume("codex-credentials", props.codexCredentialsPvc))
+        dockerSocketVolume()?.let(::add)
+        add(githubDeployKeyVolume(deployKeySecret))
+        add(mcpConfigVolume())
+    }
 
     private fun pvcVolume(
         name: String,
         claim: String,
-    ) = io.fabric8.kubernetes.api.model
-        .VolumeBuilder()
+    ) = VolumeBuilder()
         .withName(name)
         .withNewPersistentVolumeClaim()
         .withClaimName(claim)
         .endPersistentVolumeClaim()
         .build()
+
+    private fun dockerSocketVolume(): Volume? =
+        if (!props.dockerSocketEnabled) {
+            null
+        } else {
+            VolumeBuilder()
+                .withName(DOCKER_SOCKET_VOLUME)
+                .withNewHostPath()
+                .withPath(props.dockerSocketPath)
+                .withType("Socket")
+                .endHostPath()
+                .build()
+        }
+
+    private fun githubDeployKeyVolume(deployKeySecret: String): Volume =
+        VolumeBuilder()
+            .withName("github-deploy-key")
+            .withNewSecret()
+            .withSecretName(deployKeySecret)
+            .endSecret()
+            .build()
+
+    private fun mcpConfigVolume(): Volume =
+        VolumeBuilder()
+            .withName("mcp-config")
+            .withNewConfigMap()
+            .withName(props.mcpServersConfigMap)
+            .withOptional(true)
+            .endConfigMap()
+            .build()
+
+    private fun podSupplementalGroups(): List<Long> =
+        if (props.dockerSocketEnabled) {
+            (listOf(RUN_AS_GID) + props.dockerSocketSupplementalGroups).distinct()
+        } else {
+            listOf(RUN_AS_GID)
+        }
 
     private fun service(
         name: String,
@@ -513,6 +582,7 @@ class Fabric8AgentRunnerOrchestrator(
         private const val RUN_AS_UID = 1000L
         private const val RUN_AS_GID = 1000L
         private const val FS_GROUP = 1000L
+        private const val DOCKER_SOCKET_VOLUME = "docker-socket"
 
         // Resource sizing. One Pod hosts the gateway JVM, the agent CLIs
         // (Claude Code, Codex) and the workspace's own processes in a

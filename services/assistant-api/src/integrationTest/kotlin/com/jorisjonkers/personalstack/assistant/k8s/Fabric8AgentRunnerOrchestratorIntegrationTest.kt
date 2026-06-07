@@ -144,6 +144,14 @@ class Fabric8AgentRunnerOrchestratorIntegrationTest {
         // IS_SANDBOX tells Claude Code it is sandboxed so it skips the
         // bypass-permissions warning/acceptance.
         assertThat(env.single { it.name == "IS_SANDBOX" }.value).isEqualTo("1")
+        assertThat(env.single { it.name == "DOCKER_HOST" }.value).isEqualTo("unix:///var/run/docker.sock")
+        assertThat(env.single { it.name == "TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE" }.value)
+            .isEqualTo("/var/run/docker.sock")
+        val nodeHostIp = env.single { it.name == "AGENT_RUNNER_NODE_HOST_IP" }
+        assertThat(nodeHostIp.value).isNull()
+        assertThat(nodeHostIp.valueFrom.fieldRef.fieldPath).isEqualTo("status.hostIP")
+        assertThat(env.single { it.name == "TESTCONTAINERS_HOST_OVERRIDE" }.value)
+            .isEqualTo("$(AGENT_RUNNER_NODE_HOST_IP)")
         // REPO_URL + REPO_BRANCH drive the entrypoint's boot-time clone
         // (adHocWorkspace is repo-backed with a branch).
         assertThat(env.single { it.name == "REPO_URL" }.value).isEqualTo("git@github.com:example/repo.git")
@@ -170,6 +178,9 @@ class Fabric8AgentRunnerOrchestratorIntegrationTest {
                 .inNamespace(K3sTestSupport.AGENTS_NAMESPACE)
                 .withName("agent-runner-${workspace.id.short()}")
                 .get()
+        assertThat(pod.spec.nodeSelector)
+            .containsEntry("personal-stack/node", "enschede-gtx-960m-1")
+            .containsEntry("personal-stack/capability-docker-socket", "true")
         val mcpMount =
             pod.spec.containers
                 .single()
@@ -179,12 +190,24 @@ class Fabric8AgentRunnerOrchestratorIntegrationTest {
         val mcpVol = pod.spec.volumes.single { it.name == "mcp-config" }
         assertThat(mcpVol.configMap.name).isEqualTo("agents-mcp-servers")
         assertThat(mcpVol.configMap.optional).isTrue()
+        val dockerMount =
+            pod.spec.containers
+                .single()
+                .volumeMounts
+                .single { it.name == "docker-socket" }
+        assertThat(dockerMount.mountPath).isEqualTo("/var/run/docker.sock")
+        val dockerVol = pod.spec.volumes.single { it.name == "docker-socket" }
+        assertThat(dockerVol.hostPath.path).isEqualTo("/var/run/docker.sock")
+        assertThat(dockerVol.hostPath.type).isEqualTo("Socket")
 
         // The runner must hold no Kubernetes API credential: cluster reads
         // go through the read-only MCP server, never the SA token. An
         // unsandboxed agent therefore cannot reach the API server to
         // modify or delete any Pod.
         assertThat(pod.spec.automountServiceAccountToken).isFalse()
+        assertThat(pod.spec.securityContext.supplementalGroups)
+            .contains(131L)
+            .doesNotContain(998L, 999L)
 
         // A startup probe must gate liveness so the gateway's JVM cold
         // start is not killed mid-boot (which re-provisioned the runner

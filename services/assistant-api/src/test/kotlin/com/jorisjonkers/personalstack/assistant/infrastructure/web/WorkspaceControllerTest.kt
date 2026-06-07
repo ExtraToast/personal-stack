@@ -2,6 +2,7 @@ package com.jorisjonkers.personalstack.assistant.infrastructure.web
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.jorisjonkers.personalstack.assistant.application.command.AttachWorkspaceRepositoryCommand
+import com.jorisjonkers.personalstack.assistant.application.command.CreateWorkspaceCommand
 import com.jorisjonkers.personalstack.assistant.application.command.DetachWorkspaceRepositoryCommand
 import com.jorisjonkers.personalstack.assistant.application.query.GetWorkspaceQueryService
 import com.jorisjonkers.personalstack.assistant.application.query.ListWorkspacesQueryService
@@ -111,6 +112,65 @@ class WorkspaceControllerTest {
     }
 
     @Test
+    fun `POST creates a workspace with primary and extra repository ids`() {
+        val primaryRepositoryId = RepositoryId.random()
+        val extraRepositoryId = RepositoryId.random()
+        val w = workspace(kind = WorkspaceKind.REPO_BACKED, repositoryId = primaryRepositoryId)
+        every { getQuery.getSummary(any()) } returns w
+
+        mockMvc
+            .perform(
+                post("/api/v1/workspaces")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        objectMapper.writeValueAsString(
+                            mapOf(
+                                "name" to "demo",
+                                "kind" to "REPO_BACKED",
+                                "primaryRepositoryId" to primaryRepositoryId.value.toString(),
+                                "repositoryIds" to
+                                    listOf(
+                                        extraRepositoryId.value.toString(),
+                                        primaryRepositoryId.value.toString(),
+                                        extraRepositoryId.value.toString(),
+                                    ),
+                            ),
+                        ),
+                    ),
+            ).andExpect(status().isCreated)
+            .andExpect(jsonPath("$.repositoryId").value(primaryRepositoryId.value.toString()))
+
+        verify {
+            commandBus.dispatch(
+                match<CreateWorkspaceCommand> {
+                    it.repositoryId == primaryRepositoryId &&
+                        it.repositoryIds == listOf(primaryRepositoryId, extraRepositoryId)
+                },
+            )
+        }
+    }
+
+    @Test
+    fun `POST rejects conflicting primary repository fields`() {
+        mockMvc
+            .perform(
+                post("/api/v1/workspaces")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        objectMapper.writeValueAsString(
+                            mapOf(
+                                "name" to "demo",
+                                "repositoryId" to UUID.randomUUID().toString(),
+                                "primaryRepositoryId" to UUID.randomUUID().toString(),
+                            ),
+                        ),
+                    ),
+            ).andExpect(status().isBadRequest)
+
+        verify(exactly = 0) { commandBus.dispatch(any()) }
+    }
+
+    @Test
     fun `POST returns error on blank name`() {
         mockMvc
             .perform(
@@ -140,13 +200,25 @@ class WorkspaceControllerTest {
     fun `GET by id returns workspace detail with repositories under workspace`() {
         val w = workspace()
         val r = repository()
-        every { getQuery.get(w.id) } returns GetWorkspaceQueryService.WorkspaceView(w, emptyList(), listOf(r))
+        every { getQuery.get(w.id) } returns
+            GetWorkspaceQueryService.WorkspaceView(
+                w,
+                emptyList(),
+                listOf(
+                    GetWorkspaceQueryService.WorkspaceRepositoryView(
+                        repository = r,
+                        isPrimary = true,
+                        attachedAt = Instant.now(),
+                    ),
+                ),
+            )
         mockMvc
             .perform(get("/api/v1/workspaces/${w.id.value}"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.workspace.id").value(w.id.value.toString()))
             .andExpect(jsonPath("$.workspace.repositories[0].id").value(r.id.value.toString()))
             .andExpect(jsonPath("$.workspace.repositories[0].name").value("personal-stack"))
+            .andExpect(jsonPath("$.workspace.repositories[0].isPrimary").value(true))
             .andExpect(jsonPath("$.sessions").isArray)
     }
 

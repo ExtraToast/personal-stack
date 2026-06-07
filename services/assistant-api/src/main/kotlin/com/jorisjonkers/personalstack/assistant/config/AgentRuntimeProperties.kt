@@ -2,6 +2,17 @@ package com.jorisjonkers.personalstack.assistant.config
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 
+private const val NIXOS_DOCKER_GROUP_GID = 131L
+
+private val DEFAULT_DOCKER_SOCKET_SUPPLEMENTAL_GROUPS =
+    listOf(NIXOS_DOCKER_GROUP_GID)
+
+private val DEFAULT_NODE_SELECTOR =
+    mapOf(
+        "personal-stack/node" to "enschede-gtx-960m-1",
+        "personal-stack/capability-docker-socket" to "true",
+    )
+
 /**
  * Properties that drive Pod creation for workspaces. All sourced from
  * application.yml so the manifests need no rebuild when the image
@@ -35,7 +46,15 @@ data class AgentRuntimeProperties(
     // MCP server profile selected by the runner entrypoint. Keep the
     // default narrow; wider diagnostic profiles are explicit opt-ins.
     val defaultMcpProfile: String = "minimal",
-    val nodeSelector: Map<String, String> = mapOf("personal-stack/node" to "enschede-gtx-960m-1"),
+    // Mount the host Docker socket into runner Pods so agent sessions can run
+    // Docker CLI commands and JVM Testcontainers suites from inside /workspace.
+    // This is host-equivalent access. The supplemental group default is pinned
+    // in platform/nix/hosts/enschede-gtx-960m-1/default.nix; override both the
+    // Nix host and this property together when moving runners to another node.
+    val dockerSocketEnabled: Boolean = true,
+    val dockerSocketPath: String = "/var/run/docker.sock",
+    val dockerSocketSupplementalGroups: List<Long> = DEFAULT_DOCKER_SOCKET_SUPPLEMENTAL_GROUPS,
+    val nodeSelector: Map<String, String> = DEFAULT_NODE_SELECTOR,
     val gatewayConnectTimeoutMs: Long = 5_000,
     val gatewayReadTimeoutMs: Long = 60_000,
     // Base URL of the standing agent-gateway used for the
@@ -79,6 +98,12 @@ data class AgentRuntimeProperties(
             "agent-runtime.default-mcp-profile must be one of " +
                 VALID_MCP_PROFILES.joinToString(", ") +
                 "; got '$defaultMcpProfile'"
+        }
+        require(dockerSocketPath.startsWith("/")) {
+            "agent-runtime.docker-socket-path must be an absolute path; got '$dockerSocketPath'"
+        }
+        require(dockerSocketSupplementalGroups.all { it > 0L }) {
+            "agent-runtime.docker-socket-supplemental-groups must contain positive numeric gids"
         }
     }
 

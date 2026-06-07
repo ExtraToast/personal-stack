@@ -1,15 +1,25 @@
 <script setup lang="ts">
 import type { AgentSession } from '../types'
-import { nextTick, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { useSessionLabelsStore } from '../stores/sessionLabels'
 
-defineProps<{ sessions: AgentSession[]; activeId: string | null }>()
+interface Props {
+  sessions: AgentSession[]
+  activeId: string | null
+  orientation?: 'horizontal' | 'vertical'
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  orientation: 'horizontal',
+})
+
 const emit = defineEmits<{
   select: [id: string]
   stop: [id: string]
 }>()
 
 const labels = useSessionLabelsStore()
+const isVertical = computed(() => props.orientation === 'vertical')
 
 const kindBadge: Record<AgentSession['kind'], string> = {
   CLAUDE: 'bg-orange-500/20 text-orange-300',
@@ -50,50 +60,100 @@ function focusInput(el: unknown): void {
     el.select()
   }
 }
+
+function sessionShellClasses(s: AgentSession): string[] {
+  const active = props.activeId === s.id
+  const base = [
+    'min-w-0 flex-1 items-center gap-2 text-sm transition-colors',
+    'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-light)]',
+    'focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface-dark)]',
+  ].join(' ')
+
+  if (isVertical.value) {
+    return [
+      base,
+      'flex rounded-md border px-3 py-2 text-left',
+      active
+        ? 'border-[var(--color-accent-light)] bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)]'
+        : 'border-[var(--color-surface-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:border-[var(--color-accent-light)] hover:text-[var(--color-text-primary)]',
+    ]
+  }
+
+  return [
+    base,
+    'flex border-b-2 px-3 py-2',
+    active
+      ? 'border-[var(--color-accent-light)] text-[var(--color-text-primary)]'
+      : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]',
+  ]
+}
 </script>
 
 <template>
-  <div class="flex gap-1 border-b border-[var(--color-surface-border)] px-2" data-testid="session-tabs">
-    <button
-      v-for="s in sessions"
-      :key="s.id"
-      type="button"
-      class="flex items-center gap-2 px-3 py-2 text-sm border-b-2 transition-colors"
-      :class="
-        activeId === s.id
-          ? 'border-blue-500 text-white'
-          : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
-      "
-      @click="emit('select', s.id)"
-      @contextmenu.prevent="startEdit(s)"
-      @dblclick.prevent="startEdit(s)"
-    >
-      <span class="px-2 py-0.5 rounded text-xs font-semibold" :class="kindBadge[s.kind]">{{ s.kind }}</span>
-      <input
-        v-if="editingId === s.id"
-        :ref="(el) => focusInput(el)"
-        v-model="draft"
-        type="text"
-        :placeholder="s.id.slice(0, 8)"
-        data-testid="session-tab-rename"
-        class="w-28 bg-transparent border-b border-blue-500 font-mono text-sm focus:outline-none"
-        @click.stop
-        @keydown.enter.prevent="commit(s.id)"
-        @keydown.esc.prevent="cancel"
-        @blur="commit(s.id)"
-      />
-      <span v-else class="font-mono" :title="s.id">{{ tabLabel(s) }}</span>
-      <span class="text-xs" :class="s.status === 'RUNNING' ? 'text-green-400' : 'text-[var(--color-text-muted)]'">{{
-        s.status
-      }}</span>
-      <button
-        v-if="s.status === 'RUNNING'"
-        type="button"
-        class="text-red-400 hover:text-red-300 text-xs ml-1"
-        @click.stop="emit('stop', s.id)"
-      >
-        ×
-      </button>
-    </button>
-  </div>
+  <nav
+    :class="isVertical ? 'space-y-2' : 'border-b border-[var(--color-surface-border)] px-2'"
+    data-testid="session-tabs"
+    aria-label="Agent sessions"
+  >
+    <p v-if="props.sessions.length === 0" class="text-sm italic text-[var(--color-text-muted)]">No sessions yet.</p>
+    <ul v-else :class="isVertical ? 'space-y-2' : 'flex gap-1 overflow-x-auto'">
+      <li v-for="s in props.sessions" :key="s.id" class="flex min-w-0 items-stretch gap-1">
+        <div v-if="editingId === s.id" :class="sessionShellClasses(s)">
+          <span class="shrink-0 rounded px-2 py-0.5 text-xs font-semibold" :class="kindBadge[s.kind]">
+            {{ s.kind }}
+          </span>
+          <input
+            :ref="(el) => focusInput(el)"
+            v-model="draft"
+            type="text"
+            :placeholder="s.id.slice(0, 8)"
+            data-testid="session-tab-rename"
+            class="min-w-0 flex-1 border-b border-[var(--color-accent-light)] bg-transparent font-mono text-sm focus:outline-none"
+            @click.stop
+            @keydown.enter.prevent="commit(s.id)"
+            @keydown.esc.prevent="cancel"
+            @blur="commit(s.id)"
+          />
+          <span
+            class="shrink-0 text-xs"
+            :class="s.status === 'RUNNING' ? 'text-green-400' : 'text-[var(--color-text-muted)]'"
+          >
+            {{ s.status }}
+          </span>
+        </div>
+        <button
+          v-else
+          type="button"
+          :class="sessionShellClasses(s)"
+          :aria-current="props.activeId === s.id ? 'true' : undefined"
+          :data-testid="`session-tab-${s.id}`"
+          @click="emit('select', s.id)"
+          @contextmenu.prevent="startEdit(s)"
+          @dblclick.prevent="startEdit(s)"
+        >
+          <span class="shrink-0 rounded px-2 py-0.5 text-xs font-semibold" :class="kindBadge[s.kind]">
+            {{ s.kind }}
+          </span>
+          <span class="min-w-0 flex-1 truncate font-mono" :title="s.id">{{ tabLabel(s) }}</span>
+          <span
+            class="shrink-0 text-xs"
+            :class="s.status === 'RUNNING' ? 'text-green-400' : 'text-[var(--color-text-muted)]'"
+          >
+            {{ s.status }}
+          </span>
+        </button>
+        <button
+          v-if="s.status === 'RUNNING'"
+          type="button"
+          class="shrink-0 rounded-md border border-transparent px-2 text-sm text-red-400 transition-colors hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface-dark)]"
+          :class="isVertical ? 'self-stretch' : 'py-2'"
+          :aria-label="`Stop session ${tabLabel(s)}`"
+          :data-testid="`session-tab-stop-${s.id}`"
+          @click="emit('stop', s.id)"
+        >
+          ×
+        </button>
+      </li>
+    </ul>
+  </nav>
 </template>

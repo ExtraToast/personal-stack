@@ -491,6 +491,9 @@ export interface components {
             projectId?: string | null;
             /** Format: uuid */
             repositoryId?: string | null;
+            /** Format: uuid */
+            primaryRepositoryId?: string | null;
+            repositoryIds?: string[] | null;
             /**
              * Format: uuid
              * @deprecated
@@ -721,6 +724,9 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
+            isPrimary: boolean;
+            /** Format: date-time */
+            attachedAt: string;
             repoUrl: string;
             defaultBranch: string;
             vaultKeyPath: string;
@@ -927,8 +933,8 @@ export interface operations {
             };
         };
         responses: {
-            /** @description OK */
-            200: {
+            /** @description No Content */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };

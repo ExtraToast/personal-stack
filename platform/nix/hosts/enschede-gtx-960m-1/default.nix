@@ -26,6 +26,7 @@
     "personal-stack/capability-tailscale" = "true";
     "personal-stack/capability-lan-ingress" = "true";
     "personal-stack/capability-game-streaming" = "true";
+    "personal-stack/capability-docker-socket" = "true";
     # capability-samba deliberately absent: the media drive (/srv/media)
     # is mounted on enschede-t1000-1, not here.
     # capability-adguard deliberately absent: AdGuard runs only on
@@ -35,5 +36,21 @@
     "personal-stack/gpu-model-gtx960m" = "true";
     "personal-stack/gpu-class-transcode" = "true";
   };
+  # Keep Testcontainers' status.hostIP callback stable and aligned with the
+  # runner NetworkPolicy's single allowed node IP.
+  services.k3s.extraFlags = [ "--node-ip=100.89.41.92" ];
+  # Testcontainers maps container ports onto random high ports on the host
+  # Docker daemon. Runner Pods reach those through status.hostIP, so allow
+  # callbacks from the pod bridge only; do not expose the range on LAN/tailnet.
+  networking.firewall.interfaces."cni0".allowedTCPPortRanges = [
+    {
+      from = 32768;
+      to = 65535;
+    }
+  ];
+  # Docker's socket group must be a repo-declared value, not a guessed
+  # distro default. assistant-api injects the same gid into runner Pods via
+  # AGENT_RUNTIME_DOCKER_SOCKET_SUPPLEMENTAL_GROUPS.
+  users.groups.docker.gid = 131;
   system.stateVersion = "25.05";
 }

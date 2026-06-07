@@ -40,6 +40,82 @@ class PlatformAgentMcpFluxTest {
     }
 
     @Test
+    fun `agents namespace explicitly admits docker socket runner pods`() {
+        val namespace =
+            repositoryRoot
+                .resolve("platform/cluster/flux/apps/agents/namespace.yaml")
+                .toFile()
+                .readText()
+
+        assertThat(namespace)
+            .contains("mount /var/run/docker.sock")
+            .contains("host-equivalent access")
+            .contains("pod-security.kubernetes.io/enforce: privileged")
+            .contains("pod-security.kubernetes.io/audit: restricted")
+            .contains("pod-security.kubernetes.io/warn: restricted")
+    }
+
+    @Test
+    fun `runner egress allows only docker node high ports for testcontainers callbacks`() {
+        val manifest =
+            repositoryRoot
+                .resolve("platform/cluster/flux/apps/agents/network-policy/runner-egress.yaml")
+                .toFile()
+                .readText()
+
+        assertThat(manifest)
+            .contains("TESTCONTAINERS_HOST_OVERRIDE")
+            .contains("cidr: 100.89.41.92/32")
+            .contains("port: 32768")
+            .contains("endPort: 65535")
+    }
+
+    @Test
+    fun `agent runner docker socket node capability and gid are pinned in platform config`() {
+        val inventory = repositoryRoot.resolve("platform/inventory/fleet.yaml").toFile().readText()
+        val host =
+            repositoryRoot
+                .resolve("platform/nix/hosts/enschede-gtx-960m-1/default.nix")
+                .toFile()
+                .readText()
+        val appConfig =
+            repositoryRoot
+                .resolve("services/assistant-api/src/main/resources/application.yml")
+                .toFile()
+                .readText()
+        val assistantApiDeployment =
+            repositoryRoot
+                .resolve("platform/cluster/flux/apps/stateless/assistant-api/deployment.yaml")
+                .toFile()
+                .readText()
+        val assistantApiWsDeployment =
+            repositoryRoot
+                .resolve("platform/cluster/flux/apps/stateless/assistant-api/deployment-enschede-ws.yaml")
+                .toFile()
+                .readText()
+
+        assertThat(inventory).contains("- docker-socket")
+        assertThat(host)
+            .contains("\"personal-stack/capability-docker-socket\" = \"true\"")
+            .contains("--node-ip=100.89.41.92")
+            .contains("networking.firewall.interfaces.\"cni0\".allowedTCPPortRanges")
+            .contains("to = 65535;")
+            .contains("users.groups.docker.gid = 131;")
+        assertThat(appConfig)
+            .contains("docker-socket-supplemental-groups: \${AGENT_RUNTIME_DOCKER_SOCKET_SUPPLEMENTAL_GROUPS:131}")
+            .contains(
+                "'[personal-stack/capability-docker-socket]': " +
+                    "\${AGENT_RUNTIME_DOCKER_SOCKET_CAPABILITY:true}",
+            )
+        assertThat(assistantApiDeployment)
+            .contains("name: AGENT_RUNTIME_DOCKER_SOCKET_SUPPLEMENTAL_GROUPS")
+            .contains("value: '131'")
+        assertThat(assistantApiWsDeployment)
+            .contains("name: AGENT_RUNTIME_DOCKER_SOCKET_SUPPLEMENTAL_GROUPS")
+            .contains("value: '131'")
+    }
+
+    @Test
     fun `agent runner wires github app token into gh github mcp and git push`() {
         val dockerfile =
             repositoryRoot
@@ -73,6 +149,11 @@ class PlatformAgentMcpFluxTest {
                 .readText()
 
         assertThat(dockerfile)
+            .contains("docker-ce-cli")
+            .contains("docker-buildx-plugin")
+            .contains("docker-compose-plugin")
+            .contains("docker --version >/dev/null")
+            .contains("docker compose version >/dev/null")
             .contains("agent-github-token.sh /usr/local/bin/agent-github-token")
             .contains("gh-app-token-wrapper.sh /usr/local/bin/gh")
             .contains("git-credential-agent-gh-app.sh /usr/local/bin/git-credential-agent-gh-app")
@@ -91,6 +172,8 @@ class PlatformAgentMcpFluxTest {
             // Multi-repo: clone every REPO_URLS entry and bound the credential
             // helper to the workspace's repos via REPO_ALLOW.
             .contains("REPO_URLS")
+            .contains("clone_repo_into_workspace \"${'$'}REPO_URL\"")
+            .contains("_repo_target=\"${'$'}{WORKSPACE_ROOT}/${'$'}{_repo_name}\"")
             .contains("export REPO_ALLOW")
             .contains("register_repo_trust")
 
@@ -152,6 +235,12 @@ class PlatformAgentMcpFluxTest {
         assertThat(orchestrator)
             .contains("withName(\"AGENT_MCP_PROFILE\")")
             .contains("props.defaultMcpProfile")
+            .contains("DOCKER_HOST")
+            .contains("TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE")
+            .contains("TESTCONTAINERS_HOST_OVERRIDE")
+            .contains("withNewHostPath()")
+            .contains("withType(\"Socket\")")
+            .contains("withSupplementalGroups(podSupplementalGroups())")
         assertThat(entrypoint)
             .contains("AGENT_MCP_PROFILE=\"\${AGENT_MCP_PROFILE:-minimal}\"")
             .contains("claude-mcp-servers.\${AGENT_MCP_PROFILE}.json")

@@ -40,6 +40,7 @@ class GitClientVerifyTest {
         private val results: List<ProcessRunner.Result>,
     ) : ProcessRunner() {
         val calls = mutableListOf<List<String>>()
+        val envs = mutableListOf<Map<String, String>>()
         private var idx = 0
 
         override fun run(
@@ -50,6 +51,7 @@ class GitClientVerifyTest {
             checked: Boolean,
         ): Result {
             calls.add(argv)
+            envs.add(env)
             val result = results[idx.coerceAtMost(results.size - 1)]
             idx++
             if (checked && result.exitCode != 0) throw ProcessFailedException(argv, result)
@@ -64,6 +66,46 @@ class GitClientVerifyTest {
     private val lsRemoteHead =
         "deadbeef00000000000000000000000000000000\tHEAD\n" +
             "deadbeef00000000000000000000000000000000\trefs/heads/main\n"
+
+    @Test
+    fun `clone skips an existing checkout`() {
+        val target = keyDir.resolve("workspace/repo")
+        Files.createDirectories(target.resolve(".git"))
+        val runner = FakeRunner(listOf(ok()))
+
+        val result = GitClient(runner, props()).clone(repoUrl, target.toString(), branch = "main")
+
+        assertThat(result).isEqualTo(target.toString())
+        assertThat(runner.calls).isEmpty()
+    }
+
+    @Test
+    fun `clone scopes the app-token helper to the requested repository`() {
+        val target = keyDir.resolve("workspace/extra")
+        val runner = FakeRunner(listOf(ok()))
+
+        val result =
+            GitClient(runner, props()).clone(
+                "git@github.com:owner/extra.git",
+                target.toString(),
+                branch = "main",
+            )
+
+        assertThat(result).isEqualTo(target.toString())
+        assertThat(runner.calls.single())
+            .containsExactly(
+                "git",
+                "clone",
+                "--depth",
+                "50",
+                "--branch",
+                "main",
+                "git@github.com:owner/extra.git",
+                target.toString(),
+            )
+        assertThat(runner.envs.single()["AGENT_GITHUB_REPO_URL"]).isEqualTo("git@github.com:owner/extra.git")
+        assertThat(runner.envs.single()["REPO_ALLOW"]).isEqualTo("owner/extra")
+    }
 
     @Test
     fun `read ok and write ok with HEAD when no branch given`() {

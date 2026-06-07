@@ -43,8 +43,8 @@ function onSubmit(): void {
 <template>
   <div class="space-y-4" data-testid="workspace-repository-picker">
     <p class="text-sm text-[var(--color-text-muted)]">
-      Attach an existing repository to this workspace. It becomes available to future runner starts for this workspace,
-      but the primary clone stays unchanged.
+      Attach an existing repository to this workspace. It will be cloned into /workspace by repository name on the next
+      runner start.
       <RouterLink to="/repositories" class="text-[var(--color-accent-light)] underline">Add a repository</RouterLink>
       first if it is missing.
     </p>
@@ -85,7 +85,7 @@ function onSubmit(): void {
     <div class="flex justify-end gap-2">
       <button
         type="button"
-        class="rounded border border-[var(--color-surface-border)] px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+        class="rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface-elevated)] px-4 py-2 text-sm transition-colors hover:bg-[var(--color-surface-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-light)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface-dark)] disabled:cursor-not-allowed disabled:opacity-60"
         :disabled="pending"
         @click="emit('cancel')"
       >
@@ -93,7 +93,7 @@ function onSubmit(): void {
       </button>
       <button
         type="button"
-        class="rounded bg-blue-600 px-4 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+        class="rounded-md bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-light)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface-dark)] disabled:cursor-not-allowed disabled:opacity-60"
         :disabled="!selected || pending"
         data-testid="repository-picker-submit"
         @click="onSubmit"

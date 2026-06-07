@@ -6,10 +6,19 @@
 # NetworkPolicy uses the `app.kubernetes.io/part-of: agent-runner`
 # label to segregate runner egress from the bootstrap Pod's broader
 # allowance.
+#
+# Runner Pods intentionally mount /var/run/docker.sock so future
+# agent sessions can run Docker CLI commands and JVM Testcontainers
+# suites. That hostPath is host-equivalent access and violates the
+# baseline Pod Security profile, so this namespace enforces
+# `privileged` explicitly instead of failing admission by accident.
+# The compensating controls are node capability pinning, no projected
+# runner ServiceAccount token, and the runner NetworkPolicy below.
 apiVersion: v1
 kind: Namespace
 metadata:
   name: agents-system
   labels:
-    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

@@ -1,4 +1,4 @@
-import type { AgentKind, StagedInput, Turn, Workspace, WorkspaceDetail, WorkspaceRepository } from '../types'
+import type { AgentKind, StagedInput, Turn, Workspace, WorkspaceDetail } from '../types'
 import { ApiError, useApiWithAuth } from '@personal-stack/vue-common'
 
 function getApi(): ReturnType<typeof useApiWithAuth> {
@@ -42,6 +42,10 @@ export interface CreateWorkspaceInput {
    * repository row.
    */
   repositoryId?: string | null
+  /** Primary repository for multi-repo workspace creation. */
+  primaryRepositoryId?: string | null
+  /** Selected repositories for multi-repo workspace creation. */
+  repositoryIds?: string[]
   /**
    * Optional project context. Set when the workspace was opened from
    * a project's UI; null for ad-hoc / scratch work.
@@ -67,8 +71,8 @@ export async function destroyWorkspace(id: string): Promise<void> {
   return getApi().del(`/workspaces/${id}`)
 }
 
-export async function attachRepository(workspaceId: string, repositoryId: string): Promise<WorkspaceRepository[]> {
-  return getApi().post<WorkspaceRepository[]>(`/workspaces/${workspaceId}/repositories`, { repositoryId })
+export async function attachRepository(workspaceId: string, repositoryId: string): Promise<void> {
+  await getApi().post(`/workspaces/${workspaceId}/repositories`, { repositoryId })
 }
 
 export async function detachRepository(workspaceId: string, repositoryId: string): Promise<void> {

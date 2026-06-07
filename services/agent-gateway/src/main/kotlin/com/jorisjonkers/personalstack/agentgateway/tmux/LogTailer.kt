@@ -110,6 +110,21 @@ class LogTailer(
     companion object {
         const val MAX_CHUNK_CHARS = 1024
         private const val MAX_READ_BYTES = 64 * 1024
+        private const val BYTE_TO_UNSIGNED_MASK = 0xFF
+        private const val NO_UTF8_LEAD_BYTE = -1
+        private const val UTF8_CONTINUATION_MASK = 0xC0
+        private const val UTF8_CONTINUATION_PREFIX = 0x80
+        private const val UTF8_SINGLE_BYTE_LIMIT = 0x80
+        private const val UTF8_TWO_BYTE_LEAD_START = 0xC0
+        private const val UTF8_TWO_BYTE_LEAD_END = 0xDF
+        private const val UTF8_THREE_BYTE_LEAD_START = 0xE0
+        private const val UTF8_THREE_BYTE_LEAD_END = 0xEF
+        private const val UTF8_FOUR_BYTE_LEAD_START = 0xF0
+        private const val UTF8_FOUR_BYTE_LEAD_END = 0xF7
+        private const val UTF8_SINGLE_BYTE_SEQUENCE_LENGTH = 1
+        private const val UTF8_TWO_BYTE_SEQUENCE_LENGTH = 2
+        private const val UTF8_THREE_BYTE_SEQUENCE_LENGTH = 3
+        private const val UTF8_FOUR_BYTE_SEQUENCE_LENGTH = 4
         private val EMPTY = ByteArray(0)
 
         /**
@@ -120,24 +135,34 @@ class LogTailer(
          */
         internal fun completeUtf8Length(buf: ByteArray): Int {
             if (buf.isEmpty()) return 0
-            var i = buf.size - 1
-            var continuations = 0
-            while (i >= 0 && (buf[i].toInt() and 0xC0) == 0x80) {
-                i--
-                continuations++
-            }
-            if (i < 0) return buf.size
-            val lead = buf[i].toInt() and 0xFF
-            val expected =
-                when {
-                    lead < 0x80 -> 1
-                    lead in 0xC0..0xDF -> 2
-                    lead in 0xE0..0xEF -> 3
-                    lead in 0xF0..0xF7 -> 4
-                    else -> 1
-                }
-            return if (continuations + 1 >= expected) buf.size else i
+            val leadIndex = trailingLeadByteIndex(buf)
+            if (leadIndex == NO_UTF8_LEAD_BYTE) return buf.size
+            val availableSequenceBytes = buf.size - leadIndex
+            val expectedSequenceBytes = utf8SequenceLength(buf[leadIndex].toUnsignedInt())
+            return if (availableSequenceBytes >= expectedSequenceBytes) buf.size else leadIndex
         }
+
+        private fun trailingLeadByteIndex(buf: ByteArray): Int {
+            var i = buf.size - 1
+            while (i >= 0 && buf[i].isUtf8Continuation()) {
+                i--
+            }
+            return i
+        }
+
+        private fun Byte.isUtf8Continuation(): Boolean =
+            (toInt() and UTF8_CONTINUATION_MASK) == UTF8_CONTINUATION_PREFIX
+
+        private fun Byte.toUnsignedInt(): Int = toInt() and BYTE_TO_UNSIGNED_MASK
+
+        private fun utf8SequenceLength(lead: Int): Int =
+            when {
+                lead < UTF8_SINGLE_BYTE_LIMIT -> UTF8_SINGLE_BYTE_SEQUENCE_LENGTH
+                lead in UTF8_TWO_BYTE_LEAD_START..UTF8_TWO_BYTE_LEAD_END -> UTF8_TWO_BYTE_SEQUENCE_LENGTH
+                lead in UTF8_THREE_BYTE_LEAD_START..UTF8_THREE_BYTE_LEAD_END -> UTF8_THREE_BYTE_SEQUENCE_LENGTH
+                lead in UTF8_FOUR_BYTE_LEAD_START..UTF8_FOUR_BYTE_LEAD_END -> UTF8_FOUR_BYTE_SEQUENCE_LENGTH
+                else -> UTF8_SINGLE_BYTE_SEQUENCE_LENGTH
+            }
 
         /**
          * Feeds [text] to [action] in pieces of at most [maxChars],

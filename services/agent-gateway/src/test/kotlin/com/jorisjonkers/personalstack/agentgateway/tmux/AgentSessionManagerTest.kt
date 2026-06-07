@@ -128,7 +128,9 @@ class AgentSessionManagerTest {
                             "--dangerously-bypass-approvals-and-sandbox",
                             "--dangerously-bypass-hook-trust",
                         ),
-                    ) && !cmd.contains("resume") && !cmd.contains("--last")
+                    ) &&
+                        !cmd.contains("resume") &&
+                        !cmd.contains("--last")
                 },
                 "/workspace",
             )

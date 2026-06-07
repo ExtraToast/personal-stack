@@ -42,8 +42,8 @@ if [ -z "$TOKEN" ]; then
 [gh-mcp-wrapper] ERROR: no GitHub token available for github-mcp-server.
 [gh-mcp-wrapper] Set GITHUB_PERSONAL_ACCESS_TOKEN/GH_TOKEN, or provide
 [gh-mcp-wrapper] GITHUB_APP_TOKEN_URL and GITHUB_APP_TOKEN_BEARER. The
-[gh-mcp-wrapper] runner also needs REPO_URL or a git remote in /workspace
-[gh-mcp-wrapper] so it can mint a repo-scoped installation token.
+[gh-mcp-wrapper] runner also needs REPO_URL or a current git remote inside
+[gh-mcp-wrapper] /workspace/<repo-name> so it can mint a repo-scoped token.
 EOF
   exit 78
 fi

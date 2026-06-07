@@ -5,9 +5,9 @@ import com.jorisjonkers.personalstack.assistant.domain.model.WorkspaceId
 import com.jorisjonkers.personalstack.common.command.Command
 
 /**
- * Attach an additional repository to a workspace. The repo is cloned
- * alongside the primary (it becomes part of REPO_URLS) the next time the
- * runner Pod boots; running pods are not re-provisioned.
+ * Attach an additional repository to a workspace. The link becomes part
+ * of REPO_URLS for future runner boots, and a currently running gateway
+ * is asked to clone it immediately into /workspace/<repo-name>.
  */
 data class AttachWorkspaceRepositoryCommand(
     val workspaceId: WorkspaceId,

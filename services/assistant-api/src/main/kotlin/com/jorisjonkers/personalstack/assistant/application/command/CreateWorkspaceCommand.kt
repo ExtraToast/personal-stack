@@ -36,6 +36,13 @@ data class CreateWorkspaceCommand(
     val kind: WorkspaceKind = WorkspaceKind.REPO_BACKED,
     val projectId: ProjectId? = null,
     val repositoryId: RepositoryId? = null,
+    /**
+     * Ordered repository selection for multi-repo workspaces. The
+     * first entry becomes the primary repository when [repositoryId]
+     * is omitted; all other distinct entries are attached as
+     * additional repositories before the runner is provisioned.
+     */
+    val repositoryIds: List<RepositoryId> = emptyList(),
     @Deprecated(
         "Use repositoryId — kept for the V9 migration window so existing UI " +
             "callers continue to work until PR F migrates them.",

@@ -97,6 +97,19 @@ spec:
       ports:
         - protocol: TCP
           port: 8082
+    # Testcontainers callback ports. The runner talks to the host Docker
+    # daemon through /var/run/docker.sock; containers started by that daemon
+    # expose random high ports on the node IP advertised through
+    # status.hostIP/TESTCONTAINERS_HOST_OVERRIDE. Keep this to the one
+    # Docker-socket-capable node from platform/inventory/fleet.yaml rather
+    # than reopening private RFC1918 egress generally.
+    - to:
+        - ipBlock:
+            cidr: 100.89.41.92/32
+      ports:
+        - protocol: TCP
+          port: 32768
+          endPort: 65535
     # Outbound HTTPS — needed for Anthropic, OpenAI, GitHub. Re-tighten
     # once an L7 gateway lands.
     - to:

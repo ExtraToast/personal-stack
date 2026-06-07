@@ -75,4 +75,18 @@ describe('sessionTabs', () => {
     await wrapper.find('[data-testid="session-tab-rename"]').trigger('click')
     expect(wrapper.emitted('select')).toBeUndefined()
   })
+
+  it('renders vertical session controls without nesting the stop action in the selector', async () => {
+    const session = fakeSession()
+    const wrapper = mount(SessionTabs, {
+      props: { sessions: [session], activeId: session.id, orientation: 'vertical' },
+    })
+
+    await wrapper.get(`[data-testid="session-tab-${session.id}"]`).trigger('click')
+    await wrapper.get(`[data-testid="session-tab-stop-${session.id}"]`).trigger('click')
+
+    expect(wrapper.get('[data-testid="session-tabs"]').attributes('aria-label')).toBe('Agent sessions')
+    expect(wrapper.emitted('select')).toEqual([[session.id]])
+    expect(wrapper.emitted('stop')).toEqual([[session.id]])
+  })
 })

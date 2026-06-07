@@ -48,6 +48,10 @@ repo_slug() {
     -e 's#\.git$##'
 }
 
+repo_dir_name() {
+  basename "$1" .git
+}
+
 # The credential-helper allow-list: owner/repo slugs for the primary REPO_URL
 # plus every REPO_URLS entry ("url[#branch]"). Bounding the helper to exactly
 # the workspace's repos keeps the App token's blast radius the same as the old
@@ -95,6 +99,11 @@ fi
 
 if [ "${AGENT_RUNNER_ENTRYPOINT_SELF_TEST:-}" = "repo-allow" ]; then
   derive_repo_allow
+  exit 0
+fi
+
+if [ "${AGENT_RUNNER_ENTRYPOINT_SELF_TEST:-}" = "repo-dir" ]; then
+  repo_dir_name "${REPO_URL:-}"
   exit 0
 fi
 
@@ -311,21 +320,56 @@ if [ -f /var/run/secrets/agents/github-deploy-key/private_key ]; then
   fi
 fi
 
-# Clone the repo into the workspace at boot. The orchestrator passes
-# REPO_URL (+ optional REPO_BRANCH) for repo-backed workspaces. Cloning
-# here — with the deploy key staged above — avoids the race that left
-# repo-backed workspaces empty: the old create-time gateway.clone fired
-# before this gateway was up and was lost. Idempotent — only clones into
-# an empty workspace, so a Pod restart on a populated PVC never re-clones.
-# Failure is non-fatal so the gateway still starts and the repo can be
-# cloned by hand.
-if [ -n "${REPO_URL:-}" ] && [ -z "$(ls -A "$WORKSPACE_ROOT" 2>/dev/null || true)" ]; then
-  export GIT_SSH_COMMAND="ssh -i /tmp/agent-deploy-key -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=${HOME}/.ssh/known_hosts"
-  if [ -n "${REPO_BRANCH:-}" ]; then
-    git clone --branch "$REPO_BRANCH" "$REPO_URL" "$WORKSPACE_ROOT" || echo "[entrypoint] WARN: clone of $REPO_URL failed; starting gateway anyway"
-  else
-    git clone "$REPO_URL" "$WORKSPACE_ROOT" || echo "[entrypoint] WARN: clone of $REPO_URL failed; starting gateway anyway"
+clone_repo_into_workspace() {
+  _repo_url="$1"
+  _repo_branch="${2:-}"
+  _repo_name="$(repo_dir_name "$_repo_url")"
+  _repo_target="${WORKSPACE_ROOT}/${_repo_name}"
+
+  if [ -d "${_repo_target}/.git" ]; then
+    echo "[entrypoint] ${_repo_name} already present; skipping clone"
+    register_repo_trust "$_repo_target"
+    return
   fi
+
+  # Migrate legacy single-repo PVCs that cloned the primary directly
+  # into /workspace. Keep staged inputs at the multi-repo root; move
+  # the git checkout into /workspace/<repo-name>.
+  if [ -d "${WORKSPACE_ROOT}/.git" ] && [ ! -e "$_repo_target" ]; then
+    echo "[entrypoint] migrating legacy workspace root clone into ${_repo_target}"
+    mkdir -p "$_repo_target"
+    find "$WORKSPACE_ROOT" -mindepth 1 -maxdepth 1 \
+      ! -name "$_repo_name" \
+      ! -name ".agent-inputs" \
+      -exec mv {} "$_repo_target/" \;
+    register_repo_trust "$_repo_target"
+    return
+  fi
+
+  if [ -e "$_repo_target" ]; then
+    echo "[entrypoint] WARN: ${_repo_target} exists but is not a git checkout; skipping clone of ${_repo_url}"
+    return
+  fi
+
+  if [ -n "$_repo_branch" ]; then
+    git clone --branch "$_repo_branch" "$_repo_url" "$_repo_target" \
+      || echo "[entrypoint] WARN: clone of ${_repo_url} failed; continuing"
+  else
+    git clone "$_repo_url" "$_repo_target" \
+      || echo "[entrypoint] WARN: clone of ${_repo_url} failed; continuing"
+  fi
+  if [ -d "${_repo_target}/.git" ]; then
+    register_repo_trust "$_repo_target"
+  fi
+}
+
+# Clone every workspace repository into its own named folder under
+# /workspace. The orchestrator passes REPO_URL (+ optional REPO_BRANCH)
+# for the primary repository and REPO_URLS for additional repositories.
+# /workspace itself remains the multi-repo root where agents start.
+if [ -n "${REPO_URL:-}" ]; then
+  export GIT_SSH_COMMAND="ssh -i /tmp/agent-deploy-key -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=${HOME}/.ssh/known_hosts"
+  clone_repo_into_workspace "$REPO_URL" "${REPO_BRANCH:-}"
 fi
 
 # Keep boot-time clone on the deploy-key path above, then make every
@@ -348,25 +392,13 @@ fi
 # Multi-repo workspaces: clone every repo in REPO_URLS (space/newline/semicolon
 # separated, each "url[#branch]") into its own subdir of the workspace over
 # HTTPS, authenticated by the App-token credential helper — no per-repo deploy
-# key needed. The primary REPO_URL clone above stays on the deploy-key SSH path
-# for back-compat. Idempotent: a repo already cloned is left alone.
+# key needed. Idempotent: a repo already cloned is left alone.
 if [ -n "${REPO_URLS:-}" ]; then
   for entry in $(printf '%s' "$REPO_URLS" | tr ';\n' '  '); do
     repo_clone_url="${entry%%#*}"
     repo_branch=""
     case "$entry" in *"#"*) repo_branch="${entry#*#}" ;; esac
-    repo_name="$(basename "$repo_clone_url" .git)"
-    repo_target="${WORKSPACE_ROOT}/${repo_name}"
-    if [ -d "${repo_target}/.git" ]; then
-      echo "[entrypoint] ${repo_name} already present; skipping clone"
-    elif [ -n "$repo_branch" ]; then
-      git clone --branch "$repo_branch" "$repo_clone_url" "$repo_target" \
-        || echo "[entrypoint] WARN: clone of ${repo_clone_url} failed; continuing"
-    else
-      git clone "$repo_clone_url" "$repo_target" \
-        || echo "[entrypoint] WARN: clone of ${repo_clone_url} failed; continuing"
-    fi
-    register_repo_trust "$repo_target"
+    clone_repo_into_workspace "$repo_clone_url" "$repo_branch"
   done
 fi
 

@@ -33,12 +33,12 @@ const sortedRepositories = computed(() =>
       <div>
         <h2 class="text-sm font-semibold">Repositories</h2>
         <p class="mt-1 text-xs text-[var(--color-text-muted)]">
-          Attached repositories are available to this workspace. The primary repository is the runner clone.
+          Attached repositories are cloned under /workspace by repository name. The primary repository drives defaults.
         </p>
       </div>
       <button
         type="button"
-        class="shrink-0 rounded bg-blue-600 px-3 py-2 text-xs text-white disabled:cursor-not-allowed disabled:opacity-60"
+        class="shrink-0 rounded-md bg-[var(--color-accent)] px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-[var(--color-accent-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-light)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface-dark)] disabled:cursor-not-allowed disabled:opacity-60"
         :disabled="attachPending"
         data-testid="workspace-add-repository"
         @click="emit('add')"
@@ -85,7 +85,7 @@ const sortedRepositories = computed(() =>
           <button
             v-if="!r.isPrimary"
             type="button"
-            class="shrink-0 rounded border border-red-500/60 px-2.5 py-1.5 text-xs text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
+            class="shrink-0 rounded-md border border-red-500/60 px-2.5 py-1.5 text-xs text-red-300 transition-colors hover:bg-red-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface-dark)] disabled:cursor-not-allowed disabled:opacity-60"
             :disabled="detachPendingId === r.id"
             :data-testid="`workspace-detach-repository-${r.id}`"
             @click="emit('detach', r.id, r.name)"

@@ -158,10 +158,7 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
   async function attachRepository(repositoryId: string): Promise<void> {
     const ws = activeWorkspace.value
     if (!ws) return
-    activeWorkspace.value = {
-      ...ws,
-      repositories: await workspaceService.attachRepository(ws.id, repositoryId),
-    }
+    await workspaceService.attachRepository(ws.id, repositoryId)
     await open(ws.id)
   }
 

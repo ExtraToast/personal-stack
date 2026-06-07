@@ -14,8 +14,10 @@ import kotlin.io.path.Path
  * Wraps git + gh for the runner. The deploy key lives at
  * `agent-gateway.git.deploy-key-dir/private_key`; this client
  * materialises it into a private file with 0600 and exports
- * GIT_SSH_COMMAND so every clone/push uses it without polluting
- * ~/.ssh.
+ * GIT_SSH_COMMAND so SSH operations can use it without polluting
+ * ~/.ssh. Runner boot also rewrites GitHub SSH remotes to HTTPS,
+ * so live clones carry a one-repo App-token allow-list for the
+ * credential helper.
  *
  * `gh` is used for the PR open step because issuing a PAT for the
  * agent would be a wider blast radius than the per-repo deploy key
@@ -39,6 +41,10 @@ class GitClient(
         intoDir: String,
         branch: String? = null,
     ): String {
+        val target = Path(intoDir)
+        if (Files.isDirectory(target.resolve(".git"))) {
+            return intoDir
+        }
         val argv =
             mutableListOf("git", "clone", "--depth", "50").apply {
                 if (branch != null) {
@@ -48,7 +54,7 @@ class GitClient(
                 add(repoUrl)
                 add(intoDir)
             }
-        runner.run(argv, env = sshEnv(), timeoutSeconds = 300)
+        runner.run(argv, env = cloneEnv(repoUrl), timeoutSeconds = 300)
         return intoDir
     }
 
@@ -211,6 +217,24 @@ class GitClient(
                 if (known.exists()) append(" -o UserKnownHostsFile=${known.absolutePath}")
             }
         return mapOf("GIT_SSH_COMMAND" to sshOpts)
+    }
+
+    private fun cloneEnv(repoUrl: String): Map<String, String> =
+        sshEnv().toMutableMap().also { env ->
+            env["AGENT_GITHUB_REPO_URL"] = repoUrl
+            githubSlug(repoUrl)?.let { env["REPO_ALLOW"] = it }
+        }
+
+    private fun githubSlug(repoUrl: String): String? {
+        val normalized =
+            when {
+                repoUrl.startsWith("git@github.com:") -> repoUrl.removePrefix("git@github.com:")
+                repoUrl.startsWith("ssh://git@github.com/") -> repoUrl.removePrefix("ssh://git@github.com/")
+                repoUrl.startsWith("https://github.com/") -> repoUrl.removePrefix("https://github.com/")
+                repoUrl.startsWith("http://github.com/") -> repoUrl.removePrefix("http://github.com/")
+                else -> return null
+            }.removeSuffix(".git")
+        return normalized.takeIf { it.contains('/') }
     }
 
     private fun ghEnv(): Map<String, String> {

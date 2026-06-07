@@ -23,12 +23,17 @@ via `nodeSelector: personal-stack/node: enschede-gtx-960m-1`. RWO
 permits multiple Pods on that single node to mount the volume
 simultaneously, so concurrent per-workspace runners + the long-lived
 bootstrap Pod + the refresh-ping CronJob still work, as long as they
-all land on the same node. The orchestrator default and every
+all land on the same node. The runner Pods also require
+`personal-stack/capability-docker-socket=true` because they mount
+that node's `/var/run/docker.sock` for Docker CLI and Testcontainers
+workflows. That mount is host-equivalent access; the namespace
+enforces Pod Security `privileged` explicitly because `baseline`
+forbids hostPath sockets. The orchestrator default and every
 manifest in this directory hard-codes that node; moving the agent
 host means flipping the selector in five places (the credential
 PVCs, the auth-bootstrap Pod, the refresh-ping and kb-install
 CronJobs, and the `AGENT_RUNTIME_NODE` env on the assistant-api
-Deployment).
+Deployment), plus the Docker socket gid and runner egress node IP.
 
 ## First-time auth bootstrap
 
