@@ -28,6 +28,7 @@ const isSendingSplitCommand = ref(false)
 const isAttachingRepository = ref(false)
 const detachingRepositoryId = ref<string | null>(null)
 const repositoryActionError = ref<string | null>(null)
+const isSidebarCollapsed = ref(false)
 
 // Only sessions with a live PTY get a mounted terminal. A session
 // dropping out of this set (STOPPED/FAILED) unmounts its
@@ -135,9 +136,10 @@ async function onDetachRepository(repositoryId: string, repositoryName: string):
        main overflowed by the nav height, so the page scrolled on top
        of the terminal's own scroll. Sizing to the remaining space keeps
        a single scroll region (the xterm viewport). -->
-  <div class="flex flex-col h-[calc(100vh-3.5rem)] overflow-hidden">
+  <div class="relative flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden bg-[var(--color-surface-dark)]">
     <header
-      class="flex items-center border-b border-[var(--color-surface-border)] px-6 py-3"
+      class="z-10 flex shrink-0 flex-col gap-3 border-b border-[var(--color-surface-border)] bg-[var(--color-surface-dark)] px-4 py-3 transition-[padding] sm:px-6 xl:flex-row xl:items-center xl:justify-between"
+      :class="isSidebarCollapsed ? 'lg:pr-16' : 'lg:pr-[25rem]'"
       data-testid="workspace-view-header"
     >
       <div class="min-w-0">
@@ -155,10 +157,42 @@ async function onDetachRepository(repositoryId: string, repositoryName: string):
           {{ store.activeWorkspace.repoUrl }}
         </p>
       </div>
+      <div
+        class="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end"
+        data-testid="workspace-agent-panel"
+      >
+        <AgentKindPicker v-model="pickerKind" compact class="w-full min-w-0 sm:w-[24rem]" />
+        <button
+          type="button"
+          class="inline-flex min-h-10 w-full items-center justify-center whitespace-nowrap rounded-md border border-transparent bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[var(--color-accent-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-light)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface-dark)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          :disabled="store.startingSession"
+          data-testid="workspace-new-agent"
+          aria-label="Start a new agent session"
+          @click="onSpawn"
+        >
+          {{ spawnButtonLabel }}
+        </button>
+      </div>
     </header>
 
-    <main class="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
-      <section class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4">
+    <div
+      class="z-10 shrink-0 border-b border-[var(--color-surface-border)] bg-[var(--color-surface-dark)] px-3 transition-[padding] sm:px-5"
+      :class="isSidebarCollapsed ? 'lg:pr-16' : 'lg:pr-[24rem]'"
+      data-testid="workspace-session-strip"
+    >
+      <SessionTabs
+        :sessions="liveSessions"
+        :active-id="store.activeSessionId"
+        @select="store.selectSession"
+        @stop="onStopSession"
+      />
+    </div>
+
+    <main class="flex min-h-0 flex-1 overflow-hidden">
+      <section
+        class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4 transition-[padding]"
+        :class="isSidebarCollapsed ? 'lg:pr-16' : 'lg:pr-[24.5rem]'"
+      >
         <!-- One terminal per live session, all kept mounted; v-show (not
              v-if/:key) so switching tabs preserves each xterm buffer and
              its WebSocket. A session leaving the live set (stopped/failed)
@@ -174,41 +208,39 @@ async function onDetachRepository(repositoryId: string, repositoryName: string):
           v-if="liveSessions.length === 0"
           class="flex flex-1 items-center justify-center rounded-md border border-dashed border-[var(--color-surface-border)] text-center text-sm italic text-[var(--color-text-muted)]"
         >
-          Start an agent from the sidebar.
+          Start an agent from the top bar.
         </div>
       </section>
+    </main>
 
-      <aside
-        v-if="store.activeWorkspace"
-        class="flex min-h-0 w-full shrink-0 flex-col gap-4 overflow-y-auto border-t border-[var(--color-surface-border)] bg-[var(--color-surface-card)] p-4 lg:w-[23rem] lg:border-l lg:border-t-0"
-        data-testid="workspace-sidebar"
-        aria-label="Workspace controls"
-      >
-        <section
-          class="rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface-card)] p-4"
-          data-testid="workspace-agent-panel"
-        >
-          <div class="mb-3 flex items-center justify-between gap-3">
-            <h2 class="text-sm font-semibold">Agents</h2>
-            <span
-              class="rounded border border-[var(--color-surface-border)] px-2 py-0.5 text-xs text-[var(--color-text-muted)]"
-            >
-              {{ liveSessions.length }} live
-            </span>
-          </div>
-          <AgentKindPicker v-model="pickerKind" compact />
-          <button
-            type="button"
-            class="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-md border border-transparent bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[var(--color-accent-light)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-light)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface-dark)] disabled:cursor-not-allowed disabled:opacity-60"
-            :disabled="store.startingSession"
-            data-testid="workspace-new-agent"
-            aria-label="Start a new agent session"
-            @click="onSpawn"
-          >
-            {{ spawnButtonLabel }}
-          </button>
-        </section>
+    <button
+      v-if="store.activeWorkspace"
+      type="button"
+      class="absolute right-3 top-3 z-30 inline-flex h-10 w-10 items-center justify-center rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)] shadow-sm transition-colors hover:bg-[var(--color-surface-border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-light)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface-dark)]"
+      :aria-expanded="!isSidebarCollapsed"
+      :aria-label="isSidebarCollapsed ? 'Open workspace sidebar' : 'Close workspace sidebar'"
+      aria-controls="workspace-sidebar"
+      data-testid="workspace-sidebar-toggle"
+      @click="isSidebarCollapsed = !isSidebarCollapsed"
+    >
+      <span class="flex h-5 w-5 flex-col justify-center gap-1" aria-hidden="true">
+        <span class="block h-0.5 rounded bg-current" />
+        <span class="block h-0.5 rounded bg-current" />
+        <span class="block h-0.5 rounded bg-current" />
+      </span>
+    </button>
 
+    <aside
+      v-if="store.activeWorkspace"
+      id="workspace-sidebar"
+      class="absolute bottom-0 right-0 top-0 z-20 flex w-[min(24rem,calc(100vw-1rem))] min-h-0 flex-col overflow-hidden border-l border-[var(--color-surface-border)] bg-[var(--color-surface-card)] shadow-2xl transition-transform duration-200 ease-out"
+      :class="isSidebarCollapsed ? 'translate-x-full' : 'translate-x-0'"
+      :aria-hidden="isSidebarCollapsed ? 'true' : undefined"
+      :inert="isSidebarCollapsed"
+      data-testid="workspace-sidebar"
+      aria-label="Workspace controls"
+    >
+      <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 pt-16">
         <section
           class="rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface-card)] p-4"
           data-testid="workspace-tools-panel"
@@ -229,23 +261,6 @@ async function onDetachRepository(repositoryId: string, repositoryName: string):
           </button>
         </section>
 
-        <section
-          class="rounded-md border border-[var(--color-surface-border)] bg-[var(--color-surface-card)] p-4"
-          data-testid="workspace-sessions-panel"
-        >
-          <div class="mb-3 flex items-center justify-between gap-3">
-            <h2 class="text-sm font-semibold">Sessions</h2>
-            <span class="text-xs text-[var(--color-text-muted)]">{{ store.sessions.length }}</span>
-          </div>
-          <SessionTabs
-            :sessions="store.sessions"
-            :active-id="store.activeSessionId"
-            orientation="vertical"
-            @select="store.selectSession"
-            @stop="onStopSession"
-          />
-        </section>
-
         <WorkspaceRepositoriesPanel
           :repositories="store.activeWorkspace.repositories ?? []"
           :attach-pending="isAttachingRepository"
@@ -262,8 +277,8 @@ async function onDetachRepository(repositoryId: string, repositoryName: string):
           @add-destination="showRepositoryPicker = true"
           @send-command="onSendSplitCommand"
         />
-      </aside>
-    </main>
+      </div>
+    </aside>
 
     <Modal :open="showRepositoryPicker" title="Attach repository" @close="showRepositoryPicker = false">
       <WorkspaceRepositoryPicker

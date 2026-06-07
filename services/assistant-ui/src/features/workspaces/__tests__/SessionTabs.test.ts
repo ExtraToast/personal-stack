@@ -89,4 +89,14 @@ describe('sessionTabs', () => {
     expect(wrapper.emitted('select')).toEqual([[session.id]])
     expect(wrapper.emitted('stop')).toEqual([[session.id]])
   })
+
+  it('keeps horizontal session tabs scrollable with stable tab widths', () => {
+    const sessions = Array.from({ length: 12 }, (_, i) => fakeSession({ id: `session-${String(i).padStart(2, '0')}` }))
+    const wrapper = mount(SessionTabs, {
+      props: { sessions, activeId: sessions[0]?.id ?? null },
+    })
+
+    expect(wrapper.get('[data-testid="session-tabs-list"]').classes()).toContain('overflow-x-auto')
+    expect(wrapper.findAll('li').every((li) => li.classes().includes('shrink-0'))).toBe(true)
+  })
 })

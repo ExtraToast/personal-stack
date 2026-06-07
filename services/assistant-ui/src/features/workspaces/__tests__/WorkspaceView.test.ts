@@ -262,22 +262,66 @@ describe('workspaceView terminal persistence', () => {
     expect(sendInput.mock.calls[0]?.[2]).not.toContain('large document')
   })
 
-  it('keeps workspace controls in the sidebar', async () => {
+  it('places agent controls and sessions in the top chrome while keeping tools in the sidebar', async () => {
     getWorkspace.mockResolvedValue(detail([fakeSession({ id: 'sess-a', gatewayAgentId: 'abc12345' })]))
 
     const wrapper = await mountView()
+    const header = wrapper.get('[data-testid="workspace-view-header"]')
+    const sessionStrip = wrapper.get('[data-testid="workspace-session-strip"]')
     const sidebar = wrapper.get('[data-testid="workspace-sidebar"]')
 
-    expect(wrapper.get('[data-testid="workspace-view-header"]').find('[data-testid="stage-input-open"]').exists()).toBe(
-      false,
-    )
-    expect(sidebar.find('[data-testid="workspace-agent-panel"]').exists()).toBe(true)
-    expect(sidebar.find('[data-testid="workspace-new-agent"]').exists()).toBe(true)
+    expect(header.find('[data-testid="workspace-agent-panel"]').exists()).toBe(true)
+    expect(header.find('[data-testid="workspace-new-agent"]').exists()).toBe(true)
+    expect(header.find('[data-testid="stage-input-open"]').exists()).toBe(false)
+    expect(sessionStrip.find('[data-testid="session-tabs"]').exists()).toBe(true)
+    expect(sessionStrip.find('[data-testid="session-tab-sess-a"]').exists()).toBe(true)
+    expect(sidebar.find('[data-testid="workspace-agent-panel"]').exists()).toBe(false)
+    expect(sidebar.find('[data-testid="session-tabs"]').exists()).toBe(false)
     expect(sidebar.find('[data-testid="workspace-tools-panel"]').exists()).toBe(true)
     expect(sidebar.find('[data-testid="stage-input-open"]').exists()).toBe(true)
-    expect(sidebar.find('[data-testid="workspace-sessions-panel"]').exists()).toBe(true)
-    expect(sidebar.find('[data-testid="session-tabs"]').exists()).toBe(true)
     expect(sidebar.find('[data-testid="workspace-repositories-panel"]').exists()).toBe(true)
+  })
+
+  for (const status of ['STOPPED', 'FAILED'] as const) {
+    it(`hides ${status.toLowerCase()} sessions from the top tab strip`, async () => {
+      getWorkspace.mockResolvedValue(detail([fakeSession({ id: 'sess-a' }), fakeSession({ id: 'sess-b', status })]))
+
+      const wrapper = await mountView()
+      const sessionStrip = wrapper.get('[data-testid="workspace-session-strip"]')
+
+      expect(sessionStrip.find('[data-testid="session-tab-sess-a"]').exists()).toBe(true)
+      expect(sessionStrip.find('[data-testid="session-tab-sess-b"]').exists()).toBe(false)
+      expect(wrapper.findAll('[data-testid="session-terminal"]').length).toBe(1)
+    })
+  }
+
+  it('shows an empty live-session surface and disables staged input when every session is closed', async () => {
+    getWorkspace.mockResolvedValue(detail([fakeSession({ id: 'sess-a', status: 'STOPPED' })]))
+
+    const wrapper = await mountView()
+
+    expect(wrapper.get('[data-testid="workspace-session-strip"]').text()).toContain('No sessions yet.')
+    expect(wrapper.text()).toContain('Start an agent from the top bar.')
+    expect(wrapper.get('[data-testid="stage-input-open"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('folds the right sidebar with the triple-bar control', async () => {
+    getWorkspace.mockResolvedValue(detail([fakeSession({ id: 'sess-a' })]))
+
+    const wrapper = await mountView()
+    const toggle = wrapper.get('[data-testid="workspace-sidebar-toggle"]')
+    const sidebar = wrapper.get('[data-testid="workspace-sidebar"]')
+
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+    expect(toggle.attributes('aria-controls')).toBe('workspace-sidebar')
+    expect(sidebar.classes()).toContain('translate-x-0')
+
+    await toggle.trigger('click')
+
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    expect(sidebar.classes()).toContain('translate-x-full')
+    expect(sidebar.attributes('aria-hidden')).toBe('true')
+    expect(sidebar.attributes('inert')).toBeDefined()
   })
 
   it('renders attached repositories, marks the primary, and shows split guidance', async () => {
@@ -377,6 +421,22 @@ describe('workspaceView terminal persistence', () => {
 
     expect(attachRepository).toHaveBeenCalledWith('ws-1', 'repo-extra')
     expect(wrapper.find('[data-testid="workspace-repository-repo-extra"]').exists()).toBe(true)
+  })
+
+  it('opens the repository picker from split guidance when a destination repository is needed', async () => {
+    const primary = fakeWorkspaceRepository({ id: 'repo-primary', name: 'primary', isPrimary: true })
+    getWorkspace.mockResolvedValue(detail([fakeSession({ id: 'sess-a' })], { repositories: [primary] }))
+    listRepositories.mockResolvedValue([
+      fakeRepository({ id: 'repo-primary', name: 'primary' }),
+      fakeRepository({ id: 'repo-extra', name: 'extra', repoUrl: 'git@github.com:owner/extra.git' }),
+    ])
+    const wrapper = await mountView()
+
+    await wrapper.find('[data-testid="split-attach-destination"]').trigger('click')
+    await flush()
+
+    expect(listRepositories).toHaveBeenCalledOnce()
+    expect(document.querySelector('[data-testid="repository-picker-radio-repo-extra"]')).not.toBeNull()
   })
 
   it('removes non-primary repositories and reports detach failures', async () => {

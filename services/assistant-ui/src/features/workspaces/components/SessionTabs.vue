@@ -81,23 +81,28 @@ function sessionShellClasses(s: AgentSession): string[] {
 
   return [
     base,
-    'flex border-b-2 px-3 py-2',
+    'flex rounded-t-md border-b-2 px-3 py-2.5',
     active
-      ? 'border-[var(--color-accent-light)] text-[var(--color-text-primary)]'
-      : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]',
+      ? 'border-[var(--color-accent-light)] bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)]'
+      : 'border-transparent text-[var(--color-text-muted)] hover:bg-[var(--color-surface-card)] hover:text-[var(--color-text-primary)]',
   ]
 }
 </script>
 
 <template>
-  <nav
-    :class="isVertical ? 'space-y-2' : 'border-b border-[var(--color-surface-border)] px-2'"
-    data-testid="session-tabs"
-    aria-label="Agent sessions"
-  >
+  <nav :class="isVertical ? 'space-y-2' : 'min-w-0'" data-testid="session-tabs" aria-label="Agent sessions">
     <p v-if="props.sessions.length === 0" class="text-sm italic text-[var(--color-text-muted)]">No sessions yet.</p>
-    <ul v-else :class="isVertical ? 'space-y-2' : 'flex gap-1 overflow-x-auto'">
-      <li v-for="s in props.sessions" :key="s.id" class="flex min-w-0 items-stretch gap-1">
+    <ul
+      v-else
+      :class="isVertical ? 'space-y-2' : 'flex gap-1 overflow-x-auto overflow-y-hidden px-1 pt-1'"
+      data-testid="session-tabs-list"
+    >
+      <li
+        v-for="s in props.sessions"
+        :key="s.id"
+        class="flex min-w-0 items-stretch gap-1"
+        :class="isVertical ? '' : 'w-[15rem] shrink-0'"
+      >
         <div v-if="editingId === s.id" :class="sessionShellClasses(s)">
           <span class="shrink-0 rounded px-2 py-0.5 text-xs font-semibold" :class="kindBadge[s.kind]">
             {{ s.kind }}
@@ -146,7 +151,7 @@ function sessionShellClasses(s: AgentSession): string[] {
           v-if="s.status === 'RUNNING'"
           type="button"
           class="shrink-0 rounded-md border border-transparent px-2 text-sm text-red-400 transition-colors hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface-dark)]"
-          :class="isVertical ? 'self-stretch' : 'py-2'"
+          :class="isVertical ? 'self-stretch' : 'my-1 py-1'"
           :aria-label="`Stop session ${tabLabel(s)}`"
           :data-testid="`session-tab-stop-${s.id}`"
           @click="emit('stop', s.id)"
