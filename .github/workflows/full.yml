@@ -501,6 +501,26 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  migration-guard:
+    name: Migration Guard
+    needs: detect-changes
+    uses: ./.github/workflows/migration-guard.yml
+    secrets: inherit
+
+  contract-validate:
+    name: Contract Validate
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any-kotlin == 'true' || needs.detect-changes.outputs.any-frontend == 'true'
+    uses: ./.github/workflows/contract-validate.yml
+    secrets: inherit
+
+  vault-bootstrap-validate:
+    name: Vault Bootstrap Validate
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any-platform == 'true'
+    uses: ./.github/workflows/vault-bootstrap-validate.yml
+    secrets: inherit
+
   pipeline-complete:
     name: Pipeline Complete
     if: always()
@@ -516,6 +536,9 @@ jobs:
       - system-tests
       - platform-validate
       - security-scan
+      - migration-guard
+      - contract-validate
+      - vault-bootstrap-validate
     runs-on: ubuntu-latest
     steps:
       - name: Check pipeline result
