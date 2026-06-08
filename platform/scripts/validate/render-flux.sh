@@ -67,7 +67,14 @@ echo "==> flux-local expand HelmReleases against remote charts"
 # controller does post-merge. Remote chart downloads occasionally return
 # transient GitHub/registry 5xx responses; retry only this network-heavy
 # step so real template/schema errors still fail deterministically.
-retry 3 10 flux-local build all \
+#
+# flux-local passes --repository-cache /tmp/<random> to every helm
+# invocation, so GitHub Actions cache and HELM_CACHE_HOME are both
+# bypassed — chart tarballs are always fetched fresh. The only knob
+# available is the retry budget. GitHub release CDN 504s typically
+# clear within 60-90 s; 5 attempts × 30 s = ~2 min retry window
+# covers the observed failure mode without burning excessive CI time.
+retry 5 30 flux-local build all \
   --enable-helm \
   "${flux_root}" \
   >> "${render_output}"
