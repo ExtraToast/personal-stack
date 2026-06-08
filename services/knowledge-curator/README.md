@@ -44,13 +44,13 @@ Needs-review is the rare fallback when neither promotion nor discard
 is defensible, or when validation/transport failures prevent a
 decision:
 
-| Reason                      | Trigger                                                                |
-| --------------------------- | ---------------------------------------------------------------------- |
-| `missing-id-in-frontmatter` | Inbox file's frontmatter has no `id` field                             |
-| `classify-failed:*`         | Ollama returned invalid JSON twice in a row                            |
-| `model-flagged:<reason>`    | Classifier emitted `needs_review_reason` with `action=promote`         |
-| `low-confidence:0.XX<floor` | Classifier confidence below `CLASSIFY_CONFIDENCE_FLOOR`                |
-| `unknown-topic-slug:<slug>` | LLM proposed a `topic:` not in `topics.yaml`                           |
+| Reason                      | Trigger                                                        |
+| --------------------------- | -------------------------------------------------------------- |
+| `missing-id-in-frontmatter` | Inbox file's frontmatter has no `id` field                     |
+| `classify-failed:*`         | Ollama returned invalid JSON twice in a row                    |
+| `model-flagged:<reason>`    | Classifier emitted `needs_review_reason` with `action=promote` |
+| `low-confidence:0.XX<floor` | Classifier confidence below `CLASSIFY_CONFIDENCE_FLOOR`        |
+| `unknown-topic-slug:<slug>` | LLM proposed a `topic:` not in `topics.yaml`                   |
 
 Each review move writes `review_attempts: <n>` into frontmatter. After
 `CURATOR_MAX_REVIEW_ATTEMPTS` failed attempts (default 3), the next
