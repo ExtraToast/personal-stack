@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { AppShellNavItem } from '@personal-stack/vue-common'
-import { AppShell } from '@personal-stack/vue-common'
+import type { AppShellNavItem } from '@/lib/vueWebCommons'
 import { useI18n } from 'vue-i18n'
 import { RouterView } from 'vue-router'
+import { AppShell, personalStackThemeOptions } from '@/lib/vueWebCommons'
 import LocaleToggle from './components/LocaleToggle.vue'
 import ProfileDropdown from './features/account/components/ProfileDropdown.vue'
 import { useAuthStore } from './features/auth'
@@ -29,6 +29,7 @@ const navItems: AppShellNavItem[] = [
     :brand-to="{ path: '/', hash: '' }"
     :nav-items="navItems"
     :show-account-link="false"
+    :theme-options="personalStackThemeOptions"
   >
     <template #extras>
       <LocaleToggle />

@@ -17,12 +17,14 @@
     "stryker": "stryker run"
   },
   "dependencies": {
-    "@personal-stack/vue-common": "workspace:*",
+    "@extratoast/vue-web-commons": "0.1.1",
+    "@grafana/faro-web-sdk": "^2.7.1",
+    "@grafana/faro-web-tracing": "^2.7.1",
     "pinia": "^3.0.4",
     "primevue": "^4.5.5",
     "qrcode": "^1.5.4",
     "vue": "^3.5.35",
-    "vue-router": "^5.0.7",
+    "vue-router": "^5.1.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Project } from '../types'
-import { FormErrors, FormField, SubmitButton, useFormErrors, useMutationState } from '@personal-stack/vue-common'
 import { computed, ref, watch } from 'vue'
+import { FormErrors, FormField, SubmitButton, useFormErrors, useMutationState } from '@/lib/vueWebCommons'
 
 interface Props {
   /** Awaited submit handler — same `onSubmit` shape as the other wizards. */

@@ -1,10 +1,10 @@
-import { ApiError } from '@personal-stack/vue-common'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiError } from '@/lib/vueWebCommons'
 import { startSession } from '../services/workspaceService'
 
 const post = vi.fn()
-vi.mock('@personal-stack/vue-common', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@personal-stack/vue-common')>()
+vi.mock('@/lib/vueWebCommons', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/vueWebCommons')>()
   return { ...actual, useApiWithAuth: () => ({ post, get: vi.fn(), del: vi.fn() }) }
 })
 

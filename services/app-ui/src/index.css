@@ -1,9 +1,11 @@
 @import 'tailwindcss';
-@import '@personal-stack/vue-common/src/theme.css';
+@import '@extratoast/vue-web-commons/theme.css';
+
+@source "../node_modules/@extratoast/vue-web-commons/dist/**/*.{js,vue,ts}";
 
 /*
  * Portfolio-only decoration. The shared @theme tokens, scrollbar,
- * selection, and .glow-accent live in @personal-stack/vue-common's
+ * selection, and .glow-accent live in @extratoast/vue-web-commons'
  * theme.css (imported above). Anything that's only meaningful for
  * the portfolio site stays here.
  */

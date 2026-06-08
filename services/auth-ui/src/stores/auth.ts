@@ -1,8 +1,8 @@
-import type { ProblemDetail } from '@personal-stack/vue-common'
-import { useAuth } from '@personal-stack/vue-common'
+import type { ProblemDetail } from '@/lib/vueWebCommons'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { register as apiRegister, sessionLogin } from '@/features/auth/services/authService'
+import { useAuth } from '@/lib/vueWebCommons'
 
 export const useAuthStore = defineStore('auth', () => {
   const { user, isAuthenticated, setUser, fetchUser, logout: authLogout } = useAuth()

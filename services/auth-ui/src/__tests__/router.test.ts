@@ -3,7 +3,7 @@ import { ref } from 'vue'
 
 const mockIsAuthenticated = ref(false)
 
-vi.mock('@personal-stack/vue-common', () => ({
+vi.mock('@/lib/vueWebCommons', () => ({
   useAuth: () => ({
     user: ref(null),
     isAuthenticated: mockIsAuthenticated,

@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useWorkspacesStore } from '@/features/workspaces'
 import {
   Card,
   FormErrors,
@@ -7,10 +10,7 @@ import {
   useFormErrors,
   useMutationState,
   useToast,
-} from '@personal-stack/vue-common'
-import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useWorkspacesStore } from '@/features/workspaces'
+} from '@/lib/vueWebCommons'
 
 const store = useWorkspacesStore()
 const router = useRouter()

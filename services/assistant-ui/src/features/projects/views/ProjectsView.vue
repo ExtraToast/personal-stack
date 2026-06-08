@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { Project } from '../types'
-import { Card, Modal, useToast } from '@personal-stack/vue-common'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { Card, Modal, useToast } from '@/lib/vueWebCommons'
 import CreateProjectForm from '../components/CreateProjectForm.vue'
 import { useProjectsStore } from '../stores/projects'
 
