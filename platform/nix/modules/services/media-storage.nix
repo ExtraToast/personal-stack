@@ -1,4 +1,37 @@
-{ pkgs, ... }:
+{ lib, pkgs, ... }:
+let
+  mediaRootDirs = [
+    "/srv/media"
+    "/srv/media/Completed"
+    "/srv/media/Downloading"
+    "/srv/media/Films"
+    "/srv/media/Series"
+    "/srv/media/Anime"
+    "/srv/media/TimeMachine"
+    "/srv/media/Photos"
+  ];
+  mediaApplicationTrees = [
+    "/srv/media/Completed"
+    "/srv/media/Downloading"
+    "/srv/media/Films"
+    "/srv/media/Series"
+    "/srv/media/Anime"
+    "/srv/media/Photos"
+  ];
+  mediaConfigDirs = [
+    "/var/lib/personal-stack"
+    "/var/lib/personal-stack/media"
+    "/var/lib/personal-stack/media/qbittorrent"
+    "/var/lib/personal-stack/media/prowlarr"
+    "/var/lib/personal-stack/media/bazarr"
+    "/var/lib/personal-stack/media/sonarr"
+    "/var/lib/personal-stack/media/radarr"
+    "/var/lib/personal-stack/media/jellyfin"
+    "/var/lib/personal-stack/media/jellyseerr"
+    "/var/lib/personal-stack/media/immich"
+    "/var/lib/personal-stack/media/immich-ml-cache"
+  ];
+in
 {
   # ntfs3g ships the userspace NTFS repair tools (ntfsfix, ntfslabel,
   # ntfsinfo…). The kernel ntfs3 driver handles the read/write path for
@@ -70,6 +103,46 @@
     "d /var/lib/personal-stack/media/immich-postgres 0700 70 70 - -"
     "d /var/lib/personal-stack/media/immich-ml-cache 0755 deploy deploy - -"
   ];
+
+  systemd.services.personal-stack-media-permissions = {
+    description = "Reconcile personal-stack media ownership after mounting /srv/media";
+    wantedBy = [ "multi-user.target" ];
+    before = [
+      "k3s.service"
+      "samba-smbd.service"
+      "samba-nmbd.service"
+    ];
+    unitConfig.RequiresMountsFor = [ "/srv/media" ];
+    path = [
+      pkgs.coreutils
+      pkgs.findutils
+    ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    script = ''
+      set -euo pipefail
+
+      for dir in ${lib.escapeShellArgs mediaRootDirs}; do
+        install -d -m 0775 -o deploy -g deploy "$dir"
+      done
+
+      for dir in ${lib.escapeShellArgs mediaConfigDirs}; do
+        install -d -m 0755 -o deploy -g deploy "$dir"
+      done
+      install -d -m 0700 -o 70 -g 70 /var/lib/personal-stack/media/immich-postgres
+
+      # These hostPath trees are shared by qBittorrent, Sonarr, Radarr,
+      # Bazarr, Jellyfin, Jellyseerr/Seerr, and Immich. Keep the walk
+      # scoped away from TimeMachine and backup subvolumes.
+      find ${lib.escapeShellArgs mediaApplicationTrees} -xdev \
+        \( ! -user 1000 -o ! -group 1000 \) \
+        -exec chown 1000:1000 {} +
+      find ${lib.escapeShellArgs mediaApplicationTrees} -xdev -type d \
+        -exec chmod u+rwx,g+rwx {} +
+    '';
+  };
 
   fileSystems = {
     "/srv/media" = {

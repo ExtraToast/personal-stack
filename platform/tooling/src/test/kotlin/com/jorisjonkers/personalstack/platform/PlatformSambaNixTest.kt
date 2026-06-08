@@ -11,7 +11,6 @@ class PlatformSambaNixTest {
         val samba = repositoryRoot.resolve("platform/nix/modules/services/samba.nix").toFile().readText()
         val mediaStorage = repositoryRoot.resolve("platform/nix/modules/services/media-storage.nix").toFile().readText()
         val baseNix = repositoryRoot.resolve("platform/nix/modules/base/default.nix").toFile().readText()
-        val t1000Disko = repositoryRoot.resolve("platform/nix/hosts/enschede-t1000-1/disko.nix").toFile().readText()
         val globalSambaSettings = samba.substringAfter("global = {").substringBefore("};")
 
         assertThat(samba)
@@ -58,6 +57,13 @@ class PlatformSambaNixTest {
             .contains("device = \"/srv/media/Completed\"")
             .contains("device = \"/srv/media/Series\"")
             .contains("device = \"/srv/media/Films\"")
+            .contains("systemd.services.personal-stack-media-permissions")
+            .contains("unitConfig.RequiresMountsFor = [ \"/srv/media\" ];")
+            .contains("\"k3s.service\"")
+            .contains("\"/srv/media/Series\"")
+            .contains("\"/srv/media/Films\"")
+            .contains("\"/var/lib/personal-stack/media/jellyseerr\"")
+            .contains("find \${lib.escapeShellArgs mediaApplicationTrees} -xdev")
             .doesNotContain("media-tv")
 
         assertThat(baseNix)
@@ -65,9 +71,5 @@ class PlatformSambaNixTest {
             .contains("users.users.deploy = {")
             .contains("uid = 1000;")
             .contains("group = \"deploy\";")
-
-        assertThat(t1000Disko)
-            .contains("\"uid=1000\"")
-            .contains("\"gid=1000\"")
     }
 }
