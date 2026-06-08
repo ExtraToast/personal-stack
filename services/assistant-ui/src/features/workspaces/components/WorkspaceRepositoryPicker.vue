@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { WorkspaceRepository } from '../types'
 import type { Repository } from '@/features/repositories'
-import { useToast } from '@personal-stack/vue-common'
 import { computed, onMounted, ref } from 'vue'
 import { useRepositoriesStore } from '@/features/repositories'
+import { useToast } from '@/lib/vueWebCommons'
 
 interface Props {
   alreadyAttached: WorkspaceRepository[]

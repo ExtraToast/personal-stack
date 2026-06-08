@@ -16,7 +16,7 @@ vi.mock('qrcode', () => ({
   default: { toCanvas: vi.fn() },
 }))
 
-vi.mock('@personal-stack/vue-common', () => ({
+vi.mock('@/lib/vueWebCommons', () => ({
   useAuth: () => ({
     user: null,
     isAuthenticated: false,

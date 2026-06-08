@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Card, Modal, SubmitButton, useMutationState, useToast } from '@personal-stack/vue-common'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { Card, Modal, SubmitButton, useMutationState, useToast } from '@/lib/vueWebCommons'
 import ProjectRepositoryPicker from '../components/ProjectRepositoryPicker.vue'
 import { useProjectsStore } from '../stores/projects'
 

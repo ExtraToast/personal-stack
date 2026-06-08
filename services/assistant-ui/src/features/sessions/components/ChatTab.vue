@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Card, SubmitButton, useMutationState, useToast } from '@personal-stack/vue-common'
 import { computed, onMounted, ref, watch } from 'vue'
+import { Card, SubmitButton, useMutationState, useToast } from '@/lib/vueWebCommons'
 import { useChatSessionsStore } from '../stores/chatSessions'
 
 const store = useChatSessionsStore()

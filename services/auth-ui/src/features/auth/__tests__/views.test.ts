@@ -16,7 +16,7 @@ vi.mock('../services/authService', () => ({
   resendConfirmation: (...args: unknown[]) => mockResendConfirmation(...args),
 }))
 
-vi.mock('@personal-stack/vue-common', () => ({
+vi.mock('@/lib/vueWebCommons', () => ({
   useAuth: () => ({
     user: null,
     isAuthenticated: false,

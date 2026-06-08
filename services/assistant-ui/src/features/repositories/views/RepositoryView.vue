@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { AttachDeployKeyInput } from '../types'
-import { Modal, SubmitButton, useMutationState, useToast } from '@personal-stack/vue-common'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { Modal, SubmitButton, useMutationState, useToast } from '@/lib/vueWebCommons'
 import AccessStatusBadge from '../components/AccessStatusBadge.vue'
 import AttachKeyWizard from '../components/AttachKeyWizard.vue'
 import GitHubAppPanel from '../components/GitHubAppPanel.vue'

@@ -5,7 +5,7 @@ import type {
   RepositoryDetail,
   RepositoryVerifyResult,
 } from '../types'
-import { useApiWithAuth } from '@personal-stack/vue-common'
+import { useApiWithAuth } from '@/lib/vueWebCommons'
 
 function api(): ReturnType<typeof useApiWithAuth> {
   return useApiWithAuth({ baseUrl: '/api/v1' })

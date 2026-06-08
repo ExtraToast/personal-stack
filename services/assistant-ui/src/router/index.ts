@@ -1,6 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router'
-import { useAuth } from '@personal-stack/vue-common'
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuth } from '@/lib/vueWebCommons'
 
 declare module 'vue-router' {
   interface RouteMeta {

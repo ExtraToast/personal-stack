@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useApiWithAuth } from '@personal-stack/vue-common'
 import { ref } from 'vue'
+import { useApiWithAuth } from '@/lib/vueWebCommons'
 
 const props = defineProps<{ workspaceId: string }>()
 

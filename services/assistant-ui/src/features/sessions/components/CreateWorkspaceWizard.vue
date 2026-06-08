@@ -1,17 +1,10 @@
 <script setup lang="ts">
-import {
-  FormErrors,
-  FormField,
-  SubmitButton,
-  useFormErrors,
-  useMutationState,
-  useToast,
-} from '@personal-stack/vue-common'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProjectsStore } from '@/features/projects'
 import { useRepositoriesStore } from '@/features/repositories'
 import { useWorkspacesStore } from '@/features/workspaces'
+import { FormErrors, FormField, SubmitButton, useFormErrors, useMutationState, useToast } from '@/lib/vueWebCommons'
 
 interface Props {
   open: boolean

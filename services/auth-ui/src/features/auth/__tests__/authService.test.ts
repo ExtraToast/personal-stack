@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mockFetch = vi.fn()
 globalThis.fetch = mockFetch
 
-vi.mock('@personal-stack/vue-common', () => ({
+vi.mock('@/lib/vueWebCommons', () => ({
   useAuth: () => ({
     getCsrfToken: () => 'fake-csrf-token',
     setUser: vi.fn(),

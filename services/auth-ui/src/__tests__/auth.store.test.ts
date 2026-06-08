@@ -5,7 +5,7 @@ const mockSetUser = vi.fn()
 const mockAuthLogout = vi.fn()
 const mockFetchUser = vi.fn().mockResolvedValue(null)
 
-vi.mock('@personal-stack/vue-common', async () => {
+vi.mock('@/lib/vueWebCommons', async () => {
   const vue = await import('vue')
   return {
     useAuth: () => ({
