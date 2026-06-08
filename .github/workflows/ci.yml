@@ -477,6 +477,9 @@ jobs:
         # SingleBinary + scalable replicas clash) before merge.
         run: pipx install flux-local
       - name: Validate platform render
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: platform/scripts/validate/render-platform.sh
 
   security-scan:
