@@ -452,6 +452,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6.0.2
+      - uses: ./.github/actions/setup-java-gradle
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
       - name: Install kustomize
@@ -477,9 +480,6 @@ jobs:
         # SingleBinary + scalable replicas clash) before merge.
         run: pipx install flux-local
       - name: Validate platform render
-        env:
-          GITHUB_ACTOR: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ github.token }}
         run: platform/scripts/validate/render-platform.sh
 
   security-scan:
