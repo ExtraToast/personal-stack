@@ -27,6 +27,10 @@ anything. **personal-stack is migrated first; website comes later.**
 - ✅ Minter fix PR **#620** (`Closes #606`) — widens minted-token permissions to include `workflows`/`issues`/`packages:read`.
 - ⛔ ~~Blocked until #620 merges + App perms approved + token re-minted~~ — **RESOLVED, see update below.**
 
+## MODEL CORRECTION — 2026-06-08 (versioning/deploy) — authoritative
+
+The operator corrected the deploy model: **personal-stack stays continuously deployed (Flux + Keel `:latest` auto-roll) and is NOT version-pinned.** SemVer versioning + Renovate pinning apply to the **sub-packages** it consumes — extracted libs/tooling, reusable workflows, and the future **API/frontend pair repos** (each pair split into its own versioned repo; milestone **M7**, issue **#625**). The earlier "tag→release, Flux-pinned, drop Keel" work (#623) was **reverted in #624**; **Keel is kept**; `renovate.json` is retained. See the rewritten **`VERSIONING.md`** for the authoritative model. M0 = #608 (done) + Renovate (kept); #609 reduces to the revert; #610 catalog adoption waits on M1.
+
 ## STATUS UPDATE — 2026-06-08, post-unblock (supersedes the two corrections below)
 
 - ✅ **Workflows unblocked.** PR **#620 is merged** and assistant-api rolled it out; the minter now grants `workflows`/`issues`/`packages:read`. repo-template's workflows are activated and **`ExtraToast/repo-template#1` is merged** — `Pipeline Complete` ran green there.

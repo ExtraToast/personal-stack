@@ -1,36 +1,58 @@
-# Versioning & deploy model (operator-approved)
+# Versioning & deploy model (corrected 2026-06-08)
 
-Replaces "main is the deploy" + Keel `:latest`. Two halves: how shared artifacts
-are versioned/consumed, and how personal-stack itself is released/deployed.
+> **This supersedes the earlier "tag → release, Flux-pinned, drop Keel" model.**
+> personal-stack is **continuously deployed** and is NOT version-pinned. SemVer
+> versioning applies to the **sub-packages** it consumes.
 
-## Shared artifacts (each ExtraToast repo)
+## personal-stack (the platform) — continuous auto-deploy, unchanged
 
-- Released via **release-please**: squash-merged conventional-commit PRs → a release PR → merging it tags `vX.Y.Z`, writes `CHANGELOG.md`, bumps `.release-please-manifest.json`.
-- The published-release event publishes the exact version: Maven → GitHub Packages `dev.extratoast.*`; npm → `@extratoast/*`; images → `ghcr.io/extratoast/<repo>/<image>:X.Y.Z`.
-- Pre-1.0 uses minor as the breaking lever (`bump-minor-pre-major`).
+- `main` is the deploy. Flux reconciles manifests from `main`; **Keel** auto-rolls
+  in-house `:latest` images. **Keep both.**
+- personal-stack itself is **not** released, tagged, or version-pinned. No
+  release-please, no `vX.Y.Z` deploy, no Flux image-tag pinning, no manual
+  "reconcile a tag" deploy. (The earlier #623 attempt at this was reverted in
+  #624.)
+- Deploys stay **automatic**: merge to `main` → image rebuild → Keel auto-roll.
 
-## How personal-stack consumes shared deps (exact pins, no ranges)
+## Sub-packages — SemVer-versioned and consumed via Renovate
 
-- **Single source of truth:** `gradle/libs.versions.toml` for `dev.extratoast.*`; a pinned npm manifest for `@extratoast/*`. No `^`/`~`.
-- **Renovate** opens exact-version bump PRs, grouping ExtraToast artifacts into one "platform bump"; every bump PR must pass `Pipeline Complete`.
-- GitHub Actions / reusable workflows pinned to a release tag (digest via Renovate): `uses: ExtraToast/github-workflows/.github/workflows/<wf>.yml@vX.Y.Z`.
+The things personal-stack *depends on* are versioned; the platform pins and
+upgrades them, and each upgrade flows through the normal auto-deploy.
 
-## How personal-stack is released & deployed (deploy a specific version)
+What gets versioned:
+1. **Extracted shared libraries/tooling** — `gradle-conventions`,
+   `kotlin-spring-commons` (per-module), `vue-web-commons`, `openapi-client-gradle`,
+   `api-contract-checks`, `agent-kit`, `stalwart-provisioner`. Each is released
+   with release-please (`vX.Y.Z`) and published to GitHub Packages
+   (`dev.extratoast.*` Maven / `@extratoast/*` npm) or GHCR.
+2. **Reusable GitHub workflows** — `ExtraToast/github-workflows`, pinned by
+   release tag + digest.
+3. **API/frontend pair repos** (future, milestone **M7**, issue #625) — each
+   pair split into its own repo, independently versioned, consumed as a pinned
+   image version.
 
-Today: build-and-publish tags `:latest` + `:<sha>`; **Keel** polls `:latest` every 2 min and force-rolls; Flux reconciles `main`. Target model:
+How personal-stack consumes them (exact pins, no ranges):
+- **Gradle**: versions only in `gradle/libs.versions.toml`.
+- **npm**: exact pins in the manifest.
+- **Actions/workflows**: pinned `uses: …@vX.Y.Z`.
+- **Pair-repo images**: pinned image version in the Flux manifest.
+- **Renovate** (`renovate.json`, kept) opens exact-version bump PRs (ExtraToast
+  artifacts grouped). A bump PR passes `Pipeline Complete`, merges, and the
+  normal Keel/Flux auto-roll deploys it. **Renovate is the upgrade mechanism;
+  deploy stays automatic.**
 
-1. A git tag `vX.Y.Z` (release-please) builds images tagged with the **version** (keep `:<sha>` for traceability). No `:latest` for in-house images.
-2. A **release PR bumps the EXPLICIT image tags** in `platform/cluster/flux/**` to that version.
-3. **Deploying a version = reconciling the commit that pins it.** **Rollback = `git revert`** of the bump.
-4. **Remove** `keel.sh/policy: force` + `keel.sh/match-tag` + `:latest` from in-house Deployments (issue #609). (Third-party images like `linuxserver/*`, `mariadb`, `ollama` are out of scope.)
+## Where SemVer/release tooling lives
 
-This makes "which version is live" a reviewable, revertable fact in git, and makes deploying an arbitrary past version a one-line tag change.
+Inside each **sub-package repo** (bootstrapped from `repo-template`, which carries
+release-please + `ci.yml` + the ruleset). personal-stack only *consumes* — it
+carries `renovate.json` and the version catalog, nothing else version-related.
 
-## Files/areas to touch (personal-stack)
+## Net effect of the correction
 
-- `.github/workflows/build-and-publish.yml` — add version tag derived from the release tag; stop relying on `:latest` for in-house rollout.
-- `platform/cluster/flux/apps/**/deployment*.yaml` + cronjobs/pods — replace `:latest` with the pinned version; drop Keel force annotations on in-house images (grep: `keel.sh/policy`, `ghcr.io/extratoast/personal-stack/*:latest`).
-- New: release-please config + `gradle/libs.versions.toml` + Renovate config.
-- `docs/` / runbook — document deploy = reconcile tag, rollback = revert.
-
-Canonical reference for the model lives in `ExtraToast/repo-template/VERSIONING.md`.
+| | Earlier (wrong) | Corrected |
+| --- | --- | --- |
+| personal-stack deploy | tag → Flux-pinned, manual | **continuous, Flux+Keel auto** |
+| Keel | removed | **kept** |
+| release-please on personal-stack | yes | **no** (reverted, #624) |
+| Versioned units | personal-stack images | **sub-packages** (libs/tooling, workflows, pair repos) |
+| Renovate | pin shared deps | **same — kept** |
