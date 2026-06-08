@@ -11,6 +11,9 @@ set -eu
 
 CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 CLAUDE_CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+WORKSPACE_ROOT="${WORKSPACE_ROOT:-/workspace}"
+AGENT_KIT_SDD_SOURCE="${AGENT_KIT_SDD_SOURCE:-/opt/agent-kit/sdd}"
+AGENT_KIT_SDD_MARKER_FILE="${AGENT_KIT_SDD_MARKER_FILE:-.agent-kit-sdd-seed.sha256}"
 
 check_agent_kit_manifest() {
   agent_name="$1"
@@ -92,6 +95,93 @@ register_repo_trust() {
   fi
 }
 
+speckit_marker_hash() {
+  _speckit_path="$1"
+  _speckit_marker="$2"
+  if [ -f "$_speckit_marker" ]; then
+    awk -v p="$_speckit_path" '$2 == p { print $1; exit }' "$_speckit_marker"
+  fi
+}
+
+speckit_seed_file() {
+  _speckit_src="$1"
+  _speckit_dest="$2"
+  _speckit_rel="$3"
+  _speckit_src_hash="$(sha256sum "$_speckit_src" | awk '{ print $1 }')"
+  _speckit_old_hash="$(speckit_marker_hash "$_speckit_rel" "$_speckit_marker")"
+  _speckit_record_hash=""
+
+  mkdir -p "$(dirname "$_speckit_dest")"
+  if [ ! -f "$_speckit_dest" ]; then
+    cp -p "$_speckit_src" "$_speckit_dest"
+    _speckit_record_hash="$_speckit_src_hash"
+  elif [ -n "$_speckit_old_hash" ]; then
+    _speckit_dest_hash="$(sha256sum "$_speckit_dest" | awk '{ print $1 }')"
+    if [ "$_speckit_dest_hash" = "$_speckit_old_hash" ]; then
+      if [ "$_speckit_dest_hash" != "$_speckit_src_hash" ]; then
+        cp -p "$_speckit_src" "$_speckit_dest"
+      fi
+      _speckit_record_hash="$_speckit_src_hash"
+    else
+      if [ "$_speckit_old_hash" != "$_speckit_src_hash" ]; then
+        echo "[entrypoint] WARN: ${_speckit_dest} has local changes and a stale SDD seed; leaving it unchanged"
+      fi
+      _speckit_record_hash="$_speckit_old_hash"
+    fi
+  else
+    _speckit_dest_hash="$(sha256sum "$_speckit_dest" | awk '{ print $1 }')"
+    if [ "$_speckit_dest_hash" = "$_speckit_src_hash" ]; then
+      _speckit_record_hash="$_speckit_src_hash"
+    fi
+  fi
+
+  if [ -n "$_speckit_record_hash" ]; then
+    printf '%s %s\n' "$_speckit_record_hash" "$_speckit_rel" >> "$_speckit_new_marker"
+  fi
+}
+
+speckit_seed() {
+  _speckit_repo="$1"
+  _speckit_dest_root="${_speckit_repo}/.specify"
+  _speckit_marker="${_speckit_dest_root}/${AGENT_KIT_SDD_MARKER_FILE}"
+
+  if [ ! -d "$AGENT_KIT_SDD_SOURCE" ]; then
+    echo "[entrypoint] WARN: SDD source missing at ${AGENT_KIT_SDD_SOURCE}; skipping ${_speckit_repo}"
+    return
+  fi
+
+  _speckit_new_marker="$(mktemp)"
+  for _speckit_dir in templates scripts; do
+    if [ -d "${AGENT_KIT_SDD_SOURCE}/${_speckit_dir}" ]; then
+      find "${AGENT_KIT_SDD_SOURCE}/${_speckit_dir}" -type f | sort | while IFS= read -r _speckit_src; do
+        _speckit_rel="${_speckit_src#${AGENT_KIT_SDD_SOURCE}/}"
+        speckit_seed_file "$_speckit_src" "${_speckit_dest_root}/${_speckit_rel}" "$_speckit_rel"
+      done
+    fi
+  done
+
+  if [ -f "${AGENT_KIT_SDD_SOURCE}/templates/constitution-template.md" ]; then
+    speckit_seed_file \
+      "${AGENT_KIT_SDD_SOURCE}/templates/constitution-template.md" \
+      "${_speckit_dest_root}/memory/constitution.md" \
+      "memory/constitution.md"
+  fi
+
+  if [ -s "$_speckit_new_marker" ]; then
+    mkdir -p "$_speckit_dest_root"
+    mv "$_speckit_new_marker" "$_speckit_marker"
+  else
+    rm -f "$_speckit_new_marker"
+  fi
+}
+
+speckit_seed_workspace() {
+  for _speckit_git_dir in "${WORKSPACE_ROOT}"/*/.git; do
+    [ -d "$_speckit_git_dir" ] || continue
+    speckit_seed "${_speckit_git_dir%/.git}"
+  done
+}
+
 if [ "${AGENT_RUNNER_ENTRYPOINT_SELF_TEST:-}" = "agent-kit-manifest" ]; then
   check_agent_kit_manifests
   exit 0
@@ -104,6 +194,11 @@ fi
 
 if [ "${AGENT_RUNNER_ENTRYPOINT_SELF_TEST:-}" = "repo-dir" ]; then
   repo_dir_name "${REPO_URL:-}"
+  exit 0
+fi
+
+if [ "${AGENT_RUNNER_ENTRYPOINT_SELF_TEST:-}" = "speckit-seed" ]; then
+  speckit_seed_workspace
   exit 0
 fi
 
@@ -151,7 +246,6 @@ fi
 # project history array) is preserved verbatim. WORKSPACE_ROOT keys
 # the per-project trust entry to the dir the gateway launches the CLI
 # in (AgentSessionManager defaults cwd to the gateway's workspace-root).
-WORKSPACE_ROOT="${WORKSPACE_ROOT:-/workspace}"
 if ! git config --global --get-all safe.directory | grep -Fxq "$WORKSPACE_ROOT"; then
   git config --global --add safe.directory "$WORKSPACE_ROOT"
 fi
@@ -401,6 +495,8 @@ if [ -n "${REPO_URLS:-}" ]; then
     clone_repo_into_workspace "$repo_clone_url" "$repo_branch"
   done
 fi
+
+speckit_seed_workspace
 
 # The gateway shares this Pod's memory cgroup with the agent CLIs it
 # launches (Claude Code, Codex) and whatever the workspace itself runs.

@@ -112,6 +112,7 @@ else
   readonly CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 fi
 readonly HOOKS_DIR="${CLAUDE_HOME}/hooks"
+readonly COMMANDS_DIR="${CLAUDE_HOME}/commands"
 readonly SKILLS_DIR="${CLAUDE_HOME}/skills"
 readonly MANIFEST="${CLAUDE_HOME}/.knowledge-system-version"
 readonly CODEX_HOOKS_DIR="${CODEX_HOME}/hooks"
@@ -155,6 +156,7 @@ claude_managed_paths=(
   "${HOOKS_DIR}/pre-tool-use-edit-recall.sh"
   "${HOOKS_DIR}/pre-tool-use-git-commit-capture.sh"
   "${HOOKS_DIR}/stop-session-digest.sh"
+# @agent-kit-speckit-commands-managed
   "${SKILLS_DIR}/topics/SKILL.md"
   "${SKILLS_DIR}/audit/SKILL.md"
   "${SKILLS_DIR}/kb-first/SKILL.md"
@@ -169,6 +171,7 @@ codex_managed_paths=(
   "${CODEX_HOOKS_DIR}/pre-tool-use-edit-recall.sh"
   "${CODEX_HOOKS_DIR}/pre-tool-use-git-commit-capture.sh"
   "${CODEX_HOOKS_DIR}/kb-stop-digest.sh"
+# @agent-kit-codex-speckit-managed
   "${CODEX_SKILLS_DIR}/topics/SKILL.md"
   "${CODEX_SKILLS_DIR}/audit/SKILL.md"
   "${CODEX_SKILLS_DIR}/kb-first/SKILL.md"
@@ -212,6 +215,11 @@ HOOK
 if [ "${INSTALL_CLAUDE}" = 1 ]; then
   write_file "${HOOKS_DIR}/user-prompt-submit-recall.sh" 0755 "${USER_PROMPT_SUBMIT_HOOK}"
 fi
+
+# -----------------------------------------------------------------
+# Spec Kit Claude commands
+# -----------------------------------------------------------------
+# @agent-kit-speckit-commands-bundle
 
 # -----------------------------------------------------------------
 # Skill: topics
@@ -267,6 +275,11 @@ SKILL
 if [ "${INSTALL_CLAUDE}" = 1 ]; then
   write_file "${SKILLS_DIR}/agent-session-bootstrap/SKILL.md" 0644 "${AGENT_SESSION_BOOTSTRAP_SKILL}"
 fi
+
+# -----------------------------------------------------------------
+# Spec Kit Codex skills
+# -----------------------------------------------------------------
+# @agent-kit-codex-speckit-bundle
 
 # -----------------------------------------------------------------
 # Skill: council (multi-file toolkit — driver + prompts + schemas +
@@ -355,6 +368,11 @@ if [ "${INSTALL_CODEX}" = 1 ]; then
   write_file "${CODEX_SKILLS_DIR}/agent-session-bootstrap/SKILL.md" 0644 "${AGENT_SESSION_BOOTSTRAP_SKILL}"
   write_file "${CODEX_HOOKS_CONFIG}" 0644 "${CODEX_HOOKS_JSON}"
 fi
+
+# -----------------------------------------------------------------
+# Spec Kit project scaffold seed
+# -----------------------------------------------------------------
+# @agent-kit-specify-seed
 
 # -----------------------------------------------------------------
 # Manifest

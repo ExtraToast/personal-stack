@@ -19,6 +19,9 @@ file will collide). Be concrete: name real files and real commands.
 
 {{baseline}}
 
+# Constitution
+{{constitution}}
+
 # Output
 Return ONLY a JSON object — no prose, no code fences — matching this schema:
 

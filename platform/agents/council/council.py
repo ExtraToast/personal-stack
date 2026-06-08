@@ -20,6 +20,8 @@ import concurrent.futures
 import json
 import os
 import re
+import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -106,6 +108,71 @@ WORKER_PERMISSION_MODE = "acceptEdits"   # auto-accept edits; no command approva
 WORKER_TIMEOUT_S = int(os.environ.get("COUNCIL_WORKER_TIMEOUT_S", "1800"))
 VERIFY_TIMEOUT_S = int(os.environ.get("COUNCIL_VERIFY_TIMEOUT_S", "600"))
 WT_ROOT = Path(tempfile.gettempdir()) / "council-worktrees"
+SPEC_DIR_RE = re.compile(r"^(\d{3})-([a-z0-9][a-z0-9-]*)$")
+TASK_BLOCK_RE = re.compile(
+    r"^## (?P<header_id>[^\n:]+)(?::[^\n]*)?\n"
+    r"<!-- council-task-id: (?P<marker_id>[^>]+) -->\n"
+    r"```json\n(?P<body>.*?)\n```",
+    re.MULTILINE | re.DOTALL,
+)
+MAX_CONSTITUTION_CHARS = 6000
+MAX_TEMPLATE_FIELD_CHARS = 12000
+EMBEDDED_CONSTITUTION = """# Constitution
+
+No project `.specify/memory/constitution.md` was found. Apply the repository's
+agent guide, keep changes minimal, validate against real files, and preserve
+human authorship.
+"""
+EMBEDDED_SPEC_TEMPLATE = """# Feature Specification: {{feature_name}}
+
+**Feature Branch**: `{{feature_id}}`
+**Created**: {{date}}
+
+## User Brief
+
+{{brief}}
+
+## Requirements
+
+- Implement the brief as described, grounded in the real repository.
+- Keep scope additive and preserve existing council canonical artifacts.
+
+## Success Criteria
+
+- `consolidated_plan.md` and `tasks.json` remain canonical.
+- `tasks.md` round-trips exactly to `tasks.json` through council markers.
+"""
+EMBEDDED_PLAN_TEMPLATE = """# Implementation Plan: {{feature_name}}
+
+**Feature Branch**: `{{feature_id}}`
+**Created**: {{date}}
+
+## Summary
+
+{{summary}}
+
+## Consolidated Plan
+
+{{consolidated_plan}}
+"""
+EMBEDDED_TASKS_TEMPLATE = """# Tasks: {{feature_id}}
+
+<!-- council-tasks-format: v1 -->
+"""
+
+
+@dataclass(frozen=True)
+class SpecRef:
+    number: int
+    slug: str
+
+    @property
+    def name(self) -> str:
+        return f"{self.number:03d}-{self.slug}"
+
+    @property
+    def relpath(self) -> str:
+        return f"specs/{self.name}"
 
 
 @dataclass
@@ -354,6 +421,335 @@ def _slugify(text: str) -> str:
     return (s[:48] or "run")
 
 
+def _first_line(text: str) -> str:
+    for line in text.splitlines():
+        if line.strip():
+            return line.strip()
+    return "run"
+
+
+def derive_feature_slug(brief: str, explicit_slug: Optional[str]) -> str:
+    return _slugify(explicit_slug or _first_line(brief))
+
+
+def _bounded(text: str, limit: int) -> str:
+    if len(text) <= limit:
+        return text
+    return text[:limit].rstrip() + "\n\n[truncated]"
+
+
+def _constitution_path(repo: Path = REPO_ROOT) -> Path:
+    return repo / ".specify" / "memory" / "constitution.md"
+
+
+def read_constitution_context(repo: Path = REPO_ROOT) -> str:
+    path = _constitution_path(repo)
+    text = path.read_text() if path.exists() else EMBEDDED_CONSTITUTION
+    return _bounded(text.strip(), MAX_CONSTITUTION_CHARS)
+
+
+def _constitution_placeholder_reason(text: str) -> Optional[str]:
+    stripped = text.strip()
+    if not stripped:
+        return "constitution is empty"
+    lower = stripped.lower()
+    markers = (
+        "[project name]",
+        "[insert",
+        "[fill",
+        "[todo",
+        "{{",
+        "todo:",
+        "tbd",
+        "placeholder",
+    )
+    for marker in markers:
+        if marker in lower:
+            return f"constitution contains placeholder marker {marker!r}"
+    return None
+
+
+def constitution_failure(repo: Path = REPO_ROOT) -> Optional[str]:
+    path = _constitution_path(repo)
+    if not path.exists():
+        return f"missing constitution at {path}"
+    reason = _constitution_placeholder_reason(path.read_text())
+    if reason:
+        return f"{reason} at {path}"
+    return None
+
+
+def _spec_numbers(specs_root: Path) -> list[int]:
+    if not specs_root.exists():
+        return []
+    nums = []
+    for child in specs_root.iterdir():
+        m = SPEC_DIR_RE.match(child.name)
+        if m:
+            nums.append(int(m.group(1)))
+    return nums
+
+
+def allocate_spec_ref(slug: str, specs_root: Path) -> SpecRef:
+    slug = _slugify(slug)
+    children = specs_root.iterdir() if specs_root.exists() else ()
+    for child in children:
+        m = SPEC_DIR_RE.match(child.name)
+        if m and m.group(2) == slug:
+            raise ValueError(f"spec path already exists: {child}")
+    ref = SpecRef((max(_spec_numbers(specs_root)) if specs_root.exists() else 0) + 1,
+                  slug)
+    path = specs_root / ref.name
+    if path.exists():
+        raise ValueError(f"spec path already exists: {path}")
+    return ref
+
+
+def spec_ref_from_state(state: dict) -> Optional[SpecRef]:
+    rel = state.get("spec_relpath")
+    if not isinstance(rel, str):
+        return None
+    name = Path(rel).name
+    m = SPEC_DIR_RE.match(name)
+    if not m:
+        return None
+    return SpecRef(int(m.group(1)), m.group(2))
+
+
+def prepare_spec_ref(run: Run, brief: str, explicit_slug: Optional[str]) -> SpecRef:
+    state = run.read_json("state.json") if run.has("state.json") else {}
+    existing = spec_ref_from_state(state)
+    if existing:
+        return existing
+    ref = allocate_spec_ref(derive_feature_slug(brief, explicit_slug),
+                            REPO_ROOT / "specs")
+    run_target = run.path / ref.relpath
+    repo_target = REPO_ROOT / ref.relpath
+    if run_target.exists():
+        raise ValueError(f"spec path already exists: {run_target}")
+    if repo_target.exists():
+        raise ValueError(f"spec path already exists: {repo_target}")
+    run.set_state(spec_id=ref.name, spec_slug=ref.slug, spec_relpath=ref.relpath)
+    return ref
+
+
+def read_spec_dir(path_s: Optional[str]) -> dict[str, str]:
+    if not path_s:
+        return {}
+    path = Path(path_s)
+    if not path.exists():
+        raise SystemExit(f"spec dir not found: {path}")
+    if not path.is_dir():
+        raise SystemExit(f"--spec-dir must be a directory: {path}")
+    out = {}
+    for name in ("spec.md", "plan.md", "tasks.md"):
+        p = path / name
+        if p.exists():
+            out[name] = p.read_text()
+    return out
+
+
+def load_sdd_template(name: str, fallback: str) -> str:
+    path = REPO_ROOT / ".specify" / "templates" / name
+    return path.read_text() if path.exists() else fallback
+
+
+def render_sdd_template(template: str, values: dict[str, str]) -> str:
+    out = template
+    for key, val in values.items():
+        bounded = _bounded(val, MAX_TEMPLATE_FIELD_CHARS)
+        out = out.replace("{{" + key + "}}", bounded)
+        out = out.replace("[" + key.upper() + "]", bounded)
+        out = out.replace("[" + key + "]", bounded)
+    return out
+
+
+def render_tasks_md(tasks: list[dict], spec_ref: Optional[SpecRef] = None) -> str:
+    feature_id = spec_ref.name if spec_ref else "council"
+    template = load_sdd_template("tasks-template.md", EMBEDDED_TASKS_TEMPLATE)
+    header = render_sdd_template(template, {
+        "feature_id": feature_id,
+        "feature_name": feature_id,
+    }).strip()
+    if "<!-- council-tasks-format: v1 -->" not in header:
+        header += "\n\n<!-- council-tasks-format: v1 -->"
+    lines = [header, ""]
+    for task in tasks:
+        tid = str(task["id"])
+        task_title = str(task.get("title", tid)).replace("\n", " ").strip() or tid
+        lines += [
+            f"## {tid}: {task_title}",
+            f"<!-- council-task-id: {tid} -->",
+            "```json",
+            json.dumps(task, indent=2, sort_keys=True),
+            "```",
+            "",
+        ]
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def parse_tasks_md(text: str) -> list[dict]:
+    tasks: list[dict] = []
+    for match in TASK_BLOCK_RE.finditer(text):
+        header_id = match.group("header_id").strip()
+        marker_id = match.group("marker_id").strip()
+        if header_id != marker_id:
+            raise ValueError(f"task marker mismatch: header {header_id!r}, "
+                             f"marker {marker_id!r}")
+        try:
+            task = json.loads(match.group("body"))
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"task {marker_id!r} JSON block is invalid: {exc}") from exc
+        if not isinstance(task, dict):
+            raise ValueError(f"task {marker_id!r} JSON block must be an object")
+        if str(task.get("id", "")).strip() != marker_id:
+            raise ValueError(f"task {marker_id!r} JSON id does not match marker")
+        tasks.append(task)
+    if not tasks:
+        raise ValueError("no council task JSON blocks found in tasks.md")
+    seen: set[str] = set()
+    for task in tasks:
+        tid = str(task["id"])
+        if tid in seen:
+            raise ValueError(f"duplicate task id in tasks.md: {tid}")
+        seen.add(tid)
+    return tasks
+
+
+def _normalise_tasks(tasks: list[dict]) -> object:
+    return json.loads(json.dumps(tasks, sort_keys=True))
+
+
+def assert_tasks_bijection(tasks: list[dict], tasks_md_text: str) -> None:
+    parsed = parse_tasks_md(tasks_md_text)
+    validate_tasks(parsed)
+    if _normalise_tasks(parsed) != _normalise_tasks(tasks):
+        raise ValueError("tasks.md does not match tasks.json")
+
+
+def run_spec_dir(run: Run) -> Optional[Path]:
+    state = run.read_json("state.json") if run.has("state.json") else {}
+    ref = spec_ref_from_state(state)
+    if ref:
+        return run.path / ref.relpath
+    specs = run.path / "specs"
+    matches = sorted(p for p in specs.glob("[0-9][0-9][0-9]-*") if p.is_dir())
+    return matches[-1] if matches else None
+
+
+def regenerate_command(run: Run) -> str:
+    return ("council plan --run " + shlex.quote(str(run.path)) +
+            " --brief " + shlex.quote(str(run.path / "brief.md")))
+
+
+def analyze_checkpoint(run: Run, tasks: list[dict]) -> None:
+    failures = []
+    constitution = constitution_failure()
+    if constitution:
+        failures.append(constitution)
+    spec_dir = run_spec_dir(run)
+    tasks_md = spec_dir / "tasks.md" if spec_dir else None
+    if not tasks_md or not tasks_md.exists():
+        failures.append("missing tasks.md for tasks.json")
+    else:
+        try:
+            assert_tasks_bijection(tasks, tasks_md.read_text())
+        except ValueError as exc:
+            failures.append(str(exc))
+    if failures:
+        raise ValueError("analyze gate checkpoint 1 failed:\n- "
+                         + "\n- ".join(failures)
+                         + f"\nRegenerate with: {regenerate_command(run)}")
+
+
+def analyze_tasks_file(tasks: list[dict], tasks_path: Path) -> None:
+    failures = []
+    constitution = constitution_failure()
+    if constitution:
+        failures.append(constitution)
+    tasks_md = tasks_path.with_name("tasks.md")
+    if tasks_md.exists():
+        try:
+            assert_tasks_bijection(tasks, tasks_md.read_text())
+        except ValueError as exc:
+            failures.append(str(exc))
+    if failures:
+        cmd = ("council plan --brief " + shlex.quote(str(tasks_path.parent / "spec.md"))
+               + " --spec-dir " + shlex.quote(str(tasks_path.parent)))
+        raise ValueError("analyze gate checkpoint 1 failed:\n- "
+                         + "\n- ".join(failures)
+                         + f"\nRegenerate with: {cmd}")
+
+
+def build_spec_md(brief: str, obj: dict, ref: SpecRef,
+                  seed: dict[str, str]) -> str:
+    if seed.get("spec.md"):
+        return seed["spec.md"]
+    if obj.get("spec_markdown"):
+        return str(obj["spec_markdown"]).strip() + "\n"
+    template = load_sdd_template("spec-template.md", EMBEDDED_SPEC_TEMPLATE)
+    return render_sdd_template(template, {
+        "feature_name": ref.slug.replace("-", " ").title(),
+        "feature_id": ref.name,
+        "date": time.strftime("%Y-%m-%d"),
+        "brief": brief.strip(),
+    }).rstrip() + "\n"
+
+
+def build_plan_md(brief: str, obj: dict, ref: SpecRef,
+                  seed: dict[str, str]) -> str:
+    if seed.get("plan.md"):
+        return seed["plan.md"]
+    for key in ("implementation_plan_markdown", "plan_markdown"):
+        if obj.get(key):
+            return str(obj[key]).strip() + "\n"
+    template = load_sdd_template("plan-template.md", EMBEDDED_PLAN_TEMPLATE)
+    return render_sdd_template(template, {
+        "feature_name": ref.slug.replace("-", " ").title(),
+        "feature_id": ref.name,
+        "date": time.strftime("%Y-%m-%d"),
+        "brief": brief.strip(),
+        "summary": str(obj.get("summary", "")).strip() or _first_line(brief),
+        "consolidated_plan": str(obj.get("consolidated_plan_markdown", "")).strip(),
+    }).rstrip() + "\n"
+
+
+def write_sdd_artifacts(run: Run, brief: str, obj: dict, ref: SpecRef,
+                        seed: dict[str, str]) -> None:
+    tasks = obj.get("tasks", [])
+    if seed.get("tasks.md"):
+        assert_tasks_bijection(tasks, seed["tasks.md"])
+    spec_dir = run.path / ref.relpath
+    spec_dir.mkdir(parents=True, exist_ok=True)
+    (spec_dir / "spec.md").write_text(build_spec_md(brief, obj, ref, seed))
+    (spec_dir / "plan.md").write_text(build_plan_md(brief, obj, ref, seed))
+    (spec_dir / "tasks.md").write_text(render_tasks_md(tasks, ref))
+
+
+def copy_run_specs_to_worktree(run: Run, worktree: Path) -> None:
+    specs_root = run.path / "specs"
+    if not specs_root.exists():
+        return
+    copied = []
+    for src in sorted(p for p in specs_root.iterdir()
+                      if p.is_dir() and SPEC_DIR_RE.match(p.name)):
+        dest = worktree / "specs" / src.name
+        if dest.exists():
+            raise ValueError(f"spec path already exists in integration worktree: "
+                             f"specs/{src.name}")
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(src, dest)
+        copied.append(f"specs/{src.name}")
+    if not copied:
+        return
+    git("add", "-A", "--", "specs", cwd=worktree)
+    dirty = git("status", "--porcelain", "--", "specs", cwd=worktree).stdout.strip()
+    if dirty:
+        git("-c", "user.name=council", "-c", "user.email=council@local",
+            "commit", "-q", "-m", "council: add spec artifacts", cwd=worktree)
+        log(f"committed Spec Kit artifacts: {', '.join(copied)}")
+
+
 def _split_dest_url(owner: str, name: str) -> str:
     """Canonical SSH remote for a GitHub owner/name. Pure (covered by
     --self-test). In runner workspaces git rewrites git@github.com: to https so
@@ -365,7 +761,8 @@ def _split_dest_url(owner: str, name: str) -> str:
 # stages 1-4
 # --------------------------------------------------------------------------
 
-def stage_plan(run: Run, brief: str, a: Engine, b: Engine) -> tuple[dict, dict]:
+def stage_plan(run: Run, brief: str, a: Engine, b: Engine,
+               constitution_context: str) -> tuple[dict, dict]:
     if run.has("planA.v1.json") and run.has("planB.v1.json"):
         log("stage 1: dual plans already present, skipping")
         return run.read_json("planA.v1.json"), run.read_json("planB.v1.json")
@@ -376,7 +773,8 @@ def stage_plan(run: Run, brief: str, a: Engine, b: Engine) -> tuple[dict, dict]:
     def mk(engine: Engine) -> Callable[[], EngineResult]:
         prompt = render(tmpl, engine_label=engine.label, brief=brief,
                         repo_root=str(REPO_ROOT), schema=schema,
-                        baseline=BASELINE_PROMPT)
+                        baseline=BASELINE_PROMPT,
+                        constitution=constitution_context)
         return lambda: run.record(run_engine(engine, prompt))
 
     res_a, res_b = parallel([mk(a), mk(b)])
@@ -387,7 +785,8 @@ def stage_plan(run: Run, brief: str, a: Engine, b: Engine) -> tuple[dict, dict]:
 
 
 def stage_critique_round(run: Run, brief: str, a: Engine, b: Engine,
-                         plan_a: dict, plan_b: dict, rnd: int) -> tuple[dict, dict]:
+                         plan_a: dict, plan_b: dict, rnd: int,
+                         constitution_context: str) -> tuple[dict, dict]:
     out_a, out_b = f"planA.v{rnd + 1}.json", f"planB.v{rnd + 1}.json"
     if run.has(out_a) and run.has(out_b):
         log(f"stage 2: critique round {rnd} already present, skipping")
@@ -401,7 +800,8 @@ def stage_critique_round(run: Run, brief: str, a: Engine, b: Engine,
         prompt = render(critic_tmpl, engine_label=critic.label, brief=brief,
                         repo_root=str(REPO_ROOT),
                         plan=json.dumps(plan, indent=2),
-                        baseline=BASELINE_PROMPT)
+                        baseline=BASELINE_PROMPT,
+                        constitution=constitution_context)
         return lambda: run.record(run_engine(critic, prompt))
 
     crit_of_a, crit_of_b = parallel([crit(b, plan_a), crit(a, plan_b)])
@@ -415,7 +815,8 @@ def stage_critique_round(run: Run, brief: str, a: Engine, b: Engine,
         prompt = render(rev_tmpl, engine_label=author.label, brief=brief,
                         repo_root=str(REPO_ROOT), plan=json.dumps(plan, indent=2),
                         critique=critique, schema=schema,
-                        baseline=BASELINE_PROMPT)
+                        baseline=BASELINE_PROMPT,
+                        constitution=constitution_context)
         return lambda: run.record(run_engine(author, prompt))
 
     rev_a, rev_b = parallel([rev(a, plan_a, crit_of_a.text),
@@ -427,10 +828,19 @@ def stage_critique_round(run: Run, brief: str, a: Engine, b: Engine,
 
 
 def stage_consolidate(run: Run, brief: str, plan_a: dict, plan_b: dict,
-                      rounds: int, consolidator: Engine) -> dict:
+                      rounds: int, consolidator: Engine,
+                      constitution_context: str, spec_ref: SpecRef,
+                      spec_seed: dict[str, str]) -> dict:
     if run.has("tasks.json") and run.has("consolidated_plan.md"):
         log("stage 4: consolidation already present, skipping")
-        return run.read_json("tasks.json")
+        tasks = run.read_json("tasks.json")
+        obj = {
+            "consolidated_plan_markdown": (run.path / "consolidated_plan.md").read_text(),
+            "tasks": tasks,
+        }
+        write_sdd_artifacts(run, brief, obj, spec_ref, spec_seed)
+        analyze_checkpoint(run, tasks)
+        return tasks
     log(f"stage 4: consolidation  ({consolidator.label})")
     history_parts = []
     for r in range(1, rounds + 1):
@@ -445,6 +855,7 @@ def stage_consolidate(run: Run, brief: str, plan_a: dict, plan_b: dict,
         history="\n\n".join(history_parts) or "(no critiques recorded)",
         schema=load_schema_text("consolidated"),
         baseline=BASELINE_PROMPT,
+        constitution=constitution_context,
     )
     res = run.record(run_engine(consolidator, prompt))
     obj = extract_json(res.text)
@@ -452,6 +863,8 @@ def stage_consolidate(run: Run, brief: str, plan_a: dict, plan_b: dict,
     validate_tasks(tasks)
     run.write_text("consolidated_plan.md", obj.get("consolidated_plan_markdown", ""))
     run.write_json("tasks.json", tasks)
+    write_sdd_artifacts(run, brief, obj, spec_ref, spec_seed)
+    analyze_checkpoint(run, tasks)
     return tasks
 
 
@@ -650,6 +1063,7 @@ def execute_dag(run: Run, tasks: list[dict], worker_for: Callable[[str], Engine]
     git("worktree", "remove", "--force", str(integ_wt), check=False)
     git("branch", "-D", integ_branch, check=False)
     git("worktree", "add", "--force", "-b", integ_branch, str(integ_wt), base)
+    copy_run_specs_to_worktree(run, integ_wt)
     log(f"exec: {len(tasks)} task(s) in {len(waves)} wave(s); base {base[:8]}; "
         f"integration branch {integ_branch}; concurrency {cap}")
 
@@ -700,6 +1114,8 @@ def cmd_fanout(args: argparse.Namespace) -> int:
     if not run.has("tasks.json"):
         raise SystemExit(f"no tasks.json in {run.path}; run `plan` first")
     tasks = run.read_json("tasks.json")
+    validate_tasks(tasks)
+    analyze_checkpoint(run, tasks)
     waves = plan_waves(tasks)
 
     cfg = resolve_config({"intensity": args.intensity, "worker": args.worker,
@@ -772,6 +1188,7 @@ def cmd_fleet(args: argparse.Namespace) -> int:
         raise SystemExit(f"tasks file not found: {tasks_path}")
     tasks = json.loads(tasks_path.read_text())
     validate_tasks(tasks)
+    analyze_tasks_file(tasks, tasks_path)
     waves = plan_waves(tasks)
     pool = parse_agents_pool(args.agents)
 
@@ -942,9 +1359,9 @@ def read_brief(arg: str) -> str:
     if arg == "-":
         return sys.stdin.read()
     p = Path(arg)
-    if not p.exists():
-        raise SystemExit(f"brief file not found: {arg}")
-    return p.read_text()
+    if p.exists():
+        return p.read_text()
+    return arg
 
 
 def cmd_plan(args: argparse.Namespace) -> int:
@@ -975,16 +1392,24 @@ def cmd_plan(args: argparse.Namespace) -> int:
     brief = read_brief(args.brief)
     run = Run.open(Path(args.run)) if args.run else Run.create(brief, args.slug)
     run.write_text("brief.md", brief)
+    spec_ref = prepare_spec_ref(run, brief, args.slug)
+    spec_seed = read_spec_dir(args.spec_dir)
+    constitution_context = read_constitution_context()
     run.set_state(stage="plan", intensity=cfg["intensity"], rounds=rounds,
-                  planner_a=a.label, planner_b=b.label)
+                  planner_a=a.label, planner_b=b.label,
+                  spec_id=spec_ref.name, spec_slug=spec_ref.slug,
+                  spec_relpath=spec_ref.relpath,
+                  spec_dir=args.spec_dir)
     log(f"run dir: {run.path}")
     log(f"intensity {cfg['intensity']}: {a.label} ║ {b.label}, {rounds} round(s), "
         f"codex effort {cfg['codex_effort']}")
 
-    plan_a, plan_b = stage_plan(run, brief, a, b)
+    plan_a, plan_b = stage_plan(run, brief, a, b, constitution_context)
     for rnd in range(1, rounds + 1):
-        plan_a, plan_b = stage_critique_round(run, brief, a, b, plan_a, plan_b, rnd)
-    tasks = stage_consolidate(run, brief, plan_a, plan_b, rounds, consolidator)
+        plan_a, plan_b = stage_critique_round(
+            run, brief, a, b, plan_a, plan_b, rnd, constitution_context)
+    tasks = stage_consolidate(run, brief, plan_a, plan_b, rounds, consolidator,
+                              constitution_context, spec_ref, spec_seed)
     run.set_state(stage="planned", task_count=len(tasks))
 
     waves = plan_waves(tasks)
@@ -1200,6 +1625,79 @@ def cmd_self_test(_args: argparse.Namespace) -> int:
     check("validate_tasks warns on empty verify",
           any("no verify" in m for m in captured))
 
+    # Spec Kit task markdown + analyze helpers
+    sample_task = {
+        "id": "T1",
+        "title": "Implement one thing",
+        "objective": "Change exactly one thing",
+        "output_format": "Code edits",
+        "paths": ["platform/agents/council/council.py"],
+        "depends_on": [],
+        "difficulty": "moderate",
+        "model": "haiku",
+        "verify": "python3 platform/agents/council/council.py --self-test",
+        "boundaries": "Stay in scope",
+    }
+    rendered_tasks = render_tasks_md([sample_task], SpecRef(7, "sdd-aware-council"))
+    check("tasks.json -> tasks.md -> parse roundtrips",
+          parse_tasks_md(rendered_tasks) == [sample_task])
+    edited_tasks = rendered_tasks.replace("Change exactly one thing",
+                                          "Change a different thing")
+    check("tasks.md bijection mismatch hard-fails",
+          _raises(lambda: assert_tasks_bijection([sample_task], edited_tasks)))
+    bad_marker = rendered_tasks.replace("<!-- council-task-id: T1 -->",
+                                        "<!-- council-task-id: T2 -->")
+    check("tasks.md parser rejects marker/header mismatch",
+          _raises(lambda: parse_tasks_md(bad_marker)))
+    gate_msg = ""
+    try:
+        analyze_checkpoint(Run(Path("/tmp/council-self-test-run")), [sample_task])
+    except ValueError as exc:
+        gate_msg = str(exc)
+    check("analyze gate names checkpoint 1 and regenerate command",
+          "analyze gate checkpoint 1 failed" in gate_msg
+          and "Regenerate with: council plan --run" in gate_msg)
+
+    # constitution handling is bounded and limited to reasoning roles.
+    check("constitution context is bounded",
+          len(read_constitution_context()) <= MAX_CONSTITUTION_CHARS + 20)
+    for role in ("planner", "critic", "reviser", "consolidator"):
+        check(f"constitution token present in {role}",
+              "{{constitution}}" in load_prompt(role))
+    check("constitution token absent from worker",
+          "{{constitution}}" not in load_prompt("worker"))
+    check("constitution token absent from verifier",
+          "{{constitution}}" not in load_prompt("verifier"))
+    with tempfile.TemporaryDirectory() as td:
+        repo = Path(td)
+        check("constitution failure detects missing file",
+              "missing constitution" in (constitution_failure(repo) or ""))
+        cpath = repo / ".specify" / "memory" / "constitution.md"
+        cpath.parent.mkdir(parents=True)
+        cpath.write_text("# Constitution\n\n[PROJECT NAME]\n")
+        check("constitution failure detects placeholder",
+              "placeholder" in (constitution_failure(repo) or ""))
+        cpath.write_text("# Constitution\n\nShip small, verified changes.\n")
+        check("constitution failure accepts concrete file",
+              constitution_failure(repo) is None)
+
+    # Spec numbering and slug derivation
+    check("free-text brief derives slug from first line",
+          derive_feature_slug("Fuse council with Spec Kit\nextra", None)
+          == "fuse-council-with-spec-kit")
+    check("explicit --slug is reused for spec slug",
+          derive_feature_slug("ignored", "My Feature") == "my-feature")
+    with tempfile.TemporaryDirectory() as td:
+        specs = Path(td) / "specs"
+        specs.mkdir()
+        (specs / "001-old").mkdir()
+        ref = allocate_spec_ref("new feature", specs)
+        check("NNN allocation uses max(existing)+1",
+              ref == SpecRef(2, "new-feature"))
+        (specs / "003-duplicate").mkdir()
+        check("NNN allocation fail-fast on existing slug",
+              _raises(lambda: allocate_spec_ref("duplicate", specs)))
+
     # merge_config (intensity presets + precedence)
     std = merge_config({}, {})
     check("default intensity is standard",
@@ -1279,6 +1777,7 @@ def build_parser() -> argparse.ArgumentParser:
     pl.add_argument("--brief", help="brief file path, or - for stdin")
     pl.add_argument("--run", help="existing run dir to resume")
     pl.add_argument("--slug", help="slug for the run dir name")
+    pl.add_argument("--spec-dir", help="existing specs/NNN-slug dir to consume")
     pl.add_argument("--intensity", choices=list(PRESETS),
                     help="preset (overrides council.toml for this run)")
     pl.add_argument("--rounds", type=int, default=None, help="override critique rounds")

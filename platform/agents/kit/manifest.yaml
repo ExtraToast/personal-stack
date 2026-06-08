@@ -1,8 +1,16 @@
-version: 1
+version: 2
 generated: partial
 notes:
-  - "This manifest pins the current repo and installer agent surfaces. Repo skills, hooks, hook settings, and the installer entrypoint are rendered from agent-kit templates; installer heredoc bodies, including hooks, skills, settings, and allowlists, are rendered from partial templates."
+  - "This manifest pins the current repo and installer agent surfaces. Repo skills, hooks, hook settings, commands, Spec Kit scaffold seeds, and the installer entrypoint are rendered from agent-kit templates; installer heredoc bodies, including hooks, skills, commands, settings, allowlists, and Spec Kit seeds, are rendered from partial or repo templates."
   - "Repo skill bodies are intentionally agent-specific today; parity means every shared skill has both Claude and Codex targets unless an explicit unsupported reason is present."
+
+provenance:
+  spec_kit:
+    upstream_repository: https://github.com/github/spec-kit
+    upstream_tag: v0.9.5
+    upstream_commit: "2262359"
+    source_lock: platform/agents/kit/spec-kit-source.lock
+    third_party_notices: platform/agents/kit/THIRD_PARTY_NOTICES.md
 
 renderer:
   script_path: platform/agents/kit/render-agent-kit.py
@@ -31,17 +39,30 @@ renderer:
     - .agents/skills/kb-first/SKILL.md
     - .agents/skills/open-pr/SKILL.md
     - .agents/skills/run-tests/SKILL.md
+    - .agents/skills/speckit-analyze/SKILL.md
+    - .agents/skills/speckit-checklist/SKILL.md
+    - .agents/skills/speckit-clarify/SKILL.md
+    - .agents/skills/speckit-constitution/SKILL.md
+    - .agents/skills/speckit-implement/SKILL.md
+    - .agents/skills/speckit-plan/SKILL.md
+    - .agents/skills/speckit-specify/SKILL.md
+    - .agents/skills/speckit-tasks/SKILL.md
+    - .agents/skills/speckit-taskstoissues/SKILL.md
     - .agents/skills/token-economy/SKILL.md
+    - .claude/commands/speckit.analyze.md
+    - .claude/commands/speckit.checklist.md
+    - .claude/commands/speckit.clarify.md
+    - .claude/commands/speckit.constitution.md
+    - .claude/commands/speckit.implement.md
+    - .claude/commands/speckit.plan.md
+    - .claude/commands/speckit.specify.md
+    - .claude/commands/speckit.tasks.md
+    - .claude/commands/speckit.taskstoissues.md
+    - .claude/hooks/kb-stop-digest.sh
     - .claude/hooks/kb-user-prompt-recall.sh
     - .claude/hooks/pre-tool-use-edit-recall.sh
     - .claude/hooks/pre-tool-use-git-commit-capture.sh
-    - .claude/hooks/kb-stop-digest.sh
-    - .codex/hooks/kb-user-prompt-recall.sh
-    - .codex/hooks/kb-stop-digest.sh
-    - .codex/hooks/pre-tool-use-edit-recall.sh
-    - .codex/hooks/pre-tool-use-git-commit-capture.sh
     - .claude/settings.json
-    - .codex/hooks.json
     - .claude/skills/add-public-service/SKILL.md
     - .claude/skills/agent-session-bootstrap/SKILL.md
     - .claude/skills/council/SKILL.md
@@ -50,11 +71,126 @@ renderer:
     - .claude/skills/open-pr/SKILL.md
     - .claude/skills/run-tests/SKILL.md
     - .claude/skills/token-economy/SKILL.md
+    - .codex/hooks.json
+    - .codex/hooks/kb-stop-digest.sh
+    - .codex/hooks/kb-user-prompt-recall.sh
+    - .codex/hooks/pre-tool-use-edit-recall.sh
+    - .codex/hooks/pre-tool-use-git-commit-capture.sh
+    - .specify/scripts/bash/check-prerequisites.sh
+    - .specify/scripts/bash/common.sh
+    - .specify/scripts/bash/create-new-feature.sh
+    - .specify/scripts/bash/setup-plan.sh
+    - .specify/scripts/bash/setup-tasks.sh
+    - .specify/templates/constitution-template.md
+    - .specify/templates/plan-template.md
+    - .specify/templates/spec-template.md
+    - .specify/templates/tasks-template.md
     - services/knowledge-api/src/main/resources/installer/install.sh
 
 canonical_mcp_tools:
   source: services/knowledge-api/src/test/kotlin/com/jorisjonkers/personalstack/knowledge/mcp/McpToolsTest.kt
   prefix: knowledge.
+
+commands:
+  - name: speckit.analyze
+    supported_agents: [claude]
+    unsupported:
+      codex: "Use .agents/skills/speckit-analyze/SKILL.md."
+    targets:
+      - agent: claude
+        path: .claude/commands/speckit.analyze.md
+        sha256: 4f7008c48a5d0a177ead422a0a211da2234fefc3965b7b04f43f9ac9c799d87c
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      target_path: "${CLAUDE_HOME}/commands/speckit.analyze.md"
+  - name: speckit.checklist
+    supported_agents: [claude]
+    unsupported:
+      codex: "Use .agents/skills/speckit-checklist/SKILL.md."
+    targets:
+      - agent: claude
+        path: .claude/commands/speckit.checklist.md
+        sha256: b1742e6513ccf0e7254aa5d40c88b985816613a440c68c511ae98a5674fbaaf1
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      target_path: "${CLAUDE_HOME}/commands/speckit.checklist.md"
+  - name: speckit.clarify
+    supported_agents: [claude]
+    unsupported:
+      codex: "Use .agents/skills/speckit-clarify/SKILL.md."
+    targets:
+      - agent: claude
+        path: .claude/commands/speckit.clarify.md
+        sha256: 6390475434e8d40089c647d01ba4777fe67bdf4462c2b64c77f38959eeec5670
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      target_path: "${CLAUDE_HOME}/commands/speckit.clarify.md"
+  - name: speckit.constitution
+    supported_agents: [claude]
+    unsupported:
+      codex: "Use .agents/skills/speckit-constitution/SKILL.md."
+    targets:
+      - agent: claude
+        path: .claude/commands/speckit.constitution.md
+        sha256: 813bc3446e9062c2f9636a92bdfb052f9bcda7e0f059b89097dd957332170c1b
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      target_path: "${CLAUDE_HOME}/commands/speckit.constitution.md"
+  - name: speckit.implement
+    supported_agents: [claude]
+    unsupported:
+      codex: "Use .agents/skills/speckit-implement/SKILL.md."
+    targets:
+      - agent: claude
+        path: .claude/commands/speckit.implement.md
+        sha256: 6c563e3786ae056e87a6ca4bc3e7bf0271e2524dd0ae4fab9f1e26d6b23e9cd0
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      target_path: "${CLAUDE_HOME}/commands/speckit.implement.md"
+  - name: speckit.plan
+    supported_agents: [claude]
+    unsupported:
+      codex: "Use .agents/skills/speckit-plan/SKILL.md."
+    targets:
+      - agent: claude
+        path: .claude/commands/speckit.plan.md
+        sha256: 11c25bf68eee0ad3939a569f44b0caf6d212748697a91bfce11407aff033b736
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      target_path: "${CLAUDE_HOME}/commands/speckit.plan.md"
+  - name: speckit.specify
+    supported_agents: [claude]
+    unsupported:
+      codex: "Use .agents/skills/speckit-specify/SKILL.md."
+    targets:
+      - agent: claude
+        path: .claude/commands/speckit.specify.md
+        sha256: a703db91aa3904f9a038891c71f985f2543a3cae5a6541681bdd5910b00827fa
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      target_path: "${CLAUDE_HOME}/commands/speckit.specify.md"
+  - name: speckit.tasks
+    supported_agents: [claude]
+    unsupported:
+      codex: "Use .agents/skills/speckit-tasks/SKILL.md."
+    targets:
+      - agent: claude
+        path: .claude/commands/speckit.tasks.md
+        sha256: 52e6149ecc17d829e346355b431d1c11804a63ff1553ccb21b8d7f5e01eb1105
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      target_path: "${CLAUDE_HOME}/commands/speckit.tasks.md"
+  - name: speckit.taskstoissues
+    supported_agents: [claude]
+    unsupported:
+      codex: "Use .agents/skills/speckit-taskstoissues/SKILL.md."
+    targets:
+      - agent: claude
+        path: .claude/commands/speckit.taskstoissues.md
+        sha256: 3eec85ffad51c312f8d81540dcf7e618afb056e38820b2dc14d47761ebc6d750
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      target_path: "${CLAUDE_HOME}/commands/speckit.taskstoissues.md"
 
 skills:
   - name: add-public-service
@@ -145,6 +281,105 @@ skills:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
       target_path: "${CLAUDE_HOME}/skills/token-economy/SKILL.md"
       codex_target_path: "${CODEX_HOME}/skills/token-economy/SKILL.md"
+  - name: speckit-analyze
+    supported_agents: [codex]
+    unsupported:
+      claude: "Use .claude/commands/speckit.analyze.md."
+    targets:
+      - agent: codex
+        path: .agents/skills/speckit-analyze/SKILL.md
+        sha256: ccfc6c274dd02a4c7341cbc6d7e4d910d3406390c786f170c17f2ab6c2790be0
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      codex_target_path: "${CODEX_HOME}/skills/speckit-analyze/SKILL.md"
+  - name: speckit-checklist
+    supported_agents: [codex]
+    unsupported:
+      claude: "Use .claude/commands/speckit.checklist.md."
+    targets:
+      - agent: codex
+        path: .agents/skills/speckit-checklist/SKILL.md
+        sha256: 34b81078483d5a029e47cee1aa6509a146bcee0345b3b8f89a168643a3ca7b86
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      codex_target_path: "${CODEX_HOME}/skills/speckit-checklist/SKILL.md"
+  - name: speckit-clarify
+    supported_agents: [codex]
+    unsupported:
+      claude: "Use .claude/commands/speckit.clarify.md."
+    targets:
+      - agent: codex
+        path: .agents/skills/speckit-clarify/SKILL.md
+        sha256: 3c1f783ab77cbe0746b07427c30ce077dc1a4beaec106c7be0b3cc42d61ff751
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      codex_target_path: "${CODEX_HOME}/skills/speckit-clarify/SKILL.md"
+  - name: speckit-constitution
+    supported_agents: [codex]
+    unsupported:
+      claude: "Use .claude/commands/speckit.constitution.md."
+    targets:
+      - agent: codex
+        path: .agents/skills/speckit-constitution/SKILL.md
+        sha256: 059b332cd827faaea2a41c58fcd370a566b69096f66ed2b5010228314e133b37
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      codex_target_path: "${CODEX_HOME}/skills/speckit-constitution/SKILL.md"
+  - name: speckit-implement
+    supported_agents: [codex]
+    unsupported:
+      claude: "Use .claude/commands/speckit.implement.md."
+    targets:
+      - agent: codex
+        path: .agents/skills/speckit-implement/SKILL.md
+        sha256: eadaad841db12e464911470b5bce8b4c37727062abfdee228d6828ec6da56ea5
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      codex_target_path: "${CODEX_HOME}/skills/speckit-implement/SKILL.md"
+  - name: speckit-plan
+    supported_agents: [codex]
+    unsupported:
+      claude: "Use .claude/commands/speckit.plan.md."
+    targets:
+      - agent: codex
+        path: .agents/skills/speckit-plan/SKILL.md
+        sha256: 7aebca844e4fd8050acb8aad72bf0efc63b2942a210bd120941af51db840a476
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      codex_target_path: "${CODEX_HOME}/skills/speckit-plan/SKILL.md"
+  - name: speckit-specify
+    supported_agents: [codex]
+    unsupported:
+      claude: "Use .claude/commands/speckit.specify.md."
+    targets:
+      - agent: codex
+        path: .agents/skills/speckit-specify/SKILL.md
+        sha256: dbf00d874e928f7d8ebbe6161ce4f092d9ec3a6b28c7caeeab44b164ef9170e6
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      codex_target_path: "${CODEX_HOME}/skills/speckit-specify/SKILL.md"
+  - name: speckit-tasks
+    supported_agents: [codex]
+    unsupported:
+      claude: "Use .claude/commands/speckit.tasks.md."
+    targets:
+      - agent: codex
+        path: .agents/skills/speckit-tasks/SKILL.md
+        sha256: 36143e59d6166f4fe8f63683653b14c55b78c2b76be69b1630fec4af45b4b46b
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      codex_target_path: "${CODEX_HOME}/skills/speckit-tasks/SKILL.md"
+  - name: speckit-taskstoissues
+    supported_agents: [codex]
+    unsupported:
+      claude: "Use .claude/commands/speckit.taskstoissues.md."
+    targets:
+      - agent: codex
+        path: .agents/skills/speckit-taskstoissues/SKILL.md
+        sha256: a8ba323a6300283ab2381eff195489906c3ae4600726611ebb3109641945158e
+    installer:
+      source_path: services/knowledge-api/src/main/resources/installer/install.sh
+      codex_target_path: "${CODEX_HOME}/skills/speckit-taskstoissues/SKILL.md"
   - name: topics
     supported_agents: [codex, claude]
     installer:
@@ -200,6 +435,7 @@ hooks:
     matcher: "Edit|Write|MultiEdit|apply_patch"
     purpose: "Recall file/module lessons before edits."
     supported_agents: [claude, codex]
+    mcp_tools: [knowledge.recall]
     targets:
       - agent: claude
         path: .claude/hooks/pre-tool-use-edit-recall.sh
@@ -209,16 +445,16 @@ hooks:
         path: .codex/hooks/pre-tool-use-edit-recall.sh
         settings_path: .codex/hooks.json
         sha256: a107e6f8a2a73346c1b05a235c2849264509acbcc631688c25fc7b22f5444c7d
-    mcp_tools: [knowledge.recall]
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
       target_path: "${CLAUDE_HOME}/hooks/pre-tool-use-edit-recall.sh"
       codex_target_path: "${CODEX_HOME}/hooks/pre-tool-use-edit-recall.sh"
   - name: pre-tool-use-git-commit-capture
     event: PreToolUse
-    matcher: Bash
+    matcher: "Bash"
     purpose: "Capture non-WIP git commit messages as candidate decisions."
     supported_agents: [claude, codex]
+    mcp_tools: [knowledge.capture_decision]
     targets:
       - agent: claude
         path: .claude/hooks/pre-tool-use-git-commit-capture.sh
@@ -228,7 +464,6 @@ hooks:
         path: .codex/hooks/pre-tool-use-git-commit-capture.sh
         settings_path: .codex/hooks.json
         sha256: 6d2370aa565da308ce1d8e838dda18da4897cdd4a5ebeab171b4a1b8be6028c6
-    mcp_tools: [knowledge.capture_decision]
     installer:
       source_path: services/knowledge-api/src/main/resources/installer/install.sh
       target_path: "${CLAUDE_HOME}/hooks/pre-tool-use-git-commit-capture.sh"
@@ -242,7 +477,63 @@ settings:
     path: .codex/hooks.json
     sha256: ec501908b04a9b4ac1cf073f9cdb703322952267eb79583845eb139068330019
 
+specify:
+  project_seed:
+    scope: project
+    tracked_for_uninstall: false
+    targets:
+      - path: .specify/memory/constitution.md
+        sha256: 37b0328a7d612d6104ac0e3f48de7df7789acdb5f81621124b7f29529b8b9f3a
+        installer_target_path: "${PROJECT_ROOT}/.specify/memory/constitution.md"
+        mode: "0644"
+        seed_if_absent: true
+      - path: .specify/scripts/bash/check-prerequisites.sh
+        sha256: 4e477664b02ccfc45dd1d795ece01006a3c59ff0088a5dce985ccd0a82bddd70
+        installer_target_path: "${PROJECT_ROOT}/.specify/scripts/bash/check-prerequisites.sh"
+        mode: "0755"
+        seed_if_absent: false
+      - path: .specify/scripts/bash/common.sh
+        sha256: f4ccdd5e3adde5b9dc25375d6da8fbb2d15da704652b4d8cd6e81b29b3ab535f
+        installer_target_path: "${PROJECT_ROOT}/.specify/scripts/bash/common.sh"
+        mode: "0755"
+        seed_if_absent: false
+      - path: .specify/scripts/bash/create-new-feature.sh
+        sha256: b9ec52760baf03c4077f22d30effddf97b4a2a18927b1c024a440579556ddda9
+        installer_target_path: "${PROJECT_ROOT}/.specify/scripts/bash/create-new-feature.sh"
+        mode: "0755"
+        seed_if_absent: false
+      - path: .specify/scripts/bash/setup-plan.sh
+        sha256: 4d3f657e673ad4192a4c12af86491cf131e29ddffcf00729c0a28b3ee421fb66
+        installer_target_path: "${PROJECT_ROOT}/.specify/scripts/bash/setup-plan.sh"
+        mode: "0755"
+        seed_if_absent: false
+      - path: .specify/scripts/bash/setup-tasks.sh
+        sha256: 23004d89fe3ede0ef062ccb287eeb2d34e90fbcc4ab16912e517cf43d528039a
+        installer_target_path: "${PROJECT_ROOT}/.specify/scripts/bash/setup-tasks.sh"
+        mode: "0755"
+        seed_if_absent: false
+      - path: .specify/templates/constitution-template.md
+        sha256: 3ba571da05c7f0ae9d13ae44bd636f41f029e7e1598376850702954916b51551
+        installer_target_path: "${PROJECT_ROOT}/.specify/templates/constitution-template.md"
+        mode: "0644"
+        seed_if_absent: false
+      - path: .specify/templates/plan-template.md
+        sha256: 04026ce6621c81392ce8ea7f59f9374087c8798b2d95f31094c18bab3cd0fc52
+        installer_target_path: "${PROJECT_ROOT}/.specify/templates/plan-template.md"
+        mode: "0644"
+        seed_if_absent: false
+      - path: .specify/templates/spec-template.md
+        sha256: f466d7ee0e5870c5d8a54408293a3c41d04a55a90049f5b7c42feefc4e9b2454
+        installer_target_path: "${PROJECT_ROOT}/.specify/templates/spec-template.md"
+        mode: "0644"
+        seed_if_absent: false
+      - path: .specify/templates/tasks-template.md
+        sha256: ffa552b4937a104926c8ed2f09ae3b09dd9e78aebf1b5770b3bbb4ee2bbaad77
+        installer_target_path: "${PROJECT_ROOT}/.specify/templates/tasks-template.md"
+        mode: "0644"
+        seed_if_absent: false
+
 installer:
   path: services/knowledge-api/src/main/resources/installer/install.sh
-  sha256: 68d38c29f3e755f6dae9f916379867893f4ad0d4307f71f2cadf33e6662ccd0a
+  sha256: 1ce59c8ad852b6bf09d758a6d53fed9188b9023fbb5cb5f84ba5e27af57133c2
   supported_agents: [codex, claude]
