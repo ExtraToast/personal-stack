@@ -1,0 +1,11 @@
+[versions]
+extratoast-conventions = "0.2.2"
+
+[plugins]
+extratoast-kotlin = { id = "dev.extratoast.kotlin", version.ref = "extratoast-conventions" }
+extratoast-detekt = { id = "dev.extratoast.detekt", version.ref = "extratoast-conventions" }
+extratoast-ktlint = { id = "dev.extratoast.ktlint", version.ref = "extratoast-conventions" }
+extratoast-spring = { id = "dev.extratoast.spring", version.ref = "extratoast-conventions" }
+extratoast-testing = { id = "dev.extratoast.testing", version.ref = "extratoast-conventions" }
+extratoast-test-logging = { id = "dev.extratoast.test-logging", version.ref = "extratoast-conventions" }
+extratoast-jooq-codegen = { id = "dev.extratoast.jooq-codegen", version.ref = "extratoast-conventions" }

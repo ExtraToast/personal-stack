@@ -1,9 +1,9 @@
 plugins {
-    id("spring-conventions")
-    id("detekt-conventions")
-    id("ktlint-conventions")
-    id("testing-conventions")
-    id("jooq-codegen-conventions")
+    alias(libs.plugins.extratoast.spring)
+    alias(libs.plugins.extratoast.detekt)
+    alias(libs.plugins.extratoast.ktlint)
+    alias(libs.plugins.extratoast.testing)
+    alias(libs.plugins.extratoast.jooq.codegen)
 }
 
 jooqCodegen {

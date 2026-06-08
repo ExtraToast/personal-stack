@@ -97,6 +97,9 @@ jobs:
       - name: Build image (build mode)
         if: steps.decide.outputs.mode == 'build'
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
         run: |
           set -euo pipefail
           build_args=()
@@ -111,6 +114,8 @@ jobs:
             -t "personal-stack/${{ matrix.service.name }}:ci" \
             --cache-from "type=gha,scope=${{ matrix.service.name }}" \
             --cache-to "type=gha,mode=max,scope=${{ matrix.service.name }}" \
+            --secret id=github_token,env=GITHUB_TOKEN \
+            --secret id=github_actor,env=GITHUB_ACTOR \
             "${build_args[@]}" \
             .
       - name: Export image

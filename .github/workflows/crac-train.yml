@@ -16,6 +16,9 @@ jobs:
   train:
     name: Train ${{ matrix.service }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     strategy:
       fail-fast: false
       matrix:
@@ -75,6 +78,9 @@ jobs:
           load: true
           tags: ${{ matrix.service }}-train:local
           cache-from: type=gha,scope=${{ matrix.service }}
+          secrets: |
+            github_token=${{ secrets.GITHUB_TOKEN }}
+            github_actor=${{ github.actor }}
       - name: Run training (drives warmup, dumps checkpoint)
         run: |
           set -euo pipefail

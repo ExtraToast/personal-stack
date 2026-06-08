@@ -1,18 +1,16 @@
 plugins {
-    id("kotlin-conventions")
-    id("detekt-conventions")
-    id("ktlint-conventions")
-    id("test-logging-conventions")
+    alias(libs.plugins.extratoast.kotlin)
+    alias(libs.plugins.extratoast.detekt)
+    alias(libs.plugins.extratoast.ktlint)
+    alias(libs.plugins.extratoast.test.logging)
+    id("org.jetbrains.kotlin.plugin.spring") version "2.3.21"
     jacoco
 }
 
 // Opens Spring stereotype classes + their methods so CGLIB can proxy
 // them. Required for ApplicationTracingAspect — without it the
 // @RestControllerAdvice + future @Component classes in this module
-// remain Kotlin-final and Spring AOP can't wrap them. The kotlin-spring
-// plugin is already on the build-logic classpath via kotlin-allopen,
-// so we apply it imperatively here without re-declaring a version.
-apply(plugin = "org.jetbrains.kotlin.plugin.spring")
+// remain Kotlin-final and Spring AOP can't wrap them.
 
 jacoco {
     toolVersion = "0.8.12"
@@ -61,7 +59,7 @@ dependencies {
     compileOnly("org.springframework:spring-context:7.0.7")
     compileOnly("org.springframework.security:spring-security-oauth2-jose:7.0.5")
     // CRaC API. Compile-only here because the runtime jar is pulled in by
-    // every Spring service through spring-conventions, and consumers that
+    // every Spring service through the shared Spring convention, and consumers that
     // never enable the `crac.train.enabled` flag never load the auto-config.
     compileOnly("org.crac:crac:1.5.0")
     compileOnly("org.springframework.boot:spring-boot-autoconfigure:4.0.6")
