@@ -12,6 +12,7 @@ anything. **personal-stack is migrated first; website comes later.**
 2. `council-consolidated-plan.md` — the council's motivated repo list, classification, and ordering (the core research deliverable).
 3. `council-tasks.json` — the 24-task / 6-wave extraction DAG (machine-readable).
 4. `PLAN.md` — synthesis: repos, distribution, ownership, and how the operator's added requirements layer on top.
+4a. `REPO-TEMPLATE.md` — the operator-added `repo-template` repo: full contents + the "what else to include" decisions + how every repo uses it.
 5. `ISSUES.md` — the epic + every tracking issue (numbers, objectives, work, deps, milestone) — mirrored here because the automation token cannot edit/comment issues.
 6. `VERSIONING.md` — the tag→release + Flux-pinned deploy model and the dependency-pinning model.
 7. `CI-PIPELINE-COMPLETE.md` — the one-pipeline-per-repo `Pipeline Complete` contract + how to consolidate personal-stack's CI.
