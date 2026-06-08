@@ -1,8 +1,8 @@
 plugins {
-    id("spring-conventions")
-    id("detekt-conventions")
-    id("ktlint-conventions")
-    id("testing-conventions")
+    alias(libs.plugins.extratoast.spring)
+    alias(libs.plugins.extratoast.detekt)
+    alias(libs.plugins.extratoast.ktlint)
+    alias(libs.plugins.extratoast.testing)
 }
 
 dependencies {
@@ -26,7 +26,7 @@ dependencies {
 // tailer, the WS envelope parser) and acknowledge that TmuxClient /
 // GitClient / AgentAttachHandler are covered by container-level
 // integration tests in the system-tests module rather than here.
-// The Spring Boot main class is excluded by testing-conventions for
+// The Spring Boot main class is excluded by the testing convention for
 // every service via the `**/*Application*` defaults.
 @Suppress("UNCHECKED_CAST")
 (extensions.getByName("jacocoExclusionPatterns") as ListProperty<String>).addAll(

@@ -1,10 +1,11 @@
+# syntax=docker/dockerfile:1
+
 FROM gradle:9.5.1-jdk21-alpine AS build
 WORKDIR /app
 
 # Layer 1: Copy only build scripts for dependency caching
 COPY settings.gradle.kts build.gradle.kts gradle.properties* ./
 COPY gradle/ gradle/
-COPY build-logic/ build-logic/
 COPY libs/kotlin-common/build.gradle.kts libs/kotlin-common/
 COPY services/auth-api/build.gradle.kts services/auth-api/
 COPY services/assistant-api/build.gradle.kts services/assistant-api/
@@ -13,12 +14,24 @@ COPY services/agent-gateway/build.gradle.kts services/agent-gateway/
 COPY services/system-tests/build.gradle.kts services/system-tests/
 
 # Resolve dependencies (cached unless build files change)
-RUN gradle :services:auth-api:dependencies --no-daemon || true
+RUN --mount=type=secret,id=github_token \
+    --mount=type=secret,id=github_actor \
+    set -eu; \
+    GITHUB_TOKEN="$(cat /run/secrets/github_token)"; \
+    GITHUB_ACTOR="$(cat /run/secrets/github_actor)"; \
+    export GITHUB_TOKEN GITHUB_ACTOR; \
+    gradle :services:auth-api:dependencies --no-daemon || true
 
 # Layer 2: Copy source code and build
 COPY libs/kotlin-common/src/main/ libs/kotlin-common/src/main/
 COPY services/auth-api/src/main/ services/auth-api/src/main/
-RUN gradle :services:auth-api:bootJar --no-daemon
+RUN --mount=type=secret,id=github_token \
+    --mount=type=secret,id=github_actor \
+    set -eu; \
+    GITHUB_TOKEN="$(cat /run/secrets/github_token)"; \
+    GITHUB_ACTOR="$(cat /run/secrets/github_actor)"; \
+    export GITHUB_TOKEN GITHUB_ACTOR; \
+    gradle :services:auth-api:bootJar --no-daemon
 
 # Eclipse Temurin only used here for the otel jar download — its alpine
 # variant has curl out of the box and is small. The runtime stage has

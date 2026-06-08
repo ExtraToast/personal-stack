@@ -14,4 +14,14 @@ runs:
       with:
         distribution: temurin
         java-version: ${{ inputs.java-version }}
+    - name: Export GitHub Packages Gradle credentials
+      shell: bash
+      env:
+        GITHUB_ACTOR_VALUE: ${{ github.actor }}
+        GITHUB_TOKEN_VALUE: ${{ github.token }}
+      run: |
+        {
+          echo "GITHUB_ACTOR=${GITHUB_ACTOR_VALUE}"
+          echo "GITHUB_TOKEN=${GITHUB_TOKEN_VALUE}"
+        } >> "$GITHUB_ENV"
     - uses: gradle/actions/setup-gradle@v6

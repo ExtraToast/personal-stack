@@ -5,7 +5,7 @@ spring:
     virtual:
       enabled: true
   # spring-cloud-starter-vault-config is on the runtime classpath via the
-  # shared spring-conventions plugin, but the gateway holds no secrets — it
+  # shared Spring convention plugin, but the gateway holds no secrets — it
   # only drives tmux + the CLIs over a WS/REST plane. Left enabled, the
   # actuator health registry eagerly instantiates the Vault health
   # contributor (vaultTemplate -> vaultSessionManager -> clientAuthentication)

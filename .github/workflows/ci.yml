@@ -8,6 +8,11 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  packages: read
+  pull-requests: read
+
 env:
   JAVA_VERSION: '21'
   NODE_VERSION: '24'
@@ -57,8 +62,6 @@ jobs:
               - 'services/knowledge-curator/**'
             kotlin-common:
               - 'libs/kotlin-common/**'
-            build-logic:
-              - 'build-logic/**'
             gradle-config:
               - 'gradle/**'
               - 'gradle.properties'
@@ -92,7 +95,6 @@ jobs:
         env:
           FILTER_WORKFLOW: ${{ steps.filter.outputs.workflow }}
           FILTER_KOTLIN_COMMON: ${{ steps.filter.outputs.kotlin-common }}
-          FILTER_BUILD_LOGIC: ${{ steps.filter.outputs.build-logic }}
           FILTER_GRADLE_CONFIG: ${{ steps.filter.outputs.gradle-config }}
           FILTER_AUTH_API: ${{ steps.filter.outputs.auth-api }}
           FILTER_ASSISTANT_API: ${{ steps.filter.outputs.assistant-api }}
@@ -110,7 +112,7 @@ jobs:
         run: |
           any() { for v in "$@"; do [[ "$v" == "true" ]] && echo "true" && return; done; echo "false"; }
 
-          KOTLIN_SHARED=$(any "$FILTER_WORKFLOW" "$FILTER_KOTLIN_COMMON" "$FILTER_BUILD_LOGIC" "$FILTER_GRADLE_CONFIG")
+          KOTLIN_SHARED=$(any "$FILTER_WORKFLOW" "$FILTER_KOTLIN_COMMON" "$FILTER_GRADLE_CONFIG")
           FRONTEND_SHARED=$(any "$FILTER_WORKFLOW" "$FILTER_VUE_COMMON" "$FILTER_FRONTEND_CONFIG")
 
           AUTH_API_KOTLIN=$(any "$KOTLIN_SHARED" "$FILTER_AUTH_API")
@@ -130,7 +132,7 @@ jobs:
           # Per-service rebuild flags for the reusable system-tests
           # workflow. Backend images are rebuilt from the PR source
           # only when the service's own dir OR a shared dep (kotlin-
-          # common/build-logic/gradle-config) changed; otherwise
+          # common/Gradle config) changed; otherwise
           # system-tests.yml pulls ghcr :latest and re-tags as :ci.
           #
           # UIs are always rebuilt: they bake VITE_AUTH_URL at build
@@ -450,6 +452,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6.0.2
+      - uses: ./.github/actions/setup-java-gradle
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
       - name: Install kustomize

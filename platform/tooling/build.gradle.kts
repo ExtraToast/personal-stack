@@ -1,9 +1,9 @@
 plugins {
     application
-    id("kotlin-conventions")
-    id("detekt-conventions")
-    id("ktlint-conventions")
-    id("test-logging-conventions")
+    alias(libs.plugins.extratoast.kotlin)
+    alias(libs.plugins.extratoast.detekt)
+    alias(libs.plugins.extratoast.ktlint)
+    alias(libs.plugins.extratoast.test.logging)
     jacoco
 }
 

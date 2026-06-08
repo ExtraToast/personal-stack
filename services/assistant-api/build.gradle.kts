@@ -1,15 +1,15 @@
 plugins {
-    id("spring-conventions")
-    id("detekt-conventions")
-    id("ktlint-conventions")
-    id("testing-conventions")
-    id("jooq-codegen-conventions")
+    alias(libs.plugins.extratoast.spring)
+    alias(libs.plugins.extratoast.detekt)
+    alias(libs.plugins.extratoast.ktlint)
+    alias(libs.plugins.extratoast.testing)
+    alias(libs.plugins.extratoast.jooq.codegen)
 }
 
 jooqCodegen {
-    schemaName = "public"
-    packageName = "com.jorisjonkers.personalstack.assistant.jooq"
-    migrationLocations = listOf("filesystem:src/main/resources/db/migration")
+    schemaName.set("PUBLIC")
+    packageName.set("com.jorisjonkers.personalstack.assistant.jooq")
+    migrationLocations.set(listOf("filesystem:src/main/resources/db/migration"))
 }
 
 dependencies {
@@ -55,7 +55,7 @@ dependencies {
 // classes that only carry signal under an integration cluster; the
 // 80 % jacoco bar stays honest for the classes that are actually
 // unit-testable by registering the IO-bound shells with the shared
-// `jacocoExclusionPatterns` extension from testing-conventions.
+// `jacocoExclusionPatterns` extension from the testing convention.
 //
 // `VaultDeployKeyStore`, `KnowledgeMcpClient`, `LightRagClient` are
 // `@ConditionalOnProperty` adapters that only wire when their
