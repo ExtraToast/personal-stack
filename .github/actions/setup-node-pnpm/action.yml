@@ -19,5 +19,9 @@ runs:
       with:
         node-version: ${{ inputs.node-version }}
         cache: pnpm
+        registry-url: https://npm.pkg.github.com
+        scope: '@extratoast'
     - shell: bash
+      env:
+        NODE_AUTH_TOKEN: ${{ github.token }}
       run: ${{ inputs.install-command }}

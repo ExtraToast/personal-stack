@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useTheme } from '@personal-stack/vue-common'
 import { RouterView } from 'vue-router'
+import { useTheme } from '@/lib/vueWebCommons'
 
 useTheme()
 </script>

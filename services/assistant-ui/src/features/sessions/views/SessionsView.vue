@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { TabPanel, Tabs } from '@personal-stack/vue-common'
 import { ref } from 'vue'
+import { TabPanel, Tabs } from '@/lib/vueWebCommons'
 import ChatTab from '../components/ChatTab.vue'
 import ScratchTab from '../components/ScratchTab.vue'
 import WorkspaceTab from '../components/WorkspaceTab.vue'

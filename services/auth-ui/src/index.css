@@ -1,2 +1,4 @@
 @import 'tailwindcss';
-@import '@personal-stack/vue-common/src/theme.css';
+@import '@extratoast/vue-web-commons/theme.css';
+
+@source "../node_modules/@extratoast/vue-web-commons/dist/**/*.{js,vue,ts}";

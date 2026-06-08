@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { CreateRepositoryInput, Repository } from '../types'
-import { Card, Modal, useToast } from '@personal-stack/vue-common'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { Card, Modal, useToast } from '@/lib/vueWebCommons'
 import CreateRepositoryForm from '../components/CreateRepositoryForm.vue'
 import GitHubAppReference from '../components/GitHubAppReference.vue'
 import { useRepositoriesStore } from '../stores/repositories'

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { AgentKind } from '../types'
-import { Modal, useToast } from '@personal-stack/vue-common'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { Modal, useToast } from '@/lib/vueWebCommons'
 import AgentKindPicker from '../components/AgentKindPicker.vue'
 import SessionTabs from '../components/SessionTabs.vue'
 import SessionTerminal from '../components/SessionTerminal.vue'

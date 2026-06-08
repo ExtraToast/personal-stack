@@ -2,4 +2,3 @@ packages:
   - 'services/auth-ui'
   - 'services/assistant-ui'
   - 'services/app-ui'
-  - 'libs/vue-common'

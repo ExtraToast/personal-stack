@@ -14,7 +14,7 @@ const i18n = createI18n({
 
 describe('app', () => {
   it('renders without crashing', () => {
-    // AppShell from @personal-stack/vue-common calls `useRoute()`
+    // AppShell from @/lib/vueWebCommons calls `useRoute()`
     // and watches `route.path` to auto-close the mobile drawer on
     // navigation. Without a real router that watch would throw
     // `Cannot read properties of undefined (reading 'path')` —

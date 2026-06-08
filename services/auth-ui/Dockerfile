@@ -5,11 +5,12 @@ FROM node:26-alpine AS build
 # package.json instead of going through corepack's shim dance.
 RUN npm install -g pnpm@9.15.4
 WORKDIR /app
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
-COPY libs/vue-common/package.json libs/vue-common/
+ARG NODE_AUTH_TOKEN=
+COPY .npmrc pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY services/auth-ui/package.json services/auth-ui/
-RUN pnpm install --frozen-lockfile
-COPY libs/vue-common/ libs/vue-common/
+RUN --mount=type=secret,id=github_token \
+    NODE_AUTH_TOKEN="${NODE_AUTH_TOKEN:-$(cat /run/secrets/github_token 2>/dev/null || true)}" \
+    pnpm install --frozen-lockfile
 COPY services/auth-ui/ services/auth-ui/
 ARG VITE_FARO_URL=https://faro.jorisjonkers.dev/collect
 RUN VITE_FARO_URL=${VITE_FARO_URL} pnpm --filter @personal-stack/auth-ui build

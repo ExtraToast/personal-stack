@@ -1,6 +1,6 @@
-import { initFaro } from '@personal-stack/vue-common'
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
+import { initFaro } from '@/lib/vueWebCommons'
 import App from './App.vue'
 import { useAuthStore } from './features/auth'
 import { i18n } from './i18n'

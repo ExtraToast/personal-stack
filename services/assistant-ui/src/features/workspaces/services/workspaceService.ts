@@ -1,5 +1,5 @@
 import type { AgentKind, StagedInput, Turn, Workspace, WorkspaceDetail } from '../types'
-import { ApiError, useApiWithAuth } from '@personal-stack/vue-common'
+import { ApiError, useApiWithAuth } from '@/lib/vueWebCommons'
 
 function getApi(): ReturnType<typeof useApiWithAuth> {
   return useApiWithAuth({ baseUrl: '/api/v1' })

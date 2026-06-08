@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Card } from '@personal-stack/vue-common'
 import { computed } from 'vue'
+import { Card } from '@/lib/vueWebCommons'
 import { githubAppLinks } from '../services/githubAppLinks'
 
 const appSlug = computed(() => githubAppLinks.resolveGitHubAppSlug())

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { Repository } from '@/features/repositories'
-import { SubmitButton, useMutationState, useToast } from '@personal-stack/vue-common'
 import { computed, onMounted, ref } from 'vue'
 import { useRepositoriesStore } from '@/features/repositories'
+import { SubmitButton, useMutationState, useToast } from '@/lib/vueWebCommons'
 
 interface Props {
   /**

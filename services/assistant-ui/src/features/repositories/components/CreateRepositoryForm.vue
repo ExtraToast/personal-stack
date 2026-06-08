@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { CreateRepositoryInput, Repository } from '../types'
-import { FormErrors, FormField, SubmitButton, useFormErrors, useMutationState } from '@personal-stack/vue-common'
 import { computed, ref } from 'vue'
+import { FormErrors, FormField, SubmitButton, useFormErrors, useMutationState } from '@/lib/vueWebCommons'
 
 interface Props {
   /**

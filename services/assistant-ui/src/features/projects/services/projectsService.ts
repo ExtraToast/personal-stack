@@ -1,6 +1,6 @@
 import type { GithubLink, Project, ProjectDetail } from '../types'
 import type { Repository } from '@/features/repositories'
-import { useApiWithAuth } from '@personal-stack/vue-common'
+import { useApiWithAuth } from '@/lib/vueWebCommons'
 
 function getApi(): ReturnType<typeof useApiWithAuth> {
   return useApiWithAuth({ baseUrl: '/api/v1' })

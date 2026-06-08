@@ -1,4 +1,4 @@
-import { useAuth } from '@personal-stack/vue-common'
+import { useAuth } from '@/lib/vueWebCommons'
 
 interface RegisterData {
   username: string

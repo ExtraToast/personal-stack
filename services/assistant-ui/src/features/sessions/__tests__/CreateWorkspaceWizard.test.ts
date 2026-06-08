@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import CreateWorkspaceWizard from '../components/CreateWorkspaceWizard.vue'
 
-vi.mock('@personal-stack/vue-common', () => ({
+vi.mock('@/lib/vueWebCommons', () => ({
   FormErrors: {
     props: ['error'],
     template: '<div v-if="error">{{ error }}</div>',

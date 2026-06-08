@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { AttachDeployKeyInput, Repository } from '../types'
-import { FormField, SubmitButton, useMutationState, useToast } from '@personal-stack/vue-common'
 import { computed, ref } from 'vue'
+import { FormField, SubmitButton, useMutationState, useToast } from '@/lib/vueWebCommons'
 
 interface Props {
   repository: Repository
