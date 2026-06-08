@@ -193,6 +193,8 @@ spec:
               value: '1000'
             - name: PGID
               value: '1000'
+            - name: UMASK
+              value: '002'
             - name: TZ
               value: Europe/Amsterdam
             - name: WEBUI_PORT
@@ -341,6 +343,8 @@ spec:
               value: '1000'
             - name: PGID
               value: '1000'
+            - name: UMASK
+              value: '002'
             - name: TZ
               value: Europe/Amsterdam
           ports:

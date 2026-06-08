@@ -30,6 +30,8 @@ spec:
               value: '1000'
             - name: PGID
               value: '1000'
+            - name: UMASK
+              value: '002'
           ports:
             - containerPort: 8989
               name: http
