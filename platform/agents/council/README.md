@@ -37,6 +37,24 @@ python3 platform/agents/council/council.py --self-test
 `plan` prints the run dir on stdout. Inspect `consolidated_plan.md` and
 `tasks.json` there.
 
+Spec-driven runs also materialize Spec Kit artifacts in the run directory:
+`specs/NNN-slug/spec.md`, `plan.md`, and `tasks.md`. The slug is derived from
+the first line of the brief; pass `--slug some-name` to choose the slug while
+keeping the next available `NNN` number. `--brief` accepts a file, `-` for
+stdin, or free text when the argument is not an existing path.
+
+`tasks.json` is canonical. `tasks.md` is generated from it and includes one
+JSON block per task between council markers so it can round-trip exactly. Human
+edits to prose around the generated blocks are fine; changing task data requires
+editing the marked JSON blocks and regenerating or re-running `council plan
+--run <run> --brief <run>/brief.md` so `tasks.md` and `tasks.json` match.
+
+The analyze gate is a HARD-FAIL checkpoint before fan-out. It requires a
+non-placeholder `.specify/memory/constitution.md`, requires `tasks.md` beside
+`tasks.json`, and enforces a bijection between the canonical task JSON and the
+marked task blocks in `tasks.md`. `plan`, `fanout`, and `fleet` all run this
+gate before execution.
+
 ```bash
 # stages 5-6: execute the task DAG with cheap workers, verify, reconcile
 python3 platform/agents/council/council.py fanout --run .council/runs/<id>
@@ -53,7 +71,9 @@ verifier (`claude:sonnet`) checks the diff against the objective. Worker commits
 are merged onto a `council/<run>/integration` branch in dependency order;
 conflicts are left out and reported. **Nothing is merged into your branch** —
 `fanout` prints the integration branch name for review. See `report.md` in the
-run dir.
+run dir. Before worker fan-out starts, the run's `specs/NNN-slug` directory is
+committed onto the integration branch so every worker sees the same committed
+spec, plan, and task artifacts.
 
 ```bash
 # ad-hoc, engine-agnostic worker pool over any tasks.json (no plan phase)
@@ -136,6 +156,9 @@ state.json                             # resume marker
 - Sub-invocations run with `KB_AUTO_MCP_DISABLED=1` so council's internal prompts
   never pollute the knowledge base.
 - Codex planning/critique uses `model_reasoning_effort=high`, read-only sandbox.
+- The project constitution is injected only into reasoning roles: planner,
+  critic, reviser, and consolidator. Worker and verifier prompts do not receive
+  the constitution block.
 - Both `claude` and `codex` CLIs must be installed and authenticated.
 - We don't bundle a full JSON-Schema validator; `validate_tasks` checks the
   fields fan-out relies on and runs a topological sort (cycle / unknown-dep
