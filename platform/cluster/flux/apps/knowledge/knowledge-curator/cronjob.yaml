@@ -7,21 +7,15 @@
 # stat or indexed SQL count — so the 98% no-op case exits in
 # <100 ms with zero LLM calls.
 #
-# Cadence: hourly during awake hours (08:00–22:59 local), silent
-# overnight. The no-op tick is effectively free, but a tick that
-# finds work drives an LLM burst on the heavy qwen3:32b host
-# (enschede-rx7900xtx-1). The 5m keep-alive (see ollama-rocm.nix)
-# already idles the card between hourly passes, but an hourly burst
-# still spins the RX 7900 XTX fans audibly — and the desktop sits in
-# earshot of where someone sleeps, so even one wake-up at 03:00 is
-# unwelcome. Confining the cron to 08:00–22:59 removes every
-# overnight tick: captures that land while the window is closed
-# queue in the inbox / `_inbox/_needs-review/` and drain on the
-# first 08:00 pass, so nothing is lost — the card simply stays cold
-# and quiet from 23:00 to 08:00. Hourly batching within the window
-# is unchanged. `suspend: false` is explicit so a manual `kubectl
-# patch suspend=true` for a planned outage gets reverted on the next
-# Flux reconcile — the intended safety net.
+# Cadence: twice daily at 09:00 and 18:00 local. The no-op tick is
+# effectively free, but a tick that finds work drives an LLM burst on
+# the heavy qwen3:32b host (enschede-rx7900xtx-1). Fewer ticks mean
+# fewer RX 7900 XTX wake-ups; captures simply queue in the inbox /
+# `_inbox/_needs-review/` until the next 09:00 or 18:00 batching pass.
+# Nothing is lost, and quiet periods stay quiet because the card is
+# not woken just to poll. `suspend: false` is explicit so a manual
+# `kubectl patch suspend=true` for a planned outage gets reverted on
+# the next Flux reconcile — the intended safety net.
 #
 # `concurrencyPolicy: Forbid` keeps two ticks from running
 # concurrently at the kubelet level. Inside the orchestrator each
@@ -51,15 +45,14 @@ metadata:
     keel.sh/trigger: poll
     keel.sh/pollSchedule: '@every 2m'
 spec:
-  # Top of every hour, 08:00–22:59 local; no tick fires 23:00–07:59,
-  # so the heavy Ollama on the rx7900xtx never wakes overnight. The
-  # orchestrator still gates each pass behind a cheap has_work()
-  # probe, so an in-window no-op tick costs <100 ms. `timeZone` is
-  # pinned rather than left to the controller's UTC default so the
-  # quiet window tracks Enschede wall-clock across the CEST/CET DST
-  # flip — a bare UTC `7-22` schedule would drift an hour twice a
-  # year and silence the wrong window.
-  schedule: '0 8-22 * * *'
+  # Twice-daily batching at 09:00 and 18:00 local. Captures queue
+  # until the next pass, and fewer cron ticks mean fewer heavy Ollama
+  # GPU wake-ups. The orchestrator still gates each pass behind a
+  # cheap has_work() probe, so an empty batch exits quickly. `timeZone`
+  # is pinned rather than left to the controller's UTC default so the
+  # batch windows track Enschede wall-clock across the CEST/CET DST
+  # flip.
+  schedule: '0 9,18 * * *'
   timeZone: Europe/Amsterdam
   # `suspend: false` is explicit so kustomize-controller owns the
   # field. Manual `kubectl patch suspend=true` for a planned outage
@@ -227,7 +220,7 @@ spec:
                 - name: CLASSIFY_TOP_K_NEIGHBOURS
                   value: '5'
                 - name: CLASSIFY_CONFIDENCE_FLOOR
-                  value: '0.55'
+                  value: '0.35'
                 - name: TOPICS_YAML_PATH
                   value: /etc/curator/topics.yaml
                 - name: LIGHTRAG_BASE_URL
@@ -257,6 +250,11 @@ spec:
                 # abort the rest.
                 - name: CURATOR_DRAIN_NEEDS_REVIEW
                   value: '1'
+                # After 3 failed review attempts a file is auto-discarded
+                # to `_inbox/_discarded/` instead of being re-classified
+                # forever.
+                - name: CURATOR_MAX_REVIEW_ATTEMPTS
+                  value: '3'
               resources:
                 requests:
                   cpu: 100m

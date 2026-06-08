@@ -151,6 +151,7 @@ def build_passes(
         projects=projects,
         clone_dir=settings.vault_clone_dir,
         confidence_floor=settings.classify_confidence_floor,
+        max_review_attempts=settings.curator_max_review_attempts,
         recall_limit=settings.classify_top_k_neighbours,
         lightrag=lightrag,
         embedder=embedder,

@@ -10,7 +10,7 @@ For each `_inbox/<day>/<HHMMSS>-<slug>--<id8>.md`:
 3. Pull top-K nearest existing notes via the knowledge-api recall
    tool.
 4. Call the Ollama classifier; on validation failure, route to
-   `_inbox/_needs-review/`.
+   `_inbox/_needs-review/` or discard after repeated review attempts.
 5. Validate the classifier's `topic` against the closed vocabulary;
    validate `supersedes` / `see_also` targets exist in `kb_notes`.
 6. Decide the destination folder, run `git mv`, rewrite the
@@ -58,7 +58,7 @@ log = structlog.get_logger(__name__)
 @dataclass(frozen=True, slots=True)
 class PromoteOutcome:
     note_id: str
-    status: str  # "promoted" | "needs_review" | "skipped"
+    status: str  # "promoted" | "needs_review" | "discarded" | "skipped"
     destination_rel: str
     reason: str = ""
 
@@ -91,6 +91,7 @@ class Promoter:
         clone_dir: Path,
         projects: ProjectVocabulary | None = None,
         confidence_floor: float,
+        max_review_attempts: int,
         recall_limit: int,
         lightrag: LightRagClient | None = None,
         resolver: RelationResolver | None = None,
@@ -109,6 +110,7 @@ class Promoter:
         self._projects = projects or ProjectVocabulary([])
         self._clone_dir = clone_dir
         self._confidence_floor = confidence_floor
+        self._max_review_attempts = max_review_attempts
         self._recall_limit = recall_limit
         self._lightrag = lightrag
         # Default resolver wires the existing recall + store. The
@@ -140,7 +142,9 @@ class Promoter:
             )
         front = parse_note_file(path)
         if not front.id:
-            return self._send_to_review(inbox_rel, reason="missing-id-in-frontmatter")
+            return self._send_to_review(
+                inbox_rel, reason="missing-id-in-frontmatter", front=front
+            )
         neighbours = self._fetch_neighbours(front)
         try:
             classification = self._classifier.classify(
@@ -153,20 +157,33 @@ class Promoter:
                 inbox_scope_hint=front.scope,
             )
         except ClassificationError as exc:
-            return self._send_to_review(inbox_rel, reason=f"classify-failed:{type(exc).__name__}")
+            return self._send_to_review(
+                inbox_rel,
+                reason=f"classify-failed:{type(exc).__name__}",
+                front=front,
+            )
 
+        if classification.action == "discard":
+            return self._discard(
+                inbox_rel,
+                front,
+                reason=f"model-discard:{classification.needs_review_reason or 'low-value'}",
+            )
         if classification.needs_review_reason:
             return self._send_to_review(
-                inbox_rel, reason=f"model-flagged:{classification.needs_review_reason}"
+                inbox_rel,
+                reason=f"model-flagged:{classification.needs_review_reason}",
+                front=front,
             )
         if classification.confidence < self._confidence_floor:
             return self._send_to_review(
                 inbox_rel,
                 reason=f"low-confidence:{classification.confidence:.2f}<{self._confidence_floor}",
+                front=front,
             )
         scope_outcome = self._canonicalise_scope(classification)
         if scope_outcome.error is not None:
-            return self._send_to_review(inbox_rel, reason=scope_outcome.error)
+            return self._send_to_review(inbox_rel, reason=scope_outcome.error, front=front)
         canonical_scope = scope_outcome.scope
         if canonical_scope != classification.scope:
             # An alias matched — `personal-stack-2 -> personal-stack`,
@@ -332,11 +349,52 @@ class Promoter:
         # is the gate on the shape itself.
         return ScopeOutcome(scope=scope)
 
-    def _send_to_review(self, inbox_rel: str, reason: str) -> PromoteOutcome:
-        result = self._vault.move_to_needs_review(source_rel=inbox_rel, reason=reason)
+    def _send_to_review(
+        self,
+        inbox_rel: str,
+        reason: str,
+        front: NoteFrontmatter | None = None,
+    ) -> PromoteOutcome:
+        prev = 0
+        if front is not None:
+            try:
+                prev = int(front.other.get("review_attempts", "0"))
+            except ValueError:
+                prev = 0
+        attempt = prev + 1
+        if attempt > self._max_review_attempts:
+            return self._discard(inbox_rel, front, reason=f"stale-review:{reason}")
+        result = self._vault.move_to_needs_review(
+            source_rel=inbox_rel,
+            reason=reason,
+            attempt=attempt,
+        )
         return PromoteOutcome(
-            note_id="",
+            note_id=(front.id if front else ""),
             status="needs_review",
+            destination_rel=result.new_relative_path,
+            reason=reason,
+        )
+
+    def _discard(
+        self,
+        inbox_rel: str,
+        front: NoteFrontmatter | None,
+        reason: str,
+    ) -> PromoteOutcome:
+        result = self._vault.discard(source_rel=inbox_rel, reason=reason)
+        note_id = front.id if front else ""
+        if note_id:
+            self._store.discard_note(note_id=note_id)
+        log.info(
+            "curator.discarded",
+            note_id=note_id,
+            destination=result.new_relative_path,
+            reason=reason,
+        )
+        return PromoteOutcome(
+            note_id=note_id,
+            status="discarded",
             destination_rel=result.new_relative_path,
             reason=reason,
         )

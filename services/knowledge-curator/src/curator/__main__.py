@@ -4,7 +4,7 @@ Run via `python -m curator` from a k8s CronJob. Each invocation:
 
 1. Wires up the four collaborators (classifier, recall, store, vault).
 2. Pulls --rebase to absorb concurrent writes.
-3. Walks `_inbox/<YYYY-MM-DD>/*.md` (skipping `_inbox/_needs-review/`).
+3. Walks `_inbox/<YYYY-MM-DD>/*.md` (skipping review/discard archives).
 4. Promotes each file through `Promoter.promote_inbox_file`.
 5. Logs a per-file outcome line; exit code 0 even when individual
    files fail — the next pass retries them.
@@ -138,6 +138,7 @@ def main() -> int:
         projects=projects,
         clone_dir=settings.vault_clone_dir,
         confidence_floor=settings.classify_confidence_floor,
+        max_review_attempts=settings.curator_max_review_attempts,
         recall_limit=settings.classify_top_k_neighbours,
         lightrag=lightrag,
         # Wires the recall path's pgvector ANN leg — every promoted
@@ -296,10 +297,9 @@ def _list_inbox(inbox_root: Path) -> list[str]:
     out: list[str] = []
     for path in sorted(inbox_root.rglob("*.md")):
         rel = path.relative_to(inbox_root.parent).as_posix()
-        # Skip files that already sit under `_inbox/_needs-review/` —
-        # those are the curator's own previous "I gave up" markers
-        # and require a human edit before the next pass picks them up.
-        if rel.startswith("_inbox/_needs-review/"):
+        # Skip curator archive folders; review files are drained by
+        # their own pass, and discarded files are terminal.
+        if rel.startswith("_inbox/_needs-review/") or rel.startswith("_inbox/_discarded/"):
             continue
         out.append(rel)
     return out

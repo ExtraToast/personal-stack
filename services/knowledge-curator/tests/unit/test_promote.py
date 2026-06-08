@@ -27,7 +27,8 @@ from curator.vault import PromotionResult
 class _StubVault:
     def __init__(self) -> None:
         self.promotions: list[tuple[str, str, str, str]] = []
-        self.reviews: list[tuple[str, str]] = []
+        self.reviews: list[tuple[str, str, int]] = []
+        self.discards: list[tuple[str, str]] = []
 
     def promote(
         self, *, source_rel: str, destination_rel: str, new_body: str, commit_subject: str
@@ -35,10 +36,19 @@ class _StubVault:
         self.promotions.append((source_rel, destination_rel, new_body, commit_subject))
         return PromotionResult(new_relative_path=destination_rel, commit_sha="a" * 40)
 
-    def move_to_needs_review(self, *, source_rel: str, reason: str) -> PromotionResult:
-        self.reviews.append((source_rel, reason))
+    def move_to_needs_review(
+        self, *, source_rel: str, reason: str, attempt: int = 1
+    ) -> PromotionResult:
+        self.reviews.append((source_rel, reason, attempt))
         return PromotionResult(
             new_relative_path=f"_inbox/_needs-review/{Path(source_rel).name}", commit_sha="b" * 40
+        )
+
+    def discard(self, *, source_rel: str, reason: str) -> PromotionResult:
+        self.discards.append((source_rel, reason))
+        return PromotionResult(
+            new_relative_path=f"_inbox/_discarded/{Path(source_rel).name}",
+            commit_sha="c" * 40,
         )
 
 
@@ -131,6 +141,7 @@ def test_promote_happy_path_updates_store_and_vault(clone: Path) -> None:
         topics=_topics(),
         clone_dir=clone,
         confidence_floor=0.55,
+        max_review_attempts=3,
         recall_limit=3,
     )
     outcome = promoter.promote_inbox_file(rel)
@@ -151,12 +162,89 @@ def test_promote_flags_review_when_confidence_below_floor(clone: Path) -> None:
         topics=_topics(),
         clone_dir=clone,
         confidence_floor=0.55,
+        max_review_attempts=3,
         recall_limit=3,
     )
     outcome = promoter.promote_inbox_file(rel)
     assert outcome.status == "needs_review"
     assert "low-confidence" in outcome.reason
     assert vault.reviews and not vault.promotions
+    assert vault.reviews[0][2] == 1
+
+
+def test_promote_discards_when_classifier_action_discard(clone: Path) -> None:
+    rel = _seed_inbox_note(clone)
+    vault = _StubVault()
+    store = InMemoryCuratorStore(existing=["01HXYZ00000000000000000000"])
+    promoter = Promoter(
+        classifier=_StubClassifier(  # type: ignore[arg-type]
+            response=_classification(
+                action="discard",
+                needs_review_reason="duplicate of neighbour",
+                confidence=0.2,
+            ),
+        ),
+        recall=_StubRecall(hits=[]),  # type: ignore[arg-type]
+        store=store,
+        vault=vault,  # type: ignore[arg-type]
+        topics=_topics(),
+        clone_dir=clone,
+        confidence_floor=0.55,
+        max_review_attempts=3,
+        recall_limit=3,
+    )
+
+    outcome = promoter.promote_inbox_file(rel)
+
+    assert outcome.status == "discarded"
+    assert outcome.reason == "model-discard:duplicate of neighbour"
+    assert outcome.destination_rel.startswith("_inbox/_discarded/")
+    assert vault.discards == [(rel, "model-discard:duplicate of neighbour")]
+    assert vault.reviews == []
+    assert store.existing_ids(["01HXYZ00000000000000000000"]) == set()
+
+
+def test_promote_discards_after_max_review_attempts(clone: Path) -> None:
+    rel = _seed_inbox_note(
+        clone,
+        body_lines=[
+            "---",
+            "review_attempts: 3",
+            "id: 01HXYZ00000000000000000000",
+            "type: lesson",
+            "scope: _inbox",
+            "source: claude-code",
+            "captured_at: 2026-05-13T12:00:00+00:00",
+            "confidence: 0.4",
+            "---",
+            "",
+            "# Vault Agent uid alignment",
+            "",
+            "body line",
+            "",
+        ],
+    )
+    vault = _StubVault()
+    store = InMemoryCuratorStore(existing=["01HXYZ00000000000000000000"])
+    promoter = Promoter(
+        classifier=_StubClassifier(response=ClassificationError("boom")),  # type: ignore[arg-type]
+        recall=_StubRecall(hits=[]),  # type: ignore[arg-type]
+        store=store,
+        vault=vault,  # type: ignore[arg-type]
+        topics=_topics(),
+        clone_dir=clone,
+        confidence_floor=0.55,
+        max_review_attempts=3,
+        recall_limit=3,
+    )
+
+    outcome = promoter.promote_inbox_file(rel)
+
+    assert outcome.status == "discarded"
+    assert outcome.reason == "stale-review:classify-failed:ClassificationError"
+    assert vault.reviews == []
+    assert vault.discards == [(rel, "stale-review:classify-failed:ClassificationError")]
+    assert store.existing_ids(["01HXYZ00000000000000000000"]) == set()
 
 
 def test_promote_flags_review_on_unknown_topic_slug(clone: Path) -> None:
@@ -171,6 +259,7 @@ def test_promote_flags_review_on_unknown_topic_slug(clone: Path) -> None:
         topics=_topics(),
         clone_dir=clone,
         confidence_floor=0.55,
+        max_review_attempts=3,
         recall_limit=3,
     )
     outcome = promoter.promote_inbox_file(rel)
@@ -203,6 +292,7 @@ def test_promote_drops_missing_relation_target_but_still_promotes(clone: Path) -
         topics=_topics(),
         clone_dir=clone,
         confidence_floor=0.55,
+        max_review_attempts=3,
         recall_limit=3,
     )
     outcome = promoter.promote_inbox_file(rel)
@@ -224,6 +314,7 @@ def test_promote_flags_review_on_classifier_error(clone: Path) -> None:
         topics=_topics(),
         clone_dir=clone,
         confidence_floor=0.55,
+        max_review_attempts=3,
         recall_limit=3,
     )
     outcome = promoter.promote_inbox_file(rel)
@@ -255,6 +346,7 @@ def test_promote_writes_embedding_when_embedder_wired(clone: Path) -> None:
         topics=_topics(),
         clone_dir=clone,
         confidence_floor=0.55,
+        max_review_attempts=3,
         recall_limit=3,
         embedder=embedder,  # type: ignore[arg-type]
         embedding_model="qwen3-embedding:0.6b",
@@ -293,6 +385,7 @@ def test_promote_swallows_embedder_failure_and_still_promotes(clone: Path) -> No
         topics=_topics(),
         clone_dir=clone,
         confidence_floor=0.55,
+        max_review_attempts=3,
         recall_limit=3,
         embedder=_ExplodingEmbedder(),  # type: ignore[arg-type]
         embedding_model="qwen3-embedding:0.6b",
@@ -315,6 +408,7 @@ def test_promote_skips_embedding_when_no_embedder_wired(clone: Path) -> None:
         topics=_topics(),
         clone_dir=clone,
         confidence_floor=0.55,
+        max_review_attempts=3,
         recall_limit=3,
     )
     outcome = promoter.promote_inbox_file(rel)
@@ -344,6 +438,7 @@ def test_promote_supersedes_inserts_relations(clone: Path) -> None:
         topics=_topics(),
         clone_dir=clone,
         confidence_floor=0.55,
+        max_review_attempts=3,
         recall_limit=3,
     )
     promoter.promote_inbox_file(rel)

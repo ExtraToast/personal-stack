@@ -28,7 +28,9 @@ def test_response_format_carries_strict_json_schema() -> None:
         "supersedes",
         "see_also",
         "confidence",
+        "action",
     ]
+    assert schema["properties"]["action"]["enum"] == ["promote", "discard"]
     assert schema["properties"]["type"]["enum"] == ["lesson", "decision", "note", "fact"]
 
 
@@ -57,6 +59,7 @@ def test_user_prompt_wraps_neighbours_in_xml() -> None:
 def _classification_payload(**overrides: object) -> dict[str, object]:
     base = {
         "title": "Vault Agent uid alignment",
+        "action": "promote",
         "scope": "topic:vault",
         "topic": "vault",
         "type": "lesson",

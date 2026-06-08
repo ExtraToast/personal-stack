@@ -76,6 +76,8 @@ class NoteFrontmatter:
 _FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n(.*)$", re.DOTALL)
 _H1_RE = re.compile(r"^#\s+(.+)$", re.MULTILINE)
 _TAG_LIST_RE = re.compile(r"^\[(.*)\]$")
+NEEDS_REVIEW_DIR = "_inbox/_needs-review"
+DISCARDED_DIR = "_inbox/_discarded"
 
 
 def parse_note_file(path: Path) -> NoteFrontmatter:
@@ -120,6 +122,24 @@ def parse_note_file(path: Path) -> NoteFrontmatter:
         body=body,
         other=meta,
     )
+
+
+def _set_frontmatter_attempts(path: Path, attempt: int) -> None:
+    raw = path.read_text(encoding="utf-8")
+    match = _FRONTMATTER_RE.search(raw)
+    if not match:
+        raise ValueError(f"{path}: no frontmatter block")
+    meta_raw, body = match.group(1), match.group(2)
+    lines = meta_raw.splitlines()
+    replacement = f"review_attempts: {attempt}"
+    for index, line in enumerate(lines):
+        key, _, _value = line.partition(":")
+        if key.strip() == "review_attempts":
+            lines[index] = replacement
+            break
+    else:
+        lines.insert(0, replacement)
+    path.write_text("---\n" + "\n".join(lines) + "\n---\n" + body, encoding="utf-8")
 
 
 def render_note_file(
@@ -275,6 +295,7 @@ class CuratorVault:
         *,
         source_rel: str,
         reason: str,
+        attempt: int = 1,
     ) -> PromotionResult:
         """Move an unclassifiable note to `_inbox/_needs-review/`.
 
@@ -283,29 +304,35 @@ class CuratorVault:
         clone. The commit subject carries the reason so `git log`
         captures the audit trail.
 
-        When the source is already inside `_inbox/_needs-review/` the
-        function is a no-op — the orchestrator's
-        :class:`NeedsReviewDrainPass` re-feeds review files on every
-        tick, and a re-classification failure that "re-routes" the
-        file to the same location used to crash on ``git mv X X``.
-        Returning the existing relative path keeps the audit trail
-        tidy: the caller's structured `curator.outcome` log line
-        still records `status=needs_review reason=<...>`, and the
-        file's mtime is unchanged so the next drain tick's
-        ``has_work`` skips it (mtime < the just-advanced
-        ``last_completed_at`` watermark).
+        When the source is already inside `_inbox/_needs-review/`,
+        the function updates the persisted `review_attempts` counter
+        in place instead of running ``git mv X X``.
         """
 
         src = self._clone_dir / source_rel
-        review_rel = f"_inbox/_needs-review/{src.name}"
+        review_rel = f"{NEEDS_REVIEW_DIR}/{src.name}"
+        commit_sha = ""
         if source_rel == review_rel:
-            # No-op: file is already at the destination.
-            return PromotionResult(new_relative_path=review_rel, commit_sha="")
+            _set_frontmatter_attempts(self._clone_dir / review_rel, attempt)
+            self._repo.index.add([review_rel])
+            if self._repo.is_dirty(index=True, working_tree=False):
+                commit = self._repo.index.commit(
+                    f"curator: review {reason} (attempt {attempt})",
+                    author=self._author,
+                    committer=self._author,
+                )
+                commit_sha = commit.hexsha
+                if self._push:
+                    with self._repo.git.custom_environment(**self._git_env()):
+                        self._repo.remotes.origin.push()
+            return PromotionResult(new_relative_path=review_rel, commit_sha=commit_sha)
         review_path = self._clone_dir / review_rel
         review_path.parent.mkdir(parents=True, exist_ok=True)
         self._repo.git.mv(source_rel, review_rel)
+        _set_frontmatter_attempts(review_path, attempt)
+        self._repo.index.add([review_rel])
         commit = self._repo.index.commit(
-            f"curator: review {reason}",
+            f"curator: review {reason} (attempt {attempt})",
             author=self._author,
             committer=self._author,
         )
@@ -313,6 +340,23 @@ class CuratorVault:
             with self._repo.git.custom_environment(**self._git_env()):
                 self._repo.remotes.origin.push()
         return PromotionResult(new_relative_path=review_rel, commit_sha=commit.hexsha)
+
+    def discard(self, *, source_rel: str, reason: str) -> PromotionResult:
+        src = self._clone_dir / source_rel
+        dest_rel = f"{DISCARDED_DIR}/{src.name}"
+        if source_rel == dest_rel:
+            return PromotionResult(new_relative_path=dest_rel, commit_sha="")
+        (self._clone_dir / dest_rel).parent.mkdir(parents=True, exist_ok=True)
+        self._repo.git.mv(source_rel, dest_rel)
+        commit = self._repo.index.commit(
+            f"curator: discard {reason}",
+            author=self._author,
+            committer=self._author,
+        )
+        if self._push:
+            with self._repo.git.custom_environment(**self._git_env()):
+                self._repo.remotes.origin.push()
+        return PromotionResult(new_relative_path=dest_rel, commit_sha=commit.hexsha)
 
     def commit_paths(
         self,
