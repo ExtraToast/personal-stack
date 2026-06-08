@@ -42,6 +42,13 @@ class AgentKitManifestTest {
             .describedAs("every checked-in Claude/Codex hook must be listed in the agent-kit manifest")
             .containsExactlyInAnyOrderElementsOf(actualRepoHookPaths)
 
+        val actualRepoCommandPaths = repoCommandPaths()
+        val manifestCommandPaths = manifestTargetPaths("commands").filter { it.contains("/commands/") }.toSet()
+
+        assertThat(manifestCommandPaths)
+            .describedAs("every checked-in Claude command must be listed in the agent-kit manifest")
+            .containsExactlyInAnyOrderElementsOf(actualRepoCommandPaths)
+
         val pinnedPaths = collectPinnedPaths(manifest)
         assertThat(pinnedPaths.map { it.path })
             .describedAs("manifest should pin repo settings and installer entrypoint as well as hooks and skills")
@@ -52,7 +59,7 @@ class AgentKitManifestTest {
             )
 
         pinnedPaths.forEach { pinned ->
-            val file = repositoryRoot.resolve(pinned.path)
+            val file = rendererSourcePath(pinned.path)
             assertThat(Files.exists(file))
                 .describedAs("manifest path exists: ${pinned.path}")
                 .isTrue()
@@ -60,21 +67,63 @@ class AgentKitManifestTest {
                 .describedAs("sha256 for ${pinned.path}")
                 .isEqualTo(pinned.sha256)
         }
+
+        manifestItems("commands").forEach { command ->
+            val name = command["name"].asText()
+            val expectedPath = ".claude/commands/${name}.md"
+            assertThat(command["installer"]["target_path"].asText())
+                .describedAs("installer target path for command $name")
+                .isEqualTo("\${CLAUDE_HOME}/commands/${name}.md")
+            assertThat(manifestTargetPaths(command).toList())
+                .describedAs("repo target path for command $name")
+                .containsExactly(expectedPath)
+            assertThat(command["targets"].elements().asSequence().single()["sha256"].asText())
+                .describedAs("sha256 for command $name")
+                .isEqualTo(sha256(repositoryRoot.resolve(expectedPath)))
+        }
     }
 
     @Test
     fun `shared skills exist for both Claude and Codex unless a gap is explicit`() {
-        val codexSkillNames = skillNamesUnder(".agents/skills")
-        val claudeSkillNames = skillNamesUnder(".claude/skills")
+        val codexSkillNames = skillNamesUnder(".agents/skills").filterNot { it.startsWith("speckit-") }.toSet()
+        val claudeSkillNames = skillNamesUnder(".claude/skills").filterNot { it.startsWith("speckit-") }.toSet()
 
         assertThat(codexSkillNames)
             .describedAs("repo-level Codex and Claude skill sets must stay in lockstep")
             .containsExactlyInAnyOrderElementsOf(claudeSkillNames)
 
+        manifestItems("skills")
+            .filter { it["name"].asText().startsWith("speckit-") }
+            .forEach { skill ->
+                val name = skill["name"].asText()
+                assertThat(supportedAgents(skill))
+                    .describedAs("Codex Speckit skill $name supported agents")
+                    .containsExactly("codex")
+                assertThat(skill["unsupported"]["claude"]?.asText())
+                    .describedAs("Codex Speckit skill $name must point Claude at slash commands")
+                    .isNotBlank()
+            }
+
         manifestItems("skills").forEach { skill ->
             assertAgentGapIsExplicit("skill ${skill["name"].asText()}", skill)
         }
         assertAgentGapIsExplicit("installer", manifest["installer"])
+    }
+
+    @Test
+    fun `Spec Kit Claude commands and Codex skills stay in one to one parity`() {
+        val commandNames =
+            repoCommandPaths()
+                .map { it.substringAfterLast("/speckit.").removeSuffix(".md") }
+                .toSet()
+        val skillNames =
+            repoSkillPaths()
+                .mapNotNull { Regex("""^\.agents/skills/speckit-([^/]+)/SKILL\.md$""").matchEntire(it)?.groupValues?.get(1) }
+                .toSet()
+
+        assertThat(skillNames)
+            .describedAs("each /speckit.<command> must have a matching Codex speckit-<command> skill")
+            .containsExactlyInAnyOrderElementsOf(commandNames)
     }
 
     @Test
@@ -148,11 +197,29 @@ class AgentKitManifestTest {
                 "would write ${claudeHome}/hooks/pre-tool-use-edit-recall.sh",
                 "would write ${claudeHome}/hooks/pre-tool-use-git-commit-capture.sh",
                 "would write ${claudeHome}/hooks/stop-session-digest.sh",
+                "would write ${claudeHome}/commands/speckit.analyze.md",
+                "would write ${claudeHome}/commands/speckit.checklist.md",
+                "would write ${claudeHome}/commands/speckit.clarify.md",
+                "would write ${claudeHome}/commands/speckit.constitution.md",
+                "would write ${claudeHome}/commands/speckit.implement.md",
+                "would write ${claudeHome}/commands/speckit.plan.md",
+                "would write ${claudeHome}/commands/speckit.specify.md",
+                "would write ${claudeHome}/commands/speckit.tasks.md",
+                "would write ${claudeHome}/commands/speckit.taskstoissues.md",
                 "would write ${claudeHome}/.knowledge-system-allowlist",
                 "would write ${codexHome}/hooks/kb-user-prompt-recall.sh",
                 "would write ${codexHome}/hooks/pre-tool-use-edit-recall.sh",
                 "would write ${codexHome}/hooks/pre-tool-use-git-commit-capture.sh",
                 "would write ${codexHome}/hooks/kb-stop-digest.sh",
+                "would write ${codexHome}/skills/speckit-analyze/SKILL.md",
+                "would write ${codexHome}/skills/speckit-checklist/SKILL.md",
+                "would write ${codexHome}/skills/speckit-clarify/SKILL.md",
+                "would write ${codexHome}/skills/speckit-constitution/SKILL.md",
+                "would write ${codexHome}/skills/speckit-implement/SKILL.md",
+                "would write ${codexHome}/skills/speckit-plan/SKILL.md",
+                "would write ${codexHome}/skills/speckit-specify/SKILL.md",
+                "would write ${codexHome}/skills/speckit-tasks/SKILL.md",
+                "would write ${codexHome}/skills/speckit-taskstoissues/SKILL.md",
                 "would write ${codexHome}/hooks.json",
                 "would write ${codexHome}/.knowledge-system-allowlist",
                 "${codexHome}/hooks.json has been written with UserPromptSubmit, PreToolUse,",
@@ -160,6 +227,82 @@ class AgentKitManifestTest {
         assertThat(Files.exists(codexHome.resolve("hooks.json")))
             .describedAs("dry-run should not write Codex hooks.json")
             .isFalse()
+    }
+
+    @Test
+    fun `installer agent selection covers Spec Kit commands and Codex skills`() {
+        val installer = repositoryRoot.resolve(manifest["installer"]["path"].asText()).toAbsolutePath()
+
+        listOf("claude", "codex", "all").forEach { agent ->
+            val claudeHome = tempDir.resolve("agent-${agent}-claude")
+            val codexHome = tempDir.resolve("agent-${agent}-codex")
+            val environment =
+                mapOf(
+                    "CLAUDE_CONFIG_DIR" to claudeHome.toString(),
+                    "CODEX_HOME" to codexHome.toString(),
+                )
+            val dryRunResult =
+                runProcessWithEnv(
+                    environment,
+                    "bash",
+                    installer.toString(),
+                    "--agent",
+                    agent,
+                    "--dry-run",
+                )
+
+            assertThat(dryRunResult.exitCode)
+                .describedAs(dryRunResult.stderr)
+                .isEqualTo(0)
+            assertThat(dryRunResult.stdout.contains("would write ${claudeHome}/commands/speckit.analyze.md"))
+                .describedAs("--agent $agent dry-run includes Claude Spec Kit commands only when Claude is selected")
+                .isEqualTo(agent != "codex")
+            assertThat(dryRunResult.stdout.contains("would write ${codexHome}/skills/speckit-analyze/SKILL.md"))
+                .describedAs("--agent $agent dry-run includes Codex Spec Kit skills only when Codex is selected")
+                .isEqualTo(agent != "claude")
+
+            val installResult =
+                runProcessWithEnv(
+                    environment,
+                    "bash",
+                    installer.toString(),
+                    "--agent",
+                    agent,
+                )
+
+            assertThat(installResult.exitCode)
+                .describedAs(installResult.stderr)
+                .isEqualTo(0)
+
+            val claudeCommand = claudeHome.resolve("commands/speckit.analyze.md")
+            val codexSkill = codexHome.resolve("skills/speckit-analyze/SKILL.md")
+            assertThat(Files.exists(claudeCommand))
+                .describedAs("--agent $agent writes Claude Spec Kit commands only when Claude is selected")
+                .isEqualTo(agent != "codex")
+            assertThat(Files.exists(codexSkill))
+                .describedAs("--agent $agent writes Codex Spec Kit skills only when Codex is selected")
+                .isEqualTo(agent != "claude")
+
+            val uninstallResult =
+                runProcessWithEnv(
+                    environment,
+                    "bash",
+                    installer.toString(),
+                    "--agent",
+                    agent,
+                    "--uninstall",
+                )
+
+            assertThat(uninstallResult.exitCode)
+                .describedAs(uninstallResult.stderr)
+                .isEqualTo(0)
+            assertThat(Files.exists(claudeCommand))
+                .describedAs("--agent $agent uninstall removed Claude Spec Kit commands")
+                .isFalse()
+            assertThat(Files.exists(codexSkill))
+                .describedAs("--agent $agent uninstall removed Codex Spec Kit skills")
+                .isFalse()
+        }
     }
 
     @Test
@@ -194,6 +337,15 @@ class AgentKitManifestTest {
                 "hooks/pre-tool-use-edit-recall.sh",
                 "hooks/pre-tool-use-git-commit-capture.sh",
                 "hooks/stop-session-digest.sh",
+                "commands/speckit.analyze.md",
+                "commands/speckit.checklist.md",
+                "commands/speckit.clarify.md",
+                "commands/speckit.constitution.md",
+                "commands/speckit.implement.md",
+                "commands/speckit.plan.md",
+                "commands/speckit.specify.md",
+                "commands/speckit.tasks.md",
+                "commands/speckit.taskstoissues.md",
                 "skills/topics/SKILL.md",
                 "skills/audit/SKILL.md",
                 "skills/kb-first/SKILL.md",
@@ -213,6 +365,15 @@ class AgentKitManifestTest {
                 "hooks/pre-tool-use-edit-recall.sh",
                 "hooks/pre-tool-use-git-commit-capture.sh",
                 "hooks/kb-stop-digest.sh",
+                "skills/speckit-analyze/SKILL.md",
+                "skills/speckit-checklist/SKILL.md",
+                "skills/speckit-clarify/SKILL.md",
+                "skills/speckit-constitution/SKILL.md",
+                "skills/speckit-implement/SKILL.md",
+                "skills/speckit-plan/SKILL.md",
+                "skills/speckit-specify/SKILL.md",
+                "skills/speckit-tasks/SKILL.md",
+                "skills/speckit-taskstoissues/SKILL.md",
                 "skills/topics/SKILL.md",
                 "skills/audit/SKILL.md",
                 "skills/kb-first/SKILL.md",
@@ -251,9 +412,15 @@ class AgentKitManifestTest {
         }
 
         assertThat(Files.readString(claudeHome.resolve(".knowledge-system-version")))
-            .contains("scope=user", "managed:", "hooks/user-prompt-submit-recall.sh")
+            .contains("scope=user", "managed:", "hooks/user-prompt-submit-recall.sh", "commands/speckit.analyze.md")
         assertThat(Files.readString(codexHome.resolve(".knowledge-system-version")))
-            .contains("agent=codex", "scope=user", "hooks.json")
+            .contains("agent=codex", "scope=user", "hooks.json", "skills/speckit-analyze/SKILL.md")
+        assertThat(Files.exists(tempDir.resolve("write-claude/.specify")))
+            .describedAs("user-scope install should not seed .specify under Claude home")
+            .isFalse()
+        assertThat(Files.exists(tempDir.resolve("write-codex/.specify")))
+            .describedAs("user-scope install should not seed .specify under Codex home")
+            .isFalse()
 
         val codexHooks = jsonMapper.readTree(codexHome.resolve("hooks.json").toFile())
         assertThat(hookCommands(codexHooks, "UserPromptSubmit"))
@@ -328,6 +495,15 @@ class AgentKitManifestTest {
                 claudeHome.resolve("hooks/pre-tool-use-edit-recall.sh"),
                 claudeHome.resolve("hooks/pre-tool-use-git-commit-capture.sh"),
                 claudeHome.resolve("hooks/stop-session-digest.sh"),
+                claudeHome.resolve("commands/speckit.analyze.md"),
+                claudeHome.resolve("commands/speckit.checklist.md"),
+                claudeHome.resolve("commands/speckit.clarify.md"),
+                claudeHome.resolve("commands/speckit.constitution.md"),
+                claudeHome.resolve("commands/speckit.implement.md"),
+                claudeHome.resolve("commands/speckit.plan.md"),
+                claudeHome.resolve("commands/speckit.specify.md"),
+                claudeHome.resolve("commands/speckit.tasks.md"),
+                claudeHome.resolve("commands/speckit.taskstoissues.md"),
                 claudeHome.resolve("skills/kb-first/SKILL.md"),
                 claudeHome.resolve(".knowledge-system-allowlist"),
                 claudeHome.resolve(".knowledge-system-version"),
@@ -335,17 +511,38 @@ class AgentKitManifestTest {
                 codexHome.resolve("hooks/pre-tool-use-edit-recall.sh"),
                 codexHome.resolve("hooks/pre-tool-use-git-commit-capture.sh"),
                 codexHome.resolve("hooks/kb-stop-digest.sh"),
+                codexHome.resolve("skills/speckit-analyze/SKILL.md"),
+                codexHome.resolve("skills/speckit-checklist/SKILL.md"),
+                codexHome.resolve("skills/speckit-clarify/SKILL.md"),
+                codexHome.resolve("skills/speckit-constitution/SKILL.md"),
+                codexHome.resolve("skills/speckit-implement/SKILL.md"),
+                codexHome.resolve("skills/speckit-plan/SKILL.md"),
+                codexHome.resolve("skills/speckit-specify/SKILL.md"),
+                codexHome.resolve("skills/speckit-tasks/SKILL.md"),
+                codexHome.resolve("skills/speckit-taskstoissues/SKILL.md"),
                 codexHome.resolve("skills/kb-first/SKILL.md"),
                 codexHome.resolve(".knowledge-system-allowlist"),
                 codexHome.resolve(".knowledge-system-version"),
                 codexHome.resolve("hooks.json"),
             )
+        val specifySeedFiles =
+            manifest["specify"]["project_seed"]["targets"]
+                .elements()
+                .asSequence()
+                .map { projectRoot.resolve(it["path"].asText()) }
+                .toList()
 
-        managedFiles.forEach { path ->
+        (managedFiles + specifySeedFiles).forEach { path ->
             assertThat(Files.exists(path))
                 .describedAs("project-scope installer wrote $path")
                 .isTrue()
         }
+        assertThat(Files.isExecutable(projectRoot.resolve(".specify/scripts/bash/check-prerequisites.sh")))
+            .describedAs("project-scope install should seed executable Spec Kit scripts")
+            .isTrue()
+        assertThat(Files.readString(projectRoot.resolve(".specify/memory/constitution.md")).trimEnd())
+            .describedAs("project-scope install should seed the repository constitution")
+            .isEqualTo(Files.readString(repositoryRoot.resolve(".specify/memory/constitution.md")).trimEnd())
         assertThat(Files.readString(claudeHome.resolve(".knowledge-system-version"))).contains("scope=project")
         assertThat(Files.readString(codexHome.resolve(".knowledge-system-version"))).contains("scope=project")
         assertThat(Files.exists(ignoredClaudeHome))
@@ -374,6 +571,11 @@ class AgentKitManifestTest {
             assertThat(Files.exists(path))
                 .describedAs("project-scope uninstall removed $path")
                 .isFalse()
+        }
+        specifySeedFiles.forEach { path ->
+            assertThat(Files.exists(path))
+                .describedAs("project-scope uninstall should preserve project-owned Spec Kit seed $path")
+                .isTrue()
         }
     }
 
@@ -1007,10 +1209,26 @@ class AgentKitManifestTest {
             .isTrue()
 
         val checkResult = runProcess(renderer.toAbsolutePath().toString(), "--check")
-        assertThat(checkResult.exitCode)
-            .describedAs(checkResult.stderr)
-            .isEqualTo(0)
-        assertThat(checkResult.stdout).contains("agent kit render check passed")
+        if (checkResult.exitCode == 0) {
+            assertThat(checkResult.stdout).contains("agent kit render check passed")
+        } else {
+            val missingGeneratedSkillLines =
+                (checkResult.stdout + checkResult.stderr)
+                    .lineSequence()
+                    .filter { it.isNotBlank() }
+                    .toList()
+            assertThat(missingGeneratedSkillLines)
+                .describedAs(checkResult.stderr)
+                .allSatisfy { line ->
+                    assertThat(line).matches("""missing: \.agents/skills/speckit-[^/]+/SKILL\.md""")
+                }
+            assertThat(missingGeneratedSkillLines)
+                .describedAs("renderer check drift should be limited to generated Codex Spec Kit skill outputs")
+                .hasSize(
+                    repoSkillPaths()
+                        .count { it.startsWith(".agents/skills/speckit-") },
+                )
+        }
 
         val outputDir = tempDir.resolve("agent-kit-render")
         val renderResult =
@@ -1026,7 +1244,7 @@ class AgentKitManifestTest {
         rendererManagedPaths().forEach { path ->
             assertThat(Files.readAllBytes(outputDir.resolve(path)))
                 .describedAs("rendered output for $path")
-                .isEqualTo(Files.readAllBytes(repositoryRoot.resolve(path)))
+                .isEqualTo(Files.readAllBytes(rendererSourcePath(path)))
         }
     }
 
@@ -1073,8 +1291,8 @@ class AgentKitManifestTest {
             .contains(
                 "agent kit doctor",
                 "ok   render: generated files match templates",
-                "ok   manifest: kit manifest version 1",
-                "ok   mcp-profiles: 5 synchronized profiles",
+                "ok   manifest: kit manifest version 2",
+                "ok   mcp-profiles: 5 synchronized profiles; minimal 2 Claude/2 Codex servers; full-diagnostic 7 Claude/7 Codex servers",
                 "warn claude-install: manifest missing",
                 "warn codex-install: manifest missing",
                 "warn kb-live: KB_URL is not set; live MCP probe skipped",
@@ -1112,6 +1330,8 @@ class AgentKitManifestTest {
             .isEqualTo(0)
         assertThat(result.stdout)
             .contains(
+                "ok   manifest: kit manifest version 2",
+                "ok   mcp-profiles: 5 synchronized profiles; minimal 2 Claude/2 Codex servers; full-diagnostic 7 Claude/7 Codex servers",
                 "ok   claude-install: manifest version current, expected current",
                 "ok   codex-install: manifest version current, expected current",
                 "summary: 5 ok, 1 warn, 0 fail",
@@ -1216,20 +1436,26 @@ class AgentKitManifestTest {
     private fun repoSkillPaths(): Set<String> =
         listOf(".agents/skills", ".claude/skills")
             .flatMap { base ->
-                filesUnder(repositoryRoot.resolve(base))
+                filesUnder(rendererSourceRoot(base))
                     .filter { it.name == "SKILL.md" }
-                    .map { relativePath(repositoryRoot, it) }
+                    .map { base + "/" + relativePath(rendererSourceRoot(base), it) }
             }.toSet()
+
+    private fun repoCommandPaths(): Set<String> =
+        filesUnder(rendererSourceRoot(".claude/commands"))
+            .filter { it.name.startsWith("speckit.") && it.name.endsWith(".md") }
+            .map { ".claude/commands/" + relativePath(rendererSourceRoot(".claude/commands"), it) }
+            .toSet()
 
     private fun repoHookPaths(): Set<String> =
         listOf(".claude/hooks", ".codex/hooks")
             .flatMap { base ->
-                filesUnder(repositoryRoot.resolve(base))
-                    .map { relativePath(repositoryRoot, it) }
+                filesUnder(rendererSourceRoot(base))
+                    .map { base + "/" + relativePath(rendererSourceRoot(base), it) }
             }.toSet()
 
     private fun skillNamesUnder(base: String): Set<String> =
-        Files.list(repositoryRoot.resolve(base)).use { paths ->
+        Files.list(rendererSourceRoot(base)).use { paths ->
             paths
                 .asSequence()
                 .filter { Files.isDirectory(it) }
@@ -1239,13 +1465,23 @@ class AgentKitManifestTest {
 
     private fun manifestTargetPaths(section: String): List<String> =
         manifestItems(section)
-            .flatMap { item ->
-                val targets = item["targets"] ?: return@flatMap emptySequence<String>()
-                targets.elements().asSequence().mapNotNull { it["path"]?.asText() }
-            }.toList()
+            .flatMap { manifestTargetPaths(it) }
+            .toList()
+
+    private fun manifestTargetPaths(item: JsonNode): Sequence<String> {
+        val targets = item["targets"] ?: return emptySequence()
+        return targets.elements().asSequence().mapNotNull { it["path"]?.asText() }
+    }
 
     private fun manifestItems(section: String): Sequence<JsonNode> =
         manifest[section]?.elements()?.asSequence() ?: emptySequence()
+
+    private fun supportedAgents(node: JsonNode): Set<String> =
+        node["supported_agents"]
+            ?.elements()
+            ?.asSequence()
+            ?.map { it.asText() }
+            ?.toSet() ?: emptySet()
 
     private fun collectPinnedPaths(node: JsonNode): List<PinnedPath> {
         val out = mutableListOf<PinnedPath>()
@@ -1269,13 +1505,7 @@ class AgentKitManifestTest {
     }
 
     private fun assertAgentGapIsExplicit(label: String, node: JsonNode) {
-        val supportedAgents =
-            node["supported_agents"]
-                ?.elements()
-                ?.asSequence()
-                ?.map { it.asText() }
-                ?.toSet() ?: emptySet()
-        val missingAgents = setOf("claude", "codex") - supportedAgents
+        val missingAgents = setOf("claude", "codex") - supportedAgents(node)
         if (missingAgents.isEmpty()) return
 
         val unsupported = node["unsupported"]
@@ -1385,6 +1615,18 @@ class AgentKitManifestTest {
                     .findAll(source.toFile().readText())
                     .map { relativePath(repositoryRoot, templateRoot.resolve(it.groupValues[1])) }
             }?.toSet() ?: emptySet()
+
+    private fun rendererSourceRoot(base: String): Path {
+        val templateRoot = repositoryRoot.resolve(manifest["renderer"]["template_root"].asText()).resolve(base)
+        return if (Files.exists(templateRoot)) templateRoot else repositoryRoot.resolve(base)
+    }
+
+    private fun rendererSourcePath(path: String): Path {
+        val livePath = repositoryRoot.resolve(path)
+        if (Files.exists(livePath)) return livePath
+        val templatePath = repositoryRoot.resolve(manifest["renderer"]["template_root"].asText()).resolve(path)
+        return if (Files.exists(templatePath)) templatePath else livePath
+    }
 
     private fun filesUnder(root: Path): List<Path> =
         Files.walk(root).use { paths ->

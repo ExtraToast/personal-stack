@@ -19,6 +19,9 @@ Re-check claims against the real code at {{repo_root}} as needed.
 
 {{baseline}}
 
+# Constitution
+{{constitution}}
+
 # Output
 Return ONLY the revised JSON object — no prose, no code fences — matching this
 schema:

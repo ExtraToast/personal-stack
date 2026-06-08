@@ -6,6 +6,16 @@
   "required": ["consolidated_plan_markdown", "tasks"],
   "properties": {
     "consolidated_plan_markdown": { "type": "string" },
+    "spec_markdown": { "type": "string" },
+    "implementation_plan_markdown": { "type": "string" },
+    "feature": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string" },
+        "slug": { "type": "string" }
+      }
+    },
     "tasks": {
       "type": "array",
       "items": {

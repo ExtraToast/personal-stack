@@ -29,6 +29,9 @@ parallel execution.
 
 {{baseline}}
 
+# Constitution
+{{constitution}}
+
 # Output
 Return a concise Markdown critique: a bulleted list of concrete problems, each
 with WHY it matters and a suggested fix. End with one line: `VERDICT:` followed

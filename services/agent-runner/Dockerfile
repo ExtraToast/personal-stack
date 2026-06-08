@@ -178,6 +178,7 @@ RUN rm -f /usr/bin/sg \
 # The gateway jar runs on the Temurin 21 JDK installed above; the
 # entrypoint launches it with ZGC the same way every other service does.
 COPY --from=gateway-build /app/services/agent-gateway/build/libs/*.jar /opt/agent-gateway.jar
+COPY platform/agents/kit/templates/repo/.specify /opt/agent-kit/sdd
 COPY services/agent-runner/entrypoint.sh /opt/entrypoint.sh
 RUN chmod +x /opt/entrypoint.sh
 RUN set -eu; \
@@ -199,6 +200,12 @@ RUN set -eu; \
     test -z "$(REPO_URL='' REPO_URLS='' AGENT_RUNNER_ENTRYPOINT_SELF_TEST=repo-allow /opt/entrypoint.sh)"; \
     test "$(REPO_URL='git@github.com:o/personal-stack.git' AGENT_RUNNER_ENTRYPOINT_SELF_TEST=repo-dir /opt/entrypoint.sh)" = 'personal-stack'; \
     test "$(REPO_URL='https://github.com/o/website.git' AGENT_RUNNER_ENTRYPOINT_SELF_TEST=repo-dir /opt/entrypoint.sh)" = 'website'; \
+    mkdir -p "${tmp}/workspace/personal-stack/.git"; \
+    WORKSPACE_ROOT="${tmp}/workspace" AGENT_KIT_SDD_SOURCE=/opt/agent-kit/sdd AGENT_RUNNER_ENTRYPOINT_SELF_TEST=speckit-seed /opt/entrypoint.sh; \
+    test -f "${tmp}/workspace/personal-stack/.specify/templates/spec-template.md"; \
+    test -x "${tmp}/workspace/personal-stack/.specify/scripts/bash/create-new-feature.sh"; \
+    test -f "${tmp}/workspace/personal-stack/.specify/memory/constitution.md"; \
+    test -f "${tmp}/workspace/personal-stack/.specify/.agent-kit-sdd-seed.sha256"; \
     rm -rf "${tmp}"
 
 # Shared token helper used by gh, GitHub MCP, and Git's credential
