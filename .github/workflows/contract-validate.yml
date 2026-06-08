@@ -15,6 +15,10 @@ concurrency:
   group: contract-validate-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  packages: read
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -24,13 +28,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6.0.2
-      - uses: ExtraToast/github-workflows/actions/setup-java-gradle@v0.1.0
+      - uses: ExtraToast/github-workflows/actions/setup-java-gradle@v0.2.0
         with:
           java-version: '21'
-      - uses: ExtraToast/github-workflows/actions/setup-node@v0.1.0
+          java-distribution: temurin
+          github-packages-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: ExtraToast/github-workflows/actions/setup-node@v0.2.0
         with:
-          package-manager: pnpm
           node-version: '24'
+          package-manager: pnpm
+          github-packages-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Export OpenAPI specs
         run: >
           bash infra/scripts/run-strict-command.sh ./gradlew

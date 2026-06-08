@@ -132,6 +132,9 @@ jobs:
       group: system-tests-run-${{ github.workflow }}-${{ github.ref }}-${{ matrix.suite.name }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     needs: [build-images]
     strategy:
       fail-fast: false
@@ -154,10 +157,12 @@ jobs:
             shard_args: -Dtest.shard.index=4 -Dtest.shard.count=4
     steps:
       - uses: actions/checkout@v6.0.2
-      - uses: ExtraToast/github-workflows/actions/setup-java-gradle@v0.1.0
+      - uses: ExtraToast/github-workflows/actions/setup-java-gradle@v0.2.0
         with:
           java-version: ${{ inputs.java-version }}
-      - uses: ExtraToast/github-workflows/actions/prepare-ci-host@v0.1.0
+          java-distribution: temurin
+          github-packages-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: ExtraToast/github-workflows/actions/prepare-ci-host@v0.2.0
       - name: Start Docker Compose stack
         timeout-minutes: 6
         run: bash .github/scripts/start-system-test-stack.sh
