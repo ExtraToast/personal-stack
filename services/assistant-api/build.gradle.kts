@@ -13,10 +13,18 @@ jooqCodegen {
 }
 
 dependencies {
-    implementation(project(":libs:kotlin-common"))
+    implementation(libs.kotlin.commons.command)
+    implementation(libs.kotlin.commons.crac)
+    implementation(libs.kotlin.commons.events)
+    implementation(libs.kotlin.commons.exceptions)
+    implementation(libs.kotlin.commons.observability)
+    implementation(libs.kotlin.commons.timing)
+    implementation(libs.kotlin.commons.vault)
+    implementation(libs.kotlin.commons.web)
+    testImplementation(libs.kotlin.commons.archunit.test)
     implementation("org.springframework.boot:spring-boot-starter-websocket")
     // See auth-api build.gradle.kts — needed for the
-    // ApplicationTracingAspect in kotlin-common to take effect.
+    // ApplicationTracingAspect in kotlin-commons-observability to take effect.
     // Spring Boot 4 doesn't ship a starter-aop shortcut.
     implementation("org.springframework:spring-aop")
     implementation("org.aspectj:aspectjweaver:1.9.25.1")
@@ -28,7 +36,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-jooq")
     implementation("org.jooq:jooq")
     runtimeOnly("org.postgresql:postgresql")
-    // Tracing runtime jars. kotlin-common's TimingAutoConfiguration becomes
+    // Tracing runtime jars. kotlin-commons-timing's TimingAutoConfiguration becomes
     // active when these are on the classpath: spans flow to Alloy → Tempo
     // and MDC traceId/spanId start populating in the JSON log lines.
     runtimeOnly("io.micrometer:micrometer-tracing-bridge-otel")

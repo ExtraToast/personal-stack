@@ -17,7 +17,7 @@ export type Block =
   | { kind: 'approval'; action: string; payload: Record<string, unknown> }
 
 /**
- * Mirror of libs/kotlin-common BlockParser. Used when an agent's
+ * Mirror of kotlin-commons-blocks BlockParser. Used when an agent's
  * Turn body contains fenced ```block``` regions; the SessionTranscript
  * splits the body up so each block renders with its own component.
  *

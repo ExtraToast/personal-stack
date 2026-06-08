@@ -6,7 +6,6 @@ WORKDIR /app
 # Layer 1: Copy only build scripts for dependency caching
 COPY settings.gradle.kts build.gradle.kts gradle.properties* ./
 COPY gradle/ gradle/
-COPY libs/kotlin-common/build.gradle.kts libs/kotlin-common/
 COPY services/auth-api/build.gradle.kts services/auth-api/
 COPY services/assistant-api/build.gradle.kts services/assistant-api/
 COPY services/knowledge-api/build.gradle.kts services/knowledge-api/
@@ -23,7 +22,6 @@ RUN --mount=type=secret,id=github_token \
     gradle :services:assistant-api:dependencies --no-daemon || true
 
 # Layer 2: Copy source code and build
-COPY libs/kotlin-common/src/main/ libs/kotlin-common/src/main/
 COPY services/assistant-api/src/main/ services/assistant-api/src/main/
 RUN --mount=type=secret,id=github_token \
     --mount=type=secret,id=github_actor \

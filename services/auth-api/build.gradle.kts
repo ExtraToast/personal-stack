@@ -13,8 +13,18 @@ jooqCodegen {
 }
 
 dependencies {
-    implementation(project(":libs:kotlin-common"))
-    // Enables the wildcard tracing aspect in kotlin-common — without
+    implementation(libs.kotlin.commons.command)
+    implementation(libs.kotlin.commons.crac)
+    implementation(libs.kotlin.commons.email)
+    implementation(libs.kotlin.commons.events)
+    implementation(libs.kotlin.commons.exceptions)
+    implementation(libs.kotlin.commons.messaging)
+    implementation(libs.kotlin.commons.observability)
+    implementation(libs.kotlin.commons.timing)
+    implementation(libs.kotlin.commons.vault)
+    implementation(libs.kotlin.commons.web)
+    testImplementation(libs.kotlin.commons.archunit.test)
+    // Enables the wildcard tracing aspect in kotlin-commons-observability — without
     // spring-aop the @Aspect bean isn't proxied and the advice never
     // fires. Spring Boot 4 dropped the `spring-boot-starter-aop`
     // shortcut, so pull the underlying jars directly.

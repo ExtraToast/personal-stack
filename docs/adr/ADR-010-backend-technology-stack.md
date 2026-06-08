@@ -40,9 +40,9 @@ well-supported, and consistent across all services.
 
 ### Shared Code
 
-- **Gradle composite builds** for shared runtime code (libs/kotlin-common)
+- **Published kotlin-spring-commons modules** for shared JVM runtime code
 - **Gradle convention plugins** for shared build configuration (build-logic/)
-- No publishing to Maven repos — direct source inclusion via composite builds
+- Published shared modules are resolved from GitHub Packages
 
 ### Key Libraries
 

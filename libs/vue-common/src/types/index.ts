@@ -14,7 +14,7 @@ export interface AuthTokens {
 
 /**
  * RFC 7807-flavoured problem payload shipped by every JVM service in
- * this stack (see `libs/kotlin-common/.../ProblemDetail.kt`). The base
+ * this stack (see `kotlin-commons-web` ProblemDetail). The base
  * fields are the standard; the trailing fields are extensions
  * specific to this stack — most importantly the upstream Kubernetes
  * API server's verdict on a 502 (so the UI can distinguish a 403 RBAC

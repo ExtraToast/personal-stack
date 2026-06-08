@@ -127,7 +127,7 @@ spec:
               # 3 GiB limit → ~1.65 GiB heap, leaving ~1.35 GiB for native
               # memory. 75 % (the prior value) left only ~768 MiB of native
               # headroom under the limit — not enough for the two javaagents
-              # (otel + Pyroscope) plus kotlin-common's per-method tracing
+              # (otel + Pyroscope) plus kotlin-commons-observability's per-method tracing
               # aspect plus metaspace/threads/direct buffers, so the JVM was
               # OOMKilled (exit 137) during the agent-heavy cold start. The
               # old comment assumed 75 % of the 2 GiB request (~1.5 GiB heap),
@@ -234,7 +234,7 @@ spec:
               value: '5000'
             - name: OTEL_BSP_SCHEDULE_DELAY
               value: '5000'
-            # Bumped from the default 2048 because libs/kotlin-common's
+            # Bumped from the default 2048 because kotlin-commons-observability's
             # ApplicationTracingAspect wraps every bean method in our
             # packages with a Micrometer observation — a single /me
             # request produces tens of spans, hundreds on busier

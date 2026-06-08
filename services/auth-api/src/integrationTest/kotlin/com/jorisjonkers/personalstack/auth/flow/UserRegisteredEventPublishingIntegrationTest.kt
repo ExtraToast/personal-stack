@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.jorisjonkers.personalstack.auth.IntegrationTestBase
-import com.jorisjonkers.personalstack.common.messaging.RabbitMqConfig
+import com.jorisjonkers.personalstack.common.messaging.RabbitMqMessagingProperties
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -30,6 +30,9 @@ class UserRegisteredEventPublishingIntegrationTest : IntegrationTestBase() {
     @Autowired
     private lateinit var rabbitAdmin: RabbitAdmin
 
+    @Autowired
+    private lateinit var rabbitMqMessagingProperties: RabbitMqMessagingProperties
+
     private lateinit var mockMvc: MockMvc
 
     private val objectMapper: ObjectMapper =
@@ -44,7 +47,7 @@ class UserRegisteredEventPublishingIntegrationTest : IntegrationTestBase() {
                 .build()
 
         // Purge the queue before each test to ensure clean state
-        rabbitAdmin.purgeQueue(RabbitMqConfig.USER_REGISTERED_QUEUE)
+        rabbitAdmin.purgeQueue(userRegisteredQueue)
     }
 
     @Test
@@ -66,7 +69,7 @@ class UserRegisteredEventPublishingIntegrationTest : IntegrationTestBase() {
                     """.trimIndent()
             }.andExpect { status { isCreated() } }
 
-        val message = rabbitTemplate.receive(RabbitMqConfig.USER_REGISTERED_QUEUE, 5000)
+        val message = rabbitTemplate.receive(userRegisteredQueue, 5000)
         assertThat(message).isNotNull
     }
 
@@ -91,7 +94,7 @@ class UserRegisteredEventPublishingIntegrationTest : IntegrationTestBase() {
                     """.trimIndent()
             }.andExpect { status { isCreated() } }
 
-        val message = rabbitTemplate.receive(RabbitMqConfig.USER_REGISTERED_QUEUE, 5000)
+        val message = rabbitTemplate.receive(userRegisteredQueue, 5000)
         assertThat(message).isNotNull
 
         val body = String(message!!.body)
@@ -121,13 +124,13 @@ class UserRegisteredEventPublishingIntegrationTest : IntegrationTestBase() {
                     """.trimIndent()
             }.andExpect { status { isCreated() } }
 
-        val message = rabbitTemplate.receive(RabbitMqConfig.USER_REGISTERED_QUEUE, 5000)
+        val message = rabbitTemplate.receive(userRegisteredQueue, 5000)
         assertThat(message).isNotNull
 
         // The message arrived on the correct queue which is bound to the events exchange
         // with the user registered routing key, proving it was published to the correct exchange
         assertThat(message!!.messageProperties.receivedExchange)
-            .isEqualTo(RabbitMqConfig.EVENTS_EXCHANGE)
+            .isEqualTo(rabbitMqMessagingProperties.exchange)
     }
 
     @Test
@@ -149,11 +152,11 @@ class UserRegisteredEventPublishingIntegrationTest : IntegrationTestBase() {
                     """.trimIndent()
             }.andExpect { status { isCreated() } }
 
-        val message = rabbitTemplate.receive(RabbitMqConfig.USER_REGISTERED_QUEUE, 5000)
+        val message = rabbitTemplate.receive(userRegisteredQueue, 5000)
         assertThat(message).isNotNull
 
         assertThat(message!!.messageProperties.receivedRoutingKey)
-            .isEqualTo(RabbitMqConfig.USER_REGISTERED_ROUTING_KEY)
+            .isEqualTo(userRegisteredRoutingKey)
     }
 
     @Test
@@ -178,7 +181,7 @@ class UserRegisteredEventPublishingIntegrationTest : IntegrationTestBase() {
             }.andExpect { status { isCreated() } }
 
         // Consume the first event
-        val firstMessage = rabbitTemplate.receive(RabbitMqConfig.USER_REGISTERED_QUEUE, 5000)
+        val firstMessage = rabbitTemplate.receive(userRegisteredQueue, 5000)
         assertThat(firstMessage).isNotNull
 
         // Second registration with same username fails
@@ -198,7 +201,20 @@ class UserRegisteredEventPublishingIntegrationTest : IntegrationTestBase() {
             }.andExpect { status { isBadRequest() } }
 
         // No second event should be published
-        val secondMessage = rabbitTemplate.receive(RabbitMqConfig.USER_REGISTERED_QUEUE, 1000)
+        val secondMessage = rabbitTemplate.receive(userRegisteredQueue, 1000)
         assertThat(secondMessage).isNull()
+    }
+
+    private val userRegisteredBinding
+        get() = rabbitMqMessagingProperties.bindings.getValue(USER_REGISTERED_BINDING)
+
+    private val userRegisteredQueue
+        get() = userRegisteredBinding.queue
+
+    private val userRegisteredRoutingKey
+        get() = userRegisteredBinding.routingKey
+
+    private companion object {
+        const val USER_REGISTERED_BINDING = "user-registered"
     }
 }

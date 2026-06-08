@@ -1,5 +1,21 @@
 [versions]
+extratoast-commons = "0.4.0"
 extratoast-conventions = "0.2.2"
+
+[libraries]
+kotlin-commons-archunit-test = { module = "dev.extratoast:kotlin-commons-archunit-test", version.ref = "extratoast-commons" }
+kotlin-commons-blocks = { module = "dev.extratoast:kotlin-commons-blocks", version.ref = "extratoast-commons" }
+kotlin-commons-command = { module = "dev.extratoast:kotlin-commons-command", version.ref = "extratoast-commons" }
+kotlin-commons-crac = { module = "dev.extratoast:kotlin-commons-crac", version.ref = "extratoast-commons" }
+kotlin-commons-email = { module = "dev.extratoast:kotlin-commons-email", version.ref = "extratoast-commons" }
+kotlin-commons-events = { module = "dev.extratoast:kotlin-commons-events", version.ref = "extratoast-commons" }
+kotlin-commons-exceptions = { module = "dev.extratoast:kotlin-commons-exceptions", version.ref = "extratoast-commons" }
+kotlin-commons-messaging = { module = "dev.extratoast:kotlin-commons-messaging", version.ref = "extratoast-commons" }
+kotlin-commons-observability = { module = "dev.extratoast:kotlin-commons-observability", version.ref = "extratoast-commons" }
+kotlin-commons-test-support = { module = "dev.extratoast:kotlin-commons-test-support", version.ref = "extratoast-commons" }
+kotlin-commons-timing = { module = "dev.extratoast:kotlin-commons-timing", version.ref = "extratoast-commons" }
+kotlin-commons-vault = { module = "dev.extratoast:kotlin-commons-vault", version.ref = "extratoast-commons" }
+kotlin-commons-web = { module = "dev.extratoast:kotlin-commons-web", version.ref = "extratoast-commons" }
 
 [plugins]
 extratoast-kotlin = { id = "dev.extratoast.kotlin", version.ref = "extratoast-conventions" }
