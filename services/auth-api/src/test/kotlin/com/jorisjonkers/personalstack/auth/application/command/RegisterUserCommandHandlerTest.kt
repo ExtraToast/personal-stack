@@ -10,7 +10,6 @@ import com.jorisjonkers.personalstack.auth.domain.port.PasswordEncoder
 import com.jorisjonkers.personalstack.auth.domain.port.UserRepository
 import com.jorisjonkers.personalstack.common.messaging.RabbitMqEventPublisher
 import com.jorisjonkers.personalstack.common.messaging.RabbitMqMessagingProperties
-import io.mockk.any
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
