@@ -1,0 +1,486 @@
+[
+  {
+    "id": "t00-verify-website-local-inventory",
+    "title": "Verify local website inventory gate",
+    "objective": "Establish local sibling access to ../website, inventory the website paths needed for extraction decisions, and write an evidence ledger that marks every website implementation winner as verified or blocked. Do not mutate either codebase beyond the ledger.",
+    "output_format": "docs/extraction/website-evidence-ledger.md with repo path, claim, evidence path, and status rows.",
+    "paths": [
+      "docs/extraction/website-evidence-ledger.md"
+    ],
+    "depends_on": [],
+    "difficulty": "moderate",
+    "model": "haiku",
+    "verify": "test -f docs/extraction/website-evidence-ledger.md && test -d ../website && test -r ../website/settings.gradle.kts && test -r ../website/libs/kotlin-common/src/main/kotlin/net/blueshell/common/vault/VaultTransitClient.kt",
+    "boundaries": "Read-only for source code. Do not decide website winners from the task brief alone. If ../website is unavailable, leave the ledger explicit about the block and do not start dependent website tasks."
+  },
+  {
+    "id": "t01-provision-packages-actions-and-container-auth",
+    "title": "Provision artifact, action, and Docker build auth",
+    "objective": "Document and implement the repository-side wiring needed before consumers can pull ExtraToast Maven, npm, and reusable-actions artifacts, including Docker build-stage credentials or a public-package decision.",
+    "output_format": "Updated CI/auth configuration plus docs/extraction/package-access.md explaining local, CI, cross-org, and container-stage access.",
+    "paths": [
+      "docs/extraction/package-access.md",
+      ".github/workflows/build-and-publish.yml",
+      ".github/workflows/crac-train.yml",
+      ".npmrc"
+    ],
+    "depends_on": [
+      "t00-verify-website-local-inventory"
+    ],
+    "difficulty": "hard",
+    "model": "sonnet",
+    "verify": "test -f docs/extraction/package-access.md && rg -q 'GitHub Packages' docs/extraction/package-access.md && rg -q 'BuildKit|public package|public packages' docs/extraction/package-access.md && test -f .github/workflows/build-and-publish.yml && test -f .github/workflows/crac-train.yml",
+    "boundaries": "Do not rewrite service dependencies or remove workspace libs. This task owns package/action access policy and Docker secret plumbing only; consumer import/build rewiring happens later."
+  },
+  {
+    "id": "t02-create-gradle-conventions-repo",
+    "title": "Create ExtraToast gradle-conventions",
+    "objective": "Create the standalone Gradle convention plugin repository with plugin IDs, plugin-marker publication, TestKit tests, configurable Java/detekt/integrationTest/Jacoco behavior, and opt-in jOOQ and OpenAPI plugins.",
+    "output_format": "A sibling ../gradle-conventions repository ready to publish Maven plugin artifacts to GitHub Packages.",
+    "paths": [
+      "../gradle-conventions/**"
+    ],
+    "depends_on": [
+      "t00-verify-website-local-inventory"
+    ],
+    "difficulty": "hard",
+    "model": "sonnet",
+    "verify": "test -f ../gradle-conventions/settings.gradle.kts && test -f ../gradle-conventions/build.gradle.kts && test -d ../gradle-conventions/src/test && cd ../gradle-conventions && ./gradlew test publishToMavenLocal",
+    "boundaries": "Do not edit personal-stack or website consumers. Do not introduce a version catalog unless the task proves it is needed and documents separate adoption."
+  },
+  {
+    "id": "t03-create-github-workflows-repo",
+    "title": "Create ExtraToast github-workflows",
+    "objective": "Create the reusable actions/workflows repository with parameterized prepare-host, setup-java-gradle, setup-node, and small workflow fragments, including pinned-version consumption guidance and cross-org access requirements.",
+    "output_format": "A sibling ../github-workflows repository with composite actions, reusable workflow docs, and self-tests where practical.",
+    "paths": [
+      "../github-workflows/**"
+    ],
+    "depends_on": [
+      "t00-verify-website-local-inventory"
+    ],
+    "difficulty": "moderate",
+    "model": "haiku",
+    "verify": "test -f ../github-workflows/README.md && test -d ../github-workflows/.github/actions && rg -q 'package-manager' ../github-workflows && rg -q 'uses:' ../github-workflows/README.md",
+    "boundaries": "Do not move personal-stack system-tests.yml unless all script paths, image names, hostnames, callers, permissions, and secrets are explicit inputs."
+  },
+  {
+    "id": "t04-adopt-foundation-personal-stack",
+    "title": "Adopt Gradle conventions and workflow foundation in personal-stack",
+    "objective": "Wire personal-stack to consume published gradle-conventions and github-workflows artifacts, resolve stale gradle.properties version authority, configure pluginManagement and dependencyResolutionManagement GitHub Packages repositories, and replace local CI setup actions only where inputs preserve behavior.",
+    "output_format": "A personal-stack commit that updates Gradle settings/build logic and CI action references without touching application source.",
+    "paths": [
+      "settings.gradle.kts",
+      "gradle.properties",
+      "build-logic/**",
+      ".github/actions/**",
+      ".github/workflows/fast.yml",
+      ".github/workflows/full.yml",
+      ".github/workflows/nightly.yml",
+      ".github/workflows/build-and-publish.yml",
+      ".github/workflows/crac-train.yml"
+    ],
+    "depends_on": [
+      "t01-provision-packages-actions-and-container-auth",
+      "t02-create-gradle-conventions-repo",
+      "t03-create-github-workflows-repo"
+    ],
+    "difficulty": "hard",
+    "model": "sonnet",
+    "verify": "./gradlew :platform:tooling:test && git diff --check",
+    "boundaries": "This is the only personal-stack task in this wave allowed to edit root Gradle plugin resolution and shared CI setup files. Do not remove libs/kotlin-common or libs/vue-common yet."
+  },
+  {
+    "id": "t05-adopt-foundation-website",
+    "title": "Adopt Gradle conventions and workflow foundation in website",
+    "objective": "Wire website to consume the shared Gradle conventions and reusable actions after local inventory verifies its current build-logic, Java baseline, package manager, and CI behavior.",
+    "output_format": "A website commit updating only foundation Gradle and CI setup files.",
+    "paths": [
+      "../website/settings.gradle.kts",
+      "../website/gradle.properties",
+      "../website/build-logic/**",
+      "../website/.github/actions/**",
+      "../website/.github/workflows/**"
+    ],
+    "depends_on": [
+      "t01-provision-packages-actions-and-container-auth",
+      "t02-create-gradle-conventions-repo",
+      "t03-create-github-workflows-repo"
+    ],
+    "difficulty": "hard",
+    "model": "sonnet",
+    "verify": "test -d ../website && cd ../website && ./gradlew test && git diff --check",
+    "boundaries": "Do not touch website service source, frontend packages, generated OpenAPI output, or infra. Keep website-specific Java and OpenAPI-client behavior configurable rather than forcing personal-stack defaults."
+  },
+  {
+    "id": "t06-create-kotlin-spring-commons-repo",
+    "title": "Create ExtraToast kotlin-spring-commons",
+    "objective": "Create the Maven module family for command, events, blocks, web, exceptions, vault, vault-jwt, observability, timing add-ons, crac, email, and archunit-test. Reconcile Vault and CommandBus APIs with compatibility tests and keep RabbitMQ event constants out of shared runtime modules.",
+    "output_format": "A sibling ../kotlin-spring-commons repository with module coordinates, auto-configuration metadata per add-on, tests, and publishToMavenLocal support.",
+    "paths": [
+      "../kotlin-spring-commons/**"
+    ],
+    "depends_on": [
+      "t02-create-gradle-conventions-repo"
+    ],
+    "difficulty": "hard",
+    "model": "sonnet",
+    "verify": "test -f ../kotlin-spring-commons/settings.gradle.kts && rg -q 'archunit-test|archunit' ../kotlin-spring-commons && rg -q 'AutoConfiguration.imports' ../kotlin-spring-commons && cd ../kotlin-spring-commons && ./gradlew test publishToMavenLocal",
+    "boundaries": "Do not edit consumer repos. ArchUnit must be a test-support artifact. Messaging must be deferred or limited to generic abstractions and property-driven declarations."
+  },
+  {
+    "id": "t07-create-vue-web-commons-repo",
+    "title": "Create ExtraToast vue-web-commons",
+    "objective": "Create the publishable npm package with dist exports, generated declarations, peer dependency policy, publishConfig, tests, and adapter-based auth/theme/API behavior.",
+    "output_format": "A sibling ../vue-web-commons package ready for npm publication to GitHub Packages.",
+    "paths": [
+      "../vue-web-commons/**"
+    ],
+    "depends_on": [
+      "t00-verify-website-local-inventory"
+    ],
+    "difficulty": "hard",
+    "model": "sonnet",
+    "verify": "test -f ../vue-web-commons/package.json && rg -q 'publishConfig' ../vue-web-commons/package.json && rg -q 'peerDependencies' ../vue-web-commons/package.json && cd ../vue-web-commons && npm test",
+    "boundaries": "Do not assume PrimeVue or Vuetify. Either retain existing personal-stack component exports in the package or require a separate consumer migration before import rewrites."
+  },
+  {
+    "id": "t08-create-openapi-tooling-repos",
+    "title": "Create OpenAPI tooling repositories",
+    "objective": "Create ExtraToast/openapi-client-gradle for external client generation and ExtraToast/api-contract-checks for service contract export and TypeScript drift checks, keeping the two mechanisms separate.",
+    "output_format": "Sibling ../openapi-client-gradle and ../api-contract-checks repositories with tests and usage docs.",
+    "paths": [
+      "../openapi-client-gradle/**",
+      "../api-contract-checks/**"
+    ],
+    "depends_on": [
+      "t02-create-gradle-conventions-repo"
+    ],
+    "difficulty": "moderate",
+    "model": "haiku",
+    "verify": "test -f ../openapi-client-gradle/settings.gradle.kts && test -f ../api-contract-checks/README.md && cd ../openapi-client-gradle && ./gradlew test publishToMavenLocal && cd ../api-contract-checks && npm test",
+    "boundaries": "Do not edit package.json, service build files, generated clients, or contract workflows in either consumer. Generated-output policy is documented here and adopted later."
+  },
+  {
+    "id": "t09-create-agent-kit-repo",
+    "title": "Create ExtraToast agent-kit",
+    "objective": "Create the standalone agent-kit repository preserving renderer commands, manifest semantics, Claude/Codex parity, council templates, installer rendering, and pinned-release consumption.",
+    "output_format": "A sibling ../agent-kit repository with renderer, templates, tests, release packaging docs, and check-mode support.",
+    "paths": [
+      "../agent-kit/**"
+    ],
+    "depends_on": [
+      "t00-verify-website-local-inventory"
+    ],
+    "difficulty": "hard",
+    "model": "sonnet",
+    "verify": "test -f ../agent-kit/render-agent-kit.py && ../agent-kit/render-agent-kit.py --check && ../agent-kit/render-agent-kit.py --doctor",
+    "boundaries": "Do not edit personal-stack generated installer resources or .claude/.codex mirrors here. The consumer task chooses checked-in resource, build-time vendoring, or remote endpoint."
+  },
+  {
+    "id": "t10-create-stalwart-provisioner-repo",
+    "title": "Create ExtraToast stalwart-provisioner",
+    "objective": "Create the Stalwart provisioning image and validation CLI with a v2 account schema supporting env, file, and Vault/VSO-backed password references.",
+    "output_format": "A sibling ../stalwart-provisioner repository with schema, validator, Dockerfile, tests, and migration docs.",
+    "paths": [
+      "../stalwart-provisioner/**"
+    ],
+    "depends_on": [
+      "t00-verify-website-local-inventory"
+    ],
+    "difficulty": "moderate",
+    "model": "haiku",
+    "verify": "test -f ../stalwart-provisioner/schema/schema.json && test -f ../stalwart-provisioner/Dockerfile && cd ../stalwart-provisioner && ./scripts/validate-fixtures.sh",
+    "boundaries": "Do not change consumer accounts or deployment manifests. Keep raw account data and DNS zones local to each repo."
+  },
+  {
+    "id": "t11-create-platform-blueprints-repo",
+    "title": "Create ExtraToast homelab-platform-blueprints",
+    "objective": "Create the reusable NixOS/k3s/Flux blueprint repository from verified generic modules and bootstrap helpers, without moving host data, app manifests, secrets, or Nomad/Consul jobs.",
+    "output_format": "A sibling ../homelab-platform-blueprints repository with a Nix flake, reusable modules, templates, and validation docs.",
+    "paths": [
+      "../homelab-platform-blueprints/**"
+    ],
+    "depends_on": [
+      "t00-verify-website-local-inventory"
+    ],
+    "difficulty": "hard",
+    "model": "sonnet",
+    "verify": "test -f ../homelab-platform-blueprints/flake.nix && cd ../homelab-platform-blueprints && nix flake check",
+    "boundaries": "Do not edit platform/scripts/render, platform/inventory/fleet.yaml, generated Flux output, or service-specific manifests in consumers."
+  },
+  {
+    "id": "t12-adopt-kotlin-commons-personal-stack",
+    "title": "Adopt kotlin-spring-commons in personal-stack",
+    "objective": "Replace personal-stack's workspace-local libs:kotlin-common consumption with published kotlin-spring-commons modules service by service, update imports, keep Spring auto-config behavior, and update JVM Dockerfiles to stop copying workspace common code once package resolution works inside build stages.",
+    "output_format": "A personal-stack commit removing or shrinking libs/kotlin-common only after all consuming services compile and tests pass.",
+    "paths": [
+      "libs/kotlin-common/**",
+      "settings.gradle.kts",
+      "services/auth-api/build.gradle.kts",
+      "services/assistant-api/build.gradle.kts",
+      "services/knowledge-api/build.gradle.kts",
+      "services/agent-gateway/build.gradle.kts",
+      "services/system-tests/build.gradle.kts",
+      "services/auth-api/Dockerfile",
+      "services/assistant-api/Dockerfile",
+      "services/knowledge-api/Dockerfile",
+      "services/agent-gateway/Dockerfile",
+      "services/agent-runner/Dockerfile",
+      "services/auth-api/src/**",
+      "services/assistant-api/src/**",
+      "services/knowledge-api/src/**",
+      "services/agent-gateway/src/**"
+    ],
+    "depends_on": [
+      "t04-adopt-foundation-personal-stack",
+      "t06-create-kotlin-spring-commons-repo"
+    ],
+    "difficulty": "hard",
+    "model": "sonnet",
+    "verify": "./gradlew :services:auth-api:test :services:assistant-api:test :services:knowledge-api:test :services:agent-gateway:test && git diff --check",
+    "boundaries": "Do not edit frontend package files, OpenAPI generated clients, workflow reusable-action refs, agent-kit files, or platform inventory. Keep personal-stack RabbitMQ constants local unless genericized."
+  },
+  {
+    "id": "t13-adopt-kotlin-and-openapi-website",
+    "title": "Adopt kotlin commons and OpenAPI tooling in website",
+    "objective": "After local verification, adopt kotlin-spring-commons and the split OpenAPI tooling in website, reconciling Vault, typed CommandBus, external specs, and generated-output policy without forcing jOOQ/Postgres or personal-stack domain style.",
+    "output_format": "A website commit updating backend shared libraries, OpenAPI client generation, and generated-output policy.",
+    "paths": [
+      "../website/libs/kotlin-common/**",
+      "../website/libs/openapi-specs/**",
+      "../website/settings.gradle.kts",
+      "../website/services/api/build.gradle.kts",
+      "../website/services/api/src/**",
+      "../website/build-logic/**"
+    ],
+    "depends_on": [
+      "t05-adopt-foundation-website",
+      "t06-create-kotlin-spring-commons-repo",
+      "t08-create-openapi-tooling-repos"
+    ],
+    "difficulty": "hard",
+    "model": "sonnet",
+    "verify": "test -d ../website && cd ../website && ./gradlew test && git diff --check",
+    "boundaries": "Do not touch website frontend Yarn files or visual components. Do not force jOOQ, Postgres, personal-stack RabbitMQ event names, or personal-stack hexagonal ArchUnit presets onto website."
+  },
+  {
+    "id": "t14-adopt-vue-commons-personal-stack",
+    "title": "Adopt vue-web-commons in personal-stack",
+    "objective": "Publish and consume @extratoast/vue-web-commons in personal-stack UI packages, update package names/imports/theme CSS, pnpm workspace and lockfile, and UI Dockerfiles so installs no longer depend on workspace-local libs/vue-common.",
+    "output_format": "A personal-stack commit updating the Vue package wiring and all three UI consumers.",
+    "paths": [
+      "libs/vue-common/**",
+      "package.json",
+      "pnpm-workspace.yaml",
+      "pnpm-lock.yaml",
+      "services/app-ui/package.json",
+      "services/auth-ui/package.json",
+      "services/assistant-ui/package.json",
+      "services/app-ui/Dockerfile",
+      "services/auth-ui/Dockerfile",
+      "services/assistant-ui/Dockerfile",
+      "services/app-ui/src/**",
+      "services/auth-ui/src/**",
+      "services/assistant-ui/src/**"
+    ],
+    "depends_on": [
+      "t04-adopt-foundation-personal-stack",
+      "t07-create-vue-web-commons-repo"
+    ],
+    "difficulty": "hard",
+    "model": "sonnet",
+    "verify": "pnpm install --frozen-lockfile && pnpm --filter @personal-stack/app-ui typecheck && pnpm --filter @personal-stack/auth-ui typecheck && pnpm --filter @personal-stack/assistant-ui typecheck && git diff --check",
+    "boundaries": "Do not edit backend Gradle files or OpenAPI contract files except imports owned by UI consumers. If component exports are removed from the shared package, first migrate consumers to local components in this task."
+  },
+  {
+    "id": "t15-adopt-vue-commons-website",
+    "title": "Adopt vue-web-commons in website",
+    "objective": "After local verification, wire website's Yarn Berry frontend to @extratoast/vue-web-commons using .yarnrc.yml scope registry/auth, PnP-compatible package metadata, and only framework-neutral APIs.",
+    "output_format": "A website commit updating frontend package manager files and framework-neutral imports.",
+    "paths": [
+      "../website/package.json",
+      "../website/yarn.lock",
+      "../website/.yarnrc.yml",
+      "../website/services/**/package.json",
+      "../website/services/**/src/**"
+    ],
+    "depends_on": [
+      "t13-adopt-kotlin-and-openapi-website",
+      "t07-create-vue-web-commons-repo"
+    ],
+    "difficulty": "hard",
+    "model": "sonnet",
+    "verify": "test -d ../website && cd ../website && yarn install --immutable && yarn test && git diff --check",
+    "boundaries": "Do not move Vuetify visual components into the shared package. Do not edit website backend Gradle or OpenAPI files in this task."
+  },
+  {
+    "id": "t16-adopt-openapi-contracts-personal-stack",
+    "title": "Adopt OpenAPI contract checks in personal-stack",
+    "objective": "Replace local OpenAPI generation and contract drift checks with the split shared tooling, covering assistant-api, knowledge-api, assistant-ui generated types, root package scripts, and contract-validate workflow.",
+    "output_format": "A personal-stack commit with shared OpenAPI tooling wired and generated-output policy preserved.",
+    "paths": [
+      "package.json",
+      "pnpm-lock.yaml",
+      ".github/workflows/contract-validate.yml",
+      "services/assistant-api/build.gradle.kts",
+      "services/assistant-api/CONTRACT.md",
+      "services/assistant-api/openapi.json",
+      "services/assistant-api/src/integrationTest/kotlin/com/jorisjonkers/personalstack/assistant/contract/**",
+      "services/assistant-ui/package.json",
+      "services/assistant-ui/scripts/contract-banner.mjs",
+      "services/assistant-ui/src/api/generated.ts",
+      "services/knowledge-api/build.gradle.kts",
+      "services/knowledge-api/openapi.json",
+      "services/knowledge-api/src/integrationTest/kotlin/com/jorisjonkers/personalstack/knowledge/contract/**"
+    ],
+    "depends_on": [
+      "t12-adopt-kotlin-commons-personal-stack",
+      "t14-adopt-vue-commons-personal-stack",
+      "t08-create-openapi-tooling-repos"
+    ],
+    "difficulty": "hard",
+    "model": "sonnet",
+    "verify": "./gradlew :services:assistant-api:exportOpenApiSpec :services:knowledge-api:exportOpenApiSpec && pnpm --filter @personal-stack/assistant-ui contract:check && git diff --check",
+    "boundaries": "Do not edit unrelated UI features or backend application code. Keep generated files committed if that remains the documented policy."
+  },
+  {
+    "id": "t17-adopt-agent-kit-personal-stack",
+    "title": "Adopt external agent-kit in personal-stack",
+    "objective": "Consume the pinned ExtraToast/agent-kit release while preserving same-branch Claude/Codex parity, generated installer resource behavior, InstallerController token substitution, Flux /install.sh routing, and platform/tooling tests.",
+    "output_format": "A personal-stack commit updating agent-kit source consumption and parity checks without breaking knowledge-api install.sh serving.",
+    "paths": [
+      "platform/agents/kit/**",
+      "platform/agents/council/**",
+      ".agents/**",
+      ".claude/**",
+      ".codex/**",
+      "services/knowledge-api/src/main/resources/installer/install.sh",
+      "services/knowledge-api/src/main/kotlin/com/jorisjonkers/personalstack/knowledge/installer/InstallerController.kt",
+      "services/knowledge-api/src/integrationTest/kotlin/com/jorisjonkers/personalstack/knowledge/installer/InstallerControllerIntegrationTest.kt",
+      "platform/tooling/src/test/kotlin/com/jorisjonkers/personalstack/platform/AgentKitManifestTest.kt",
+      "platform/tooling/src/test/kotlin/com/jorisjonkers/personalstack/platform/PlatformKnowledgeApiFluxTest.kt"
+    ],
+    "depends_on": [
+      "t04-adopt-foundation-personal-stack",
+      "t09-create-agent-kit-repo"
+    ],
+    "difficulty": "hard",
+    "model": "sonnet",
+    "verify": "platform/agents/kit/render-agent-kit.py --check && ./gradlew :platform:tooling:test :services:knowledge-api:integrationTest && git diff --check",
+    "boundaries": "Do not edit Gradle convention files, Vue packages, or Stalwart files. The task must fail if only Claude or only Codex generated output changes."
+  },
+  {
+    "id": "t18-adopt-agent-kit-website",
+    "title": "Adopt external agent-kit in website",
+    "objective": "Install the pinned agent-kit in website after local verification, generating Claude, Codex, and .agents surfaces together and adding a parity check that uses the same pinned kit version.",
+    "output_format": "A website commit with generated agent surfaces and parity check wiring.",
+    "paths": [
+      "../website/.agents/**",
+      "../website/.claude/**",
+      "../website/.codex/**",
+      "../website/platform/agents/**",
+      "../website/.github/workflows/**"
+    ],
+    "depends_on": [
+      "t05-adopt-foundation-website",
+      "t09-create-agent-kit-repo"
+    ],
+    "difficulty": "moderate",
+    "model": "haiku",
+    "verify": "test -d ../website && cd ../website && test -d .agents && test -d .claude && test -d .codex && git diff --check",
+    "boundaries": "Do not edit website application code, Gradle files, or infra manifests except a narrowly scoped parity workflow if needed."
+  },
+  {
+    "id": "t19-adopt-stalwart-provisioner-personal-stack",
+    "title": "Adopt Stalwart provisioner in personal-stack",
+    "objective": "Replace personal-stack's local Stalwart provisioning scripts/schema with the shared v2 schema, pinned image/CLI, and migrated account references while preserving dev plan validation, bootstrap idempotency, and no-runtime-download behavior.",
+    "output_format": "A personal-stack commit updating infra/stalwart to consume the shared provisioner.",
+    "paths": [
+      "infra/stalwart/**"
+    ],
+    "depends_on": [
+      "t10-create-stalwart-provisioner-repo"
+    ],
+    "difficulty": "moderate",
+    "model": "haiku",
+    "verify": "infra/stalwart/schema/validate-plan.py infra/stalwart/plan.dev.ndjson && git diff --check",
+    "boundaries": "Do not edit raw DNS zones, unrelated platform manifests, or mail account domain data beyond schema migration."
+  },
+  {
+    "id": "t20-adopt-stalwart-provisioner-website",
+    "title": "Adopt Stalwart provisioner in website",
+    "objective": "After local verification, migrate website Stalwart provisioning to the shared v2 schema and pinned image/CLI, preserving its stronger hostname, DKIM, and Vault-backed credential behavior where verified.",
+    "output_format": "A website commit updating infra/stalwart only.",
+    "paths": [
+      "../website/infra/stalwart/**"
+    ],
+    "depends_on": [
+      "t10-create-stalwart-provisioner-repo"
+    ],
+    "difficulty": "moderate",
+    "model": "haiku",
+    "verify": "test -d ../website/infra/stalwart && cd ../website && git diff --check",
+    "boundaries": "Do not edit website DNS zones or platform app manifests unless the existing Stalwart deployment reference must be pointed at the pinned image."
+  },
+  {
+    "id": "t21-adopt-platform-blueprints-personal-stack",
+    "title": "Adopt platform blueprints in personal-stack",
+    "objective": "Adopt the reusable platform blueprints only for generic NixOS/k3s/bootstrap pieces, keeping personal-stack host data, Flux app manifests, secrets, Nomad/Consul production jobs, and render outputs local.",
+    "output_format": "A personal-stack commit with a minimal flake/template/CLI consumption path and tests showing rendered platform output is unchanged where applicable.",
+    "paths": [
+      "platform/nix/**",
+      "platform/cluster/flux/**",
+      "platform/inventory/**",
+      "platform/tooling/**",
+      "platform/scripts/**"
+    ],
+    "depends_on": [
+      "t11-create-platform-blueprints-repo",
+      "t17-adopt-agent-kit-personal-stack",
+      "t19-adopt-stalwart-provisioner-personal-stack"
+    ],
+    "difficulty": "hard",
+    "model": "sonnet",
+    "verify": "./gradlew :platform:tooling:test && git diff --check",
+    "boundaries": "Do not force-merge Nomad and k3s. Do not move platform/scripts/render into this repo; that belongs to deploy-config-schema design unless explicitly separated."
+  },
+  {
+    "id": "t22-adopt-platform-blueprints-website",
+    "title": "Adopt platform blueprints in website",
+    "objective": "After local verification, adopt only generic platform blueprints in website while preserving its k3s/Flux-only deployment model, Keel image automation, host data, app manifests, and secrets.",
+    "output_format": "A website commit with minimal platform blueprint consumption and unchanged rendered output where tests exist.",
+    "paths": [
+      "../website/platform/nix/**",
+      "../website/platform/cluster/flux/**",
+      "../website/platform/scripts/**"
+    ],
+    "depends_on": [
+      "t11-create-platform-blueprints-repo",
+      "t20-adopt-stalwart-provisioner-website"
+    ],
+    "difficulty": "hard",
+    "model": "sonnet",
+    "verify": "test -d ../website/platform && cd ../website && git diff --check",
+    "boundaries": "Do not introduce Nomad/Consul concepts into website. Do not edit website application services."
+  },
+  {
+    "id": "t23-design-deploy-schema-and-authz-model",
+    "title": "Design deploy schema and authz model",
+    "objective": "Produce final design docs and proof-of-concept schemas for ExtraToast/deploy-config-schema and ExtraToast/authz-model, grounded in both repos after prior extraction boundaries are known.",
+    "output_format": "docs/extraction/deploy-config-schema.md, docs/extraction/authz-model.md, and optional schema drafts without consumer rewiring.",
+    "paths": [
+      "docs/extraction/deploy-config-schema.md",
+      "docs/extraction/authz-model.md"
+    ],
+    "depends_on": [
+      "t16-adopt-openapi-contracts-personal-stack",
+      "t21-adopt-platform-blueprints-personal-stack",
+      "t22-adopt-platform-blueprints-website"
+    ],
+    "difficulty": "hard",
+    "model": "sonnet",
+    "verify": "test -f docs/extraction/deploy-config-schema.md && test -f docs/extraction/authz-model.md && rg -q 'Non-goals' docs/extraction/deploy-config-schema.md && rg -q 'Non-goals' docs/extraction/authz-model.md",
+    "boundaries": "Design only. Do not edit auth services, OAuth clients, redirect URIs, permission evaluators, platform render scripts, generated Flux output, or raw DNS zones."
+  }
+]
