@@ -18,10 +18,18 @@ import java.util.Base64
  * Mints short-lived, single-repo GitHub App installation tokens so the
  * runner's `gh` can create PRs/re-run Actions and `git push` can create
  * feature branches over HTTPS. Each token is scoped to the one
- * repository being acted on and carries only `contents:write`,
- * `pull_requests:write`, and `actions:write`; `administration` is never
- * requested, so the token cannot change repo settings. `main` stays
- * guarded by branch protection.
+ * repository being acted on and carries `contents:write`,
+ * `pull_requests:write`, `actions:write`, `issues:write`,
+ * `workflows:write`, and `packages:read`; `administration` is never
+ * requested, so the token cannot change repo settings or rulesets.
+ * `main` stays guarded by branch protection.
+ *
+ * `workflows:write` lets the runner author the per-repo CI pipeline that
+ * ends in the required `Pipeline Complete` check; `issues:write` lets it
+ * keep tracking issues/milestones current; `packages:read` lets local
+ * builds resolve published `dev.extratoast.*` / `@extratoast` artifacts.
+ * Artifact publishing stays a CI concern (the release workflow's own
+ * `GITHUB_TOKEN`), so `packages:write` is not requested here.
  *
  * Disabled — [enabled] is false and [mint] returns null — whenever the
  * App id or private key is absent, so an unconfigured deployment is a
@@ -90,9 +98,10 @@ class GitHubAppInstallationTokenClient(
         if (shortfall.isNotEmpty()) {
             log.warn(
                 "installation token for {}/{} is missing requested permissions {} (granted: {}). " +
-                    "Widen the personal-stack-agents App's repository permissions to contents/pull_requests/" +
-                    "actions: read & write, then approve the updated permissions on the {} installation — " +
-                    "until then runner git push / gh pr / gh run rerun stay read-only.",
+                    "Widen the personal-stack-agents App's repository permissions (contents/pull_requests/" +
+                    "actions/issues/workflows: read & write, packages: read), then approve the updated " +
+                    "permissions on the {} installation — until then runner git push / gh pr / gh run rerun / " +
+                    "workflow edits / issue edits stay restricted.",
                 slug.owner,
                 slug.repo,
                 shortfall,
@@ -183,14 +192,21 @@ class GitHubAppInstallationTokenClient(
         private const val GH_API_VERSION_HEADER = "X-GitHub-Api-Version"
         private const val GH_API_VERSION = "2022-11-28"
 
-        // The only permissions a runner token ever carries: enough for
-        // git push, gh pr create/comment, and gh run rerun. `administration`
-        // is deliberately absent so the token cannot change repo settings.
+        // The permissions a runner token carries: enough for git push,
+        // gh pr create/comment, gh run rerun, authoring `.github/workflows`
+        // (the Pipeline Complete pipeline), keeping tracking issues current,
+        // and resolving published packages for local builds. `administration`
+        // is deliberately absent so the token cannot change repo settings or
+        // rulesets; `packages` is read-only because publishing is done by the
+        // release workflow's own GITHUB_TOKEN, not by runner tokens.
         val REQUESTED_PERMISSIONS =
             mapOf(
                 "contents" to "write",
                 "pull_requests" to "write",
                 "actions" to "write",
+                "issues" to "write",
+                "workflows" to "write",
+                "packages" to "read",
             )
 
         private val PERMISSION_RANK = mapOf("read" to 1, "write" to 2, "admin" to 3)
