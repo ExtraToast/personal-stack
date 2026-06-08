@@ -90,4 +90,4 @@ spec:
         role_attribute_path: "contains(roles[*], 'ROLE_ADMIN') && 'GrafanaAdmin' || 'Viewer'"
         allow_assign_grafana_admin: true
         auto_login: true
-        use_pkce: true
+        use_pkce: false
