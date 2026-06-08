@@ -154,10 +154,10 @@ jobs:
             shard_args: -Dtest.shard.index=4 -Dtest.shard.count=4
     steps:
       - uses: actions/checkout@v6.0.2
-      - uses: ./.github/actions/setup-java-gradle
+      - uses: ExtraToast/github-workflows/actions/setup-java-gradle@v0.1.0
         with:
           java-version: ${{ inputs.java-version }}
-      - uses: ./.github/actions/prepare-ci-host
+      - uses: ExtraToast/github-workflows/actions/prepare-ci-host@v0.1.0
       - name: Start Docker Compose stack
         timeout-minutes: 6
         run: bash .github/scripts/start-system-test-stack.sh

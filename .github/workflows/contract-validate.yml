@@ -24,11 +24,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6.0.2
-      - uses: ./.github/actions/setup-java-gradle
+      - uses: ExtraToast/github-workflows/actions/setup-java-gradle@v0.1.0
         with:
           java-version: '21'
-      - uses: ./.github/actions/setup-node-pnpm
+      - uses: ExtraToast/github-workflows/actions/setup-node@v0.1.0
         with:
+          package-manager: pnpm
           node-version: '24'
       - name: Export OpenAPI specs
         run: >
