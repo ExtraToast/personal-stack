@@ -171,12 +171,15 @@ committed tree, so rendering must happen locally before commit.
 
 - **Knowledge-vault structure.** Captures land in
   `_inbox/<day>/<time>-<slug>--<id8>.md` (worker). The
-  `knowledge-curator` CronJob runs every 5 minutes; it classifies
-  via Ollama `qwen2.5:14b-instruct` with JSON-schema-constrained
-  output, validates `topic:<slug>` against `topics.yaml`, and
+  `knowledge-curator` CronJob runs twice daily (09:00 & 18:00
+  Europe/Amsterdam); it classifies via Ollama with
+  JSON-schema-constrained output, validates `topic:<slug>` against
+  `topics.yaml`, and
   `git mv`s the file to `topics/<topic-slug>/<type>/<slug>.md` or
   `projects/<github-repo-name>/<type>/<slug>.md`. Unclassifiable
-  notes go to `_inbox/_needs-review/`. After any pass that promotes
+  notes go to `_inbox/_needs-review/`; low-value captures are
+  discarded to `_inbox/_discarded/`, and stuck review files
+  auto-escalate to discard after 3 attempts. After any pass that promotes
   at least one note the curator regenerates `_index/recent.md`,
   per-topic MoCs at `_index/topics/<slug>.md`, and
   `_index/conflicts.md`. Full design in

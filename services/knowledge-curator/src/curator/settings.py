@@ -59,6 +59,7 @@ class Settings:
     # Curator behaviour
     classify_top_k_neighbours: int
     classify_confidence_floor: float
+    curator_max_review_attempts: int
 
     # Topic vocabulary file (mounted from a ConfigMap in production).
     topics_yaml_path: Path
@@ -127,6 +128,7 @@ class Settings:
             knowledge_api_bearer_token=e.get("KNOWLEDGE_API_BEARER_TOKEN", ""),
             classify_top_k_neighbours=int(e.get("CLASSIFY_TOP_K_NEIGHBOURS", "5")),
             classify_confidence_floor=float(e.get("CLASSIFY_CONFIDENCE_FLOOR", "0.55")),
+            curator_max_review_attempts=int(e.get("CURATOR_MAX_REVIEW_ATTEMPTS", "3")),
             topics_yaml_path=Path(e.get("TOPICS_YAML_PATH", "/etc/curator/topics.yaml")),
             lightrag_base_url=e.get(
                 "LIGHTRAG_BASE_URL",

@@ -11,6 +11,8 @@ Schema enforced:
 
     {
       "title":       str,                   # concise, descriptive
+      "action":      enum promote|discard,  # default promote; discard
+                                            #   low-value captures
       "scope":       enum,                  # topic:<slug> | project:<repo>
                                             #   | agent:<name> | agent:_shared
       "topic":       str | null,            # required when scope starts with topic:
@@ -27,7 +29,7 @@ Schema enforced:
 
 Failure handling: a single retry with the Pydantic validation
 error appended to the user message. On second failure the caller
-routes the note to `_inbox/_needs-review/`.
+routes the note to review or, after repeated review attempts, discard.
 """
 
 from __future__ import annotations
@@ -74,6 +76,7 @@ class Classification(BaseModel):
     """
 
     title: str = Field(..., min_length=4, max_length=80)
+    action: str = Field(default="promote", pattern=r"^(promote|discard)$")
     scope: str = Field(..., pattern=_SCOPE_PATTERN)
     topic: str | None = None
     type: str = Field(..., pattern=r"^(lesson|decision|note|fact)$")
@@ -102,9 +105,19 @@ _RESPONSE_SCHEMA: dict[str, Any] = {
     "schema": {
         "type": "object",
         "additionalProperties": False,
-        "required": ["title", "scope", "type", "tags", "supersedes", "see_also", "confidence"],
+        "required": [
+            "title",
+            "scope",
+            "type",
+            "tags",
+            "supersedes",
+            "see_also",
+            "confidence",
+            "action",
+        ],
         "properties": {
             "title": {"type": "string", "minLength": 4, "maxLength": 80},
+            "action": {"type": "string", "enum": ["promote", "discard"]},
             "scope": {"type": "string", "pattern": _SCOPE_PATTERN},
             "topic": {"type": ["string", "null"]},
             "type": {"type": "string", "enum": ["lesson", "decision", "note", "fact"]},
@@ -157,6 +170,19 @@ def system_prompt(
         '"On", "About", "Notes on", "Introduction to" — the '
         'title IS the claim. Good: "Vault Raft unseal requires '
         'Shamir keys". Bad: "How does Vault Raft unseal work?". '
+        "Commit to the single best-fit scope and type, and rewrite "
+        "the title decisively rather than abdicating. When a note is "
+        "not clearly tied to exactly one closed-vocabulary slug, "
+        "choose the safest general placement (`agent:_shared` or the "
+        "closest `topic:<slug>`) and promote it. Do not request review "
+        "just because the fit is imperfect. "
+        "`action` defaults to `promote`. Choose `discard` only when "
+        "the capture is genuinely low-value and not worth keeping: "
+        "empty or near-empty bodies, transient chatter, pure duplicates "
+        "of an existing neighbour, test/noise captures, or content "
+        "with no durable knowledge. When discarding, still fill the "
+        "other fields best-effort and set `needs_review_reason` to a "
+        "short human-readable reason; it doubles as the discard reason. "
         "Use `topic:<slug>` only "
         "with one of these slugs: " + topic_list + ". "
         # Project vocabulary is closed. The classifier used to
@@ -177,10 +203,10 @@ def system_prompt(
         "Use "
         "`agent:_shared` for process / methodology guidance aimed at "
         "any assistant. `agent:<name>` is reserved for assistant-"
-        "specific guidance — almost never the right choice. Pick "
-        "`needs_review_reason` non-null only when the body genuinely "
-        "could fit multiple scopes or types and no single answer "
-        "dominates. "
+        "specific guidance — almost never the right choice. Reserve "
+        "non-null `needs_review_reason` with `action=\"promote\"` for "
+        "the rare genuinely bimodal case where neither promotion nor "
+        "discard is defensible. "
         # Strongly bias toward populating `see_also` so the resulting
         # kb_relations graph is dense enough to be useful for recall.
         "Linking rules — follow these aggressively: "

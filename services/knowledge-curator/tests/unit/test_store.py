@@ -41,6 +41,17 @@ def test_in_memory_store_records_relations() -> None:
     assert store.relations == [("A", "supersedes", "B")]
 
 
+def test_in_memory_store_discard_removes_note_and_relations() -> None:
+    store = InMemoryCuratorStore(existing=["A", "B", "C"])
+    store.insert_relation(subject_id="A", predicate="supersedes", object_id="B")
+    store.insert_relation(subject_id="C", predicate="see_also", object_id="A")
+    store.insert_relation(subject_id="B", predicate="see_also", object_id="C")
+    assert store.discard_note(note_id="A") == 1
+    assert store.existing_ids(["A", "B", "C"]) == {"B", "C"}
+    assert store.relations == [("B", "see_also", "C")]
+    assert store.discard_note(note_id="A") == 0
+
+
 def test_in_memory_store_conflict_edges_filters_by_predicate() -> None:
     store = InMemoryCuratorStore()
     store.insert_relation(subject_id="A", predicate="supersedes", object_id="B")

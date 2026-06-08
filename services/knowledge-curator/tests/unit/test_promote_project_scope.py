@@ -24,7 +24,8 @@ from curator.vault import PromotionResult
 class _StubVault:
     def __init__(self) -> None:
         self.promotions: list[tuple[str, str, str, str]] = []
-        self.reviews: list[tuple[str, str]] = []
+        self.reviews: list[tuple[str, str, int]] = []
+        self.discards: list[tuple[str, str]] = []
 
     def promote(
         self,
@@ -37,11 +38,20 @@ class _StubVault:
         self.promotions.append((source_rel, destination_rel, new_body, commit_subject))
         return PromotionResult(new_relative_path=destination_rel, commit_sha="a" * 40)
 
-    def move_to_needs_review(self, *, source_rel: str, reason: str) -> PromotionResult:
-        self.reviews.append((source_rel, reason))
+    def move_to_needs_review(
+        self, *, source_rel: str, reason: str, attempt: int = 1
+    ) -> PromotionResult:
+        self.reviews.append((source_rel, reason, attempt))
         return PromotionResult(
             new_relative_path=f"_inbox/_needs-review/{Path(source_rel).name}",
             commit_sha="b" * 40,
+        )
+
+    def discard(self, *, source_rel: str, reason: str) -> PromotionResult:
+        self.discards.append((source_rel, reason))
+        return PromotionResult(
+            new_relative_path=f"_inbox/_discarded/{Path(source_rel).name}",
+            commit_sha="c" * 40,
         )
 
 
@@ -150,6 +160,7 @@ def _build(
         projects=_projects(),
         clone_dir=promoter_clone,
         confidence_floor=0.55,
+        max_review_attempts=3,
         recall_limit=3,
     )
     return promoter, vault, store
@@ -267,6 +278,7 @@ def test_empty_project_vocabulary_routes_every_project_scope_to_review(clone: Pa
         projects=ProjectVocabulary([]),
         clone_dir=clone,
         confidence_floor=0.55,
+        max_review_attempts=3,
         recall_limit=3,
     )
 

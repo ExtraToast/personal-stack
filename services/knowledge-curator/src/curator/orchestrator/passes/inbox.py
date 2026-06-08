@@ -2,7 +2,7 @@
 
 Drop-in replacement for the curator's legacy ``__main__`` entrypoint
 on the inbox half: walks `_inbox/<day>/*.md` (skipping
-``_needs-review/``), feeds each file through the existing
+``_needs-review/`` and ``_discarded/``), feeds each file through the existing
 :class:`curator.promote.Promoter`, and regenerates the on-disk
 indexes (`_index/recent.md`, per-topic MoCs, `_index/conflicts.md`)
 when at least one note promoted.
@@ -29,14 +29,14 @@ log = structlog.get_logger(__name__)
 
 INBOX_DIRNAME = "_inbox"
 NEEDS_REVIEW_PREFIX = f"{INBOX_DIRNAME}/_needs-review/"
+DISCARDED_PREFIX = f"{INBOX_DIRNAME}/_discarded/"
 
 
 def _list_inbox(inbox_root: Path) -> list[str]:
     """List every promotable `.md` file under ``_inbox/<day>/``.
 
     Returns vault-relative paths so the Promoter sees the same shape
-    the legacy entrypoint passed. Skips ``_inbox/_needs-review/`` —
-    those files are owned by :class:`NeedsReviewDrainPass`.
+    the legacy entrypoint passed. Skips review/discard archive files.
     """
 
     if not inbox_root.exists():
@@ -44,7 +44,7 @@ def _list_inbox(inbox_root: Path) -> list[str]:
     out: list[str] = []
     for path in sorted(inbox_root.rglob("*.md")):
         rel = path.relative_to(inbox_root.parent).as_posix()
-        if rel.startswith(NEEDS_REVIEW_PREFIX):
+        if rel.startswith(NEEDS_REVIEW_PREFIX) or rel.startswith(DISCARDED_PREFIX):
             continue
         out.append(rel)
     return out
@@ -77,7 +77,9 @@ class InboxPass:
         if inbox_root.exists():
             for path in inbox_root.rglob("*.md"):
                 rel = path.relative_to(self._vault_clone_dir).as_posix()
-                if not rel.startswith(NEEDS_REVIEW_PREFIX):
+                if not rel.startswith(NEEDS_REVIEW_PREFIX) and not rel.startswith(
+                    DISCARDED_PREFIX
+                ):
                     return True
         # Filesystem found nothing. Fall back to the DB to catch
         # DB/git desync — a note in kb_notes whose file was never

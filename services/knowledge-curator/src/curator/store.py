@@ -46,7 +46,8 @@ class CuratorStore(Protocol):
 
     def has_inbox_notes(self) -> bool:
         """Return True if any note with scope='_inbox' exists in kb_notes,
-        excluding files already routed to ``_inbox/_needs-review/``.
+        excluding files already routed to ``_inbox/_needs-review/``
+        or ``_inbox/_discarded/``.
         Fast existence check used by InboxPass.has_work as a DB fallback
         when the vault clone appears empty (DB/git desync recovery).
         """
@@ -61,6 +62,8 @@ class CuratorStore(Protocol):
         vault_commit: str,
         confidence: float,
     ) -> int: ...
+
+    def discard_note(self, *, note_id: str) -> int: ...
 
     def insert_relation(
         self,
@@ -270,6 +273,7 @@ class PostgresCuratorStore:
                     "WHERE scope = '_inbox' "
                     "  AND vault_path IS NOT NULL "
                     "  AND vault_path NOT LIKE '_inbox/_needs-review/%' "
+                    "  AND vault_path NOT LIKE '_inbox/_discarded/%' "
                     "LIMIT 1"
                 )
             )
@@ -319,6 +323,15 @@ class PostgresCuratorStore:
                 ),
                 (subject_id, predicate, object_id, props_json),
             )
+
+    def discard_note(self, *, note_id: str) -> int:
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                sql.SQL("DELETE FROM kb_relations WHERE subject_id = %s OR object_id = %s"),
+                (note_id, note_id),
+            )
+            cur.execute(sql.SQL("DELETE FROM kb_notes WHERE id = %s"), (note_id,))
+            return cur.rowcount
 
     def conflict_edges(self) -> list[tuple[str, str, str]]:
         with self._pool.connection() as conn, conn.cursor() as cur:
@@ -622,7 +635,7 @@ class InMemoryCuratorStore:
         self.relation_enrichment_queue: list[tuple[str, str, str, str]] = []
         # Simulated kb_notes rows with scope='_inbox' for has_inbox_notes()
         # tests. Populate with vault_path strings — mirrors the Postgres
-        # query which excludes '_inbox/_needs-review/%' paths.
+        # query which excludes archive paths.
         self.inbox_vault_paths: list[str] = []
 
     def existing_ids(self, ids: Iterable[str]) -> set[str]:
@@ -630,7 +643,9 @@ class InMemoryCuratorStore:
 
     def has_inbox_notes(self) -> bool:
         return any(
-            p is not None and not p.startswith("_inbox/_needs-review/")
+            p is not None
+            and not p.startswith("_inbox/_needs-review/")
+            and not p.startswith("_inbox/_discarded/")
             for p in self.inbox_vault_paths
         )
 
@@ -655,6 +670,19 @@ class InMemoryCuratorStore:
             }
         )
         return 1
+
+    def discard_note(self, *, note_id: str) -> int:
+        present = note_id in self._existing
+        self._existing.discard(note_id)
+        self.promotions = [row for row in self.promotions if row["id"] != note_id]
+        self.relations = [
+            (subject_id, predicate, object_id)
+            for subject_id, predicate, object_id in self.relations
+            if subject_id != note_id and object_id != note_id
+        ]
+        self.embeddings.pop(note_id, None)
+        self.titles.pop(note_id, None)
+        return 1 if present else 0
 
     def insert_relation(
         self,

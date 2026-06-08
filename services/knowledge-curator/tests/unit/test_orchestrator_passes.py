@@ -98,6 +98,18 @@ def test_inbox_pass_has_work_skips_needs_review(tmp_path: Path) -> None:
     assert pass_.has_work(_state("inbox")) is False
 
 
+def test_inbox_pass_has_work_skips_discarded(tmp_path: Path) -> None:
+    _write_inbox_file(tmp_path, "_inbox/_discarded/note.md")
+    pass_ = InboxPass(
+        vault_clone_dir=tmp_path,
+        promoter=_StubPromoter(),  # type: ignore[arg-type]
+        vault=_StubVault(),  # type: ignore[arg-type]
+        store=InMemoryCuratorStore(),
+        regenerate_indexes=lambda: None,
+    )
+    assert pass_.has_work(_state("inbox")) is False
+
+
 def test_inbox_pass_has_work_returns_true_when_promotable_file_present(tmp_path: Path) -> None:
     _write_inbox_file(tmp_path, "_inbox/2026-05-21/120000-note--abcdef01.md")
     pass_ = InboxPass(
@@ -131,6 +143,19 @@ def test_inbox_pass_has_work_ignores_needs_review_paths_in_db_fallback(tmp_path:
     # those are owned by NeedsReviewDrainPass.
     store = InMemoryCuratorStore()
     store.inbox_vault_paths = ["_inbox/_needs-review/stale.md"]
+    pass_ = InboxPass(
+        vault_clone_dir=tmp_path,
+        promoter=_StubPromoter(),  # type: ignore[arg-type]
+        vault=_StubVault(),  # type: ignore[arg-type]
+        store=store,
+        regenerate_indexes=lambda: None,
+    )
+    assert pass_.has_work(_state("inbox")) is False
+
+
+def test_inbox_pass_has_work_ignores_discarded_paths_in_db_fallback(tmp_path: Path) -> None:
+    store = InMemoryCuratorStore()
+    store.inbox_vault_paths = ["_inbox/_discarded/stale.md"]
     pass_ = InboxPass(
         vault_clone_dir=tmp_path,
         promoter=_StubPromoter(),  # type: ignore[arg-type]

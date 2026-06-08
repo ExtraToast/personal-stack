@@ -164,19 +164,22 @@ def test_curator_vault_move_to_needs_review(clone: Path) -> None:
         push=False,
     )
     src = "_inbox/2026-05-13/120000-foo--01HXYZ00.md"
-    result = vault.move_to_needs_review(source_rel=src, reason="too-ambiguous")
+    result = vault.move_to_needs_review(source_rel=src, reason="too-ambiguous", attempt=1)
     assert result.new_relative_path.startswith("_inbox/_needs-review/")
     assert (clone / result.new_relative_path).exists()
+    assert "review_attempts: 1" in (clone / result.new_relative_path).read_text(
+        encoding="utf-8"
+    )
     repo = Repo(clone)
-    assert "review too-ambiguous" in repo.head.commit.message
+    assert "review too-ambiguous (attempt 1)" in repo.head.commit.message
 
 
-def test_curator_vault_move_to_needs_review_is_noop_when_already_in_review(clone: Path) -> None:
+def test_curator_vault_move_to_needs_review_bumps_attempt_when_already_in_review(
+    clone: Path,
+) -> None:
     """Drain pass re-classification: file is already in needs-review,
     classification fails again, Promoter calls move_to_needs_review
-    with a source that's identical to the computed destination. The
-    legacy code crashed with ``git mv X X`` exit 128; the no-op
-    guard returns the existing path unchanged.
+    with a source that's identical to the computed destination.
     """
 
     vault = CuratorVault(
@@ -189,20 +192,40 @@ def test_curator_vault_move_to_needs_review_is_noop_when_already_in_review(clone
     # Seed the file directly in _needs-review/ so source==dest.
     target = clone / review_rel
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text("---\nid: x\n---\n# X\n", encoding="utf-8")
+    target.write_text("---\nreview_attempts: 1\nid: x\n---\n# X\n", encoding="utf-8")
     repo = Repo(clone)
     repo.index.add([review_rel])
     repo.index.commit(
         "seed review file", author=Actor("seed", "seed@test"), committer=Actor("seed", "seed@test")
     )
-    head_before = repo.head.commit.hexsha
 
-    result = vault.move_to_needs_review(source_rel=review_rel, reason="classify-failed:retry")
+    result = vault.move_to_needs_review(
+        source_rel=review_rel,
+        reason="classify-failed:retry",
+        attempt=2,
+    )
 
     assert result.new_relative_path == review_rel
-    # No new commit — caller did not actually move anything.
-    assert repo.head.commit.hexsha == head_before
+    assert result.commit_sha
+    assert "review_attempts: 2" in target.read_text(encoding="utf-8")
+    assert "review classify-failed:retry (attempt 2)" in repo.head.commit.message
     assert (clone / review_rel).exists()
+
+
+def test_curator_vault_discard_moves_to_discarded_and_commits(clone: Path) -> None:
+    vault = CuratorVault(
+        clone_dir=clone,
+        author=Actor("curator", "curator@test"),
+        ssh_key_path=None,
+        push=False,
+    )
+    src = "_inbox/2026-05-13/120000-foo--01HXYZ00.md"
+    result = vault.discard(source_rel=src, reason="model-discard:noise")
+    assert result.new_relative_path == "_inbox/_discarded/120000-foo--01HXYZ00.md"
+    assert (clone / result.new_relative_path).exists()
+    assert not (clone / src).exists()
+    repo = Repo(clone)
+    assert repo.head.commit.message.strip() == "curator: discard model-discard:noise"
 
 
 def test_curator_vault_commit_paths_no_op_when_clean(clone: Path) -> None:
