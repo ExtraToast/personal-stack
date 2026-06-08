@@ -1,13 +1,11 @@
 name: Contract Validate
 
-# Pins the assistant-api ↔ assistant-ui type contract. Two diffs gate
-# the PR: the freshly-exported springdoc spec against the committed
-# `services/assistant-api/openapi.json`, and the regenerated TypeScript
-# types against the committed `services/assistant-ui/src/api/generated.ts`.
-# Either gap fails the job — the same pattern as `Platform Validate`
-# uses to keep the rendered Traefik catalog ConfigMaps in step with
-# `platform/inventory/fleet.yaml`. Regenerate locally with
-# `./gradlew :services:assistant-api:exportOpenApiSpec` and
+# Pins committed OpenAPI contracts and the assistant-api -> assistant-ui type
+# contract. The freshly-exported springdoc specs are diffed against the
+# committed service `openapi.json` files, then the regenerated TypeScript types
+# are diffed against `services/assistant-ui/src/api/generated.ts`. Regenerate
+# locally with `./gradlew :services:assistant-api:exportOpenApiSpec
+# :services:knowledge-api:exportOpenApiSpec` and
 # `pnpm --filter @personal-stack/assistant-ui contract:generate`.
 
 on:
@@ -32,18 +30,19 @@ jobs:
       - uses: ./.github/actions/setup-node-pnpm
         with:
           node-version: '24'
-      - name: Export OpenAPI spec from assistant-api
-        run: bash infra/scripts/run-strict-command.sh ./gradlew :services:assistant-api:exportOpenApiSpec
-      - name: Diff exported spec against committed openapi.json
+      - name: Export OpenAPI specs
+        run: >
+          bash infra/scripts/run-strict-command.sh ./gradlew
+          :services:assistant-api:exportOpenApiSpec
+          :services:knowledge-api:exportOpenApiSpec
+      - name: Diff exported specs against committed openapi.json files
         run: |
           set -euo pipefail
-          # The export task overwrites the committed path with the live
-          # springdoc output. `git diff --exit-code` against HEAD then
-          # surfaces any drift; the workflow fails with the patch so the
-          # regenerate command is obvious from the CI log.
-          if ! git diff --exit-code -- services/assistant-api/openapi.json; then
-            echo "::error::services/assistant-api/openapi.json is stale."
-            echo "::error::Regenerate locally with: ./gradlew :services:assistant-api:exportOpenApiSpec"
+          # The export tasks overwrite the committed paths with fresh springdoc
+          # output. `git diff --exit-code` against HEAD then surfaces drift.
+          if ! git diff --exit-code -- services/assistant-api/openapi.json services/knowledge-api/openapi.json; then
+            echo "::error::One or more committed openapi.json files are stale."
+            echo "::error::Regenerate locally with: ./gradlew :services:assistant-api:exportOpenApiSpec :services:knowledge-api:exportOpenApiSpec"
             exit 1
           fi
       - name: Check openapi-typescript output is up to date

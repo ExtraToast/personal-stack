@@ -22,6 +22,7 @@ dependencies {
     implementation(libs.kotlin.commons.vault)
     implementation(libs.kotlin.commons.web)
     testImplementation(libs.kotlin.commons.archunit.test)
+    testImplementation(libs.kotlin.commons.test.support)
     implementation("org.springframework.boot:spring-boot-starter-websocket")
     // See auth-api build.gradle.kts — needed for the
     // ApplicationTracingAspect in kotlin-commons-observability to take effect.
@@ -88,12 +89,11 @@ dependencies {
 )
 
 // The OpenAPI contract is pinned to `services/assistant-api/openapi.json`
-// (committed). The `contract-export` JUnit tag identifies the single test
-// that boots the Spring context, hits `/api/v1/api-docs`, and writes the
-// spec to disk. The default `integrationTest` task skips that tag — the
-// spec dump is a build-time artefact, not a verification step — while the
-// new `exportOpenApiSpec` task below runs only that tag and feeds the
-// `services/assistant-ui` contract-typegen pipeline.
+// (committed). The `contract-export` JUnit tag identifies the single
+// springdoc MVC slice test that hits `/api/v1/api-docs` without booting the
+// app server and writes the spec to disk. The default `integrationTest` task
+// skips that tag; `exportOpenApiSpec` runs only that tag for the contract
+// drift gate and the `services/assistant-ui` contract-typegen pipeline.
 tasks.named<Test>("integrationTest") {
     useJUnitPlatform {
         includeTags("integration")
@@ -102,7 +102,7 @@ tasks.named<Test>("integrationTest") {
 }
 
 tasks.register<Test>("exportOpenApiSpec") {
-    description = "Boots the Spring context and writes the OpenAPI spec to services/assistant-api/openapi.json"
+    description = "Exports the OpenAPI spec to services/assistant-api/openapi.json from a springdoc MVC slice"
     group = "documentation"
     testClassesDirs = sourceSets["integrationTest"].output.classesDirs
     classpath = sourceSets["integrationTest"].runtimeClasspath
