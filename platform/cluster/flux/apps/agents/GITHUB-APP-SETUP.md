@@ -7,9 +7,13 @@ Agent runners use **two** GitHub credentials with a deliberate split:
   broker is unavailable.
 - **GitHub App installation token (short-lived, repo-scoped)** — the
   workspace write path: `git push`, `gh pr create`, `gh pr comment`,
-  and `gh run rerun`. Permissions are `contents:write`,
-  `pull_requests:write`, and `actions:write` only; `administration` is
-  never requested, so this token cannot change repo settings. The
+  `gh run rerun`, authoring `.github/workflows` (the Pipeline Complete
+  pipeline), and keeping tracking issues current. Permissions are
+  `contents:write`, `pull_requests:write`, `actions:write`,
+  `issues:write`, `workflows:write`, and `packages:read`;
+  `administration` is never requested, so this token cannot change repo
+  settings or rulesets. `packages` is read-only — publishing is done by
+  the release workflow's own `GITHUB_TOKEN`, not by runner tokens. The
   `main` ruleset still blocks force-push and branch deletion.
 
 assistant-api mints a fresh, single-repo installation token on demand;
@@ -42,7 +46,10 @@ and click **Create GitHub App** — or set the same values by hand at
       "metadata": "read",
       "contents": "write",
       "pull_requests": "write",
-      "actions": "write"
+      "actions": "write",
+      "issues": "write",
+      "workflows": "write",
+      "packages": "read"
     },
     "default_events": []
   }'
@@ -153,7 +160,8 @@ but `git push` / `gh pr create` / `gh run rerun` behave read-only, and
 Cause: GitHub mints an installation token scoped to **whatever the
 installation actually holds**, silently dropping anything the App was
 not granted. assistant-api always _requests_ `contents`,
-`pull_requests`, and `actions` at `write`
+`pull_requests`, `actions`, `issues`, `workflows` at `write` and
+`packages` at `read`
 (`GitHubAppInstallationTokenClient.REQUESTED_PERMISSIONS`), so a
 narrowed token means the **App itself** is under-permissioned — almost
 always one of:
@@ -168,15 +176,18 @@ assistant-api logs this exact case at WARN on the next mint:
 
 ```
 installation token for <owner>/<repo> is missing requested permissions
-[actions, contents, pull_requests] (granted: {metadata=read}). Widen the
-personal-stack-agents App's repository permissions … then approve …
+[actions, contents, issues, packages, pull_requests, workflows]
+(granted: {metadata=read}). Widen the personal-stack-agents App's
+repository permissions … then approve …
 ```
 
 Fix:
 
 1. App settings → **Permissions → Repository permissions**: set
    Metadata: Read-only, **Contents: Read and write**, **Pull requests:
-   Read and write**, **Actions: Read and write**. Save.
+   Read and write**, **Actions: Read and write**, **Issues: Read and
+   write**, **Workflows: Read and write**, **Packages: Read-only**. Do
+   not grant Administration. Save.
 2. For **each** account the App is installed on (ExtraToast and
    ESA-Blueshell), open the installation and **approve the updated
    permissions** (GitHub surfaces a "review request" banner; an org

@@ -87,10 +87,14 @@ class GitHubAppInstallationTokenClientTest {
             .andExpect(jsonPath("$.permissions.contents").value("write"))
             .andExpect(jsonPath("$.permissions.pull_requests").value("write"))
             .andExpect(jsonPath("$.permissions.actions").value("write"))
+            .andExpect(jsonPath("$.permissions.issues").value("write"))
+            .andExpect(jsonPath("$.permissions.workflows").value("write"))
+            .andExpect(jsonPath("$.permissions.packages").value("read"))
             .andRespond(
                 withSuccess(
                     """{"token":"ghs_abc","expires_at":"2026-06-02T15:00:00Z",""" +
-                        """"permissions":{"contents":"write","pull_requests":"write","actions":"write"}}""",
+                        """"permissions":{"contents":"write","pull_requests":"write","actions":"write",""" +
+                        """"issues":"write","workflows":"write","packages":"read"}}""",
                     MediaType.APPLICATION_JSON,
                 ),
             )
@@ -122,23 +126,37 @@ class GitHubAppInstallationTokenClientTest {
     fun `narrowedPermissions flags absent and weaker grants, and passes a full grant`() {
         val requested = GitHubAppInstallationTokenClient.REQUESTED_PERMISSIONS
 
-        // A metadata-only install grants none of contents/pull_requests/actions.
+        // A metadata-only install grants none of the requested permissions.
         assertThat(GitHubAppInstallationTokenClient.narrowedPermissions(requested, emptyMap()))
-            .containsExactly("actions", "contents", "pull_requests")
+            .containsExactly("actions", "contents", "issues", "packages", "pull_requests", "workflows")
 
         // contents granted read-only is weaker than the requested write.
         assertThat(
             GitHubAppInstallationTokenClient.narrowedPermissions(
                 requested,
-                mapOf("contents" to "read", "pull_requests" to "write", "actions" to "write"),
+                mapOf(
+                    "contents" to "read",
+                    "pull_requests" to "write",
+                    "actions" to "write",
+                    "issues" to "write",
+                    "workflows" to "write",
+                    "packages" to "read",
+                ),
             ),
         ).containsExactly("contents")
 
-        // Exactly the requested write set — nothing narrowed.
+        // Exactly the requested set — nothing narrowed.
         assertThat(
             GitHubAppInstallationTokenClient.narrowedPermissions(
                 requested,
-                mapOf("contents" to "write", "pull_requests" to "write", "actions" to "write"),
+                mapOf(
+                    "contents" to "write",
+                    "pull_requests" to "write",
+                    "actions" to "write",
+                    "issues" to "write",
+                    "workflows" to "write",
+                    "packages" to "read",
+                ),
             ),
         ).isEmpty()
     }
