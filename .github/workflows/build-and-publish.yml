@@ -1,5 +1,5 @@
-# Builds + publishes container images to ghcr.io with `:latest` and
-# `:<sha>` tags. Cluster rollout is handled out-of-band: Keel polls
+# Builds + publishes container images to ghcr.io with `:latest`,
+# `:<sha>`, and release tags. Cluster rollout is handled out-of-band: Keel polls
 # ghcr every 2 minutes and rolls the matching Deployment when the
 # `:latest` digest changes, while Flux reconciles manifest changes
 # from `main`. Neither is this workflow's responsibility — the name
@@ -9,6 +9,7 @@ name: Build & Publish
 on:
   push:
     branches: [main]
+    tags: ['v*.*.*']
   # Manual trigger for the cases where a push event never fires the
   # workflow (rare GitHub oddity — observed once with the `#308`
   # merge: workflow silently absent for that SHA) or where a merge
@@ -52,7 +53,7 @@ jobs:
       - uses: dorny/paths-filter@v4.0.1
         id: filter
         with:
-          base: ${{ github.event.before }}
+          base: ${{ github.ref_type == 'tag' && github.sha || github.event.before }}
           filters: |
             workflow:
               - '.github/workflows/build-and-publish.yml'
@@ -136,11 +137,8 @@ jobs:
           #
           # Multi-arch is gated on `main` only. The arm64 leg builds under
           # QEMU emulation and roughly doubles the UI build time; we don't
-          # want to pay that on every reconcile / dispatch / future trigger
-          # that someone might add. Today the workflow's `on:` only fires
-          # for push to main, but this guard makes the intent explicit and
-          # forward-safe — if you add workflow_dispatch later, feature
-          # branches still build amd64-only.
+          # want to pay that on every reconcile, dispatch, or release-tag
+          # trigger; feature branches and tags still build amd64-only.
           AMD64=linux/amd64
           if [[ "${{ github.ref }}" == "refs/heads/main" && "${{ github.event_name }}" == "push" ]]; then
             UI_PLATFORMS=linux/amd64,linux/arm64
@@ -150,8 +148,12 @@ jobs:
           fi
 
           # `force_all=true` on workflow_dispatch overrides every
-          # per-service filter so all images rebuild in one go.
+          # per-service filter so all images rebuild in one go. Release tags
+          # also rebuild every service so each image gets the version tag.
           FORCE_ALL="${{ github.event.inputs.force_all || 'false' }}"
+          if [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" == v*.*.* ]]; then
+            FORCE_ALL=true
+          fi
 
           [[ "$(any "$FORCE_ALL" "$KOTLIN_SHARED"   "$FILTER_AUTH_API")"      == "true" ]] && append auth-api      services/auth-api/Dockerfile      "$AMD64"
           [[ "$(any "$FORCE_ALL" "$KOTLIN_SHARED"   "$FILTER_ASSISTANT_API")" == "true" ]] && append assistant-api services/assistant-api/Dockerfile "$AMD64"
@@ -197,6 +199,14 @@ jobs:
       - uses: actions/checkout@v6.0.2
       - name: Set image prefix (lowercase)
         run: echo "IMAGE_PREFIX=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+      - name: Compute release version
+        id: release-version
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" == v*.*.* ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=" >> "$GITHUB_OUTPUT"
+          fi
       # QEMU is only needed when a service builds for a non-runner arch
       # (the UIs build linux/arm64 alongside amd64). No-op for the
       # amd64-only JVM services.
@@ -225,5 +235,6 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:${{ github.sha }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}:latest
+            ${{ steps.release-version.outputs.version && format('{0}/{1}/{2}:{3}', env.REGISTRY, env.IMAGE_PREFIX, matrix.service.name, steps.release-version.outputs.version) || '' }}
           cache-from: type=gha,scope=${{ matrix.service.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}
