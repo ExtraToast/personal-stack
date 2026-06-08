@@ -69,8 +69,6 @@ jobs:
               - 'services/knowledge-ingest-worker/**'
             knowledge-curator:
               - 'services/knowledge-curator/**'
-            kotlin-common:
-              - 'libs/kotlin-common/**'
             gradle-config:
               - 'gradle/**'
               - 'gradle.properties'
@@ -97,7 +95,6 @@ jobs:
         id: compute
         env:
           FILTER_WORKFLOW: ${{ steps.filter.outputs.workflow }}
-          FILTER_KOTLIN_COMMON: ${{ steps.filter.outputs.kotlin-common }}
           FILTER_GRADLE_CONFIG: ${{ steps.filter.outputs.gradle-config }}
           FILTER_AUTH_API: ${{ steps.filter.outputs.auth-api }}
           FILTER_ASSISTANT_API: ${{ steps.filter.outputs.assistant-api }}
@@ -115,7 +112,7 @@ jobs:
           set -euo pipefail
           any() { for v in "$@"; do [[ "$v" == "true" ]] && echo "true" && return; done; echo "false"; }
 
-          KOTLIN_SHARED=$(any "$FILTER_WORKFLOW" "$FILTER_KOTLIN_COMMON" "$FILTER_GRADLE_CONFIG")
+          KOTLIN_SHARED=$(any "$FILTER_WORKFLOW" "$FILTER_GRADLE_CONFIG")
           FRONTEND_SHARED=$(any "$FILTER_WORKFLOW" "$FILTER_VUE_COMMON" "$FILTER_FRONTEND_CONFIG")
 
           MATRIX="[]"
