@@ -11,22 +11,7 @@ name: Contract Validate
 # `pnpm --filter @personal-stack/assistant-ui contract:generate`.
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'services/assistant-api/**'
-      - 'services/assistant-ui/**'
-      - 'libs/kotlin-common/**'
-      - 'libs/vue-common/**'
-      - 'build-logic/**'
-      - 'gradle/**'
-      - 'gradle.properties'
-      - 'build.gradle.kts'
-      - 'settings.gradle.kts'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - '.github/workflows/contract-validate.yml'
+  workflow_call:
 
 concurrency:
   group: contract-validate-${{ github.ref }}

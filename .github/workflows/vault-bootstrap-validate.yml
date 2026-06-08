@@ -31,13 +31,7 @@ name: Vault Bootstrap Validate
 # still land. Those `Success!` lines are the assertion target.
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'platform/cluster/flux/apps/data/vault/bootstrap-auth.sh'
-      - 'platform/cluster/flux/apps/data/vault/bootstrap-auth-job.yaml'
-      - '.github/workflows/vault-bootstrap-validate.yml'
-  workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
