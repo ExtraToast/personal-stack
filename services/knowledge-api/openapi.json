@@ -9,9 +9,656 @@
     "description" : "Generated server url"
   } ],
   "paths" : {
+    "/api/v1/knowledge/audit" : {
+      "get" : {
+        "operationId" : "listAudit",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "actor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "action",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "target_id",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "since",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AuditResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "knowledge-audit-controller" ]
+      }
+    },
+    "/api/v1/knowledge/conflicts/{id}" : {
+      "get" : {
+        "operationId" : "conflicts",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RelationsResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "knowledge-read-controller" ]
+      }
+    },
+    "/api/v1/knowledge/find_duplicates" : {
+      "get" : {
+        "operationId" : "findDuplicates",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "text",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "id",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "threshold",
+          "required" : false,
+          "schema" : {
+            "type" : "number",
+            "format" : "double",
+            "default" : 0.85
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 5
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DuplicatesResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "knowledge-discovery-controller" ]
+      }
+    },
+    "/api/v1/knowledge/inbox" : {
+      "get" : {
+        "operationId" : "listInbox",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InboxResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "knowledge-discovery-controller" ]
+      }
+    },
+    "/api/v1/knowledge/notes/{id}" : {
+      "get" : {
+        "operationId" : "getNote",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NoteResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "knowledge-read-controller" ]
+      }
+    },
+    "/api/v1/knowledge/recall" : {
+      "get" : {
+        "operationId" : "recall",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "scope",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 10
+          }
+        }, {
+          "in" : "query",
+          "name" : "mode",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RecallResultResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "knowledge-read-controller" ]
+      }
+    },
+    "/api/v1/knowledge/recent" : {
+      "get" : {
+        "operationId" : "listRecent",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "scope",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "type",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NotesResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "knowledge-read-controller" ]
+      }
+    },
+    "/api/v1/knowledge/relations/{id}" : {
+      "get" : {
+        "operationId" : "relations",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "depth",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 1
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RelationsResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "knowledge-read-controller" ]
+      }
+    },
+    "/api/v1/knowledge/review/summary" : {
+      "get" : {
+        "operationId" : "summary",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 10
+          }
+        }, {
+          "in" : "query",
+          "name" : "stale_days",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 60
+          }
+        }, {
+          "in" : "query",
+          "name" : "low_confidence_max",
+          "required" : false,
+          "schema" : {
+            "type" : "number",
+            "format" : "double",
+            "default" : 0.6
+          }
+        }, {
+          "in" : "query",
+          "name" : "high_recall_min",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 3
+          }
+        }, {
+          "in" : "query",
+          "name" : "tag_min_count",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 1
+          }
+        }, {
+          "in" : "query",
+          "name" : "tag_threshold",
+          "required" : false,
+          "schema" : {
+            "type" : "number",
+            "format" : "double",
+            "default" : 0.85
+          }
+        }, {
+          "in" : "query",
+          "name" : "tag_max_tags",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 200
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReviewSummaryResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "knowledge-review-controller" ]
+      }
+    },
+    "/api/v1/knowledge/scopes" : {
+      "get" : {
+        "operationId" : "listScopes",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ScopesResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "knowledge-discovery-controller" ]
+      }
+    },
+    "/api/v1/knowledge/sources" : {
+      "get" : {
+        "operationId" : "listSources",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SourcesResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "knowledge-discovery-controller" ]
+      }
+    },
+    "/api/v1/knowledge/suggest_topic" : {
+      "get" : {
+        "operationId" : "suggestTopic",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "text",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 5
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SuggestionsResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "knowledge-discovery-controller" ]
+      }
+    },
+    "/api/v1/knowledge/tag_candidates" : {
+      "get" : {
+        "operationId" : "listTagCandidates",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "min_count",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 1
+          }
+        }, {
+          "in" : "query",
+          "name" : "threshold",
+          "required" : false,
+          "schema" : {
+            "type" : "number",
+            "format" : "double",
+            "default" : 0.85
+          }
+        }, {
+          "in" : "query",
+          "name" : "max_tags",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 200
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TagCandidatesResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "knowledge-discovery-controller" ]
+      }
+    },
+    "/api/v1/knowledge/tags" : {
+      "get" : {
+        "operationId" : "listTags",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "scope",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 100
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TagsResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "knowledge-discovery-controller" ]
+      }
+    },
+    "/api/v1/knowledge/topics" : {
+      "get" : {
+        "operationId" : "listTopics",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TopicsResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "knowledge-discovery-controller" ]
+      }
+    },
+    "/api/v1/knowledge/topics/{slug}/stats" : {
+      "get" : {
+        "operationId" : "topicStats",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "top_tag_limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 10
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TopicStatsResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "knowledge-discovery-controller" ]
+      }
+    },
+    "/install.sh" : {
+      "get" : {
+        "operationId" : "installSh",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "text/x-shellscript;charset=UTF-8" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "installer-controller" ]
+      }
+    },
     "/mcp" : {
       "post" : {
-        "tags" : [ "mcp-controller" ],
         "operationId" : "rpc",
         "requestBody" : {
           "content" : {
@@ -25,722 +672,144 @@
         },
         "responses" : {
           "200" : {
-            "description" : "OK",
             "content" : {
               "application/json" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/JsonRpcResponse"
                 }
               }
-            }
+            },
+            "description" : "OK"
           }
-        }
-      }
-    },
-    "/install.sh" : {
-      "get" : {
-        "tags" : [ "installer-controller" ],
-        "operationId" : "installSh",
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "text/x-shellscript;charset=UTF-8" : {
-                "schema" : {
-                  "type" : "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/knowledge/topics" : {
-      "get" : {
-        "tags" : [ "knowledge-discovery-controller" ],
-        "operationId" : "listTopics",
-        "parameters" : [ {
-          "name" : "limit",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int32",
-            "default" : 50
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/TopicsResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/knowledge/topics/{slug}/stats" : {
-      "get" : {
-        "tags" : [ "knowledge-discovery-controller" ],
-        "operationId" : "topicStats",
-        "parameters" : [ {
-          "name" : "slug",
-          "in" : "path",
-          "required" : true,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "name" : "top_tag_limit",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int32",
-            "default" : 10
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/TopicStatsResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/knowledge/tags" : {
-      "get" : {
-        "tags" : [ "knowledge-discovery-controller" ],
-        "operationId" : "listTags",
-        "parameters" : [ {
-          "name" : "scope",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "name" : "limit",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int32",
-            "default" : 100
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/TagsResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/knowledge/tag_candidates" : {
-      "get" : {
-        "tags" : [ "knowledge-discovery-controller" ],
-        "operationId" : "listTagCandidates",
-        "parameters" : [ {
-          "name" : "min_count",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int32",
-            "default" : 1
-          }
-        }, {
-          "name" : "threshold",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "number",
-            "format" : "double",
-            "default" : 0.85
-          }
-        }, {
-          "name" : "max_tags",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int32",
-            "default" : 200
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/TagCandidatesResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/knowledge/suggest_topic" : {
-      "get" : {
-        "tags" : [ "knowledge-discovery-controller" ],
-        "operationId" : "suggestTopic",
-        "parameters" : [ {
-          "name" : "text",
-          "in" : "query",
-          "required" : true,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "name" : "limit",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int32",
-            "default" : 5
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/SuggestionsResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/knowledge/sources" : {
-      "get" : {
-        "tags" : [ "knowledge-discovery-controller" ],
-        "operationId" : "listSources",
-        "parameters" : [ {
-          "name" : "limit",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int32",
-            "default" : 50
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/SourcesResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/knowledge/scopes" : {
-      "get" : {
-        "tags" : [ "knowledge-discovery-controller" ],
-        "operationId" : "listScopes",
-        "parameters" : [ {
-          "name" : "limit",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int32",
-            "default" : 50
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/ScopesResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/knowledge/review/summary" : {
-      "get" : {
-        "tags" : [ "knowledge-review-controller" ],
-        "operationId" : "summary",
-        "parameters" : [ {
-          "name" : "limit",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int32",
-            "default" : 10
-          }
-        }, {
-          "name" : "stale_days",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int32",
-            "default" : 60
-          }
-        }, {
-          "name" : "low_confidence_max",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "number",
-            "format" : "double",
-            "default" : 0.6
-          }
-        }, {
-          "name" : "high_recall_min",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int32",
-            "default" : 3
-          }
-        }, {
-          "name" : "tag_min_count",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int32",
-            "default" : 1
-          }
-        }, {
-          "name" : "tag_threshold",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "number",
-            "format" : "double",
-            "default" : 0.85
-          }
-        }, {
-          "name" : "tag_max_tags",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int32",
-            "default" : 200
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/ReviewSummaryResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/knowledge/relations/{id}" : {
-      "get" : {
-        "tags" : [ "knowledge-read-controller" ],
-        "operationId" : "relations",
-        "parameters" : [ {
-          "name" : "id",
-          "in" : "path",
-          "required" : true,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "name" : "depth",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int32",
-            "default" : 1
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/RelationsResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/knowledge/recent" : {
-      "get" : {
-        "tags" : [ "knowledge-read-controller" ],
-        "operationId" : "listRecent",
-        "parameters" : [ {
-          "name" : "scope",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "name" : "type",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "name" : "limit",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int32",
-            "default" : 20
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/NotesResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/knowledge/recall" : {
-      "get" : {
-        "tags" : [ "knowledge-read-controller" ],
-        "operationId" : "recall",
-        "parameters" : [ {
-          "name" : "query",
-          "in" : "query",
-          "required" : true,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "name" : "scope",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "name" : "limit",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int32",
-            "default" : 10
-          }
-        }, {
-          "name" : "mode",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "string"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/RecallResultResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/knowledge/notes/{id}" : {
-      "get" : {
-        "tags" : [ "knowledge-read-controller" ],
-        "operationId" : "getNote",
-        "parameters" : [ {
-          "name" : "id",
-          "in" : "path",
-          "required" : true,
-          "schema" : {
-            "type" : "string"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/NoteResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/knowledge/inbox" : {
-      "get" : {
-        "tags" : [ "knowledge-discovery-controller" ],
-        "operationId" : "listInbox",
-        "parameters" : [ {
-          "name" : "limit",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int32",
-            "default" : 20
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/InboxResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/knowledge/find_duplicates" : {
-      "get" : {
-        "tags" : [ "knowledge-discovery-controller" ],
-        "operationId" : "findDuplicates",
-        "parameters" : [ {
-          "name" : "text",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "name" : "id",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "name" : "threshold",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "number",
-            "format" : "double",
-            "default" : 0.85
-          }
-        }, {
-          "name" : "limit",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int32",
-            "default" : 5
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/DuplicatesResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/knowledge/conflicts/{id}" : {
-      "get" : {
-        "tags" : [ "knowledge-read-controller" ],
-        "operationId" : "conflicts",
-        "parameters" : [ {
-          "name" : "id",
-          "in" : "path",
-          "required" : true,
-          "schema" : {
-            "type" : "string"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/RelationsResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/knowledge/audit" : {
-      "get" : {
-        "tags" : [ "knowledge-audit-controller" ],
-        "operationId" : "listAudit",
-        "parameters" : [ {
-          "name" : "actor",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "name" : "action",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "name" : "target_id",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "name" : "since",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "name" : "limit",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "integer",
-            "format" : "int32",
-            "default" : 50
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/AuditResponse"
-                }
-              }
-            }
-          }
-        }
+        },
+        "tags" : [ "mcp-controller" ]
       }
     }
   },
   "components" : {
     "schemas" : {
+      "AuditResponse" : {
+        "type" : "object",
+        "properties" : {
+          "rows" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AuditRowResponse"
+            }
+          }
+        },
+        "required" : [ "rows" ]
+      },
+      "AuditRowResponse" : {
+        "type" : "object",
+        "properties" : {
+          "action" : {
+            "type" : "string"
+          },
+          "actor" : {
+            "type" : "string"
+          },
+          "afterJson" : {
+            "type" : [ "string", "null" ]
+          },
+          "at" : {
+            "type" : "string"
+          },
+          "beforeJson" : {
+            "type" : [ "string", "null" ]
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "targetId" : {
+            "type" : [ "string", "null" ]
+          },
+          "targetKind" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "action", "actor", "at", "id" ]
+      },
+      "DuplicateMatchResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "scope" : {
+            "type" : "string"
+          },
+          "score" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "scope", "score", "title" ]
+      },
+      "DuplicatesResponse" : {
+        "type" : "object",
+        "properties" : {
+          "matches" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/DuplicateMatchResponse"
+            }
+          }
+        },
+        "required" : [ "matches" ]
+      },
+      "InboxNoteResponse" : {
+        "type" : "object",
+        "properties" : {
+          "capturedAt" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "scope" : {
+            "type" : "string"
+          },
+          "source" : {
+            "type" : "string"
+          },
+          "tags" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          },
+          "vaultPath" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "capturedAt", "id", "scope", "source", "tags", "title", "type", "vaultPath" ]
+      },
+      "InboxResponse" : {
+        "type" : "object",
+        "properties" : {
+          "notes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/InboxNoteResponse"
+            }
+          }
+        },
+        "required" : [ "notes" ]
+      },
       "JsonNode" : {
         "type" : "object",
         "properties" : {
-          "string" : {
-            "type" : "boolean"
-          },
           "array" : {
-            "type" : "boolean"
-          },
-          "empty" : {
-            "type" : "boolean"
-          },
-          "null" : {
-            "type" : "boolean"
-          },
-          "float" : {
-            "type" : "boolean"
-          },
-          "container" : {
-            "type" : "boolean"
-          },
-          "valueNode" : {
-            "type" : "boolean"
-          },
-          "missingNode" : {
-            "type" : "boolean"
-          },
-          "object" : {
-            "type" : "boolean"
-          },
-          "nodeType" : {
-            "type" : "string",
-            "enum" : [ "ARRAY", "BINARY", "BOOLEAN", "MISSING", "NULL", "NUMBER", "OBJECT", "POJO", "STRING" ]
-          },
-          "pojo" : {
-            "type" : "boolean"
-          },
-          "integralNumber" : {
-            "type" : "boolean"
-          },
-          "floatingPointNumber" : {
-            "type" : "boolean"
-          },
-          "short" : {
-            "type" : "boolean"
-          },
-          "int" : {
-            "type" : "boolean"
-          },
-          "long" : {
-            "type" : "boolean"
-          },
-          "double" : {
             "type" : "boolean"
           },
           "bigDecimal" : {
@@ -749,36 +818,101 @@
           "bigInteger" : {
             "type" : "boolean"
           },
-          "textual" : {
-            "type" : "boolean",
-            "deprecated" : true
+          "binary" : {
+            "type" : "boolean"
           },
           "boolean" : {
             "type" : "boolean"
           },
-          "binary" : {
+          "container" : {
+            "type" : "boolean"
+          },
+          "double" : {
+            "type" : "boolean"
+          },
+          "embeddedValue" : {
+            "type" : "boolean"
+          },
+          "empty" : {
+            "type" : "boolean"
+          },
+          "float" : {
+            "type" : "boolean"
+          },
+          "floatingPointNumber" : {
+            "type" : "boolean"
+          },
+          "int" : {
+            "type" : "boolean"
+          },
+          "integralNumber" : {
+            "type" : "boolean"
+          },
+          "long" : {
+            "type" : "boolean"
+          },
+          "missingNode" : {
+            "type" : "boolean"
+          },
+          "nodeType" : {
+            "type" : "string",
+            "enum" : [ "ARRAY", "BINARY", "BOOLEAN", "MISSING", "NULL", "NUMBER", "OBJECT", "POJO", "STRING" ]
+          },
+          "null" : {
             "type" : "boolean"
           },
           "number" : {
             "type" : "boolean"
           },
-          "embeddedValue" : {
+          "object" : {
+            "type" : "boolean"
+          },
+          "pojo" : {
+            "type" : "boolean"
+          },
+          "short" : {
+            "type" : "boolean"
+          },
+          "string" : {
+            "type" : "boolean"
+          },
+          "textual" : {
+            "type" : "boolean",
+            "deprecated" : true
+          },
+          "valueNode" : {
             "type" : "boolean"
           }
         }
       },
+      "JsonRpcError" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "data" : {
+            "type" : "null"
+          },
+          "message" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "code", "message" ]
+      },
       "JsonRpcRequest" : {
         "type" : "object",
         "properties" : {
-          "jsonrpc" : {
-            "type" : "string"
-          },
           "id" : {
             "oneOf" : [ {
               "$ref" : "#/components/schemas/JsonNode"
             }, {
               "type" : "null"
             } ]
+          },
+          "jsonrpc" : {
+            "type" : "string"
           },
           "method" : {
             "type" : "string"
@@ -793,27 +927,15 @@
         },
         "required" : [ "jsonrpc", "method" ]
       },
-      "JsonRpcError" : {
-        "type" : "object",
-        "properties" : {
-          "code" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "message" : {
-            "type" : "string"
-          },
-          "data" : {
-            "type" : "null"
-          }
-        },
-        "required" : [ "code", "message" ]
-      },
       "JsonRpcResponse" : {
         "type" : "object",
         "properties" : {
-          "jsonrpc" : {
-            "type" : "string"
+          "error" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/JsonRpcError"
+            }, {
+              "type" : "null"
+            } ]
           },
           "id" : {
             "oneOf" : [ {
@@ -822,327 +944,19 @@
               "type" : "null"
             } ]
           },
+          "jsonrpc" : {
+            "type" : "string"
+          },
           "result" : {
             "type" : "null"
-          },
-          "error" : {
-            "oneOf" : [ {
-              "$ref" : "#/components/schemas/JsonRpcError"
-            }, {
-              "type" : "null"
-            } ]
           }
         },
         "required" : [ "jsonrpc" ]
       },
-      "TopicResponse" : {
+      "NoteResponse" : {
         "type" : "object",
         "properties" : {
-          "slug" : {
-            "type" : "string"
-          },
-          "noteCount" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "lastCapturedAt" : {
-            "type" : [ "string", "null" ]
-          },
-          "description" : {
-            "type" : [ "string", "null" ]
-          }
-        },
-        "required" : [ "noteCount", "slug" ]
-      },
-      "TopicsResponse" : {
-        "type" : "object",
-        "properties" : {
-          "topics" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/TopicResponse"
-            }
-          }
-        },
-        "required" : [ "topics" ]
-      },
-      "TagResponse" : {
-        "type" : "object",
-        "properties" : {
-          "tag" : {
-            "type" : "string"
-          },
-          "count" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "lastUsedAt" : {
-            "type" : [ "string", "null" ]
-          }
-        },
-        "required" : [ "count", "tag" ]
-      },
-      "TopicStatsResponse" : {
-        "type" : "object",
-        "properties" : {
-          "slug" : {
-            "type" : "string"
-          },
-          "noteCount" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "firstCapturedAt" : {
-            "type" : [ "string", "null" ]
-          },
-          "lastCapturedAt" : {
-            "type" : [ "string", "null" ]
-          },
-          "typeBreakdown" : {
-            "type" : "object",
-            "additionalProperties" : {
-              "type" : "integer",
-              "format" : "int32"
-            }
-          },
-          "topTags" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/TagResponse"
-            }
-          }
-        },
-        "required" : [ "noteCount", "slug", "topTags", "typeBreakdown" ]
-      },
-      "TagsResponse" : {
-        "type" : "object",
-        "properties" : {
-          "tags" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/TagResponse"
-            }
-          }
-        },
-        "required" : [ "tags" ]
-      },
-      "TagCandidateClusterResponse" : {
-        "type" : "object",
-        "properties" : {
-          "members" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/TagCandidateMemberResponse"
-            }
-          },
-          "suggestedCanonical" : {
-            "type" : "string"
-          },
-          "averageSimilarity" : {
-            "type" : "number",
-            "format" : "double"
-          }
-        },
-        "required" : [ "averageSimilarity", "members", "suggestedCanonical" ]
-      },
-      "TagCandidateMemberResponse" : {
-        "type" : "object",
-        "properties" : {
-          "tag" : {
-            "type" : "string"
-          },
-          "count" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "count", "tag" ]
-      },
-      "TagCandidatesResponse" : {
-        "type" : "object",
-        "properties" : {
-          "clusters" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/TagCandidateClusterResponse"
-            }
-          }
-        },
-        "required" : [ "clusters" ]
-      },
-      "SuggestedTopicResponse" : {
-        "type" : "object",
-        "properties" : {
-          "slug" : {
-            "type" : "string"
-          },
-          "score" : {
-            "type" : "number",
-            "format" : "double"
-          },
-          "noteCount" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "noteCount", "score", "slug" ]
-      },
-      "SuggestionsResponse" : {
-        "type" : "object",
-        "properties" : {
-          "suggestions" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/SuggestedTopicResponse"
-            }
-          }
-        },
-        "required" : [ "suggestions" ]
-      },
-      "SourceResponse" : {
-        "type" : "object",
-        "properties" : {
-          "source" : {
-            "type" : "string"
-          },
-          "count" : {
-            "type" : "integer",
-            "format" : "int32"
-          }
-        },
-        "required" : [ "count", "source" ]
-      },
-      "SourcesResponse" : {
-        "type" : "object",
-        "properties" : {
-          "sources" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/SourceResponse"
-            }
-          }
-        },
-        "required" : [ "sources" ]
-      },
-      "ScopeResponse" : {
-        "type" : "object",
-        "properties" : {
-          "scope" : {
-            "type" : "string"
-          },
-          "noteCount" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "lastCapturedAt" : {
-            "type" : [ "string", "null" ]
-          }
-        },
-        "required" : [ "noteCount", "scope" ]
-      },
-      "ScopesResponse" : {
-        "type" : "object",
-        "properties" : {
-          "scopes" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/ScopeResponse"
-            }
-          }
-        },
-        "required" : [ "scopes" ]
-      },
-      "AuditRowResponse" : {
-        "type" : "object",
-        "properties" : {
-          "id" : {
-            "type" : "string"
-          },
-          "actor" : {
-            "type" : "string"
-          },
-          "action" : {
-            "type" : "string"
-          },
-          "targetId" : {
-            "type" : [ "string", "null" ]
-          },
-          "targetKind" : {
-            "type" : [ "string", "null" ]
-          },
-          "beforeJson" : {
-            "type" : [ "string", "null" ]
-          },
-          "afterJson" : {
-            "type" : [ "string", "null" ]
-          },
-          "at" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "action", "actor", "at", "id" ]
-      },
-      "ReviewBucketResponseAuditRowResponse" : {
-        "type" : "object",
-        "properties" : {
-          "total" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "items" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/AuditRowResponse"
-            }
-          }
-        },
-        "required" : [ "items", "total" ]
-      },
-      "ReviewBucketResponseReviewNoteResponse" : {
-        "type" : "object",
-        "properties" : {
-          "total" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "items" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/ReviewNoteResponse"
-            }
-          }
-        },
-        "required" : [ "items", "total" ]
-      },
-      "ReviewBucketResponseTagCandidateClusterResponse" : {
-        "type" : "object",
-        "properties" : {
-          "total" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "items" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/TagCandidateClusterResponse"
-            }
-          }
-        },
-        "required" : [ "items", "total" ]
-      },
-      "ReviewNoteResponse" : {
-        "type" : "object",
-        "properties" : {
-          "id" : {
-            "type" : "string"
-          },
-          "type" : {
-            "type" : "string"
-          },
-          "scope" : {
-            "type" : "string"
-          },
-          "source" : {
+          "body" : {
             "type" : "string"
           },
           "capturedAt" : {
@@ -1152,168 +966,35 @@
             "type" : "number",
             "format" : "double"
           },
-          "title" : {
-            "type" : "string"
-          },
-          "vaultPath" : {
-            "type" : "string"
-          },
-          "tags" : {
-            "type" : "array",
-            "items" : {
-              "type" : "string"
-            }
-          },
-          "recallCount" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
-          "lastRecalledAt" : {
-            "type" : [ "string", "null" ]
-          }
-        },
-        "required" : [ "capturedAt", "confidence", "id", "recallCount", "scope", "source", "tags", "title", "type", "vaultPath" ]
-      },
-      "ReviewSuggestionResponse" : {
-        "type" : "object",
-        "properties" : {
-          "kind" : {
-            "type" : "string"
-          },
-          "severity" : {
-            "type" : "string"
-          },
-          "message" : {
-            "type" : "string"
-          },
-          "suggestedTool" : {
-            "type" : [ "string", "null" ]
-          },
-          "targetId" : {
-            "type" : [ "string", "null" ]
-          },
-          "targetKind" : {
-            "type" : [ "string", "null" ]
-          },
-          "details" : {
-            "type" : "object",
-            "additionalProperties" : { }
-          }
-        },
-        "required" : [ "details", "kind", "message", "severity" ]
-      },
-      "ReviewSummaryResponse" : {
-        "type" : "object",
-        "properties" : {
-          "generatedAt" : {
-            "type" : "string"
-          },
-          "inbox" : {
-            "$ref" : "#/components/schemas/ReviewBucketResponseReviewNoteResponse"
-          },
-          "needsReview" : {
-            "$ref" : "#/components/schemas/ReviewBucketResponseReviewNoteResponse"
-          },
-          "recentAutoCaptures" : {
-            "$ref" : "#/components/schemas/ReviewBucketResponseReviewNoteResponse"
-          },
-          "staleUnusedNotes" : {
-            "$ref" : "#/components/schemas/ReviewBucketResponseReviewNoteResponse"
-          },
-          "lowConfidenceHighRecall" : {
-            "$ref" : "#/components/schemas/ReviewBucketResponseReviewNoteResponse"
-          },
-          "tagCandidateClusters" : {
-            "$ref" : "#/components/schemas/ReviewBucketResponseTagCandidateClusterResponse"
-          },
-          "recentAudit" : {
-            "$ref" : "#/components/schemas/ReviewBucketResponseAuditRowResponse"
-          },
-          "suggestions" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/ReviewSuggestionResponse"
-            }
-          }
-        },
-        "required" : [ "generatedAt", "inbox", "lowConfidenceHighRecall", "needsReview", "recentAudit", "recentAutoCaptures", "staleUnusedNotes", "suggestions", "tagCandidateClusters" ]
-      },
-      "RelationResponse" : {
-        "type" : "object",
-        "properties" : {
-          "subjectId" : {
-            "type" : "string"
-          },
-          "predicate" : {
-            "type" : "string"
-          },
-          "objectId" : {
-            "type" : "string"
-          },
-          "props" : {
-            "type" : "object",
-            "additionalProperties" : { }
-          },
-          "createdAt" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "createdAt", "objectId", "predicate", "props", "subjectId" ]
-      },
-      "RelationsResponse" : {
-        "type" : "object",
-        "properties" : {
-          "relations" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/RelationResponse"
-            }
-          }
-        },
-        "required" : [ "relations" ]
-      },
-      "NoteResponse" : {
-        "type" : "object",
-        "properties" : {
           "id" : {
             "type" : "string"
           },
-          "type" : {
-            "type" : "string"
-          },
           "scope" : {
-            "type" : "string"
-          },
-          "source" : {
-            "type" : "string"
-          },
-          "capturedAt" : {
             "type" : "string"
           },
           "sessionId" : {
             "type" : [ "string", "null" ]
           },
-          "confidence" : {
-            "type" : "number",
-            "format" : "double"
-          },
-          "title" : {
+          "source" : {
             "type" : "string"
-          },
-          "body" : {
-            "type" : "string"
-          },
-          "vaultPath" : {
-            "type" : "string"
-          },
-          "vaultCommit" : {
-            "type" : [ "string", "null" ]
           },
           "tags" : {
             "type" : "array",
             "items" : {
               "type" : "string"
             }
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          },
+          "vaultCommit" : {
+            "type" : [ "string", "null" ]
+          },
+          "vaultPath" : {
+            "type" : "string"
           }
         },
         "required" : [ "body", "capturedAt", "confidence", "id", "scope", "source", "tags", "title", "type", "vaultPath" ]
@@ -1336,27 +1017,27 @@
           "id" : {
             "type" : "string"
           },
-          "type" : {
-            "type" : "string"
-          },
           "scope" : {
-            "type" : "string"
-          },
-          "title" : {
-            "type" : "string"
-          },
-          "snippet" : {
             "type" : "string"
           },
           "score" : {
             "type" : "number",
             "format" : "double"
           },
+          "snippet" : {
+            "type" : "string"
+          },
           "tags" : {
             "type" : "array",
             "items" : {
               "type" : "string"
             }
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
           }
         },
         "required" : [ "id", "scope", "score", "snippet", "tags", "title", "type" ]
@@ -1364,26 +1045,119 @@
       "RecallResultResponse" : {
         "type" : "object",
         "properties" : {
-          "mode" : {
-            "type" : "string"
-          },
           "hits" : {
             "type" : "array",
             "items" : {
               "$ref" : "#/components/schemas/RecallHitResponse"
             }
+          },
+          "mode" : {
+            "type" : "string"
           }
         },
         "required" : [ "hits", "mode" ]
       },
-      "InboxNoteResponse" : {
+      "RelationResponse" : {
         "type" : "object",
         "properties" : {
+          "createdAt" : {
+            "type" : "string"
+          },
+          "objectId" : {
+            "type" : "string"
+          },
+          "predicate" : {
+            "type" : "string"
+          },
+          "props" : {
+            "type" : "object",
+            "additionalProperties" : { }
+          },
+          "subjectId" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "createdAt", "objectId", "predicate", "props", "subjectId" ]
+      },
+      "RelationsResponse" : {
+        "type" : "object",
+        "properties" : {
+          "relations" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/RelationResponse"
+            }
+          }
+        },
+        "required" : [ "relations" ]
+      },
+      "ReviewBucketResponseAuditRowResponse" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AuditRowResponse"
+            }
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "items", "total" ]
+      },
+      "ReviewBucketResponseReviewNoteResponse" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ReviewNoteResponse"
+            }
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "items", "total" ]
+      },
+      "ReviewBucketResponseTagCandidateClusterResponse" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TagCandidateClusterResponse"
+            }
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "items", "total" ]
+      },
+      "ReviewNoteResponse" : {
+        "type" : "object",
+        "properties" : {
+          "capturedAt" : {
+            "type" : "string"
+          },
+          "confidence" : {
+            "type" : "number",
+            "format" : "double"
+          },
           "id" : {
             "type" : "string"
           },
-          "type" : {
-            "type" : "string"
+          "lastRecalledAt" : {
+            "type" : [ "string", "null" ]
+          },
+          "recallCount" : {
+            "type" : "integer",
+            "format" : "int32"
           },
           "scope" : {
             "type" : "string"
@@ -1391,78 +1165,304 @@
           "source" : {
             "type" : "string"
           },
-          "capturedAt" : {
-            "type" : "string"
-          },
-          "title" : {
-            "type" : "string"
-          },
-          "vaultPath" : {
-            "type" : "string"
-          },
           "tags" : {
             "type" : "array",
             "items" : {
               "type" : "string"
             }
-          }
-        },
-        "required" : [ "capturedAt", "id", "scope", "source", "tags", "title", "type", "vaultPath" ]
-      },
-      "InboxResponse" : {
-        "type" : "object",
-        "properties" : {
-          "notes" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/InboxNoteResponse"
-            }
-          }
-        },
-        "required" : [ "notes" ]
-      },
-      "DuplicateMatchResponse" : {
-        "type" : "object",
-        "properties" : {
-          "id" : {
-            "type" : "string"
           },
           "title" : {
             "type" : "string"
           },
+          "type" : {
+            "type" : "string"
+          },
+          "vaultPath" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "capturedAt", "confidence", "id", "recallCount", "scope", "source", "tags", "title", "type", "vaultPath" ]
+      },
+      "ReviewSuggestionResponse" : {
+        "type" : "object",
+        "properties" : {
+          "details" : {
+            "type" : "object",
+            "additionalProperties" : { }
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "severity" : {
+            "type" : "string"
+          },
+          "suggestedTool" : {
+            "type" : [ "string", "null" ]
+          },
+          "targetId" : {
+            "type" : [ "string", "null" ]
+          },
+          "targetKind" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "details", "kind", "message", "severity" ]
+      },
+      "ReviewSummaryResponse" : {
+        "type" : "object",
+        "properties" : {
+          "generatedAt" : {
+            "type" : "string"
+          },
+          "inbox" : {
+            "$ref" : "#/components/schemas/ReviewBucketResponseReviewNoteResponse"
+          },
+          "lowConfidenceHighRecall" : {
+            "$ref" : "#/components/schemas/ReviewBucketResponseReviewNoteResponse"
+          },
+          "needsReview" : {
+            "$ref" : "#/components/schemas/ReviewBucketResponseReviewNoteResponse"
+          },
+          "recentAudit" : {
+            "$ref" : "#/components/schemas/ReviewBucketResponseAuditRowResponse"
+          },
+          "recentAutoCaptures" : {
+            "$ref" : "#/components/schemas/ReviewBucketResponseReviewNoteResponse"
+          },
+          "staleUnusedNotes" : {
+            "$ref" : "#/components/schemas/ReviewBucketResponseReviewNoteResponse"
+          },
+          "suggestions" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ReviewSuggestionResponse"
+            }
+          },
+          "tagCandidateClusters" : {
+            "$ref" : "#/components/schemas/ReviewBucketResponseTagCandidateClusterResponse"
+          }
+        },
+        "required" : [ "generatedAt", "inbox", "lowConfidenceHighRecall", "needsReview", "recentAudit", "recentAutoCaptures", "staleUnusedNotes", "suggestions", "tagCandidateClusters" ]
+      },
+      "ScopeResponse" : {
+        "type" : "object",
+        "properties" : {
+          "lastCapturedAt" : {
+            "type" : [ "string", "null" ]
+          },
+          "noteCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
           "scope" : {
             "type" : "string"
+          }
+        },
+        "required" : [ "noteCount", "scope" ]
+      },
+      "ScopesResponse" : {
+        "type" : "object",
+        "properties" : {
+          "scopes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ScopeResponse"
+            }
+          }
+        },
+        "required" : [ "scopes" ]
+      },
+      "SourceResponse" : {
+        "type" : "object",
+        "properties" : {
+          "count" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "source" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "count", "source" ]
+      },
+      "SourcesResponse" : {
+        "type" : "object",
+        "properties" : {
+          "sources" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SourceResponse"
+            }
+          }
+        },
+        "required" : [ "sources" ]
+      },
+      "SuggestedTopicResponse" : {
+        "type" : "object",
+        "properties" : {
+          "noteCount" : {
+            "type" : "integer",
+            "format" : "int32"
           },
           "score" : {
             "type" : "number",
             "format" : "double"
+          },
+          "slug" : {
+            "type" : "string"
           }
         },
-        "required" : [ "id", "scope", "score", "title" ]
+        "required" : [ "noteCount", "score", "slug" ]
       },
-      "DuplicatesResponse" : {
+      "SuggestionsResponse" : {
         "type" : "object",
         "properties" : {
-          "matches" : {
+          "suggestions" : {
             "type" : "array",
             "items" : {
-              "$ref" : "#/components/schemas/DuplicateMatchResponse"
+              "$ref" : "#/components/schemas/SuggestedTopicResponse"
             }
           }
         },
-        "required" : [ "matches" ]
+        "required" : [ "suggestions" ]
       },
-      "AuditResponse" : {
+      "TagCandidateClusterResponse" : {
         "type" : "object",
         "properties" : {
-          "rows" : {
+          "averageSimilarity" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "members" : {
             "type" : "array",
             "items" : {
-              "$ref" : "#/components/schemas/AuditRowResponse"
+              "$ref" : "#/components/schemas/TagCandidateMemberResponse"
+            }
+          },
+          "suggestedCanonical" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "averageSimilarity", "members", "suggestedCanonical" ]
+      },
+      "TagCandidateMemberResponse" : {
+        "type" : "object",
+        "properties" : {
+          "count" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "tag" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "count", "tag" ]
+      },
+      "TagCandidatesResponse" : {
+        "type" : "object",
+        "properties" : {
+          "clusters" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TagCandidateClusterResponse"
             }
           }
         },
-        "required" : [ "rows" ]
+        "required" : [ "clusters" ]
+      },
+      "TagResponse" : {
+        "type" : "object",
+        "properties" : {
+          "count" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "lastUsedAt" : {
+            "type" : [ "string", "null" ]
+          },
+          "tag" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "count", "tag" ]
+      },
+      "TagsResponse" : {
+        "type" : "object",
+        "properties" : {
+          "tags" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TagResponse"
+            }
+          }
+        },
+        "required" : [ "tags" ]
+      },
+      "TopicResponse" : {
+        "type" : "object",
+        "properties" : {
+          "description" : {
+            "type" : [ "string", "null" ]
+          },
+          "lastCapturedAt" : {
+            "type" : [ "string", "null" ]
+          },
+          "noteCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "slug" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "noteCount", "slug" ]
+      },
+      "TopicStatsResponse" : {
+        "type" : "object",
+        "properties" : {
+          "firstCapturedAt" : {
+            "type" : [ "string", "null" ]
+          },
+          "lastCapturedAt" : {
+            "type" : [ "string", "null" ]
+          },
+          "noteCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "slug" : {
+            "type" : "string"
+          },
+          "topTags" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TagResponse"
+            }
+          },
+          "typeBreakdown" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          }
+        },
+        "required" : [ "noteCount", "slug", "topTags", "typeBreakdown" ]
+      },
+      "TopicsResponse" : {
+        "type" : "object",
+        "properties" : {
+          "topics" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TopicResponse"
+            }
+          }
+        },
+        "required" : [ "topics" ]
       }
     }
   }
