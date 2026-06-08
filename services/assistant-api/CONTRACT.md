@@ -25,7 +25,7 @@ the live springdoc output, and the generated TypeScript drift apart.
     the committed copy; non-zero exit on drift.
 - `.github/workflows/contract-validate.yml` — runs both gates on
   every PR that touches assistant-api, assistant-ui, vue-common,
-  kotlin-common, or shared build config.
+  published commons modules, or shared build config.
 
 ## Regenerate after an API change
 

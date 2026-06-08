@@ -9,6 +9,7 @@ import com.jorisjonkers.personalstack.auth.domain.port.EmailConfirmationTokenRep
 import com.jorisjonkers.personalstack.auth.domain.port.PasswordEncoder
 import com.jorisjonkers.personalstack.auth.domain.port.UserRepository
 import com.jorisjonkers.personalstack.common.messaging.RabbitMqEventPublisher
+import com.jorisjonkers.personalstack.common.messaging.RabbitMqMessagingProperties
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -25,6 +26,7 @@ class RegisterUserCommandHandlerTest {
     private val passwordEncoder = mockk<PasswordEncoder>()
     private val eventPublisher = mockk<ApplicationEventPublisher>(relaxed = true)
     private val rabbitMqEventPublisher = mockk<RabbitMqEventPublisher>(relaxed = true)
+    private val rabbitMqMessagingProperties = RabbitMqMessagingProperties()
     private val emailConfirmationTokenRepository = mockk<EmailConfirmationTokenRepository>(relaxed = true)
 
     private val handler =
@@ -33,6 +35,7 @@ class RegisterUserCommandHandlerTest {
             passwordEncoder,
             eventPublisher,
             rabbitMqEventPublisher,
+            rabbitMqMessagingProperties,
             emailConfirmationTokenRepository,
         )
 
@@ -64,6 +67,12 @@ class RegisterUserCommandHandlerTest {
         assertThat(userSlot.captured.totpEnabled).isFalse()
         assertThat(hashSlot.captured).isEqualTo("\$2a\$10\$hashed")
         verify { eventPublisher.publishEvent(any<Any>()) }
+        verify {
+            rabbitMqEventPublisher.publish(
+                rabbitMqMessagingProperties.bindings.getValue(USER_REGISTERED_BINDING).routingKey,
+                any(),
+            )
+        }
     }
 
     @Test
@@ -102,5 +111,9 @@ class RegisterUserCommandHandlerTest {
             createdAt = now,
             updatedAt = now,
         )
+    }
+
+    private companion object {
+        const val USER_REGISTERED_BINDING = "user-registered"
     }
 }

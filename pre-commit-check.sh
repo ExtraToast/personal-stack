@@ -190,14 +190,13 @@ log "Stage 1: Lint, formatting, and security scans"
 
 run_job "lint-auth-api"      ./gradlew :services:auth-api:detekt :services:auth-api:ktlintCheck
 run_job "lint-assistant-api" ./gradlew :services:assistant-api:detekt :services:assistant-api:ktlintCheck
-run_job "lint-kotlin-common" ./gradlew :libs:kotlin-common:detekt :libs:kotlin-common:ktlintCheck
 run_job "lint-frontend"      bash -lc 'pnpm -r lint --max-warnings 0 && pnpm format:check'
 run_job "scan-trivy"         run_trivy_scan
 run_job "scan-pnpm-audit"    run_pnpm_audit
 run_job "scan-gitleaks"      run_gitleaks_scan
 
 wait_jobs "lint+security" \
-  lint-auth-api lint-assistant-api lint-kotlin-common lint-frontend \
+  lint-auth-api lint-assistant-api lint-frontend \
   scan-trivy scan-pnpm-audit scan-gitleaks
 
 # ─────────────────────────────────────────────────────────────────
@@ -207,7 +206,6 @@ log "Stage 2: Unit tests, architecture checks, and Docker image builds"
 
 run_job "unit-auth-api"      ./gradlew :services:auth-api:test
 run_job "unit-assistant-api" ./gradlew :services:assistant-api:test
-run_job "unit-kotlin-common" ./gradlew :libs:kotlin-common:test
 run_job "unit-frontend"      pnpm -r test -- --coverage
 run_job "arch-frontend"      pnpm -r depcruise
 
@@ -220,7 +218,7 @@ run_job "build-assistant-ui"  docker build --build-arg VITE_AUTH_URL=https://aut
 run_job "build-app-ui"        docker build --build-arg VITE_AUTH_URL=https://auth.jorisjonkers.test -f services/app-ui/Dockerfile -t personal-stack/app-ui:latest .
 
 wait_jobs "unit+arch+build" \
-  unit-auth-api unit-assistant-api unit-kotlin-common unit-frontend \
+  unit-auth-api unit-assistant-api unit-frontend \
   arch-frontend \
   build-auth-api build-assistant-api build-auth-ui build-assistant-ui build-app-ui
 
@@ -243,9 +241,8 @@ wait_jobs "integration" integ-auth-api integ-assistant-api
 
 run_job "coverage-auth-api"      ./gradlew :services:auth-api:jacocoTestCoverageVerification
 run_job "coverage-assistant-api" ./gradlew :services:assistant-api:jacocoTestCoverageVerification
-run_job "coverage-kotlin-common" ./gradlew :libs:kotlin-common:jacocoTestCoverageVerification
 
-wait_jobs "coverage" coverage-auth-api coverage-assistant-api coverage-kotlin-common
+wait_jobs "coverage" coverage-auth-api coverage-assistant-api
 
 log "  Stopping infrastructure services..."
 docker compose down --remove-orphans --timeout 10 2>/dev/null || true

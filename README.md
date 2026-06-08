@@ -50,10 +50,9 @@ personal-stack/
 │   ├── app-ui/             # Marketing/portfolio site
 │   └── system-tests/       # Cross-service coherence tests
 ├── libs/
-│   ├── kotlin-common/      # Shared Kotlin code
 │   └── vue-common/         # Shared Vue components
 ├── build-logic/            # Gradle convention plugins
-├── settings.gradle.kts     # Gradle composite build root
+├── settings.gradle.kts     # Gradle build root
 └── pnpm-workspace.yaml     # Frontend workspaces
 ```
 

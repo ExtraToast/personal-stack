@@ -6,7 +6,6 @@ WORKDIR /app
 # Layer 1: Copy only build scripts for dependency caching
 COPY settings.gradle.kts build.gradle.kts gradle.properties* ./
 COPY gradle/ gradle/
-COPY libs/kotlin-common/build.gradle.kts libs/kotlin-common/
 COPY services/auth-api/build.gradle.kts services/auth-api/
 COPY services/assistant-api/build.gradle.kts services/assistant-api/
 COPY services/knowledge-api/build.gradle.kts services/knowledge-api/
@@ -23,7 +22,6 @@ RUN --mount=type=secret,id=github_token \
     gradle :services:auth-api:dependencies --no-daemon || true
 
 # Layer 2: Copy source code and build
-COPY libs/kotlin-common/src/main/ libs/kotlin-common/src/main/
 COPY services/auth-api/src/main/ services/auth-api/src/main/
 RUN --mount=type=secret,id=github_token \
     --mount=type=secret,id=github_actor \
@@ -58,7 +56,7 @@ RUN apk add --no-cache curl && \
 # auth-api PR #250) merged first.
 # Training-capable image. Used only by the crac-train CI workflow:
 # launched alongside Postgres + Valkey + RabbitMQ sidecars, drives the
-# `crac-train` Spring profile (CracTrainingRunner from kotlin-common
+# `crac-train` Spring profile (CracTrainingRunner from kotlin-commons-crac
 # hits each warmup endpoint locally then calls Core.checkpointRestore()),
 # and dumps the JVM checkpoint to /opt/crac/checkpoint before exiting
 # 137. CI then `docker cp`s the checkpoint dir out and uploads it as

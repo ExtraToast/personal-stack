@@ -189,7 +189,7 @@ spec:
           // Drop actuator/health spans at the collector. The OTel
           // Java agent's Tomcat hook creates them independent of
           // Spring's ObservationRegistry, so the Spring-side filter
-          // in libs/kotlin-common is a no-op for these spans —
+          // in kotlin-commons-observability is a no-op for these spans —
           // Alloy is the right place to drop them. We match both the
           // templated `http.route` (Spring) and the raw `url.path`
           // (Traefik / Faro / anything else).

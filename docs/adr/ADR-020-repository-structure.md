@@ -40,7 +40,6 @@ personal-stack/
 │   ├── app-ui/                # Vue — marketing/portfolio site
 │   └── system-tests/          # Kotlin — cross-service coherence tests
 ├── libs/
-│   ├── kotlin-common/         # Shared Kotlin: DTOs, utils, Vault client, auth helpers
 │   └── vue-common/            # Shared Vue: components, composables, types, theme
 ├── build-logic/               # Gradle convention plugins (shared build config)
 ├── .github/workflows/         # CI/CD pipeline definitions

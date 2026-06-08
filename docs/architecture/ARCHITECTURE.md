@@ -310,7 +310,6 @@ personal-stack/
     app-ui/
     system-tests/
   libs/
-    kotlin-common/
     vue-common/
   build-logic/
   .github/workflows/

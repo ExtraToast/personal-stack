@@ -12,8 +12,8 @@ import com.jorisjonkers.personalstack.auth.domain.port.EmailConfirmationTokenRep
 import com.jorisjonkers.personalstack.auth.domain.port.PasswordEncoder
 import com.jorisjonkers.personalstack.auth.domain.port.UserRepository
 import com.jorisjonkers.personalstack.common.command.CommandHandler
-import com.jorisjonkers.personalstack.common.messaging.RabbitMqConfig
 import com.jorisjonkers.personalstack.common.messaging.RabbitMqEventPublisher
+import com.jorisjonkers.personalstack.common.messaging.RabbitMqMessagingProperties
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import java.time.Instant
@@ -26,6 +26,7 @@ class RegisterUserCommandHandler(
     private val passwordEncoder: PasswordEncoder,
     private val eventPublisher: ApplicationEventPublisher,
     private val rabbitMqEventPublisher: RabbitMqEventPublisher,
+    private val rabbitMqMessagingProperties: RabbitMqMessagingProperties,
     private val emailConfirmationTokenRepository: EmailConfirmationTokenRepository,
 ) : CommandHandler<RegisterUserCommand> {
     @Suppress("LongMethod")
@@ -74,7 +75,7 @@ class RegisterUserCommandHandler(
         // Intra-service event (Spring Modulith)
         eventPublisher.publishEvent(event)
         // Inter-service event (RabbitMQ for other services to consume)
-        rabbitMqEventPublisher.publish(RabbitMqConfig.USER_REGISTERED_ROUTING_KEY, event)
+        rabbitMqEventPublisher.publish(userRegisteredRoutingKey(), event)
 
         // Email confirmation event
         eventPublisher.publishEvent(
@@ -87,7 +88,12 @@ class RegisterUserCommandHandler(
         )
     }
 
+    private fun userRegisteredRoutingKey(): String =
+        rabbitMqMessagingProperties.bindings[USER_REGISTERED_BINDING]?.routingKey
+            ?: error("Missing extratoast.messaging binding '$USER_REGISTERED_BINDING'")
+
     companion object {
         private const val TOKEN_EXPIRY_HOURS = 24L
+        private const val USER_REGISTERED_BINDING = "user-registered"
     }
 }

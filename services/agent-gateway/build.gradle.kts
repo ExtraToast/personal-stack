@@ -6,12 +6,14 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":libs:kotlin-common"))
+    implementation(libs.kotlin.commons.observability)
+    implementation(libs.kotlin.commons.timing)
+    implementation(libs.kotlin.commons.web)
     implementation("org.springframework:spring-aop")
     implementation("org.aspectj:aspectjweaver:1.9.25.1")
     implementation("org.springframework.boot:spring-boot-starter-websocket")
     // Tracing runtime jars — same shape as auth-api / assistant-api so
-    // TimingAutoConfiguration in kotlin-common activates.
+    // TimingAutoConfiguration in kotlin-commons-timing activates.
     runtimeOnly("io.micrometer:micrometer-tracing-bridge-otel")
     runtimeOnly("io.opentelemetry:opentelemetry-exporter-otlp")
     testImplementation("org.awaitility:awaitility:4.3.0")
