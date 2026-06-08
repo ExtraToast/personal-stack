@@ -1,11 +1,19 @@
 # Next steps — resume here
 
-Ordered. M0 unblocks everything; do it first. Reference the tracking issue in
-every PR; keep `ISSUES.md` current (GitHub issues can't be edited by the bot).
+> **2026-06-08 update — read README.md "STATUS UPDATE" first.** Step 0 below is
+> DONE: #620 is merged, the minter grants workflows/issues, and
+> `repo-template#1` is merged. Issues *can* be edited (mint a per-repo token).
+> personal-stack already merges (full.yml has the `Pipeline Complete` job).
+> Resume at the narrowed #608 (fold the 3 extra PR workflows into the
+> aggregator), then #610 (after M1 publishes artifacts) and #609.
 
-## 0. Clear the workflows-token blocker (issue #606 — PR #620)
+Ordered. Reference the tracking issue in every PR; keep `ISSUES.md` current and,
+where possible, update the GitHub issues too (editing works with a fresh
+per-repo token).
 
-1. Merge **PR #620** (minter requests `workflows`/`issues`/`packages:read`).
+## 0. Clear the workflows-token blocker (issue #606 — PR #620) — ✅ DONE
+
+1. ~~Merge **PR #620**~~ (merged; minter now requests `workflows`/`issues`/`packages:read`).
    - ⚠️ #620 itself can't merge until `Pipeline Complete` exists OR an operator
      merges it under the ruleset. Operator may need to merge #620 manually
      (chicken-and-egg: the fix that enables CI can't pass the CI gate yet).
