@@ -39,6 +39,43 @@ repo-local `.claude` and `.codex` directories instead of user config homes.
 See [PORTABILITY.md](PORTABILITY.md) for uninstall, backup/export, restore, and
 compatibility-matrix details.
 
+## Spec-driven development scaffold
+
+The kit vendors the GitHub Spec Kit runtime under
+`templates/repo/.specify`. The checked-in scaffold includes templates plus the
+Bash helper scripts under `.specify/scripts/bash`; those scripts are executable
+in the template tree and are installed with mode `0755`.
+
+`render-agent-kit.py` treats `.specify` as a project seed, not as generated
+client state:
+
+- The personal-stack repo-root `.specify` tree is committed. Its scripts and
+  templates mirror the vendored scaffold; its memory directory carries the real
+  project constitution.
+- The repo-local `.specify/memory/constitution.md` is committed and hand-edited.
+  It is the personal-stack constitution. Do not render over it; edit that file
+  directly when governance changes.
+- The generic `.specify/templates/constitution-template.md` remains a scaffold
+  template for future projects.
+- Project-scope installs seed `.specify` under `AGENT_KIT_PROJECT_ROOT` or
+  `$PWD`. The constitution is written only when absent; the vendored scripts and
+  templates are refreshed from the installer bundle.
+- `.specify` is intentionally not tracked for uninstall. `install.sh
+  --uninstall` removes agent client files, but never removes a project's Spec
+  Kit scaffold or specs.
+- Runner workspaces are also seeded from the same scaffold. The agent runner
+  image copies `templates/repo/.specify` to `/opt/agent-kit/sdd`, and the
+  runner entrypoint seeds workspace repositories from `AGENT_KIT_SDD_SOURCE`.
+
+Spec Kit commands are dot-form commands: `/speckit.specify`,
+`/speckit.clarify`, `/speckit.plan`, `/speckit.tasks`, `/speckit.analyze`,
+`/speckit.implement`, `/speckit.checklist`, `/speckit.constitution`, and
+`/speckit.taskstoissues`. They ship through `install.sh` for both `--scope user`
+and `--scope project`. Claude receives slash-command Markdown under
+`commands/speckit.*.md`; Codex receives matching `speckit-*` skills. The
+user-scope `/speckit.specify` flow bootstraps a minimal `.specify` tree in the
+current project when it is absent and does not overwrite existing Spec Kit files.
+
 Run the read-only doctor when debugging runner memory, MCP, or installer
 drift:
 
