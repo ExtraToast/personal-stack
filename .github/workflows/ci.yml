@@ -470,6 +470,26 @@ jobs:
       - name: Validate platform render
         run: platform/scripts/validate/render-platform.sh
 
+  deploy-config-schema-validate:
+    name: Deploy Config Schema Validate
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.any-platform == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Validate generated deploy config
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          npm install --no-save --prefix "$RUNNER_TEMP/dcs" @extratoast/deploy-config-schema@^0.4.0
+          export DEPLOY_CONFIG_SCHEMA_LOCAL="$RUNNER_TEMP/dcs/node_modules/@extratoast/deploy-config-schema"
+          node platform/scripts/deploy-config-schema/fleet-to-deploy-config.mjs platform/inventory/fleet.yaml > "$RUNNER_TEMP/deploy-config.json"
+          "$RUNNER_TEMP/dcs/node_modules/.bin/deploy-config-schema" validate deploy-config "$RUNNER_TEMP/deploy-config.json"
+
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
@@ -529,6 +549,7 @@ jobs:
       - test-architecture
       - system-tests
       - platform-validate
+      - deploy-config-schema-validate
       - security-scan
       - migration-guard
       - contract-validate
