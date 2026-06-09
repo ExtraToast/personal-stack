@@ -14,7 +14,7 @@ personal-stack currently treats `platform/inventory/fleet.yaml` as the source of
 
 ## Toolkit Fit
 
-`@extratoast/deploy-config-schema` v0.3.0 can validate the canonical `deploy-config` contract and has adapters for the same first edge surfaces personal-stack already renders: `edge-catalog`, `edge-route-catalog`, `gatus`, `traefik-public`, and `traefik-lan`.
+`@extratoast/deploy-config-schema` v0.4.x can validate the canonical `deploy-config` contract and has adapters for the same first edge surfaces personal-stack already renders: `edge-catalog`, `edge-route-catalog`, `gatus`, `traefik-public`, and `traefik-lan`.
 
 The toolkit deploy-config shape is close to personal-stack's current fleet model, but it is not identical. The first safe consumption point is therefore validation of a generated, schema-only deploy-config derived from `fleet.yaml`, not direct renderer replacement.
 
@@ -33,7 +33,7 @@ The toolkit deploy-config shape is close to personal-stack's current fleet model
 
 ## Adopted First Step
 
-This branch consumes `@extratoast/deploy-config-schema` as a pinned devDependency and adds an additive CI validation job:
+This branch consumes `@extratoast/deploy-config-schema` as a CI-only toolkit. The CI validation job installs `@extratoast/deploy-config-schema@^0.4.0` into a temporary prefix, points `DEPLOY_CONFIG_SCHEMA_LOCAL` at that install for the generator, and leaves the repository dependency graph unchanged:
 
 1. Generate a temporary deploy-config JSON from `platform/inventory/fleet.yaml`.
 2. Validate that generated deploy-config with `deploy-config-schema validate deploy-config`.
