@@ -470,6 +470,19 @@ jobs:
       - name: Validate platform render
         run: platform/scripts/validate/render-platform.sh
 
+  deploy-config-schema-validate:
+    name: Deploy Config Schema Validate
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.any-platform == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Validate generated deploy config
+        run: pnpm deploy-config:schema:validate
+
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
@@ -529,6 +542,7 @@ jobs:
       - test-architecture
       - system-tests
       - platform-validate
+      - deploy-config-schema-validate
       - security-scan
       - migration-guard
       - contract-validate
