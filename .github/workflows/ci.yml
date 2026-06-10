@@ -541,6 +541,14 @@ jobs:
     uses: ./.github/workflows/vault-bootstrap-validate.yml
     secrets: inherit
 
+  stalwart-tests:
+    name: Stalwart Config Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - name: Run stalwart config tests
+        run: sh tests/stalwart/run.sh
+
   pipeline-complete:
     name: Pipeline Complete
     if: always()
@@ -560,6 +568,7 @@ jobs:
       - migration-guard
       - contract-validate
       - vault-bootstrap-validate
+      - stalwart-tests
     runs-on: ubuntu-latest
     steps:
       - name: Check pipeline result
