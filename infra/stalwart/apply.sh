@@ -95,6 +95,22 @@ reconcile() {
   printf '{"@type":"update","object":"SystemSettings","value":{"defaultHostname":"%s","defaultDomainId":"%s"}}\n' \
     "$STALWART_HOSTNAME" "$dom" | sc apply --file /dev/stdin
 
+  # 2b. Server hostname (the `server.hostname` setting, exposed on the
+  #     Bootstrap singleton). This is the public hostname used in SMTP
+  #     greetings, outgoing headers, TLS certificate requests, and — the
+  #     reason this step exists — the MX target Stalwart publishes for
+  #     the domain's auto-managed Cloudflare DNS. Stalwart seeds it from
+  #     the container OS hostname at first boot and persists it in the
+  #     datastore, which publishes a bogus, unresolvable pod-name MX
+  #     (e.g. `stalwart-78587fc555-dfdr5.`) that also rots on every pod
+  #     roll. Pin it to the stable public FQDN so inbound mail resolves
+  #     the server. Tolerant: a schema move warns rather than aborting
+  #     the whole reconcile.
+  if ! printf '{"@type":"update","object":"Bootstrap","value":{"serverHostname":"%s"}}\n' \
+        "$STALWART_HOSTNAME" | sc apply --file /dev/stdin; then
+    echo "apply: WARN: could not pin serverHostname=${STALWART_HOSTNAME}; published MX may be wrong" >&2
+  fi
+
   # 3. Wire the domain to automatic ACME + Cloudflare DNS-01.
   printf '{"@type":"update","object":"Domain","id":"%s","value":{"certificateManagement":{"@type":"Automatic","acmeProviderId":"%s"},"dnsManagement":{"@type":"Automatic","dnsServerId":"%s"}}}\n' \
     "$dom" "$acme" "$dns" | sc apply --file /dev/stdin
@@ -146,10 +162,17 @@ reconcile_accounts() {
       continue
     fi
 
-    # Always set the password. aliases/memberGroupIds are only touched
-    # when the entry explicitly declares them, so password-only entries
-    # never clear aliases/groups that the webadmin set.
+    # Always set the password. aliases/memberGroupIds/description are only
+    # touched when the entry explicitly declares them, so password-only
+    # entries never clear values the webadmin set.
     fields="$(jq -nc --arg pw "$pw" '{credentials:{"0":{"@type":"Password",secret:$pw}}}')"
+
+    # displayName -> the account's `description` (the human full name
+    # shown in the webadmin and used as the From display name).
+    if printf '%s' "$entry" | jq -e 'has("displayName")' >/dev/null; then
+      dn="$(printf '%s' "$entry" | jq -r '.displayName')"
+      fields="$(printf '%s' "$fields" | jq -c --arg dn "$dn" '. + {description:$dn}')"
+    fi
 
     if printf '%s' "$entry" | jq -e 'has("aliases")' >/dev/null; then
       aliases="$(printf '%s' "$entry" | jq -c --arg dom "$dom" \

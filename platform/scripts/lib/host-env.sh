@@ -152,11 +152,15 @@ load_install_host_env() {
 load_platform_env_with_command() {
   local command_name="$1"
   local node_name="$2"
-  local gradlew
-  local env_output
+  local cli fleet env_output
 
-  gradlew="$(platform_gradlew)"
-  env_output="$("${gradlew}" -q :platform:tooling:run --args="${command_name} ${node_name}")"
+  # Host env is resolved by the @extratoast/deploy-config-schema toolkit.
+  # DEPLOY_CONFIG_SCHEMA_BIN overrides the invocation (CI installs a pinned
+  # copy); locally it defaults to npx.
+  cli="${DEPLOY_CONFIG_SCHEMA_BIN:-npx --yes @extratoast/deploy-config-schema@^0.8.0}"
+  fleet="$(platform_repo_root)/platform/inventory/fleet.yaml"
+  # shellcheck disable=SC2086
+  env_output="$(${cli} "${command_name}" "${fleet}" "${node_name}")"
 
   while IFS='=' read -r key value; do
     if [[ -z "${key}" ]]; then

@@ -1,127 +1,108 @@
-# Runbook: Cut `jorisjonkers.dev` mail over from Microsoft 365 to Stalwart
+# Runbook: Inbound mail for `jorisjonkers.dev` not delivered to Stalwart
 
-**Status**: Design-first. This documents an operator-executed cutover. Per
-`dns-zone-policy.md`, do **not** copy the consumer Cloudflare zone file into this repo —
-the values below are the records to set, applied by the operator in Cloudflare.
+**Related**: spec [`002-stalwart-catchall-delivery`](../../specs/002-stalwart-catchall-delivery/spec.md),
+spec [`003`](../../specs/003-stalwart-mx-and-account-fix/spec.md).
 
-**Related**: spec [`002-stalwart-catchall-delivery`](../../specs/002-stalwart-catchall-delivery/spec.md).
+Stalwart owns the `jorisjonkers.dev` DNS zone via the Cloudflare API token
+(`secret/platform/edge` → `cloudflare.dns_api_token`) and `dnsManagement: Automatic` on
+the domain. It publishes the zone's mail records (MX, SPF, DKIM, DMARC) itself; they are
+not hand-maintained. So the failure is in what Stalwart publishes, not in a missing manual
+record.
 
-## Why this is needed
+## Root cause: the published MX target was the pod name
 
-Mail to `*@jorisjonkers.dev` is being delivered into Microsoft 365, so Stalwart (and its
-catch-all) never see it. The proof is the bounce:
+Observed live state:
 
 ```
-Generating server: ...PROD.OUTLOOK.COM
-'554 5.7.0 < #5.7.520 smtp;550 5.7.520 Message blocked ... spam. AS(4810)>'
+$ dig +short MX jorisjonkers.dev
+10 stalwart-78587fc555-dfdr5.        # a Kubernetes pod name, not a real host
+$ dig +short A mail.jorisjonkers.dev
+167.86.79.203                        # correct
 ```
 
-`5.7.520 / AS(4810)` is a Microsoft Exchange Online Protection verdict — a Microsoft host
-rejected it, not `mail.jorisjonkers.dev`. The mail never reached Stalwart.
+The MX target Stalwart publishes is its `server.hostname` setting. That setting is seeded
+from the container's OS hostname at first boot and persisted in the datastore. In k8s the
+OS hostname is the pod name (`stalwart-<replicaset>-<rand>`), so Stalwart published an MX
+pointing at a single-label, non-resolvable pod name — and re-published a new bogus value
+every time the pod rolled. Remote senders resolve the MX, fail to resolve its target, and
+never reach Stalwart. (`server.hostname` is also used for SMTP greetings, message headers
+and TLS certs, so leaving it as the pod name is wrong everywhere, not only the MX.)
 
-## Step 0 — Diagnose which blocker is live (decisive)
+This also explains "no bounce but not received": a Microsoft-origin sender's mail is held by
+Microsoft (see the M365 note below), and a local/test send to an address with no real
+mailbox is swallowed by the catch-all chain.
 
-Send a plain test to `probe-$(date +%s)@jorisjonkers.dev` from **two** senders:
+## Fix (automated, in-repo)
 
-| Sender                      | Result                                | Conclusion                                                                           |
-| --------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------ |
-| Gmail (non-Microsoft)       | Lands in Stalwart catch-all           | MX already on Stalwart                                                               |
-| Gmail                       | Microsoft `5.7.x` NDR / never arrives | **Blocker #1**: MX still points to Microsoft                                         |
-| Outlook/live.nl (Microsoft) | Microsoft NDR while Gmail works       | **Blocker #2**: domain still an accepted domain in an M365 tenant (internal routing) |
+`infra/stalwart/apply.sh` now pins the setting on every reconcile:
 
-Also check current state:
+```
+{"@type":"update","object":"Bootstrap","value":{"serverHostname":"mail.jorisjonkers.dev"}}
+```
+
+On the next `stalwart-tools:latest` roll, the reconcile sets `server.hostname` and Stalwart
+republishes `jorisjonkers.dev. MX 10 mail.jorisjonkers.dev.` to Cloudflare.
+
+### Verify after the pod rolls
 
 ```sh
-dig +short MX jorisjonkers.dev      # expect: 10 mail.jorisjonkers.dev once cut over
-dig +short TXT jorisjonkers.dev     # inspect SPF
-dig +short A mail.jorisjonkers.dev  # expect: 167.86.79.203
+dig +short MX jorisjonkers.dev            # expect: 10 mail.jorisjonkers.dev
+dig +short A  mail.jorisjonkers.dev       # expect: 167.86.79.203
+# reconcile log should show the Bootstrap update succeed (no WARN line)
+kubectl -n mail-system logs deploy/stalwart -c stalwart-apply | grep -i hostname
 ```
 
-If the MX still shows `...mail.protection.outlook.com` → fix Step 1. If the MX is already
-Stalwart but Microsoft senders still bounce → you **must** also do Step 2.
+If the reconcile logs `WARN: could not pin serverHostname` the management field moved in a
+Stalwart upgrade — set it once from the webadmin (Settings → Server → Hostname =
+`mail.jorisjonkers.dev`) and open an issue to update the apply object.
 
-## Step 1 — Cloudflare DNS (fixes blocker #1)
+## Catch-all destination mailbox / account identity
 
-All mail records are **DNS-only / grey-cloud** (never proxied), per ADR-003 and
-`dns-zone-policy.md`.
+`STALWART_CATCHALL=joris.jonkers@jorisjonkers.dev`, but the operator mailbox is currently a
+manually-created account whose **primary** address is `extratoast@jorisjonkers.dev`, so
+`joris.jonkers@` is not a deliverable address and the catch-all has nowhere to land. The
+declarative target is `infra/stalwart/accounts.json`:
 
-| Type    | Name                                     | Value                                                            | Notes                                                                                          |
-| ------- | ---------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| A       | `mail.jorisjonkers.dev`                  | `167.86.79.203`                                                  | Frankfurt VPS; grey-cloud. Already present.                                                    |
-| MX      | `jorisjonkers.dev`                       | `10 mail.jorisjonkers.dev`                                       | **Remove** any `*.mail.protection.outlook.com` MX.                                             |
-| TXT     | `jorisjonkers.dev`                       | `v=spf1 a:mail.jorisjonkers.dev -all`                            | Replace any `include:spf.protection.outlook.com`. Use `-all` once Stalwart is the only sender. |
-| TXT     | `_dmarc.jorisjonkers.dev`                | `v=DMARC1; p=quarantine; rua=mailto:postmaster@jorisjonkers.dev` | Start at `p=quarantine`; tighten to `p=reject` after monitoring.                               |
-| TXT     | `<selector>._domainkey.jorisjonkers.dev` | DKIM public key **from Stalwart**                                | See "DKIM" below — do not invent; publish what Stalwart generated.                             |
-| TXT     | `_mta-sts.jorisjonkers.dev`              | `v=STSv1; id=<YYYYMMDDNN>`                                       | Optional; only if the MTA-STS policy below is served.                                          |
-| CNAME/A | `mta-sts.jorisjonkers.dev`               | host serving `/.well-known/mta-sts.txt`                          | Optional, MTA-STS.                                                                             |
-
-### DKIM
-
-Stalwart signs outbound mail with a DKIM key it generates. Do **not** fabricate the record:
-
-1. In the Stalwart webadmin (or via `stalwart-cli`), read the configured DKIM signature for
-   `jorisjonkers.dev` and its **selector** and **public key**.
-2. Publish exactly one TXT at `<selector>._domainkey.jorisjonkers.dev` with
-   `v=DKIM1; k=rsa; p=<public-key>` (or `k=ed25519` if that is the configured algorithm).
-3. Remove any Microsoft `selector1`/`selector2._domainkey` CNAMEs left from M365.
-
-> The Cloudflare API token Stalwart already holds (`CF_DNS_API_TOKEN`,
-> `secret/platform/edge` → `cloudflare.dns_api_token`) is scoped to `Zone:DNS:Edit` and is
-> used for ACME DNS-01 only; it does not auto-publish MX/SPF/DKIM/DMARC. These are manual.
-
-## Step 2 — Microsoft 365 (fixes blocker #2 — the part people miss)
-
-Repointing DNS is **not enough** if `jorisjonkers.dev` is still claimed by an M365 tenant:
-Microsoft-hosted senders route internally and ignore the public MX. To make Stalwart truly
-authoritative you must release the domain from the tenant.
-
-1. Sign in to the Microsoft 365 admin center as a tenant admin.
-2. **Exchange admin center → Mail flow → Accepted domains**: confirm `jorisjonkers.dev` is
-   listed (this is why internal routing happens).
-3. Migrate any wanted mail out of the M365 mailboxes (`joris.jonkers@`, `extratoast@`) into
-   Stalwart first — removing the domain is disruptive.
-4. **Microsoft 365 admin → Settings → Domains → `jorisjonkers.dev` → Remove**, or remove it
-   as an accepted domain in Exchange. A domain can be authoritative in exactly one system;
-   once Microsoft no longer claims it, Microsoft-origin senders fall back to the public MX
-   → Stalwart.
-
-> Interim alternative (not recommended as the end state): set the M365 accepted domain to
-> **Internal relay** so Microsoft relays unknown recipients out via MX. This still keeps
-> Microsoft as the primary target and requires the public MX to point at Microsoft — the
-> opposite of the goal. Prefer full removal.
-
-## Step 3 — Stalwart destination mailbox
-
-Spec 002 declares the catch-all target mailbox (`joris.jonkers`, alias `extratoast`) in
-`infra/stalwart/accounts.json`. For the reconcile to actually create/manage it, populate
-Vault:
-
-```
-secret/platform/mail   key: joris.password   value: <desired mailbox password>
+```json
+{ "localPart": "joris.jonkers", "displayName": "Joris Jonkers",
+  "passwordEnv": "JORIS_MAIL_PASSWORD", "aliases": ["extratoast"] }
 ```
 
-If this key is left empty, the reconcile **skips** the account (safe no-op) and the
-catch-all will have no Stalwart-managed destination — set it before relying on catch-all
-delivery. If `joris.jonkers@` already exists as a manually-created webadmin mailbox, setting
-`joris.password` makes the reconcile adopt it and reset its password to the Vault value.
+i.e. primary `joris.jonkers@`, full name "Joris Jonkers", `extratoast@` as an alias. The
+reconcile manages it only once its Vault password exists, and it locates accounts by their
+**primary** address — it cannot rename the primary of the existing `extratoast@`-primary
+mailbox. Pick one path:
 
-## Step 4 — Verify (post-cutover checklist)
+- **Preserve the existing mailbox (recommended).** In the Stalwart webadmin, edit the
+  current account: set the primary email to `joris.jonkers@jorisjonkers.dev`, set the full
+  name to `Joris Jonkers`, and add `extratoast@jorisjonkers.dev` as an alias. Stored mail is
+  kept. Then set Vault `secret/platform/mail` → `joris.password` so the reconcile keeps it
+  converged.
+- **Start clean.** Set Vault `joris.password`, delete the old `extratoast@`-primary account,
+  and let the reconcile create `joris.jonkers` (primary + alias + name) from
+  `accounts.json`. The old mailbox's stored mail is lost.
 
-- [ ] `dig +short MX jorisjonkers.dev` → `10 mail.jorisjonkers.dev` only.
-- [ ] `dig +short A mail.jorisjonkers.dev` → `167.86.79.203`.
-- [ ] SPF TXT authorizes Stalwart, not Microsoft.
-- [ ] DKIM TXT at the Stalwart selector resolves and matches the server's public key.
-- [ ] Test from **Gmail** to a real mailbox → delivered to Stalwart.
-- [ ] Test from **Outlook/live.nl** to `something@jorisjonkers.dev` → delivered to the
-      `joris.jonkers` catch-all mailbox, **no** `5.7.520` NDR.
+Until Vault `joris.password` is set, the reconcile skips the account (safe no-op).
+
+## Microsoft 365 note (Microsoft-origin senders only)
+
+An earlier bounce came from a Microsoft EOP host (`550 5.7.520 ... AS(4810)`), which means
+`jorisjonkers.dev` is still a verified accepted domain in a Microsoft 365 tenant. Microsoft
+routes mail from any Microsoft-hosted sender (outlook.com, live.nl, other M365 tenants)
+**internally** and never queries the public MX — so those senders bypass Stalwart regardless
+of the (now-fixed) MX. Non-Microsoft senders (Gmail, etc.) follow the public MX to Stalwart.
+
+To make Stalwart authoritative for all senders, remove `jorisjonkers.dev` as an accepted
+domain from the M365 tenant (Microsoft 365 admin → Settings → Domains, or Exchange admin →
+Mail flow → Accepted domains) after migrating any wanted mail out of the M365 mailboxes.
+This is an operator action in the Microsoft tenant; it cannot be done from this repo.
+
+## Post-fix verification checklist
+
+- [ ] `dig +short MX jorisjonkers.dev` → `10 mail.jorisjonkers.dev`.
+- [ ] Test from **Gmail** to `joris.jonkers@jorisjonkers.dev` → delivered to the mailbox.
+- [ ] Test from **Gmail** to `something@jorisjonkers.dev` (unknown) → delivered via catch-all
+      to the `joris.jonkers` mailbox.
 - [ ] Test to `extratoast@jorisjonkers.dev` → same mailbox.
-- [ ] Send **outbound** from Stalwart to a Gmail/mail-tester address → SPF + DKIM + DMARC
-      all pass (e.g. via mail-tester.com, score 9–10/10).
-- [ ] `joris.jonkers` mailbox present after a reconcile against an empty datastore.
-
-## Rollback
-
-- DNS: restore the previous MX/SPF/DKIM records in Cloudflare; mail returns to Microsoft.
-- M365: re-add `jorisjonkers.dev` as an accepted domain and re-verify the TXT.
-- Stalwart: clearing Vault `joris.password` makes the reconcile stop managing the mailbox
-  (it is not deleted).
+- [ ] Microsoft-origin sender works **after** the M365 accepted-domain removal.
+- [ ] Outbound from Stalwart passes SPF + DKIM + DMARC (e.g. mail-tester.com 9–10/10).
