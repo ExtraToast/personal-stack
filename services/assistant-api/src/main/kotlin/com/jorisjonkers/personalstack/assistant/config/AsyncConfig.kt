@@ -7,6 +7,9 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.scheduling.annotation.EnableAsync
 import org.springframework.scheduling.annotation.EnableScheduling
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
+import java.util.concurrent.Executor
+import java.util.concurrent.ThreadPoolExecutor
 
 @Configuration
 @EnableAsync
@@ -23,4 +26,21 @@ class AsyncConfig {
     @Bean
     @Qualifier("assistantApiObjectMapper")
     fun assistantApiObjectMapper(): ObjectMapper = jacksonObjectMapper()
+
+    @Bean(name = ["chatStreamExecutor"])
+    fun chatStreamExecutor(): Executor =
+        ThreadPoolTaskExecutor().apply {
+            corePoolSize = CHAT_STREAM_CORE_POOL_SIZE
+            maxPoolSize = CHAT_STREAM_MAX_POOL_SIZE
+            queueCapacity = CHAT_STREAM_QUEUE_CAPACITY
+            setThreadNamePrefix("chat-stream-")
+            setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
+            initialize()
+        }
+
+    private companion object {
+        private const val CHAT_STREAM_CORE_POOL_SIZE = 2
+        private const val CHAT_STREAM_MAX_POOL_SIZE = 8
+        private const val CHAT_STREAM_QUEUE_CAPACITY = 50
+    }
 }

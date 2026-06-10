@@ -31,11 +31,11 @@ out of the delivery path entirely.
 
 Two root causes are possible and are distinguished by a single test (see FR-001):
 
-1. **Public MX still points to Microsoft** (`*.mail.protection.outlook.com`). Then *all*
+1. **Public MX still points to Microsoft** (`*.mail.protection.outlook.com`). Then _all_
    inbound mail is captured by Microsoft.
 2. **The domain is still a verified accepted domain in a Microsoft 365 tenant.** Microsoft
    routes mail from any Microsoft-hosted sender (the failing test was sent from
-   `joriswouter@live.nl`) *internally* and never performs a public MX lookup — so even a
+   `joriswouter@live.nl`) _internally_ and never performs a public MX lookup — so even a
    correct MX pointing at Stalwart is bypassed for Microsoft-origin senders.
 
 A second, latent gap compounds this: the catch-all **target** mailbox
@@ -50,7 +50,7 @@ in this cluster only manages `traefik-public` ingress hostnames and does **not**
 records. There is consequently **no in-repo lever** that can change MX/routing — that
 remediation is operational and is captured here as a reviewable, design-first runbook.
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Inbound mail reaches Stalwart, not Microsoft (Priority: P1)
 
@@ -113,7 +113,7 @@ reviewable and repeatable without copying consumer zone files into the shared re
    record (MX, SPF, DKIM, DMARC, MTA-STS, mail host A) with target values and the M365
    accepted-domain removal, plus a post-cutover verification checklist.
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 - **FR-001**: The runbook MUST include the decisive diagnostic (send from a non-Microsoft
   vs. a Microsoft sender) to determine whether the live blocker is MX (#1) or M365 internal
@@ -144,7 +144,7 @@ reviewable and repeatable without copying consumer zone files into the shared re
 - **Cutover runbook** — design-first operational doc: Cloudflare mail records + Microsoft
   365 accepted-domain removal + verification.
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 - **SC-001**: After the cutover, a message from a Microsoft-hosted sender to
   `something@jorisjonkers.dev` is delivered to the `joris.jonkers` mailbox via Stalwart with

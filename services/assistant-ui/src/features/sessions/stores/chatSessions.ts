@@ -13,12 +13,20 @@ import {
   getChatSession as getApi,
   listChatSessions as listApi,
   startChatSession as startApi,
+  streamChatAnswer,
 } from '../services/chatSessionsService'
+
+let localMessageCounter = 0
+
+interface RetryPrompt {
+  body: string
+}
 
 export const useChatSessionsStore = defineStore('chatSessions', () => {
   const sessions = ref<ChatSession[]>([])
   const activeSessionId = ref<string | null>(null)
   const detailById = ref<Record<string, ChatSessionDetail>>({})
+  const lastFailedById = ref<Record<string, RetryPrompt>>({})
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
@@ -60,10 +68,58 @@ export const useChatSessionsStore = defineStore('chatSessions', () => {
     return message
   }
 
+  async function sendStreaming(id: string, body: string): Promise<void> {
+    const detail = detailById.value[id]
+    if (!detail) return
+
+    const createdAt = new Date().toISOString()
+    const streamId = `stream-${++localMessageCounter}`
+    const userMessage = await appendApi(id, { body, role: 'USER' })
+    const placeholder: ChatMessage = {
+      id: streamId,
+      sessionId: id,
+      role: 'ASSISTANT',
+      body: '',
+      createdAt,
+      streaming: true,
+    }
+    detail.messages = [...detail.messages, userMessage, placeholder]
+    const streamMessage = detail.messages[detail.messages.length - 1]!
+    delete lastFailedById.value[id]
+
+    const markFailed = (): void => {
+      streamMessage.streaming = false
+      streamMessage.failed = true
+      lastFailedById.value[id] = { body }
+    }
+
+    try {
+      await streamChatAnswer(id, body, {
+        onChunk(text) {
+          streamMessage.body += text
+        },
+        onDone(messageId) {
+          streamMessage.id = messageId
+          streamMessage.streaming = false
+        },
+        onError: markFailed,
+      })
+    } catch {
+      markFailed()
+    }
+  }
+
+  async function retryLast(id: string): Promise<void> {
+    const retry = lastFailedById.value[id]
+    if (!retry) return
+    await sendStreaming(id, retry.body)
+  }
+
   async function archive(id: string): Promise<void> {
     await archiveApi(id)
     sessions.value = sessions.value.filter((s) => s.id !== id)
     delete detailById.value[id]
+    delete lastFailedById.value[id]
     if (activeSessionId.value === id) activeSessionId.value = null
   }
 
@@ -71,12 +127,15 @@ export const useChatSessionsStore = defineStore('chatSessions', () => {
     sessions,
     activeSessionId,
     detailById,
+    lastFailedById,
     isLoading,
     error,
     loadAll,
     open,
     start,
     send,
+    sendStreaming,
+    retryLast,
     archive,
   }
 })

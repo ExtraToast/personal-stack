@@ -33,7 +33,7 @@ A latent Microsoft 365 factor remains (the domain is still an accepted domain in
 tenant, so Microsoft-origin senders route internally); it is operator-resolved and
 documented in the runbook, not in scope for code.
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 - **FR-001**: The reconcile MUST pin `server.hostname` to `mail.jorisjonkers.dev`
   (`STALWART_HOSTNAME`) so the auto-managed DNS publishes `MX 10 mail.jorisjonkers.dev` and
@@ -51,7 +51,7 @@ documented in the runbook, not in scope for code.
   the reconcile locates accounts by primary address and the live mailbox cannot be safely
   renamed remotely.
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 - **SC-001**: After the next reconcile, `dig MX jorisjonkers.dev` → `10 mail.jorisjonkers.dev`.
 - **SC-002**: A Gmail-origin message to `joris.jonkers@jorisjonkers.dev` is delivered to the

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ChatMessage } from '../types'
 import { computed, onMounted, ref, watch } from 'vue'
 import { Card, SubmitButton, useMutationState, useToast } from '@/lib/vueWebCommons'
 import { useChatSessionsStore } from '../stores/chatSessions'
@@ -61,11 +62,21 @@ async function onSend(): Promise<void> {
   if (!body || !sessionId) return
   try {
     await send.run(async () => {
-      await store.send(sessionId, { body, role: 'USER' })
+      await store.sendStreaming(sessionId, body)
     })
     draft.value = ''
   } catch (e) {
     toast.errorFromCatch('Could not send message', e)
+  }
+}
+
+async function onRetry(sessionId: string): Promise<void> {
+  try {
+    await send.run(async () => {
+      await store.retryLast(sessionId)
+    })
+  } catch (e) {
+    toast.errorFromCatch('Could not retry message', e)
   }
 }
 
@@ -97,6 +108,22 @@ async function onArchive(id: string, title: string): Promise<void> {
   } finally {
     deletingId.value = null
   }
+}
+
+function messageClass(m: ChatMessage): string {
+  if (m.failed) {
+    return 'border border-red-300 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950/30 dark:text-red-100'
+  }
+  if (m.role === 'USER') {
+    return 'bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)]'
+  }
+  return 'bg-[var(--color-surface-card)] text-[var(--color-text-primary)] border border-[var(--color-surface-border)]'
+}
+
+function messageTestId(m: ChatMessage): string {
+  if (m.streaming) return 'chat-message-streaming'
+  if (m.failed) return 'chat-message-failed'
+  return `chat-message-${m.id}`
 }
 </script>
 
@@ -164,15 +191,24 @@ async function onArchive(id: string, title: string): Promise<void> {
             v-for="m in active.messages"
             :key="m.id"
             class="rounded-md px-3 py-2 text-sm"
-            :class="[
-              m.role === 'USER'
-                ? 'bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)]'
-                : 'bg-[var(--color-surface-card)] text-[var(--color-text-primary)] border border-[var(--color-surface-border)]',
-            ]"
-            :data-testid="`chat-message-${m.id}`"
+            :class="messageClass(m)"
+            :data-testid="messageTestId(m)"
           >
             <p class="text-xs text-[var(--color-text-muted)] mb-1">{{ m.role === 'USER' ? 'You' : 'Assistant' }}</p>
-            <p class="whitespace-pre-wrap">{{ m.body }}</p>
+            <p class="whitespace-pre-wrap">
+              {{ m.body }}<span v-if="m.streaming" class="ml-0.5 animate-pulse" aria-hidden="true">...</span>
+            </p>
+            <div v-if="m.failed" class="mt-2 flex items-center gap-2">
+              <p class="text-xs font-medium">Answer failed.</p>
+              <button
+                type="button"
+                class="rounded border border-red-300 px-2 py-1 text-xs font-medium text-red-900 hover:bg-red-100 dark:border-red-700 dark:text-red-100 dark:hover:bg-red-950/50"
+                data-testid="chat-retry"
+                @click="onRetry(active.session.id)"
+              >
+                Retry
+              </button>
+            </div>
           </li>
         </ul>
 

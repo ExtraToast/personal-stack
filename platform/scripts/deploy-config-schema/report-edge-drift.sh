@@ -30,6 +30,8 @@ render gatus
 render traefik-public
 render traefik-lan
 
+drift_found=0
+
 report() {
   local label="$1"
   local generated="$2"
@@ -39,6 +41,7 @@ report() {
     echo "MATCH ${label}"
   else
     echo "DIFF  ${label}: ${generated} vs ${committed}"
+    drift_found=1
   fi
 }
 
@@ -47,3 +50,10 @@ report edge-route-catalog "${work_dir}/edge-route-catalog.yaml" "${repo_root}/pl
 report gatus "${work_dir}/gatus.yaml" "${repo_root}/platform/cluster/flux/apps/observability/gatus/gatus-endpoints-configmap.yaml"
 report traefik-public "${work_dir}/traefik-public.yaml" "${repo_root}/platform/cluster/flux/apps/edge/traefik-ingressroutes.yaml"
 report traefik-lan "${work_dir}/traefik-lan.yaml" "${repo_root}/platform/cluster/flux/apps/edge/traefik-lan-ingressroutes.yaml"
+
+# Report-only by default. When DRIFT_GATE=1 (CI), fail on any drift so the
+# toolkit's render output is locked to the committed tree.
+if [ "${DRIFT_GATE:-0}" = "1" ] && [ "${drift_found}" = "1" ]; then
+  echo "Edge render drift detected: toolkit output diverges from the committed tree." >&2
+  exit 1
+fi

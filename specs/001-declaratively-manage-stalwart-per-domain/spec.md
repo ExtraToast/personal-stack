@@ -18,7 +18,7 @@ Vault-managed accounts, which the reconcile already converges on every pod start
 The observed symptom: mail to `boris@jorisjonkers.dev` (an unknown local recipient) is
 not delivered to the operator's mailbox, because no catch-all is reliably configured.
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Catch-all survives a datastore rebuild (Priority: P1)
 
@@ -108,7 +108,7 @@ settings are unchanged.
   production (`jorisjonkers.dev`); the declared catch-all must be expressible per
   environment, not hard-coded to the production domain.
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -137,7 +137,7 @@ settings are unchanged.
   target mailbox; the declared address is applied as-is, matching how alias/group targets
   are handled today.
 
-### Key Entities *(include if feature involves data)*
+### Key Entities _(include if feature involves data)_
 
 - **Domain**: The mail domain (e.g. `jorisjonkers.dev`). Owns the catch-all address
   property along with existing certificate-management and DNS-management wiring. The
@@ -148,7 +148,7 @@ settings are unchanged.
   settings (listeners, domain wiring, Vault-managed accounts) and that this feature
   extends to also apply the catch-all.
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 
