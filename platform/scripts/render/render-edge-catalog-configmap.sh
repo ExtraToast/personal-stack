@@ -4,7 +4,8 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/../../.." && pwd)"
 output_path="${1:-${repo_root}/platform/cluster/flux/apps/edge/edge-catalog-configmap.yaml}"
-gradlew_path="${PLATFORM_GRADLEW:-${repo_root}/gradlew}"
 
-mkdir -p "$(dirname "${output_path}")"
-"${gradlew_path}" -q :platform:tooling:run --args="render-edge-configmap" > "${output_path}"
+# shellcheck source=platform/scripts/render/_toolkit-render.sh
+source "${script_dir}/_toolkit-render.sh"
+
+render_adapter edge-catalog "${output_path}" "${repo_root}"
