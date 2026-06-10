@@ -23,11 +23,11 @@ rejected it, not `mail.jorisjonkers.dev`. The mail never reached Stalwart.
 
 Send a plain test to `probe-$(date +%s)@jorisjonkers.dev` from **two** senders:
 
-| Sender | Result | Conclusion |
-| --- | --- | --- |
-| Gmail (non-Microsoft) | Lands in Stalwart catch-all | MX already on Stalwart |
-| Gmail | Microsoft `5.7.x` NDR / never arrives | **Blocker #1**: MX still points to Microsoft |
-| Outlook/live.nl (Microsoft) | Microsoft NDR while Gmail works | **Blocker #2**: domain still an accepted domain in an M365 tenant (internal routing) |
+| Sender                      | Result                                | Conclusion                                                                           |
+| --------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------ |
+| Gmail (non-Microsoft)       | Lands in Stalwart catch-all           | MX already on Stalwart                                                               |
+| Gmail                       | Microsoft `5.7.x` NDR / never arrives | **Blocker #1**: MX still points to Microsoft                                         |
+| Outlook/live.nl (Microsoft) | Microsoft NDR while Gmail works       | **Blocker #2**: domain still an accepted domain in an M365 tenant (internal routing) |
 
 Also check current state:
 
@@ -45,15 +45,15 @@ Stalwart but Microsoft senders still bounce → you **must** also do Step 2.
 All mail records are **DNS-only / grey-cloud** (never proxied), per ADR-003 and
 `dns-zone-policy.md`.
 
-| Type | Name | Value | Notes |
-| --- | --- | --- | --- |
-| A | `mail.jorisjonkers.dev` | `167.86.79.203` | Frankfurt VPS; grey-cloud. Already present. |
-| MX | `jorisjonkers.dev` | `10 mail.jorisjonkers.dev` | **Remove** any `*.mail.protection.outlook.com` MX. |
-| TXT | `jorisjonkers.dev` | `v=spf1 a:mail.jorisjonkers.dev -all` | Replace any `include:spf.protection.outlook.com`. Use `-all` once Stalwart is the only sender. |
-| TXT | `_dmarc.jorisjonkers.dev` | `v=DMARC1; p=quarantine; rua=mailto:postmaster@jorisjonkers.dev` | Start at `p=quarantine`; tighten to `p=reject` after monitoring. |
-| TXT | `<selector>._domainkey.jorisjonkers.dev` | DKIM public key **from Stalwart** | See "DKIM" below — do not invent; publish what Stalwart generated. |
-| TXT | `_mta-sts.jorisjonkers.dev` | `v=STSv1; id=<YYYYMMDDNN>` | Optional; only if the MTA-STS policy below is served. |
-| CNAME/A | `mta-sts.jorisjonkers.dev` | host serving `/.well-known/mta-sts.txt` | Optional, MTA-STS. |
+| Type    | Name                                     | Value                                                            | Notes                                                                                          |
+| ------- | ---------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| A       | `mail.jorisjonkers.dev`                  | `167.86.79.203`                                                  | Frankfurt VPS; grey-cloud. Already present.                                                    |
+| MX      | `jorisjonkers.dev`                       | `10 mail.jorisjonkers.dev`                                       | **Remove** any `*.mail.protection.outlook.com` MX.                                             |
+| TXT     | `jorisjonkers.dev`                       | `v=spf1 a:mail.jorisjonkers.dev -all`                            | Replace any `include:spf.protection.outlook.com`. Use `-all` once Stalwart is the only sender. |
+| TXT     | `_dmarc.jorisjonkers.dev`                | `v=DMARC1; p=quarantine; rua=mailto:postmaster@jorisjonkers.dev` | Start at `p=quarantine`; tighten to `p=reject` after monitoring.                               |
+| TXT     | `<selector>._domainkey.jorisjonkers.dev` | DKIM public key **from Stalwart**                                | See "DKIM" below — do not invent; publish what Stalwart generated.                             |
+| TXT     | `_mta-sts.jorisjonkers.dev`              | `v=STSv1; id=<YYYYMMDDNN>`                                       | Optional; only if the MTA-STS policy below is served.                                          |
+| CNAME/A | `mta-sts.jorisjonkers.dev`               | host serving `/.well-known/mta-sts.txt`                          | Optional, MTA-STS.                                                                             |
 
 ### DKIM
 
