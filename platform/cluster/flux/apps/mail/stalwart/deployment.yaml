@@ -176,6 +176,12 @@ spec:
                   name: stalwart-mail
                   key: N8N_MAIL_PASSWORD
                   optional: true
+            - name: JORIS_MAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: stalwart-mail
+                  key: JORIS_MAIL_PASSWORD
+                  optional: true
           resources:
             requests:
               cpu: 50m
