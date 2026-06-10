@@ -13,6 +13,7 @@
   },
   {
     "localPart": "joris.jonkers",
+    "displayName": "Joris Jonkers",
     "passwordEnv": "JORIS_MAIL_PASSWORD",
     "aliases": ["extratoast"]
   }

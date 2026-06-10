@@ -7,6 +7,7 @@ REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
 ACCOUNTS_JSON="$REPO_ROOT/infra/stalwart/accounts.json"
 DEPLOYMENT_YAML="$REPO_ROOT/platform/cluster/flux/apps/mail/stalwart/deployment.yaml"
 VAULT_STATIC_SECRETS_YAML="$REPO_ROOT/platform/cluster/flux/apps/mail/stalwart/vault-static-secrets.yaml"
+APPLY_SH="$REPO_ROOT/infra/stalwart/apply.sh"
 
 failures=0
 
@@ -101,6 +102,24 @@ assert_json_eq "apply.sh aliases jq shape" "$aliases" '{"0":{"name":"extratoast"
 
 assert_true "deployment wires JORIS_MAIL_PASSWORD as optional env" env_entry_has_optional_true
 assert_true "Vault template wires JORIS_MAIL_PASSWORD from joris.password" vault_template_references_joris_password
+
+# apply.sh must pin the server hostname (server.hostname) so the
+# auto-managed DNS publishes a stable MX target instead of the pod name.
+apply_pins_server_hostname() {
+  grep -Eq '"object":"Bootstrap","value":\{"serverHostname"' "$APPLY_SH"
+}
+assert_true "apply.sh pins serverHostname via Bootstrap (MX target)" apply_pins_server_hostname
+
+# apply.sh must map an account's declared displayName onto its description.
+apply_maps_display_name() {
+  grep -q 'has("displayName")' "$APPLY_SH" && grep -q 'description:\$dn' "$APPLY_SH"
+}
+assert_true "apply.sh maps displayName -> account description" apply_maps_display_name
+
+# The catch-all target account carries the operator's full name and the
+# extratoast address as an alias (primary stays joris.jonkers@).
+assert_true "joris.jonkers has displayName 'Joris Jonkers'" \
+  jq -e 'any(.[]; .localPart=="joris.jonkers" and .displayName=="Joris Jonkers")' "$ACCOUNTS_JSON"
 
 if [ "$failures" -ne 0 ]; then
   exit 1
