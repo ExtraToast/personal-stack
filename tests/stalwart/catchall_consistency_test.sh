@@ -112,6 +112,15 @@ apply_pins_mail_exchanger() {
 }
 assert_true "apply.sh pins mailExchangers host on SystemSettings (MX target)" apply_pins_mail_exchanger
 
+# apply.sh must force a DNS re-publish so a corrected MX is actually
+# pushed: Stalwart only publishes on a dns_management transition into
+# Automatic, so the reconcile flips Manual then Automatic.
+apply_forces_dns_republish() {
+  grep -q '"dnsManagement":{"@type":"Manual"}' "$APPLY_SH" \
+    && grep -q '"dnsManagement":{"@type":"Automatic"' "$APPLY_SH"
+}
+assert_true "apply.sh forces DNS re-publish (Manual then Automatic)" apply_forces_dns_republish
+
 # apply.sh must map an account's declared displayName onto its description.
 apply_maps_display_name() {
   grep -q 'has("displayName")' "$APPLY_SH" && grep -q 'description:\$dn' "$APPLY_SH"
