@@ -40,7 +40,7 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.springframework.boot:spring-boot-starter-jooq")
     implementation("org.jooq:jooq")
-    implementation("tools.jackson.module:jackson-module-kotlin:3.1.3")
+    implementation("tools.jackson.module:jackson-module-kotlin:3.1.4")
     runtimeOnly("org.postgresql:postgresql")
     // Tracing runtime jars. With these on the classpath Spring Boot
     // activates micrometer-tracing + the OTLP exporter and starts shipping
