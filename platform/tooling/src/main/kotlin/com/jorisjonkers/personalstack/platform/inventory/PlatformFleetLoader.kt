@@ -13,7 +13,7 @@ class PlatformFleetLoader(
             .registerModule(
                 KotlinModule.Builder()
                     .build(),
-            ).configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true),
+            ).configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false),
 ) {
     fun load(path: Path): PlatformFleet =
         path.inputStream().use { input ->
