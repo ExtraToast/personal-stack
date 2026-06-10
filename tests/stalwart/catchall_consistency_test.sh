@@ -103,12 +103,14 @@ assert_json_eq "apply.sh aliases jq shape" "$aliases" '{"0":{"name":"extratoast"
 assert_true "deployment wires JORIS_MAIL_PASSWORD as optional env" env_entry_has_optional_true
 assert_true "Vault template wires JORIS_MAIL_PASSWORD from joris.password" vault_template_references_joris_password
 
-# apply.sh must pin the server hostname (server.hostname) so the
-# auto-managed DNS publishes a stable MX target instead of the pod name.
-apply_pins_server_hostname() {
-  grep -Eq '"object":"Bootstrap","value":\{"serverHostname"' "$APPLY_SH"
+# apply.sh must pin the published MX host (mailExchangers on
+# SystemSettings) to the stable FQDN so the auto-managed DNS does not
+# publish the pod name as the MX target.
+apply_pins_mail_exchanger() {
+  grep -q '"mailExchangers":{"0":{"hostname"' "$APPLY_SH" \
+    && grep -q '"object":"SystemSettings"' "$APPLY_SH"
 }
-assert_true "apply.sh pins serverHostname via Bootstrap (MX target)" apply_pins_server_hostname
+assert_true "apply.sh pins mailExchangers host on SystemSettings (MX target)" apply_pins_mail_exchanger
 
 # apply.sh must map an account's declared displayName onto its description.
 apply_maps_display_name() {
