@@ -60,7 +60,7 @@ jobs:
             dockerfile: infra/stalwart/Dockerfile
             build_arg: ''
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6.0.3
       - uses: docker/setup-buildx-action@v4
       - name: Set image prefix (lowercase)
         run: echo "IMAGE_PREFIX=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
@@ -153,7 +153,7 @@ jobs:
             gradle_task: :services:system-tests:testPlaywright
             shard_args: -Dtest.shard.index=4 -Dtest.shard.count=4
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6.0.3
       - uses: ./.github/actions/setup-java-gradle
         with:
           java-version: ${{ inputs.java-version }}
