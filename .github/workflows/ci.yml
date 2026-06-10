@@ -485,9 +485,8 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          npm install --no-save --prefix "$RUNNER_TEMP/dcs" @extratoast/deploy-config-schema@^0.4.0
-          export DEPLOY_CONFIG_SCHEMA_LOCAL="$RUNNER_TEMP/dcs/node_modules/@extratoast/deploy-config-schema"
-          node platform/scripts/deploy-config-schema/fleet-to-deploy-config.mjs platform/inventory/fleet.yaml > "$RUNNER_TEMP/deploy-config.json"
+          npm install --no-save --prefix "$RUNNER_TEMP/dcs" @extratoast/deploy-config-schema@^0.7.0
+          "$RUNNER_TEMP/dcs/node_modules/.bin/deploy-config-schema" fleet-to-deploy-config platform/inventory/fleet.yaml > "$RUNNER_TEMP/deploy-config.json"
       - name: Validate generated deploy config
         uses: ExtraToast/github-workflows/actions/platform-config-validate@v0.5.0
         with:

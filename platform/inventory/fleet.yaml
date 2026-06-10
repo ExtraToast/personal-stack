@@ -416,6 +416,53 @@ access_intent:
     stalwart: stalwart-root-to-admin
 
 ingress_intent:
+  route_rules:
+    - service: app-ui
+    - name: auth-api
+      service: auth-api
+      path_prefixes:
+        - /api/
+    - name: auth-api-well-known
+      service: auth-api
+      path_prefixes:
+        - /.well-known/
+    - service: auth-ui
+      excluded_path_prefixes:
+        - /api/
+        - /.well-known/
+    - service: assistant-api
+      path_prefixes:
+        - /api/
+      excluded_exact_paths:
+        - /api/actuator/health
+        - /api/v1/health
+      excluded_path_prefixes:
+        - /api/actuator/health/
+    - name: assistant-api-health
+      service: assistant-api
+      access: direct
+      exact_paths:
+        - /api/actuator/health
+        - /api/v1/health
+      path_prefixes:
+        - /api/actuator/health/
+    - service: assistant-ui
+      excluded_path_prefixes:
+        - /api/
+    - name: knowledge-api-mcp
+      service: knowledge-api
+      access: direct
+      exact_paths:
+        - /mcp
+        - /install.sh
+      path_prefixes:
+        - /mcp/
+    - service: knowledge-api
+      excluded_exact_paths:
+        - /mcp
+        - /install.sh
+      excluded_path_prefixes:
+        - /mcp/
   kubernetes_backends:
     # AdGuard Home runs as a k8s Deployment in utility-system/adguard,
     # pinned to the capability-adguard node (enschede-t1000-1) with
