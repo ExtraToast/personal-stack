@@ -1,4 +1,4 @@
-package com.jorisjonkers.personalstack.assistant.application.query
+package com.jorisjonkers.personalstack.assistant.application.chat
 
 import com.jorisjonkers.personalstack.assistant.application.command.AppendChatMessageCommand
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatMessageRole

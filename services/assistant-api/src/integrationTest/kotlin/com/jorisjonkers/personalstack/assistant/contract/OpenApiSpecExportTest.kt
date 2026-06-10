@@ -1,6 +1,7 @@
 package com.jorisjonkers.personalstack.assistant.contract
 
 import com.jorisjonkers.personalstack.assistant.application.RepositoryVerificationService
+import com.jorisjonkers.personalstack.assistant.application.chat.ChatAnswerStreamService
 import com.jorisjonkers.personalstack.assistant.application.maintenance.RunnerMaintenanceService
 import com.jorisjonkers.personalstack.assistant.application.query.ChatSessionQueryService
 import com.jorisjonkers.personalstack.assistant.application.query.GetConversationQueryService
@@ -129,6 +130,9 @@ class OpenApiSpecExportTest {
 
         @Bean
         fun chatSessionQueryService(): ChatSessionQueryService = mockk(relaxed = true)
+
+        @Bean
+        fun chatAnswerStreamService(): ChatAnswerStreamService = mockk()
 
         @Bean
         fun commandBus(): CommandBus = mockk(relaxed = true)

@@ -1,7 +1,7 @@
 package com.jorisjonkers.personalstack.assistant.infrastructure.web
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.jorisjonkers.personalstack.assistant.application.query.ChatAnswerStreamService
+import com.jorisjonkers.personalstack.assistant.application.chat.ChatAnswerStreamService
 import com.jorisjonkers.personalstack.assistant.application.query.ChatSessionQueryService
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatSession
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatSessionId

@@ -1,9 +1,9 @@
 package com.jorisjonkers.personalstack.assistant.infrastructure.web
 
+import com.jorisjonkers.personalstack.assistant.application.chat.ChatAnswerStreamService
 import com.jorisjonkers.personalstack.assistant.application.command.AppendChatMessageCommand
 import com.jorisjonkers.personalstack.assistant.application.command.ArchiveChatSessionCommand
 import com.jorisjonkers.personalstack.assistant.application.command.StartChatSessionCommand
-import com.jorisjonkers.personalstack.assistant.application.query.ChatAnswerStreamService
 import com.jorisjonkers.personalstack.assistant.application.query.ChatSessionQueryService
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatMessageId
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatSessionId
