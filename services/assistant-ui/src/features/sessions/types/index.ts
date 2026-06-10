@@ -20,6 +20,8 @@ export interface ChatMessage {
   role: ChatMessageRole
   body: string
   createdAt: string
+  streaming?: boolean
+  failed?: boolean
 }
 
 export interface ChatSessionDetail {

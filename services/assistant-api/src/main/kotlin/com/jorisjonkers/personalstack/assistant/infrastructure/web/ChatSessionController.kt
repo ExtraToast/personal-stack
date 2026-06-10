@@ -3,6 +3,7 @@ package com.jorisjonkers.personalstack.assistant.infrastructure.web
 import com.jorisjonkers.personalstack.assistant.application.command.AppendChatMessageCommand
 import com.jorisjonkers.personalstack.assistant.application.command.ArchiveChatSessionCommand
 import com.jorisjonkers.personalstack.assistant.application.command.StartChatSessionCommand
+import com.jorisjonkers.personalstack.assistant.application.query.ChatAnswerStreamService
 import com.jorisjonkers.personalstack.assistant.application.query.ChatSessionQueryService
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatMessageId
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatSessionId
@@ -14,6 +15,7 @@ import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.StartChat
 import com.jorisjonkers.personalstack.common.command.CommandBus
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 import java.util.UUID
 
 @RestController
@@ -30,6 +33,7 @@ import java.util.UUID
 class ChatSessionController(
     private val commandBus: CommandBus,
     private val chatSessionQuery: ChatSessionQueryService,
+    private val chatAnswerStream: ChatAnswerStreamService,
 ) {
     @PostMapping
     fun create(
@@ -92,6 +96,20 @@ class ChatSessionController(
             detail.messages.firstOrNull { it.id == messageId }
                 ?: error("message not visible immediately after append")
         return ResponseEntity.status(HttpStatus.CREATED).body(ChatMessageResponse.of(message))
+    }
+
+    @PostMapping("/{id}/messages/stream")
+    fun streamMessage(
+        @PathVariable id: UUID,
+        @Valid @RequestBody req: AppendChatMessageRequest,
+    ): ResponseEntity<SseEmitter> {
+        val emitter = chatAnswerStream.stream(ChatSessionId(id), req.body)
+        return ResponseEntity
+            .ok()
+            .contentType(MediaType.TEXT_EVENT_STREAM)
+            .header("Cache-Control", "no-cache")
+            .header("X-Accel-Buffering", "no")
+            .body(emitter)
     }
 
     @DeleteMapping("/{id}")

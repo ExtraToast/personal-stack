@@ -1,6 +1,7 @@
 package com.jorisjonkers.personalstack.assistant.infrastructure.web
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.jorisjonkers.personalstack.assistant.application.query.ChatAnswerStreamService
 import com.jorisjonkers.personalstack.assistant.application.query.ChatSessionQueryService
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatSession
 import com.jorisjonkers.personalstack.assistant.domain.model.ChatSessionId
@@ -18,21 +19,26 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.request
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 import java.time.Instant
 import java.util.UUID
 
 class ChatSessionControllerTest {
     private val commandBus = mockk<CommandBus>(relaxed = true)
     private val query = mockk<ChatSessionQueryService>()
+    private val chatAnswerStream = mockk<ChatAnswerStreamService>()
     private val objectMapper = ObjectMapper()
     private lateinit var mockMvc: MockMvc
 
     @BeforeEach
     fun setUp() {
-        val controller = ChatSessionController(commandBus, query)
+        val controller = ChatSessionController(commandBus, query, chatAnswerStream)
         mockMvc =
             MockMvcBuilders
                 .standaloneSetup(controller)
@@ -115,6 +121,42 @@ class ChatSessionControllerTest {
             // dispatch happened regardless.
         }
         verify { commandBus.dispatch(any()) }
+    }
+
+    @Test
+    fun `POST stream messages returns SSE response headers`() {
+        val s = session()
+        every { chatAnswerStream.stream(s.id, "hello") } returns SseEmitter()
+
+        mockMvc
+            .perform(
+                post("/api/v1/chat-sessions/${s.id.value}/messages/stream")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(mapOf("body" to "hello", "role" to "USER"))),
+            ).andExpect(status().isOk)
+            .andExpect(request().asyncStarted())
+            .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM))
+            .andExpect(header().string("X-Accel-Buffering", "no"))
+            .andExpect(header().string("Cache-Control", "no-cache"))
+    }
+
+    @Test
+    fun `POST stream messages with blank body returns validation error`() {
+        mockMvc
+            .perform(
+                post("/api/v1/chat-sessions/${UUID.randomUUID()}/messages/stream")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(mapOf("body" to "", "role" to "USER"))),
+            ).andExpect(status().isUnprocessableContent)
+    }
+
+    @Test
+    fun `POST stream messages with empty request body returns 400`() {
+        mockMvc
+            .perform(
+                post("/api/v1/chat-sessions/${UUID.randomUUID()}/messages/stream")
+                    .contentType(MediaType.APPLICATION_JSON),
+            ).andExpect(status().isBadRequest)
     }
 
     @Test

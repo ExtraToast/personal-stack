@@ -7,6 +7,7 @@ import {
   getChatSession,
   listChatSessions,
   startChatSession,
+  streamChatAnswer,
 } from '../services/chatSessionsService'
 import { useChatSessionsStore } from '../stores/chatSessions'
 
@@ -16,6 +17,7 @@ vi.mock('../services/chatSessionsService', () => ({
   startChatSession: vi.fn(),
   appendChatMessage: vi.fn(),
   archiveChatSession: vi.fn(),
+  streamChatAnswer: vi.fn(),
 }))
 
 const mocked = {
@@ -24,6 +26,7 @@ const mocked = {
   startChatSession: vi.mocked(startChatSession),
   appendChatMessage: vi.mocked(appendChatMessage),
   archiveChatSession: vi.mocked(archiveChatSession),
+  streamChatAnswer: vi.mocked(streamChatAnswer),
 }
 
 function fakeSession(over: Partial<ChatSession> = {}): ChatSession {
@@ -100,6 +103,50 @@ describe('chatSessions store', () => {
     // Use deep equality — Vue's reactive proxy wraps pushed objects,
     // so reference-equal `toContain` fails on proxy-vs-original.
     expect(store.detailById[detail.session.id]!.messages).toContainEqual(incoming)
+  })
+
+  it('sendStreaming accumulates chunks and completes the placeholder with the persisted id', async () => {
+    const session = fakeSession()
+    mocked.streamChatAnswer.mockImplementation(async (_id, _body, handlers) => {
+      handlers.onChunk('hello ')
+      handlers.onChunk('world')
+      handlers.onDone('persisted-answer')
+    })
+    const store = useChatSessionsStore()
+    store.detailById = { [session.id]: { session, messages: [] } }
+
+    await store.sendStreaming(session.id, 'question')
+
+    const messages = store.detailById[session.id]!.messages
+    expect(messages).toHaveLength(2)
+    expect(messages[0]).toMatchObject({ role: 'USER', body: 'question' })
+    expect(messages[1]).toMatchObject({
+      id: 'persisted-answer',
+      role: 'ASSISTANT',
+      body: 'hello world',
+      streaming: false,
+    })
+    expect(messages[1]!.failed).toBeUndefined()
+  })
+
+  it('sendStreaming marks the placeholder failed on stream error without throwing', async () => {
+    const session = fakeSession()
+    mocked.streamChatAnswer.mockImplementation(async (_id, _body, handlers) => {
+      handlers.onError('nope')
+    })
+    const store = useChatSessionsStore()
+    store.detailById = { [session.id]: { session, messages: [] } }
+
+    await expect(store.sendStreaming(session.id, 'question')).resolves.toBeUndefined()
+
+    const failed = store.detailById[session.id]!.messages[1]!
+    expect(failed).toMatchObject({
+      role: 'ASSISTANT',
+      body: '',
+      streaming: false,
+      failed: true,
+    })
+    expect(store.lastFailedById[session.id]).toEqual({ body: 'question' })
   })
 
   it('archive removes from sessions + detail, clears active', async () => {
