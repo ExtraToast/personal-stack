@@ -480,7 +480,7 @@ jobs:
       - uses: ./.github/actions/setup-node-pnpm
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: Validate generated deploy config
+      - name: Generate deploy config from fleet inventory
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -488,7 +488,13 @@ jobs:
           npm install --no-save --prefix "$RUNNER_TEMP/dcs" @extratoast/deploy-config-schema@^0.4.0
           export DEPLOY_CONFIG_SCHEMA_LOCAL="$RUNNER_TEMP/dcs/node_modules/@extratoast/deploy-config-schema"
           node platform/scripts/deploy-config-schema/fleet-to-deploy-config.mjs platform/inventory/fleet.yaml > "$RUNNER_TEMP/deploy-config.json"
-          "$RUNNER_TEMP/dcs/node_modules/.bin/deploy-config-schema" validate deploy-config "$RUNNER_TEMP/deploy-config.json"
+      - name: Validate generated deploy config
+        uses: ExtraToast/github-workflows/actions/platform-config-validate@v0.4.0
+        with:
+          config-paths: deploy-config.json
+          schema-kind: deploy-config
+          package-version: ^0.4.0
+          working-directory: ${{ runner.temp }}
 
   security-scan:
     name: Security Scan
