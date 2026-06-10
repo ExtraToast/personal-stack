@@ -83,11 +83,7 @@ export const useChatSessionsStore = defineStore('chatSessions', () => {
       createdAt,
       streaming: true,
     }
-    detail.messages = [
-      ...detail.messages,
-      userMessage,
-      placeholder,
-    ]
+    detail.messages = [...detail.messages, userMessage, placeholder]
     const streamMessage = detail.messages[detail.messages.length - 1]!
     delete lastFailedById.value[id]
 
