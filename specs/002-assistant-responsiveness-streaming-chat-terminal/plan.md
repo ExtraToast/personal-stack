@@ -11,7 +11,7 @@ P1 first:
 - **Phase 1 (P1) — Streaming chat answers.** Chat answers are not generated
   server-side today: `ChatSessionKind.PLAIN` only persists messages, and the
   `KNOWLEDGE` kind explicitly reserved answer "Pod binding + streaming" for a
-  follow-up. This phase *is* that follow-up, built streaming-first: a new SSE
+  follow-up. This phase _is_ that follow-up, built streaming-first: a new SSE
   endpoint generates a `KNOWLEDGE`-session answer from the existing RAG stack
   (`RetrievalPort`/`LightRagClient`), streams chunks to the browser as they
   arrive, and persists one complete assistant `ChatMessage` on success. LightRAG
@@ -57,7 +57,7 @@ log window sized to cover tab-sleep / network-switch gaps (tens of seconds).
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
 - [x] No attribution is introduced in files, comments, commit text, or PR text.
 - [x] Claude/Codex parity preserved — N/A: no agent-facing skills/hooks/installer
@@ -188,8 +188,8 @@ backend tasks precede the UI task that consumes them; tests co-located with code
 ## Complexity Tracking
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
-| --- | --- | --- |
-| None | — | — |
+| --------- | ---------- | ------------------------------------ |
+| None      | —          | —                                    |
 
 No constitution gate is intentionally violated. The work reuses existing ports,
 the existing tmux/log/offset machinery, and adds no new public host or render

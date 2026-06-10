@@ -23,7 +23,7 @@ shell/agent session rendered in the browser). Both feel sluggish today:
 This feature makes both surfaces feel immediate and lossless, and keeps them
 smooth as usage scales across devices.
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Streaming chat answers (Priority: P1)
 
@@ -155,7 +155,7 @@ short session.
 - What happens when a person opens many tabs/devices simultaneously — resource
   use must stay bounded.
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -192,7 +192,7 @@ short session.
 - **FR-013**: The work MUST be deliverable in phases, with streaming chat (User
   Story 1) shippable on its own ahead of the terminal and session-list changes.
 
-### Key Entities *(include if feature involves data)*
+### Key Entities _(include if feature involves data)_
 
 - **Chat answer stream**: an in-progress assistant answer, with incremental
   chunks, a terminal completion or failure state, and a final persisted form.
@@ -206,7 +206,7 @@ short session.
 - **Session-status event**: a pushed update describing a session's existence and
   lifecycle state (starting, running, idle, stopped).
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 

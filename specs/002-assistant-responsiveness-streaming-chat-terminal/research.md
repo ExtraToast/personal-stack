@@ -98,7 +98,7 @@ disconnect, so it cannot buffer the gap). assistant-api only needs to pass the
 
 ## R7 — Epoch source
 
-**Finding**: A stale offset is dangerous only across a *session restart* (new tmux
+**Finding**: A stale offset is dangerous only across a _session restart_ (new tmux
 session / recreated log), where byte O of the old log is unrelated to the new one.
 `LogTailer` already self-heals an in-place front-truncation (length < offset →
 reset to 0) but cannot distinguish "new session" from "same session."

@@ -36,14 +36,14 @@ SNAPSHOT otherwise (no epoch, epoch mismatch, or offset evicted/out of range):
 Outbound (gateway → client), unchanged shape plus optional `off`:
 
 ```json
-{"output": "...utf8...", "off": 12345}
+{ "output": "...utf8...", "off": 12345 }
 ```
 
-`off` = the log byte offset *after* this chunk. Control frame (sent once on
+`off` = the log byte offset _after_ this chunk. Control frame (sent once on
 attach, before/with the first output):
 
 ```json
-{"epoch": 7, "snapshot": false}
+{ "epoch": 7, "snapshot": false }
 ```
 
 Inbound (client → gateway) is unchanged: `{"input","enter"}`,

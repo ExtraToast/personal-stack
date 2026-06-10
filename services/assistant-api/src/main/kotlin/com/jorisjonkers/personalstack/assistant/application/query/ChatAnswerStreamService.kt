@@ -19,7 +19,7 @@ class ChatAnswerStreamService(
     private val sessions: ChatSessionRepository,
     private val commandBus: CommandBus,
     private val lightRag: LightRagClient,
-    @Qualifier("chatStreamExecutor") private val executor: Executor,
+    @param:Qualifier("chatStreamExecutor") private val executor: Executor,
 ) {
     fun stream(
         sessionId: ChatSessionId,

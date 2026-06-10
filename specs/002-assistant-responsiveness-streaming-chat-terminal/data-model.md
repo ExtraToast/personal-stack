@@ -30,11 +30,11 @@ No other persistent entity changes.
 
 Lifecycle of one in-progress assistant answer:
 
-| State | Meaning | Transition |
-| --- | --- | --- |
-| `streaming` | chunks arriving from LightRAG `/query/stream` | start on SSE open |
-| `complete` | full text assembled + persisted as a `ChatMessage` | `done` event |
-| `failed` | error/disconnect before completion; nothing persisted | `error` event / reader abort |
+| State       | Meaning                                               | Transition                   |
+| ----------- | ----------------------------------------------------- | ---------------------------- |
+| `streaming` | chunks arriving from LightRAG `/query/stream`         | start on SSE open            |
+| `complete`  | full text assembled + persisted as a `ChatMessage`    | `done` event                 |
+| `failed`    | error/disconnect before completion; nothing persisted | `error` event / reader abort |
 
 Server holds the accumulating `StringBuilder` per emitter; client holds the
 partial text on the in-progress message object in the Pinia store.

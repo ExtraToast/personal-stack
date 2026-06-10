@@ -22,7 +22,7 @@ import org.springframework.web.client.RestClient
 class LightRagClient(
     private val restClient: RestClient,
     private val props: RagProperties,
-    @Qualifier("assistantApiObjectMapper")
+    @param:Qualifier("assistantApiObjectMapper")
     private val objectMapper: ObjectMapper,
 ) : RetrievalPort {
     private val log = LoggerFactory.getLogger(LightRagClient::class.java)
