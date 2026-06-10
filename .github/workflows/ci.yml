@@ -496,6 +496,27 @@ jobs:
           package-version: ^0.4.0
           working-directory: ${{ runner.temp }}
 
+  edge-render-drift:
+    name: Edge Render Drift
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.any-platform == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Check edge/gatus/traefik render parity
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          npm install --no-save --prefix "$RUNNER_TEMP/dcs" @extratoast/deploy-config-schema@^0.6.0
+          export DEPLOY_CONFIG_SCHEMA_LOCAL="$RUNNER_TEMP/dcs/node_modules/@extratoast/deploy-config-schema"
+          export DEPLOY_CONFIG_SCHEMA_BIN="node $DEPLOY_CONFIG_SCHEMA_LOCAL/bin/deploy-config-schema.js"
+          export DEPLOY_CONFIG_SCHEMA_WORK_DIR="$RUNNER_TEMP/edge-drift"
+          DRIFT_GATE=1 bash platform/scripts/deploy-config-schema/report-edge-drift.sh
+
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
@@ -556,6 +577,7 @@ jobs:
       - system-tests
       - platform-validate
       - deploy-config-schema-validate
+      - edge-render-drift
       - security-scan
       - migration-guard
       - contract-validate
