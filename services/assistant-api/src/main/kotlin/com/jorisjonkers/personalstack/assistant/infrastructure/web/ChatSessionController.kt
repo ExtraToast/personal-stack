@@ -13,6 +13,7 @@ import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.ChatMessa
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.ChatSessionResponse
 import com.jorisjonkers.personalstack.assistant.infrastructure.web.dto.StartChatSessionRequest
 import com.jorisjonkers.personalstack.common.command.CommandBus
+import io.swagger.v3.oas.annotations.Hidden
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -98,6 +99,12 @@ class ChatSessionController(
         return ResponseEntity.status(HttpStatus.CREATED).body(ChatMessageResponse.of(message))
     }
 
+    // Excluded from the OpenAPI contract: an SSE/text-event-stream
+    // endpoint cannot be modelled usefully by openapi-typescript, and the
+    // UI consumes it through a hand-written fetch + ReadableStream reader
+    // rather than the generated client. Keeping it out of the spec leaves
+    // the generated types in sync without a degenerate stream type.
+    @Hidden
     @PostMapping("/{id}/messages/stream")
     fun streamMessage(
         @PathVariable id: UUID,
