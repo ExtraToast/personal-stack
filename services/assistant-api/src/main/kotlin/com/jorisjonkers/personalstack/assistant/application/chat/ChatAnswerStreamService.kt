@@ -29,15 +29,6 @@ class ChatAnswerStreamService(
         sessions.findById(sessionId)
             ?: throw NotFoundException("ChatSession", sessionId.value.toString())
 
-        commandBus.dispatch(
-            AppendChatMessageCommand(
-                messageId = ChatMessageId.random(),
-                sessionId = sessionId,
-                role = ChatMessageRole.USER,
-                body = userBody,
-            ),
-        )
-
         val emitter = SseEmitter(TIMEOUT_MILLIS)
         executor.execute {
             generateAnswer(sessionId, userBody, emitter)

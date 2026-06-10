@@ -27,7 +27,7 @@ class ChatAnswerStreamServiceTest {
     private val service = ChatAnswerStreamService(sessions, commandBus, lightRag, executor)
 
     @Test
-    fun `stream persists user and assistant messages when an answer is produced`() {
+    fun `stream persists assistant message when an answer is produced`() {
         val session = session()
         val commands = mutableListOf<AppendChatMessageCommand>()
         every { sessions.findById(session.id) } returns session
@@ -40,13 +40,10 @@ class ChatAnswerStreamServiceTest {
 
         service.stream(session.id, "Hi")
 
-        assertThat(commands).hasSize(2)
+        assertThat(commands).hasSize(1)
         assertThat(commands[0].sessionId).isEqualTo(session.id)
-        assertThat(commands[0].role).isEqualTo(ChatMessageRole.USER)
-        assertThat(commands[0].body).isEqualTo("Hi")
-        assertThat(commands[1].sessionId).isEqualTo(session.id)
-        assertThat(commands[1].role).isEqualTo(ChatMessageRole.ASSISTANT)
-        assertThat(commands[1].body).isEqualTo("Hello")
+        assertThat(commands[0].role).isEqualTo(ChatMessageRole.ASSISTANT)
+        assertThat(commands[0].body).isEqualTo("Hello")
     }
 
     @Test
@@ -59,8 +56,7 @@ class ChatAnswerStreamServiceTest {
 
         service.stream(session.id, "Hi")
 
-        assertThat(commands).hasSize(1)
-        assertThat(commands[0].role).isEqualTo(ChatMessageRole.USER)
+        assertThat(commands).isEmpty()
     }
 
     private fun session(

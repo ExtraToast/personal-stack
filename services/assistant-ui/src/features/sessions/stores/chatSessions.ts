@@ -73,8 +73,8 @@ export const useChatSessionsStore = defineStore('chatSessions', () => {
     if (!detail) return
 
     const createdAt = new Date().toISOString()
-    const localId = `local-${++localMessageCounter}`
     const streamId = `stream-${++localMessageCounter}`
+    const userMessage = await appendApi(id, { body, role: 'USER' })
     const placeholder: ChatMessage = {
       id: streamId,
       sessionId: id,
@@ -85,13 +85,7 @@ export const useChatSessionsStore = defineStore('chatSessions', () => {
     }
     detail.messages = [
       ...detail.messages,
-      {
-        id: localId,
-        sessionId: id,
-        role: 'USER',
-        body,
-        createdAt,
-      },
+      userMessage,
       placeholder,
     ]
     const streamMessage = detail.messages[detail.messages.length - 1]!

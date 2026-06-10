@@ -107,6 +107,8 @@ describe('chatSessions store', () => {
 
   it('sendStreaming accumulates chunks and completes the placeholder with the persisted id', async () => {
     const session = fakeSession()
+    const userMessage = fakeMessage({ id: 'persisted-user', body: 'question' })
+    mocked.appendChatMessage.mockResolvedValue(userMessage)
     mocked.streamChatAnswer.mockImplementation(async (_id, _body, handlers) => {
       handlers.onChunk('hello ')
       handlers.onChunk('world')
@@ -119,7 +121,7 @@ describe('chatSessions store', () => {
 
     const messages = store.detailById[session.id]!.messages
     expect(messages).toHaveLength(2)
-    expect(messages[0]).toMatchObject({ role: 'USER', body: 'question' })
+    expect(messages[0]).toEqual(userMessage)
     expect(messages[1]).toMatchObject({
       id: 'persisted-answer',
       role: 'ASSISTANT',
@@ -131,6 +133,8 @@ describe('chatSessions store', () => {
 
   it('sendStreaming marks the placeholder failed on stream error without throwing', async () => {
     const session = fakeSession()
+    const userMessage = fakeMessage({ id: 'persisted-user', body: 'question' })
+    mocked.appendChatMessage.mockResolvedValue(userMessage)
     mocked.streamChatAnswer.mockImplementation(async (_id, _body, handlers) => {
       handlers.onError('nope')
     })
@@ -147,6 +151,18 @@ describe('chatSessions store', () => {
       failed: true,
     })
     expect(store.lastFailedById[session.id]).toEqual({ body: 'question' })
+  })
+
+  it('sendStreaming does not open a stream when persisting the user message fails', async () => {
+    const session = fakeSession()
+    mocked.appendChatMessage.mockRejectedValue(new Error('persist failed'))
+    const store = useChatSessionsStore()
+    store.detailById = { [session.id]: { session, messages: [] } }
+
+    await expect(store.sendStreaming(session.id, 'question')).rejects.toThrow('persist failed')
+
+    expect(mocked.streamChatAnswer).not.toHaveBeenCalled()
+    expect(store.detailById[session.id]!.messages).toEqual([])
   })
 
   it('archive removes from sessions + detail, clears active', async () => {
