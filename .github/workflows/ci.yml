@@ -443,6 +443,16 @@ jobs:
       - uses: ./.github/actions/setup-java-gradle
         with:
           java-version: ${{ env.JAVA_VERSION }}
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install deploy-config-schema toolkit
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          npm install --no-save --prefix "$RUNNER_TEMP/dcs" @extratoast/deploy-config-schema@^0.7.0
+          echo "DEPLOY_CONFIG_SCHEMA_BIN=$RUNNER_TEMP/dcs/node_modules/.bin/deploy-config-schema" >> "$GITHUB_ENV"
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
       - name: Install kustomize
@@ -485,16 +495,16 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          npm install --no-save --prefix "$RUNNER_TEMP/dcs" @extratoast/deploy-config-schema@^0.4.0
-          export DEPLOY_CONFIG_SCHEMA_LOCAL="$RUNNER_TEMP/dcs/node_modules/@extratoast/deploy-config-schema"
-          node platform/scripts/deploy-config-schema/fleet-to-deploy-config.mjs platform/inventory/fleet.yaml > "$RUNNER_TEMP/deploy-config.json"
+          npm install --no-save --prefix "$RUNNER_TEMP/dcs" @extratoast/deploy-config-schema@^0.7.0
+          "$RUNNER_TEMP/dcs/node_modules/.bin/deploy-config-schema" fleet-to-deploy-config platform/inventory/fleet.yaml > "$RUNNER_TEMP/deploy-config.json"
       - name: Validate generated deploy config
-        uses: ExtraToast/github-workflows/actions/platform-config-validate@v0.4.0
+        uses: ExtraToast/github-workflows/actions/platform-config-validate@v0.5.0
         with:
           config-paths: deploy-config.json
           schema-kind: deploy-config
           package-version: ^0.4.0
           working-directory: ${{ runner.temp }}
+          node-auth-token: ${{ secrets.GITHUB_TOKEN }}
 
   edge-render-drift:
     name: Edge Render Drift
@@ -562,6 +572,14 @@ jobs:
     uses: ./.github/workflows/vault-bootstrap-validate.yml
     secrets: inherit
 
+  stalwart-tests:
+    name: Stalwart Config Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - name: Run stalwart config tests
+        run: sh tests/stalwart/run.sh
+
   pipeline-complete:
     name: Pipeline Complete
     if: always()
@@ -582,6 +600,7 @@ jobs:
       - migration-guard
       - contract-validate
       - vault-bootstrap-validate
+      - stalwart-tests
     runs-on: ubuntu-latest
     steps:
       - name: Check pipeline result

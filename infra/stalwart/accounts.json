@@ -10,5 +10,10 @@
   {
     "localPart": "n8n",
     "passwordEnv": "N8N_MAIL_PASSWORD"
+  },
+  {
+    "localPart": "joris.jonkers",
+    "passwordEnv": "JORIS_MAIL_PASSWORD",
+    "aliases": ["extratoast"]
   }
 ]
