@@ -34,8 +34,8 @@ tasks.jacocoTestCoverageVerification {
 }
 
 dependencies {
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.21.3")
-    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.21.3")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.22.0")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.22.0")
 
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

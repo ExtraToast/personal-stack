@@ -71,8 +71,12 @@ manually-created account whose **primary** address is `extratoast@jorisjonkers.d
 declarative target is `infra/stalwart/accounts.json`:
 
 ```json
-{ "localPart": "joris.jonkers", "displayName": "Joris Jonkers",
-  "passwordEnv": "JORIS_MAIL_PASSWORD", "aliases": ["extratoast"] }
+{
+  "localPart": "joris.jonkers",
+  "displayName": "Joris Jonkers",
+  "passwordEnv": "JORIS_MAIL_PASSWORD",
+  "aliases": ["extratoast"]
+}
 ```
 
 i.e. primary `joris.jonkers@`, full name "Joris Jonkers", `extratoast@` as an alias. The
