@@ -20,13 +20,16 @@ $ dig +short A mail.jorisjonkers.dev
 167.86.79.203                        # correct
 ```
 
-The MX target Stalwart publishes is its `server.hostname` setting. That setting is seeded
-from the container's OS hostname at first boot and persisted in the datastore. In k8s the
-OS hostname is the pod name (`stalwart-<replicaset>-<rand>`), so Stalwart published an MX
-pointing at a single-label, non-resolvable pod name — and re-published a new bogus value
-every time the pod rolled. Remote senders resolve the MX, fail to resolve its target, and
-never reach Stalwart. (`server.hostname` is also used for SMTP greetings, message headers
-and TLS certs, so leaving it as the pod name is wrong everywhere, not only the MX.)
+The MX records Stalwart publishes come from its `mailExchangers` setting — Stalwart's DNS
+record builder (`crates/common/src/network/dns/records.rs`) iterates `system.mail_exchangers`
+to emit the domain's MX. At first boot Stalwart seeds a single mail-exchanger entry whose
+hostname is the container's OS hostname and persists it. In k8s the OS hostname is the pod
+name (`stalwart-<replicaset>-<rand>`), so Stalwart published an MX pointing at a single-label,
+non-resolvable pod name. Remote senders resolve the MX, fail to resolve its target, and never
+reach Stalwart. Setting `defaultHostname` does **not** fix this — the MX host is taken from
+the explicit `mailExchangers` entry, not the default hostname. (`server.hostname` itself,
+exposed on the Bootstrap singleton, is locked after bootstrap — `update Bootstrap` returns
+`forbidden: only allowed in bootstrap mode` — so it is not the lever here.)
 
 This also explains "no bounce but not received": a Microsoft-origin sender's mail is held by
 Microsoft (see the M365 note below), and a local/test send to an address with no real
@@ -34,27 +37,31 @@ mailbox is swallowed by the catch-all chain.
 
 ## Fix (automated, in-repo)
 
-`infra/stalwart/apply.sh` now pins the setting on every reconcile:
+`infra/stalwart/apply.sh` now pins the published MX host on every reconcile, as part of the
+mutable `SystemSettings` update:
 
 ```
-{"@type":"update","object":"Bootstrap","value":{"serverHostname":"mail.jorisjonkers.dev"}}
+{"@type":"update","object":"SystemSettings","value":{
+   "defaultHostname":"mail.jorisjonkers.dev",
+   "defaultDomainId":"<id>",
+   "mailExchangers":{"0":{"hostname":"mail.jorisjonkers.dev","priority":10}}}}
 ```
 
-On the next `stalwart-tools:latest` roll, the reconcile sets `server.hostname` and Stalwart
-republishes `jorisjonkers.dev. MX 10 mail.jorisjonkers.dev.` to Cloudflare.
+On the next `stalwart-tools:latest` roll the reconcile converges `mailExchangers`, and
+Stalwart republishes `jorisjonkers.dev. MX 10 mail.jorisjonkers.dev.` to Cloudflare.
 
 ### Verify after the pod rolls
 
 ```sh
 dig +short MX jorisjonkers.dev            # expect: 10 mail.jorisjonkers.dev
 dig +short A  mail.jorisjonkers.dev       # expect: 167.86.79.203
-# reconcile log should show the Bootstrap update succeed (no WARN line)
-kubectl -n mail-system logs deploy/stalwart -c stalwart-apply | grep -i hostname
+kubectl -n mail-system logs deploy/stalwart -c stalwart-apply | grep -i SystemSettings
 ```
 
-If the reconcile logs `WARN: could not pin serverHostname` the management field moved in a
-Stalwart upgrade — set it once from the webadmin (Settings → Server → Hostname =
-`mail.jorisjonkers.dev`) and open an issue to update the apply object.
+`server.hostname` (SMTP greeting / TLS cert hostname) stays whatever bootstrap set; it does
+not affect the published MX and cannot be changed through the management object API. Correct
+it from the webadmin (Settings → Server → Network → Hostname) only if the SMTP greeting
+hostname matters for a given remote.
 
 ## Catch-all destination mailbox / account identity
 
@@ -64,8 +71,12 @@ manually-created account whose **primary** address is `extratoast@jorisjonkers.d
 declarative target is `infra/stalwart/accounts.json`:
 
 ```json
-{ "localPart": "joris.jonkers", "displayName": "Joris Jonkers",
-  "passwordEnv": "JORIS_MAIL_PASSWORD", "aliases": ["extratoast"] }
+{
+  "localPart": "joris.jonkers",
+  "displayName": "Joris Jonkers",
+  "passwordEnv": "JORIS_MAIL_PASSWORD",
+  "aliases": ["extratoast"]
+}
 ```
 
 i.e. primary `joris.jonkers@`, full name "Joris Jonkers", `extratoast@` as an alias. The

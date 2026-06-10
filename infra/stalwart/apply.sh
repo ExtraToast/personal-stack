@@ -91,25 +91,21 @@ reconcile() {
     return 1
   fi
 
-  # 2. Hostname + default domain (idempotent).
-  printf '{"@type":"update","object":"SystemSettings","value":{"defaultHostname":"%s","defaultDomainId":"%s"}}\n' \
-    "$STALWART_HOSTNAME" "$dom" | sc apply --file /dev/stdin
-
-  # 2b. Server hostname (the `server.hostname` setting, exposed on the
-  #     Bootstrap singleton). This is the public hostname used in SMTP
-  #     greetings, outgoing headers, TLS certificate requests, and — the
-  #     reason this step exists — the MX target Stalwart publishes for
-  #     the domain's auto-managed Cloudflare DNS. Stalwart seeds it from
-  #     the container OS hostname at first boot and persists it in the
-  #     datastore, which publishes a bogus, unresolvable pod-name MX
-  #     (e.g. `stalwart-78587fc555-dfdr5.`) that also rots on every pod
-  #     roll. Pin it to the stable public FQDN so inbound mail resolves
-  #     the server. Tolerant: a schema move warns rather than aborting
-  #     the whole reconcile.
-  if ! printf '{"@type":"update","object":"Bootstrap","value":{"serverHostname":"%s"}}\n' \
-        "$STALWART_HOSTNAME" | sc apply --file /dev/stdin; then
-    echo "apply: WARN: could not pin serverHostname=${STALWART_HOSTNAME}; published MX may be wrong" >&2
-  fi
+  # 2. Hostname, default domain, and the MX host published in DNS
+  #     (idempotent). `mailExchangers` is the list Stalwart publishes as
+  #     the domain's MX records (crates/common/src/network/dns/records.rs
+  #     iterates `system.mail_exchangers`). At first boot Stalwart seeds a
+  #     single entry whose hostname is the container OS hostname — in k8s
+  #     the pod name — and persists it, so the published MX is a bogus,
+  #     unresolvable pod name (e.g. `stalwart-78587fc555-dfdr5.`) that
+  #     also rots on every pod roll and is never corrected by setting
+  #     `defaultHostname` alone. Pin the single MX entry to the stable
+  #     public FQDN at priority 10 so inbound mail can resolve the
+  #     server. `mailExchangers` is a mutable SystemSettings field, so
+  #     this converges on every reconcile (objectList values are encoded
+  #     as index-keyed maps by the apply API).
+  printf '{"@type":"update","object":"SystemSettings","value":{"defaultHostname":"%s","defaultDomainId":"%s","mailExchangers":{"0":{"hostname":"%s","priority":10}}}}\n' \
+    "$STALWART_HOSTNAME" "$dom" "$STALWART_HOSTNAME" | sc apply --file /dev/stdin
 
   # 3. Wire the domain to automatic ACME + Cloudflare DNS-01.
   printf '{"@type":"update","object":"Domain","id":"%s","value":{"certificateManagement":{"@type":"Automatic","acmeProviderId":"%s"},"dnsManagement":{"@type":"Automatic","dnsServerId":"%s"}}}\n' \
