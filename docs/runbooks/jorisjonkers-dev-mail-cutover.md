@@ -47,8 +47,14 @@ mutable `SystemSettings` update:
    "mailExchangers":{"0":{"hostname":"mail.jorisjonkers.dev","priority":10}}}}
 ```
 
-On the next `stalwart-tools:latest` roll the reconcile converges `mailExchangers`, and
-Stalwart republishes `jorisjonkers.dev. MX 10 mail.jorisjonkers.dev.` to Cloudflare.
+Setting `mailExchangers` alone is not enough: Stalwart enqueues the DNS publish task only
+when `dns_management` transitions into Automatic (`crates/jmap/src/registry/mapping/domain.rs`),
+so re-asserting Automatic when it is already Automatic never pushes the corrected record — which
+is why the bogus MX survived every roll. The reconcile therefore flips `dns_management` to
+Manual and back to Automatic (Manual schedules no task and deletes nothing), forcing a full
+re-publish of the record set — including the corrected MX — on every reconcile. On the next
+`stalwart-tools:latest` roll, Stalwart republishes `jorisjonkers.dev. MX 10 mail.jorisjonkers.dev.`
+to Cloudflare.
 
 ### Verify after the pod rolls
 

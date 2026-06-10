@@ -107,7 +107,22 @@ reconcile() {
   printf '{"@type":"update","object":"SystemSettings","value":{"defaultHostname":"%s","defaultDomainId":"%s","mailExchangers":{"0":{"hostname":"%s","priority":10}}}}\n' \
     "$STALWART_HOSTNAME" "$dom" "$STALWART_HOSTNAME" | sc apply --file /dev/stdin
 
-  # 3. Wire the domain to automatic ACME + Cloudflare DNS-01.
+  # 3. Wire the domain to automatic ACME + Cloudflare DNS-01, and force a
+  #     DNS (re)publish. Stalwart enqueues the DNS publish task only when
+  #     dns_management TRANSITIONS into Automatic
+  #     (crates/jmap/src/registry/mapping/domain.rs: the task is scheduled
+  #     under `old.is_none_or(|old| !matches!(old.dns_management,
+  #     Automatic))`). Re-asserting Automatic when it is already Automatic
+  #     is a no-op, so a corrected mailExchangers/MX (step 2) is computed
+  #     but never pushed to Cloudflare — which is why the bogus pod-name MX
+  #     persisted across rolls. Flip to Manual first (which schedules no
+  #     task and never deletes records) then back to Automatic to force the
+  #     transition; that republishes the full record set, including the now
+  #     correct MX, on every reconcile (self-healing, idempotent — DKIM
+  #     rotation and cert issuance trigger only on their own transitions /
+  #     first domain creation, not here).
+  printf '{"@type":"update","object":"Domain","id":"%s","value":{"dnsManagement":{"@type":"Manual"}}}\n' \
+    "$dom" | sc apply --file /dev/stdin
   printf '{"@type":"update","object":"Domain","id":"%s","value":{"certificateManagement":{"@type":"Automatic","acmeProviderId":"%s"},"dnsManagement":{"@type":"Automatic","dnsServerId":"%s"}}}\n' \
     "$dom" "$acme" "$dns" | sc apply --file /dev/stdin
 
