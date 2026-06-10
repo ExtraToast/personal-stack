@@ -46,7 +46,7 @@ jobs:
       matrix: ${{ steps.compute.outputs.matrix }}
       has-matrix: ${{ steps.compute.outputs.has-matrix }}
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6.0.3
         with:
           fetch-depth: 2
       - uses: dorny/paths-filter@v4.0.1
@@ -188,7 +188,7 @@ jobs:
       matrix:
         service: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6.0.3
       - name: Set image prefix (lowercase)
         run: echo "IMAGE_PREFIX=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
       # QEMU is only needed when a service builds for a non-runner arch
