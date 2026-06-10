@@ -12,6 +12,10 @@ set -eu
 : "${STALWART_PASSWORD:?STALWART_PASSWORD must be set}"
 : "${STALWART_PLAN:=/opt/stalwart-tools/plan.dev.ndjson}"
 : "${STALWART_DOMAIN:=jorisjonkers.test}"
+# Optional: catch-all address for unknown local recipients of the dev
+# domain. Empty (the default) is a no-op (an existing value is never
+# cleared); set it in the compose env to exercise catch-all in dev.
+: "${STALWART_CATCHALL:=}"
 
 export STALWART_URL STALWART_USER STALWART_PASSWORD
 
@@ -27,10 +31,26 @@ until curl -fsS -o /dev/null "${STALWART_URL}/admin/"; do
 done
 
 if stalwart-cli query Domain --where "name=${STALWART_DOMAIN}" 2>/dev/null | grep -q "${STALWART_DOMAIN}"; then
-  echo "bootstrap: ${STALWART_DOMAIN} already present; configuration already applied, nothing to do"
-  exit 0
+  echo "bootstrap: ${STALWART_DOMAIN} already present; skipping non-idempotent create plan"
+else
+  echo "bootstrap: applying declarative plan ${STALWART_PLAN} ..."
+  stalwart-cli apply --file "${STALWART_PLAN}"
 fi
 
-echo "bootstrap: applying declarative plan ${STALWART_PLAN} ..."
-stalwart-cli apply --file "${STALWART_PLAN}"
+# Catch-all for unknown local recipients (env-driven; empty = no-op so a
+# manually-set value is never cleared). Idempotent partial Domain update,
+# applied whether or not the create plan ran this boot.
+if [ -n "$STALWART_CATCHALL" ]; then
+  dom="$(stalwart-cli query Domain --json 2>/dev/null \
+    | jq -rs --arg n "$STALWART_DOMAIN" 'map(select(.name==$n))[0].id // empty')"
+  if [ -z "$dom" ]; then
+    echo "bootstrap: domain ${STALWART_DOMAIN} not found; cannot set catch-all" >&2
+    exit 1
+  fi
+  echo "bootstrap: setting catch-all for ${STALWART_DOMAIN} to ${STALWART_CATCHALL}"
+  jq -nc --arg id "$dom" --arg addr "$STALWART_CATCHALL" \
+    '{"@type":"update","object":"Domain",id:$id,value:{catchAllAddress:$addr}}' \
+    | stalwart-cli apply --file /dev/stdin
+fi
+
 echo "bootstrap: done"

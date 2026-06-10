@@ -21,6 +21,10 @@ set -eu
 : "${STALWART_CLI_VERSION:=1.0.7}"
 : "${PLAN_TEMPLATE:=/opt/stalwart-tools/plan.ndjson.tmpl}"
 : "${ACCOUNTS_FILE:=/opt/stalwart-tools/accounts.json}"
+# Optional: catch-all address for unknown local recipients of the
+# deployment domain. Empty/unset is a no-op (a manually-set value is
+# never cleared).
+: "${STALWART_CATCHALL:=}"
 
 export STALWART_URL STALWART_USER STALWART_PASSWORD
 
@@ -98,6 +102,18 @@ reconcile() {
   # 4. Renew the Cloudflare DNS-01 token every boot.
   printf '{"@type":"update","object":"DnsServer","id":"%s","value":{"secret":{"@type":"Value","secret":"%s"}}}\n' \
     "$dns" "$CF_DNS_API_TOKEN" | sc apply --file /dev/stdin
+
+  # 4b. Catch-all address for unknown local recipients (declarative,
+  #     env-driven). Empty/unset is a no-op so a manually-set catch-all
+  #     is never cleared. Applied as a separate partial Domain update so
+  #     it only touches catchAllAddress and never disturbs the cert/DNS
+  #     wiring above.
+  if [ -n "$STALWART_CATCHALL" ]; then
+    echo "apply: setting catch-all for ${STALWART_DOMAIN} to ${STALWART_CATCHALL}"
+    jq -nc --arg id "$dom" --arg addr "$STALWART_CATCHALL" \
+      '{"@type":"update","object":"Domain",id:$id,value:{catchAllAddress:$addr}}' \
+      | sc apply --file /dev/stdin
+  fi
 
   # 5. Reconcile Vault-managed accounts (passwords, aliases, group
   #    memberships) from accounts.json. Update-only for accounts that

@@ -121,9 +121,9 @@ spec:
               cpu: 2000m
               memory: 3Gi
         # Reconciles the declarative settings stalwart stores in its
-        # datastore (listeners, domain wiring, ACME/DNS providers,
-        # Vault-managed accounts) and renews the Cloudflare DNS-01
-        # token on every pod start. Idles after a successful pass.
+        # datastore (listeners, domain wiring, catch-all, ACME/DNS
+        # providers, Vault-managed accounts) and renews the Cloudflare
+        # DNS-01 token on every pod start. Idles after a successful pass.
         - name: stalwart-apply
           image: ghcr.io/extratoast/personal-stack/stalwart-tools:latest
           command: ['sh', '/opt/stalwart-tools/apply.sh']
@@ -134,6 +134,11 @@ spec:
               value: mail.jorisjonkers.dev
             - name: STALWART_DOMAIN
               value: jorisjonkers.dev
+            # Catch-all: mail to unknown local recipients of the domain
+            # (e.g. boris@jorisjonkers.dev) is delivered to this mailbox.
+            # Empty/unset would be a no-op; the reconcile never clears it.
+            - name: STALWART_CATCHALL
+              value: joris.jonkers@jorisjonkers.dev
             - name: STALWART_USER
               valueFrom:
                 secretKeyRef:
