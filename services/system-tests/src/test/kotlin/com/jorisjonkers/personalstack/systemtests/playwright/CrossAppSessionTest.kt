@@ -19,7 +19,7 @@ class CrossAppSessionTest : PlaywrightTestBase() {
     }
 
     @Test
-    fun `login on auth-ui creates session visible on assistant-ui`() {
+    fun `login on auth-ui creates session visible on agents-ui`() {
         val user = registerAndConfirm()
         loginViaApi(user)
 
@@ -51,7 +51,7 @@ class CrossAppSessionTest : PlaywrightTestBase() {
     }
 
     @Test
-    fun `assistant-ui redirects to auth-ui when unauthenticated`() {
+    fun `agents-ui redirects to auth-ui when unauthenticated`() {
         page.navigate("$ASSISTANT_UI_URL/sessions")
 
         page.waitForURL(
@@ -62,7 +62,7 @@ class CrossAppSessionTest : PlaywrightTestBase() {
 
     @Test
     fun `after login redirect returns to original app`() {
-        // Navigate to assistant-ui while unauthenticated — should redirect to auth login
+        // Navigate to agents-ui while unauthenticated — should redirect to auth login
         page.navigate("$ASSISTANT_UI_URL/sessions")
         page.waitForURL(
             { it.contains("login") },
@@ -75,9 +75,9 @@ class CrossAppSessionTest : PlaywrightTestBase() {
         page.locator("#password").fill(user.password)
         page.locator("button[type='submit']").click()
 
-        // Should eventually end up back at assistant-ui
+        // Should eventually end up back at agents-ui
         page.waitForURL(
-            { it.contains("assistant") || it.contains("sessions") },
+            { it.contains("agents") || it.contains("sessions") },
             Page.WaitForURLOptions().setTimeout(MAX_PLAYWRIGHT_TIMEOUT_MS),
         )
     }

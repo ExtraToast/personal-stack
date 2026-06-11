@@ -28,12 +28,6 @@ jobs:
             db_user: auth_user
             db_password: auth_password
             port: 8081
-          - service: assistant-api
-            db_name: assistant_db
-            db_user: assistant_user
-            db_password: assistant_password
-            port: 8082
-    services:
       postgres:
         image: postgres:17-alpine
         env:

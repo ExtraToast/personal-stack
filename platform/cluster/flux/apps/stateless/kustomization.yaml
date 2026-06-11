@@ -5,7 +5,7 @@ resources:
   - app-ui
   - auth-api
   - auth-ui
-  - assistant-api
-  - assistant-ui
+  - agents-api
+  - agents-ui
   - flaresolverr
   - n8n

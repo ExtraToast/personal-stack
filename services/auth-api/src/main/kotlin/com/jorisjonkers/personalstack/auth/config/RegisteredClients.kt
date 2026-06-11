@@ -68,11 +68,11 @@ fun buildAppUiClient(): RegisteredClient =
         .tokenSettings(defaultTokenSettings())
         .build()
 
-fun buildAssistantApiClient(): RegisteredClient =
+fun buildAgentsApiClient(): RegisteredClient =
     RegisteredClient
-        .withId(deterministicId("assistant-api"))
-        .clientId("assistant-api")
-        .clientSecret("{noop}assistant-secret")
+        .withId(deterministicId("agents-api"))
+        .clientId("agents-api")
+        .clientSecret("{noop}agents-secret")
         .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
         .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
         .scope("api.read")

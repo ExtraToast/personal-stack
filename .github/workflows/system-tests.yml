@@ -19,7 +19,7 @@ on:
           on the branch. Defaults to all five services for callers that
           haven't computed a narrower set.
         type: string
-        default: 'auth-api assistant-api auth-ui assistant-ui app-ui stalwart-tools'
+        default: 'auth-api auth-ui app-ui stalwart-tools'
 
 concurrency:
   group: system-tests-${{ github.ref }}
@@ -44,15 +44,9 @@ jobs:
           - name: auth-api
             dockerfile: services/auth-api/Dockerfile
             build_arg: ''
-          - name: assistant-api
-            dockerfile: services/assistant-api/Dockerfile
-            build_arg: ''
           - name: auth-ui
             dockerfile: services/auth-ui/Dockerfile
             build_arg: ''
-          - name: assistant-ui
-            dockerfile: services/assistant-ui/Dockerfile
-            build_arg: VITE_AUTH_URL=https://auth.jorisjonkers.test
           - name: app-ui
             dockerfile: services/app-ui/Dockerfile
             build_arg: VITE_AUTH_URL=https://auth.jorisjonkers.test
@@ -171,7 +165,6 @@ jobs:
         run: >-
           bash infra/scripts/run-strict-command.sh ./gradlew ${{ matrix.suite.gradle_task }}
           -Dtest.auth-api.url=https://auth.jorisjonkers.test
-          -Dtest.assistant-api.url=https://assistant.jorisjonkers.test
           -Dtest.db.password=ci_auth_pass
           ${{ matrix.suite.shard_args }}
       - name: Dump diagnostics on failure

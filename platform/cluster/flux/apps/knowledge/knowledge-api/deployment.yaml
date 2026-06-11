@@ -43,7 +43,7 @@ spec:
         # Vault Agent inject: knowledge-api role (created in
         # bootstrap-auth.sh) → policy `knowledge-api` → read on
         # secret/data/platform/postgres + secret/data/knowledge-api.
-        # Same shape as auth-api / assistant-api use.
+        # Same shape as auth-api / agents-api use.
         vault.hashicorp.com/agent-inject: 'true'
         vault.hashicorp.com/agent-inject-token: 'true'
         vault.hashicorp.com/agent-pre-populate-only: 'true'

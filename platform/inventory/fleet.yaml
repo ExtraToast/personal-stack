@@ -82,7 +82,7 @@ nodes:
       - game-streaming
       # agent-runner Pods mount this node's /var/run/docker.sock for
       # Docker/Testcontainers. The matching k3s label is required by
-      # assistant-api before scheduling host-equivalent runner Pods here.
+      # agents-api before scheduling host-equivalent runner Pods here.
       - docker-socket
       - nvidia
 
@@ -196,10 +196,10 @@ service_intent:
       - app-ui
       - auth-ui
       - auth-api
-      - assistant-ui
-      - assistant-api
+      - agents-ui
+      - agents-api
       # Alternate host for the agent terminal WebSocket (Enschede replica).
-      - assistant-ws
+      - agents-ws
       - stalwart
       - n8n
       - gatus
@@ -268,8 +268,8 @@ placement_intent:
     - app-ui
     - auth-ui
     - auth-api
-    - assistant-ui
-    - assistant-api
+    - agents-ui
+    - agents-api
     - stalwart
     - postgres
     - rabbitmq
@@ -301,7 +301,7 @@ placement_intent:
     - samba
     - flaresolverr
     - n8n
-    # agent-runner Pods are created dynamically by assistant-api
+    # agent-runner Pods are created dynamically by agents-api
     # (see platform/cluster/flux/apps/agents/), not declared as a
     # static service. The static placement intent here mirrors the
     # nodeSelector the orchestrator applies at Pod creation time:
@@ -320,8 +320,8 @@ exposure_intent:
     - app-ui
     - auth-ui
     - auth-api
-    - assistant-ui
-    - assistant-api
+    - agents-ui
+    - agents-api
     - stalwart
     - grafana
     - n8n
@@ -338,7 +338,7 @@ exposure_intent:
   public_and_lan:
     # Terminal-WS host: public via Cloudflare so it works off-site, and
     # LAN so split-DNS routes on-site clients to the Enschede replica.
-    - assistant-ws
+    - agents-ws
     - bazarr
     - immich
     - jellyfin
@@ -362,8 +362,8 @@ exposure_intent:
 
 access_intent:
   sso_protected:
-    - assistant-api
-    - assistant-ws
+    - agents-api
+    - agents-ws
     - stalwart
     - bazarr
     - immich
@@ -381,9 +381,9 @@ access_intent:
     app-ui: root
     auth-ui: auth
     auth-api: auth
-    assistant-ui: assistant
-    assistant-api: assistant
-    assistant-ws: assistant-ws
+    agents-ui: agents
+    agents-api: agents
+    agents-ws: agents-ws
     stalwart: stalwart
     grafana: grafana
     n8n: n8n
@@ -430,7 +430,7 @@ ingress_intent:
       excluded_path_prefixes:
         - /api/
         - /.well-known/
-    - service: assistant-api
+    - service: agents-api
       path_prefixes:
         - /api/
       excluded_exact_paths:
@@ -438,15 +438,15 @@ ingress_intent:
         - /api/v1/health
       excluded_path_prefixes:
         - /api/actuator/health/
-    - name: assistant-api-health
-      service: assistant-api
+    - name: agents-api-health
+      service: agents-api
       access: direct
       exact_paths:
         - /api/actuator/health
         - /api/v1/health
       path_prefixes:
         - /api/actuator/health/
-    - service: assistant-ui
+    - service: agents-ui
       excluded_path_prefixes:
         - /api/
     - name: knowledge-api-mcp
@@ -493,25 +493,25 @@ ingress_intent:
       namespace: auth-system
       service: auth-ui
       port: 80
-    assistant-api:
-      namespace: assistant-system
-      service: assistant-api
+    agents-api:
+      namespace: agents-system
+      service: agents-api
       port: 8082
       health:
         path: /api/actuator/health/readiness
     # Alternate host serving only the agent terminal WebSocket, backed by
-    # the Enschede-pinned assistant-api-ws replica so on-site keystrokes
+    # the Enschede-pinned agents-api-ws replica so on-site keystrokes
     # stay local. Public via Cloudflare; split-DNS routes on-site clients
     # to the Enschede ingress.
-    assistant-ws:
-      namespace: assistant-system
-      service: assistant-api-ws
+    agents-ws:
+      namespace: agents-system
+      service: agents-api-ws
       port: 8082
       health:
         path: /api/actuator/health/readiness
-    assistant-ui:
-      namespace: assistant-system
-      service: assistant-ui
+    agents-ui:
+      namespace: agents-system
+      service: agents-ui
       port: 80
     stalwart:
       namespace: mail-system
@@ -653,7 +653,7 @@ ingress_intent:
     # the agent terminal a dead half-open socket after a tab switch.
     # `edge_direct` points it at the Frankfurt edge as a grey-cloud A
     # record so the browser holds a direct TLS WebSocket to traefik.
-    assistant-ws: edge_direct
+    agents-ws: edge_direct
 
 monitoring_intent:
   # Cluster-only services with no external ingress. Gatus probes these

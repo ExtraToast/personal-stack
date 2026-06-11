@@ -52,8 +52,6 @@ jobs:
               - '.github/workflows/system-tests.yml'
             auth-api:
               - 'services/auth-api/**'
-            assistant-api:
-              - 'services/assistant-api/**'
             knowledge-api:
               - 'services/knowledge-api/**'
             knowledge-ingest-worker:
@@ -69,8 +67,6 @@ jobs:
               - 'gradlew.bat'
             auth-ui:
               - 'services/auth-ui/**'
-            assistant-ui:
-              - 'services/assistant-ui/**'
             app-ui:
               - 'services/app-ui/**'
             vue-common:
@@ -94,14 +90,12 @@ jobs:
           FILTER_WORKFLOW: ${{ steps.filter.outputs.workflow }}
           FILTER_GRADLE_CONFIG: ${{ steps.filter.outputs.gradle-config }}
           FILTER_AUTH_API: ${{ steps.filter.outputs.auth-api }}
-          FILTER_ASSISTANT_API: ${{ steps.filter.outputs.assistant-api }}
           FILTER_KNOWLEDGE_API: ${{ steps.filter.outputs.knowledge-api }}
           FILTER_KNOWLEDGE_INGEST_WORKER: ${{ steps.filter.outputs.knowledge-ingest-worker }}
           FILTER_KNOWLEDGE_CURATOR: ${{ steps.filter.outputs.knowledge-curator }}
           FILTER_VUE_COMMON: ${{ steps.filter.outputs.vue-common }}
           FILTER_FRONTEND_CONFIG: ${{ steps.filter.outputs.frontend-config }}
           FILTER_AUTH_UI: ${{ steps.filter.outputs.auth-ui }}
-          FILTER_ASSISTANT_UI: ${{ steps.filter.outputs.assistant-ui }}
           FILTER_APP_UI: ${{ steps.filter.outputs.app-ui }}
           FILTER_SYSTEM_TESTS: ${{ steps.filter.outputs.system-tests }}
           FILTER_INFRA: ${{ steps.filter.outputs.infra }}
@@ -113,10 +107,9 @@ jobs:
           FRONTEND_SHARED=$(any "$FILTER_WORKFLOW" "$FILTER_VUE_COMMON" "$FILTER_FRONTEND_CONFIG")
 
           AUTH_API_KOTLIN=$(any "$KOTLIN_SHARED" "$FILTER_AUTH_API")
-          ASSISTANT_API_KOTLIN=$(any "$KOTLIN_SHARED" "$FILTER_ASSISTANT_API")
           KNOWLEDGE_API_KOTLIN=$(any "$KOTLIN_SHARED" "$FILTER_KNOWLEDGE_API")
-          ANY_KOTLIN=$(any "$KOTLIN_SHARED" "$FILTER_AUTH_API" "$FILTER_ASSISTANT_API" "$FILTER_KNOWLEDGE_API")
-          ANY_FRONTEND=$(any "$FRONTEND_SHARED" "$FILTER_AUTH_UI" "$FILTER_ASSISTANT_UI" "$FILTER_APP_UI")
+          ANY_KOTLIN=$(any "$KOTLIN_SHARED" "$FILTER_AUTH_API" "$FILTER_KNOWLEDGE_API")
+          ANY_FRONTEND=$(any "$FRONTEND_SHARED" "$FILTER_AUTH_UI" "$FILTER_APP_UI")
           ANY_SERVICE=$(any "$ANY_KOTLIN" "$ANY_FRONTEND")
           RUN_SYSTEM_TESTS=$(any "$FILTER_WORKFLOW" "$FILTER_SYSTEM_TESTS" "$FILTER_INFRA" "$ANY_SERVICE")
           ANY_PLATFORM=$(any "$FILTER_PLATFORM")
@@ -139,9 +132,8 @@ jobs:
           # unauthenticated portfolio page.
           CHANGED_SERVICES=""
           [[ "$AUTH_API_KOTLIN"      == "true" ]] && CHANGED_SERVICES+=" auth-api"
-          [[ "$ASSISTANT_API_KOTLIN" == "true" ]] && CHANGED_SERVICES+=" assistant-api"
           [[ "$KNOWLEDGE_API_KOTLIN" == "true" ]] && CHANGED_SERVICES+=" knowledge-api"
-          CHANGED_SERVICES+=" auth-ui assistant-ui app-ui stalwart-tools"
+          CHANGED_SERVICES+=" auth-ui app-ui stalwart-tools"
           CHANGED_SERVICES="${CHANGED_SERVICES# }"
 
           echo "any-kotlin=$ANY_KOTLIN" >> "$GITHUB_OUTPUT"
@@ -152,22 +144,17 @@ jobs:
           echo "any-platform=$ANY_PLATFORM" >> "$GITHUB_OUTPUT"
           echo "run-system-tests=$RUN_SYSTEM_TESTS" >> "$GITHUB_OUTPUT"
           echo "auth-api-kotlin=$AUTH_API_KOTLIN" >> "$GITHUB_OUTPUT"
-          echo "assistant-api-kotlin=$ASSISTANT_API_KOTLIN" >> "$GITHUB_OUTPUT"
           echo "knowledge-api-kotlin=$KNOWLEDGE_API_KOTLIN" >> "$GITHUB_OUTPUT"
           echo "changed-services=$CHANGED_SERVICES" >> "$GITHUB_OUTPUT"
       - name: Build dynamic matrices
         id: matrix
         env:
           AUTH_API_KOTLIN: ${{ steps.compute.outputs.auth-api-kotlin }}
-          ASSISTANT_API_KOTLIN: ${{ steps.compute.outputs.assistant-api-kotlin }}
           KNOWLEDGE_API_KOTLIN: ${{ steps.compute.outputs.knowledge-api-kotlin }}
         run: |
           KOTLIN_MATRIX="[]"
           if [[ "$AUTH_API_KOTLIN" == "true" ]]; then
             KOTLIN_MATRIX=$(echo "$KOTLIN_MATRIX" | jq -c '. + [{"module":"auth-api","gradle-path":":services:auth-api"}]')
-          fi
-          if [[ "$ASSISTANT_API_KOTLIN" == "true" ]]; then
-            KOTLIN_MATRIX=$(echo "$KOTLIN_MATRIX" | jq -c '. + [{"module":"assistant-api","gradle-path":":services:assistant-api"}]')
           fi
           if [[ "$KNOWLEDGE_API_KOTLIN" == "true" ]]; then
             KOTLIN_MATRIX=$(echo "$KOTLIN_MATRIX" | jq -c '. + [{"module":"knowledge-api","gradle-path":":services:knowledge-api"}]')
@@ -179,9 +166,6 @@ jobs:
           if [[ "$AUTH_API_KOTLIN" == "true" ]]; then
             INT_MATRIX=$(echo "$INT_MATRIX" | jq -c '. + [{"module":"auth-api","gradle-path":":services:auth-api"}]')
           fi
-          if [[ "$ASSISTANT_API_KOTLIN" == "true" ]]; then
-            INT_MATRIX=$(echo "$INT_MATRIX" | jq -c '. + [{"module":"assistant-api","gradle-path":":services:assistant-api"}]')
-          fi
           if [[ "$KNOWLEDGE_API_KOTLIN" == "true" ]]; then
             INT_MATRIX=$(echo "$INT_MATRIX" | jq -c '. + [{"module":"knowledge-api","gradle-path":":services:knowledge-api"}]')
           fi
@@ -190,9 +174,6 @@ jobs:
           COV_MATRIX="[]"
           if [[ "$AUTH_API_KOTLIN" == "true" ]]; then
             COV_MATRIX=$(echo "$COV_MATRIX" | jq -c '. + [{"module":"auth-api","gradle-path":":services:auth-api","has-integration":true}]')
-          fi
-          if [[ "$ASSISTANT_API_KOTLIN" == "true" ]]; then
-            COV_MATRIX=$(echo "$COV_MATRIX" | jq -c '. + [{"module":"assistant-api","gradle-path":":services:assistant-api","has-integration":true}]')
           fi
           if [[ "$KNOWLEDGE_API_KOTLIN" == "true" ]]; then
             COV_MATRIX=$(echo "$COV_MATRIX" | jq -c '. + [{"module":"knowledge-api","gradle-path":":services:knowledge-api","has-integration":true}]')
@@ -411,7 +392,7 @@ jobs:
       - uses: ./.github/actions/setup-node-pnpm
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - run: bash infra/scripts/run-strict-command.sh ./gradlew :services:auth-api:test :services:assistant-api:test --tests "*ArchitectureTest*"
+      - run: bash infra/scripts/run-strict-command.sh ./gradlew :services:auth-api:test --tests "*ArchitectureTest*"
       - run: pnpm -r depcruise
 
   system-tests:

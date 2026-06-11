@@ -518,7 +518,7 @@ services:
       SESSION_COOKIE_DOMAIN: jorisjonkers.test
       SESSION_COOKIE_SECURE: 'true'
       SESSION_COOKIE_SAME_SITE: Lax
-      AUTH_CORS_ALLOWED_ORIGINS: https://jorisjonkers.test,https://auth.jorisjonkers.test,https://assistant.jorisjonkers.test,https://vault.jorisjonkers.test,https://n8n.jorisjonkers.test,https://grafana.jorisjonkers.test,https://dashboard.jorisjonkers.test,https://rabbitmq.jorisjonkers.test,https://stalwart.jorisjonkers.test,https://traefik.jorisjonkers.test,https://status.jorisjonkers.test
+      AUTH_CORS_ALLOWED_ORIGINS: https://jorisjonkers.test,https://auth.jorisjonkers.test,https://agents.jorisjonkers.test,https://vault.jorisjonkers.test,https://n8n.jorisjonkers.test,https://grafana.jorisjonkers.test,https://dashboard.jorisjonkers.test,https://rabbitmq.jorisjonkers.test,https://stalwart.jorisjonkers.test,https://traefik.jorisjonkers.test,https://status.jorisjonkers.test
       DEPLOYMENT_ENVIRONMENT: local
       SERVICE_VERSION: latest
       OTEL_SERVICE_NAME: auth-api
@@ -621,26 +621,23 @@ services:
         done
         vault write auth/oidc/role/default @/tmp/vault-oidc-role.json >/dev/null
 
-  assistant-api:
-    image: personal-stack/assistant-api:latest
-    build:
-      context: .
-      dockerfile: services/assistant-api/Dockerfile
-    container_name: personal-stack-assistant-api
+  agents-api:
+    image: ghcr.io/extratoast/agents/agents-api:latest
+    container_name: personal-stack-agents-api
     ports:
       - '8082:8082'
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_USER: assistant_user
-      DB_PASSWORD: assistant_password
+      DB_USER: agents_user
+      DB_PASSWORD: agents_password
       VALKEY_HOST: valkey
       VALKEY_PORT: 6379
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       DEPLOYMENT_ENVIRONMENT: local
       SERVICE_VERSION: latest
-      OTEL_SERVICE_NAME: assistant-api
+      OTEL_SERVICE_NAME: agents-api
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=local,service.version=latest
       OTEL_LOGS_EXPORTER: none
       OTEL_TRACES_EXPORTER: otlp
@@ -662,18 +659,18 @@ services:
       start_period: 30s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.assistant-api.rule=Host(`assistant.jorisjonkers.test`) && PathPrefix(`/api/`) && !PathPrefix(`/api/actuator/health`) && !Path(`/api/v1/health`)'
-      - 'traefik.http.routers.assistant-api.entrypoints=websecure'
-      - 'traefik.http.routers.assistant-api.tls=true'
-      - 'traefik.http.routers.assistant-api.middlewares=forward-auth@docker,security-headers@file'
-      - 'traefik.http.routers.assistant-api.service=assistant-api'
-      - 'traefik.http.routers.assistant-api-health.rule=Host(`assistant.jorisjonkers.test`) && (Path(`/api/actuator/health`) || PathPrefix(`/api/actuator/health/`) || Path(`/api/v1/health`))'
-      - 'traefik.http.routers.assistant-api-health.entrypoints=websecure'
-      - 'traefik.http.routers.assistant-api-health.tls=true'
-      - 'traefik.http.routers.assistant-api-health.middlewares=security-headers@file'
-      - 'traefik.http.routers.assistant-api-health.priority=100'
-      - 'traefik.http.routers.assistant-api-health.service=assistant-api'
-      - 'traefik.http.services.assistant-api.loadbalancer.server.port=8082'
+      - 'traefik.http.routers.agents-api.rule=Host(`agents.jorisjonkers.test`) && PathPrefix(`/api/`) && !PathPrefix(`/api/actuator/health`) && !Path(`/api/v1/health`)'
+      - 'traefik.http.routers.agents-api.entrypoints=websecure'
+      - 'traefik.http.routers.agents-api.tls=true'
+      - 'traefik.http.routers.agents-api.middlewares=forward-auth@docker,security-headers@file'
+      - 'traefik.http.routers.agents-api.service=agents-api'
+      - 'traefik.http.routers.agents-api-health.rule=Host(`agents.jorisjonkers.test`) && (Path(`/api/actuator/health`) || PathPrefix(`/api/actuator/health/`) || Path(`/api/v1/health`))'
+      - 'traefik.http.routers.agents-api-health.entrypoints=websecure'
+      - 'traefik.http.routers.agents-api-health.tls=true'
+      - 'traefik.http.routers.agents-api-health.middlewares=security-headers@file'
+      - 'traefik.http.routers.agents-api-health.priority=100'
+      - 'traefik.http.routers.agents-api-health.service=agents-api'
+      - 'traefik.http.services.agents-api.loadbalancer.server.port=8082'
 
   # ── Frontend Services ───────────────────────────────────────────
 
@@ -698,14 +695,9 @@ services:
       - 'traefik.http.routers.auth-ui.middlewares=security-headers@file'
       - 'traefik.http.services.auth-ui.loadbalancer.server.port=80'
 
-  assistant-ui:
-    image: personal-stack/assistant-ui:latest
-    build:
-      context: .
-      dockerfile: services/assistant-ui/Dockerfile
-      args:
-        VITE_AUTH_URL: https://auth.jorisjonkers.test
-    container_name: personal-stack-assistant-ui
+  agents-ui:
+    image: ghcr.io/extratoast/agents/agents-ui:latest
+    container_name: personal-stack-agents-ui
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO /dev/null http://127.0.0.1/ || exit 1']
       interval: 5s
@@ -714,12 +706,12 @@ services:
       start_period: 5s
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.assistant-ui.rule=Host(`assistant.jorisjonkers.test`)'
-      - 'traefik.http.routers.assistant-ui.entrypoints=websecure'
-      - 'traefik.http.routers.assistant-ui.tls=true'
-      - 'traefik.http.routers.assistant-ui.priority=1'
-      - 'traefik.http.routers.assistant-ui.middlewares=security-headers@file'
-      - 'traefik.http.services.assistant-ui.loadbalancer.server.port=80'
+      - 'traefik.http.routers.agents-ui.rule=Host(`agents.jorisjonkers.test`)'
+      - 'traefik.http.routers.agents-ui.entrypoints=websecure'
+      - 'traefik.http.routers.agents-ui.tls=true'
+      - 'traefik.http.routers.agents-ui.priority=1'
+      - 'traefik.http.routers.agents-ui.middlewares=security-headers@file'
+      - 'traefik.http.services.agents-ui.loadbalancer.server.port=80'
 
   app-ui:
     image: personal-stack/app-ui:latest

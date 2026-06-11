@@ -255,13 +255,13 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
         page.waitForLoadState()
         page.waitForTimeout(2000.0)
 
-        val card = page.locator("a[href='https://assistant.jorisjonkers.test/']").first()
+        val card = page.locator("a[href='https://agents.jorisjonkers.test/']").first()
         assertThat(card).isVisible()
 
         val seenUrls = mutableListOf<String>()
         context.onRequest { request ->
             val url = request.url()
-            if (url.contains("assistant.jorisjonkers.test") || url.contains("auth.jorisjonkers.test")) {
+            if (url.contains("agents.jorisjonkers.test") || url.contains("auth.jorisjonkers.test")) {
                 seenUrls += url
             }
         }
@@ -274,7 +274,7 @@ class MainSiteServiceLaunchTest : PlaywrightTestBase() {
 
             val currentUrl = servicePage.url()
             assertThatValue(currentUrl)
-                .contains("assistant.jorisjonkers.test")
+                .contains("agents.jorisjonkers.test")
                 .endsWith("/sessions")
                 .doesNotContain("auth.jorisjonkers.test/login")
                 .doesNotContain("error=")

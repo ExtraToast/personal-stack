@@ -1,4 +1,4 @@
-# Blocks the failure mode that crashlooped assistant-api: an already-applied
+# Blocks the failure mode that crashlooped agents-api: an already-applied
 # Flyway migration was edited, flipping its checksum so `validate` hard-fails
 # on boot. Enforces that committed migrations are immutable and that versions
 # only ever increment. Fast (seconds) and unconditional so it is safe to mark

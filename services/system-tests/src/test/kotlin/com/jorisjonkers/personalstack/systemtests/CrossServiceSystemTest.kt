@@ -8,16 +8,16 @@ import org.junit.jupiter.api.TestInstance
 
 /**
  * System test: register -> login -> verify -> create conversation through Traefik.
- * Validates the full auth-api -> Traefik forward-auth -> assistant-api flow.
+ * Validates the full auth-api -> Traefik forward-auth -> agents-api flow.
  *
- * The assistant API is protected by Traefik forward-auth, so the assistant calls
+ * The agents API is protected by Traefik forward-auth, so the agents calls
  * must carry the authenticated session cookie and let Traefik inject X-User-Id.
  */
 @Tag("system")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CrossServiceSystemTest {
     private val authBaseUrl = TestHelper.authBaseUrl
-    private val assistantBaseUrl = TestHelper.assistantBaseUrl
+    private val agentsBaseUrl = TestHelper.agentsBaseUrl
 
     private fun registerAndAuthenticate(): AuthenticatedSession {
         val username = "cross_${java.util.UUID.randomUUID().toString().take(8)}"
@@ -56,7 +56,7 @@ class CrossServiceSystemTest {
     private fun createConversation(sessionCookie: String): String {
         val conversationId =
             TestHelper.givenApi()
-                .baseUri(assistantBaseUrl)
+                .baseUri(agentsBaseUrl)
                 .cookie("SESSION", sessionCookie)
                 .contentType(ContentType.JSON)
                 .body("""{"title":"My first conversation"}""")
@@ -76,7 +76,7 @@ class CrossServiceSystemTest {
         conversationId: String,
     ) {
         TestHelper.givenApi()
-            .baseUri(assistantBaseUrl)
+            .baseUri(agentsBaseUrl)
             .cookie("SESSION", sessionCookie)
             .contentType(ContentType.JSON)
             .body("""{"content":"Hello from system test","role":"USER"}""")
@@ -91,7 +91,7 @@ class CrossServiceSystemTest {
         conversationId: String,
     ): List<Map<String, Any>> =
         TestHelper.givenApi()
-            .baseUri(assistantBaseUrl)
+            .baseUri(agentsBaseUrl)
             .cookie("SESSION", sessionCookie)
             .`when`()
             .get("/api/v1/conversations/$conversationId/messages")

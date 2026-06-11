@@ -138,7 +138,7 @@ jobs:
             postgres.user=ci-pg-admin \
             postgres.password=ci-pg-admin-pass \
             auth.user=ci_auth_parent \
-            assistant.user=ci_assistant_parent
+            agents.user=ci_agents_parent
 
       - name: Provision a dummy Kubernetes CA so bootstrap-auth.sh runs end-to-end
         # The script reads `kubernetes_ca_cert=@/var/run/secrets/.../ca.crt`.
@@ -200,7 +200,7 @@ jobs:
           # bootstrap-auth.sh. Sorted alphabetically; keep in sync
           # with the script when a policy lands or is retired.
           required_policies=(
-            assistant-api
+            agents-api
             auth-api
             downloads
             knowledge-api

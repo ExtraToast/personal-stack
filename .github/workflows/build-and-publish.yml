@@ -58,13 +58,8 @@ jobs:
               - '.github/workflows/build-and-publish.yml'
             auth-api:
               - 'services/auth-api/**'
-            assistant-api:
-              - 'services/assistant-api/**'
             knowledge-api:
               - 'services/knowledge-api/**'
-            agent-runner:
-              - 'services/agent-runner/**'
-              - 'services/agent-gateway/**'
             knowledge-ingest-worker:
               - 'services/knowledge-ingest-worker/**'
             knowledge-curator:
@@ -78,8 +73,6 @@ jobs:
               - 'gradlew.bat'
             auth-ui:
               - 'services/auth-ui/**'
-            assistant-ui:
-              - 'services/assistant-ui/**'
             app-ui:
               - 'services/app-ui/**'
             stalwart-tools:
@@ -97,15 +90,12 @@ jobs:
           FILTER_WORKFLOW: ${{ steps.filter.outputs.workflow }}
           FILTER_GRADLE_CONFIG: ${{ steps.filter.outputs.gradle-config }}
           FILTER_AUTH_API: ${{ steps.filter.outputs.auth-api }}
-          FILTER_ASSISTANT_API: ${{ steps.filter.outputs.assistant-api }}
           FILTER_KNOWLEDGE_API: ${{ steps.filter.outputs.knowledge-api }}
-          FILTER_AGENT_RUNNER: ${{ steps.filter.outputs.agent-runner }}
           FILTER_KNOWLEDGE_INGEST_WORKER: ${{ steps.filter.outputs.knowledge-ingest-worker }}
           FILTER_KNOWLEDGE_CURATOR: ${{ steps.filter.outputs.knowledge-curator }}
           FILTER_VUE_COMMON: ${{ steps.filter.outputs.vue-common }}
           FILTER_FRONTEND_CONFIG: ${{ steps.filter.outputs.frontend-config }}
           FILTER_AUTH_UI: ${{ steps.filter.outputs.auth-ui }}
-          FILTER_ASSISTANT_UI: ${{ steps.filter.outputs.assistant-ui }}
           FILTER_APP_UI: ${{ steps.filter.outputs.app-ui }}
           FILTER_STALWART_TOOLS: ${{ steps.filter.outputs.stalwart-tools }}
         run: |
@@ -148,20 +138,12 @@ jobs:
           FORCE_ALL="${{ github.event.inputs.force_all || 'false' }}"
 
           [[ "$(any "$FORCE_ALL" "$KOTLIN_SHARED"   "$FILTER_AUTH_API")"      == "true" ]] && append auth-api      services/auth-api/Dockerfile      "$AMD64"
-          [[ "$(any "$FORCE_ALL" "$KOTLIN_SHARED"   "$FILTER_ASSISTANT_API")" == "true" ]] && append assistant-api services/assistant-api/Dockerfile "$AMD64"
           [[ "$(any "$FORCE_ALL" "$KOTLIN_SHARED"   "$FILTER_KNOWLEDGE_API")" == "true" ]] && append knowledge-api services/knowledge-api/Dockerfile "$AMD64"
-          # agent-runner bundles the agent-gateway jar (built from the
-          # same Gradle settings), so a single image rebuild covers both
-          # the per-workspace tmux/runner shell and the gateway HTTP
-          # sidecar. amd64-only — the credential PVCs pin every
-          # consumer to a single amd64 Enschede worker anyway.
-          [[ "$(any "$FORCE_ALL" "$KOTLIN_SHARED"   "$FILTER_AGENT_RUNNER")" == "true" ]] && append agent-runner services/agent-runner/Dockerfile "$AMD64"
           # Python services — only depend on their own dir; no shared
           # Kotlin or frontend trigger keys.
           [[ "$(any "$FORCE_ALL" "$FILTER_WORKFLOW" "$FILTER_KNOWLEDGE_INGEST_WORKER")" == "true" ]] && append knowledge-ingest-worker services/knowledge-ingest-worker/Dockerfile "$AMD64"
           [[ "$(any "$FORCE_ALL" "$FILTER_WORKFLOW" "$FILTER_KNOWLEDGE_CURATOR")" == "true" ]] && append knowledge-curator services/knowledge-curator/Dockerfile "$AMD64"
           [[ "$(any "$FORCE_ALL" "$FRONTEND_SHARED" "$FILTER_AUTH_UI")"       == "true" ]] && append auth-ui       services/auth-ui/Dockerfile       "$UI_PLATFORMS"
-          [[ "$(any "$FORCE_ALL" "$FRONTEND_SHARED" "$FILTER_ASSISTANT_UI")"  == "true" ]] && append assistant-ui  services/assistant-ui/Dockerfile  "$UI_PLATFORMS"
           [[ "$(any "$FORCE_ALL" "$FRONTEND_SHARED" "$FILTER_APP_UI")"        == "true" ]] && append app-ui        services/app-ui/Dockerfile        "$UI_PLATFORMS"
           # stalwart-tools: small alpine image baking stalwart-cli + the
           # reconcile scripts/plans/accounts; amd64-only (frankfurt).

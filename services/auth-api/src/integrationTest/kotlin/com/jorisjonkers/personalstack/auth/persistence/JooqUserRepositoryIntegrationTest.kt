@@ -341,10 +341,10 @@ class JooqUserRepositoryIntegrationTest : IntegrationTestBase() {
     fun `findCredentialsByUsername includes service permissions`() {
         val user = buildUser(username = "james", email = "james@example.com")
         userRepository.create(user, "\$2a\$10\$hash")
-        userRepository.saveServicePermissions(user.id, setOf(ServicePermission.ASSISTANT))
+        userRepository.saveServicePermissions(user.id, setOf(ServicePermission.AGENTS))
 
         val credentials = userRepository.findCredentialsByUsername("james")!!
-        assertThat(credentials.servicePermissions).containsExactly(ServicePermission.ASSISTANT)
+        assertThat(credentials.servicePermissions).containsExactly(ServicePermission.AGENTS)
     }
 
     @Test

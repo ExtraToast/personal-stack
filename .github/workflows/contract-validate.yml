@@ -1,12 +1,8 @@
 name: Contract Validate
 
-# Pins committed OpenAPI contracts and the assistant-api -> assistant-ui type
-# contract. The freshly-exported springdoc specs are diffed against the
-# committed service `openapi.json` files, then the regenerated TypeScript types
-# are diffed against `services/assistant-ui/src/api/generated.ts`. Regenerate
-# locally with `./gradlew :services:assistant-api:exportOpenApiSpec
-# :services:knowledge-api:exportOpenApiSpec` and
-# `pnpm --filter @personal-stack/assistant-ui contract:generate`.
+# Pins committed OpenAPI contracts. The freshly-exported springdoc spec is
+# diffed against the committed `services/knowledge-api/openapi.json`. Regenerate
+# locally with `./gradlew :services:knowledge-api:exportOpenApiSpec`.
 
 on:
   workflow_call:
@@ -27,23 +23,15 @@ jobs:
       - uses: ./.github/actions/setup-java-gradle
         with:
           java-version: '21'
-      - uses: ./.github/actions/setup-node-pnpm
-        with:
-          node-version: '24'
       - name: Export OpenAPI specs
         run: >
           bash infra/scripts/run-strict-command.sh ./gradlew
-          :services:assistant-api:exportOpenApiSpec
           :services:knowledge-api:exportOpenApiSpec
       - name: Diff exported specs against committed openapi.json files
         run: |
           set -euo pipefail
-          # The export tasks overwrite the committed paths with fresh springdoc
-          # output. `git diff --exit-code` against HEAD then surfaces drift.
-          if ! git diff --exit-code -- services/assistant-api/openapi.json services/knowledge-api/openapi.json; then
-            echo "::error::One or more committed openapi.json files are stale."
-            echo "::error::Regenerate locally with: ./gradlew :services:assistant-api:exportOpenApiSpec :services:knowledge-api:exportOpenApiSpec"
+          if ! git diff --exit-code -- services/knowledge-api/openapi.json; then
+            echo "::error::Committed openapi.json is stale."
+            echo "::error::Regenerate locally with: ./gradlew :services:knowledge-api:exportOpenApiSpec"
             exit 1
           fi
-      - name: Check openapi-typescript output is up to date
-        run: bash infra/scripts/run-strict-command.sh pnpm --filter @personal-stack/assistant-ui contract:check

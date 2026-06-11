@@ -13,7 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOSTS=(
   "$DOMAIN"
   "auth.$DOMAIN"
-  "assistant.$DOMAIN"
+  "agents.$DOMAIN"
   "vault.$DOMAIN"
   "rabbitmq.$DOMAIN"
   "mail.$DOMAIN"

@@ -45,9 +45,9 @@ class RepositoriesFlowTest : PlaywrightTestBase() {
     @Test
     fun `attach-key wizard writes the key to Vault and the wizard closes on success`() {
         // Happy-path end-to-end. The CI compose stack now wires
-        // real Vault into assistant-api (see docker-compose.ci.yml's
-        // assistant-api `VAULT_*` env block), so this exercise drives
-        // the full write path: UI submits → assistant-api validates
+        // real Vault into agents-api (see docker-compose.ci.yml's
+        // agents-api `VAULT_*` env block), so this exercise drives
+        // the full write path: UI submits → agents-api validates
         // → SpringVaultKeyValueWriter writes
         // `secret/data/agents/repositories/<id>` → 202 Accepted →
         // wizard closes → success toast appears.
@@ -73,7 +73,7 @@ class RepositoriesFlowTest : PlaywrightTestBase() {
         page.locator("[data-testid='repository-attach-key']").click()
         assertThat(page.locator("[data-testid='attach-key-wizard']")).isVisible()
 
-        // Synthetic OpenSSH armour. assistant-api stores the bytes
+        // Synthetic OpenSSH armour. agents-api stores the bytes
         // verbatim but VaultDeployKeyStore.sha256Fingerprint
         // Base64-decodes the middle field of the public key, so a
         // non-Base64 stand-in (e.g. `AAAA-{uuid}`) raises an

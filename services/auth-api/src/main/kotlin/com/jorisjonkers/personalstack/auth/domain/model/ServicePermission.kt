@@ -23,8 +23,8 @@ enum class ServicePermission(
     TRAEFIK("traefik"),
     RABBITMQ("rabbitmq"),
 
-    // assistant-ws is the Enschede terminal-WebSocket host; same access as assistant.
-    ASSISTANT("assistant", "assistant-ws"),
+    // agents-ws is the Enschede terminal-WebSocket host; same access as agents.
+    AGENTS("agents", "agents-ws"),
     STATUS("status"),
 
     // Media stack. Surfaced in the app-ui MyApps grid so grantees can land on their

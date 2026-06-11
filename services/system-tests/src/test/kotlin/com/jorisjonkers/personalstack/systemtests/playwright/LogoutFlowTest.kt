@@ -59,11 +59,11 @@ class LogoutFlowTest : PlaywrightTestBase() {
     }
 
     @Test
-    fun `after logout assistant-ui redirects to login`() {
+    fun `after logout agents-ui redirects to login`() {
         val user = registerAndConfirm()
         loginViaApi(user)
 
-        // Verify we can access assistant-ui
+        // Verify we can access agents-ui
         page.navigate("$ASSISTANT_UI_URL/sessions")
         page.waitForLoadState()
         page.waitForTimeout(2000.0)
@@ -71,7 +71,7 @@ class LogoutFlowTest : PlaywrightTestBase() {
         // Clear cookies to simulate logout
         context.clearCookies()
 
-        // Navigate to assistant-ui again
+        // Navigate to agents-ui again
         page.navigate("$ASSISTANT_UI_URL/sessions")
 
         page.waitForURL(

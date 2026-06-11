@@ -29,7 +29,7 @@ test("loads the seeded platform inventory", async () => {
   assert.deepEqual([...new Set(Object.values(fleet.nodes).map((node) => node.ssh?.port).filter(Boolean))], [2222]);
   assert.equal(fleet.placement_intent.gpu_specific.jellyfin.preferred_gpu_model, "t1000");
   assert.deepEqual(fleet.exposure_intent.public_and_lan.sort(), [
-    "assistant-ws",
+    "agents-ws",
     "bazarr",
     "immich",
     "jellyfin",
@@ -41,7 +41,7 @@ test("loads the seeded platform inventory", async () => {
   ]);
   assert.equal(fleet.ingress_intent.kubernetes_backends.vault.port, 8200);
   assert.equal(fleet.ingress_intent.kubernetes_backends["auth-api"].namespace, "auth-system");
-  assert.equal(fleet.ingress_intent.kubernetes_backends["assistant-api"].port, 8082);
+  assert.equal(fleet.ingress_intent.kubernetes_backends["agents-api"].port, 8082);
   assert.equal(fleet.ingress_intent.kubernetes_backends.stalwart.namespace, "mail-system");
   assert.equal(fleet.ingress_intent.kubernetes_backends.stalwart.port, 8080);
   assert.equal(fleet.ingress_intent.kubernetes_backends.bazarr.port, 6767);

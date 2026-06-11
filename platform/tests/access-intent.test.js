@@ -14,7 +14,7 @@ test("edge exposed services declare stable host labels", async () => {
   const fleet = await loadFleet();
   assert.equal(fleet.access_intent.host_labels["app-ui"], "root");
   assert.equal(fleet.access_intent.host_labels["auth-ui"], "auth");
-  assert.equal(fleet.access_intent.host_labels["assistant-ui"], "assistant");
+  assert.equal(fleet.access_intent.host_labels["agents-ui"], "agents");
   assert.equal(fleet.access_intent.host_labels.stalwart, "stalwart");
   assert.equal(fleet.access_intent.host_labels.gatus, "status");
   assert.equal(fleet.access_intent.host_labels.bazarr, "bazarr");

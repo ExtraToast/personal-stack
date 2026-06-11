@@ -58,11 +58,11 @@ export const SERVICE_REGISTRY: ServiceEntry[] = [
     description: 'Observability dashboard',
   },
   {
-    permission: 'ASSISTANT',
-    label: 'Assistant',
-    url: buildServiceUrl('assistant'),
-    iconUrl: '/icons/assistant.svg',
-    description: 'AI assistant',
+    permission: 'AGENTS',
+    label: 'Agents',
+    url: buildServiceUrl('agents'),
+    iconUrl: '/icons/agents.svg',
+    description: 'AI agents',
   },
   {
     permission: 'DASHBOARD',

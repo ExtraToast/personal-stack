@@ -80,7 +80,7 @@ abstract class IntegrationTestBase {
                     "http://localhost:5175",
                     "https://jorisjonkers.test",
                     "https://auth.jorisjonkers.test",
-                    "https://assistant.jorisjonkers.test",
+                    "https://agents.jorisjonkers.test",
                     "https://vault.jorisjonkers.test",
                     "https://n8n.jorisjonkers.test",
                     "https://grafana.jorisjonkers.test",

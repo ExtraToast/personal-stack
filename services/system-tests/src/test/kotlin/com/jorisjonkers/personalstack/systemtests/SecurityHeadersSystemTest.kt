@@ -21,7 +21,7 @@ class SecurityHeadersSystemTest {
             Stream.of(
                 Arguments.of("app-ui", "https://jorisjonkers.test", "/"),
                 Arguments.of("auth-ui", "https://auth.jorisjonkers.test", "/"),
-                Arguments.of("assistant-ui", "https://assistant.jorisjonkers.test", "/"),
+                Arguments.of("agents-ui", "https://agents.jorisjonkers.test", "/"),
             )
     }
 

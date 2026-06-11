@@ -39,7 +39,7 @@ BEGIN
     (v_id, 'MAIL'),
     (v_id, 'N8N'),
     (v_id, 'GRAFANA'),
-    (v_id, 'ASSISTANT'),
+    (v_id, 'AGENTS'),
     (v_id, 'DASHBOARD'),
     (v_id, 'RABBITMQ'),
     (v_id, 'TRAEFIK'),

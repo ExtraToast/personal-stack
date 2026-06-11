@@ -13,7 +13,7 @@ spec:
   # metrics<->profiles wiring (see grafana-datasources.yaml).
   #
   # Variables:
-  #   $service   one of: auth-api, assistant-api
+  #   $service   one of: auth-api, agents-api
   #   $route     auto-populated from http_server_requests_seconds_count
   #   $pod       auto-populated, multi-select
   #
@@ -48,11 +48,11 @@ spec:
             "name": "service",
             "label": "Service",
             "type": "custom",
-            "query": "auth-api,assistant-api",
+            "query": "auth-api,agents-api",
             "current": { "text": "auth-api", "value": "auth-api" },
             "options": [
               { "text": "auth-api", "value": "auth-api", "selected": true },
-              { "text": "assistant-api", "value": "assistant-api", "selected": false }
+              { "text": "agents-api", "value": "agents-api", "selected": false }
             ]
           },
           {

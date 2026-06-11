@@ -19,8 +19,8 @@ check_route() {
 
 echo "Waiting for Traefik routes to become reachable..."
 check_route auth-api      "https://auth.jorisjonkers.test/api/actuator/health/liveness"
-check_route assistant-api "https://assistant.jorisjonkers.test/api/actuator/health/liveness"
-check_route app-ui        "https://jorisjonkers.test/"
-check_route auth-ui       "https://auth.jorisjonkers.test/"
-check_route assistant-ui  "https://assistant.jorisjonkers.test/"
+check_route agents-api "https://agents.jorisjonkers.test/api/actuator/health/liveness"
+check_route app-ui     "https://jorisjonkers.test/"
+check_route auth-ui    "https://auth.jorisjonkers.test/"
+check_route agents-ui  "https://agents.jorisjonkers.test/"
 check_route vault         "https://vault.jorisjonkers.test/ui/"

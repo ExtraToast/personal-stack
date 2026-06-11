@@ -88,18 +88,18 @@ path "transit/keys/auth-api-jwt" {
 }
 EOF
 
-cat <<'EOF' >/tmp/assistant-api.hcl
-path "secret/data/assistant-api" {
+cat <<'EOF' >/tmp/agents-api.hcl
+path "secret/data/agents-api" {
   capabilities = ["read"]
 }
 
-path "secret/data/assistant-api/*" {
+path "secret/data/agents-api/*" {
   capabilities = ["read"]
 }
 
-# Static datasource credential (assistant_user), read by the vault-agent
+# Static datasource credential (agents_user), read by the vault-agent
 # template as DB_USER/DB_PASSWORD. Fallback for when the dynamic database
-# backend (database/creds/assistant-api below) does not bind — see auth-api.
+# backend (database/creds/agents-api below) does not bind — see auth-api.
 path "secret/data/platform/postgres" {
   capabilities = ["read"]
 }
@@ -124,7 +124,7 @@ path "rabbitmq/creds/app-consumer" {
   capabilities = ["read"]
 }
 
-path "database/creds/assistant-api" {
+path "database/creds/agents-api" {
   capabilities = ["read"]
 }
 EOF
@@ -263,7 +263,7 @@ path "secret/data/agents/*" {
 EOF
 
 vault policy write auth-api /tmp/auth-api.hcl
-vault policy write assistant-api /tmp/assistant-api.hcl
+vault policy write agents-api /tmp/agents-api.hcl
 vault policy write n8n /tmp/n8n.hcl
 vault policy write postgres /tmp/postgres.hcl
 vault policy write rabbitmq /tmp/rabbitmq.hcl
@@ -278,10 +278,10 @@ vault write auth/kubernetes/role/auth-api \
   policies="auth-api" \
   ttl="1h"
 
-vault write auth/kubernetes/role/assistant-api \
-  bound_service_account_names="assistant-api" \
-  bound_service_account_namespaces="assistant-system" \
-  policies="assistant-api" \
+vault write auth/kubernetes/role/agents-api \
+  bound_service_account_names="agents-api" \
+  bound_service_account_namespaces="agents-system" \
+  policies="agents-api" \
   ttl="1h"
 
 vault write auth/kubernetes/role/n8n \
@@ -316,7 +316,7 @@ vault write auth/kubernetes/role/stalwart \
 
 vault write auth/kubernetes/role/vso \
   bound_service_account_names="vault-secrets-operator" \
-  bound_service_account_namespaces="vso-system,cert-manager,external-dns,observability,automation-system,utility-system,knowledge-system,data-system,media-system,mail-system,agents-system,assistant-system" \
+  bound_service_account_namespaces="vso-system,cert-manager,external-dns,observability,automation-system,utility-system,knowledge-system,data-system,media-system,mail-system,agents-system,agents-system" \
   policies="vso" \
   ttl="1h"
 
@@ -443,10 +443,10 @@ PG_ADMIN_PASS=$(vault kv get -field=postgres.password secret/platform/postgres)
 N8N_PARENT_ROLE="n8n_user"
 WOLFMANAGER_PARENT_ROLE="wolfmanager_user"
 AUTH_PARENT_ROLE=$(vault kv get -field=auth.user secret/platform/postgres)
-ASSISTANT_PARENT_ROLE=$(vault kv get -field=assistant.user secret/platform/postgres)
+AGENTS_PARENT_ROLE=$(vault kv get -field=agents.user secret/platform/postgres)
 vault write database/config/postgres \
   plugin_name=postgresql-database-plugin \
-  allowed_roles="n8n,auth-api,assistant-api,wolfmanager" \
+  allowed_roles="n8n,auth-api,agents-api,wolfmanager" \
   connection_url="postgres://{{username}}:{{password}}@postgres.data-system.svc.cluster.local:5432/postgres?sslmode=disable" \
   username="${PG_ADMIN_USER}" \
   password="${PG_ADMIN_PASS}" \
@@ -482,13 +482,13 @@ vault write database/roles/auth-api \
   max_ttl="168h" \
   creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}' IN ROLE \"${AUTH_PARENT_ROLE}\" INHERIT;" \
   revocation_statements="REASSIGN OWNED BY \"{{name}}\" TO \"${AUTH_PARENT_ROLE}\"; DROP OWNED BY \"{{name}}\"; DROP ROLE \"{{name}}\";"
-# assistant-api has the same spring.cloud.vault.database.role shape as
-# auth-api (services/assistant-api/src/main/resources/application.yml),
+# agents-api has the same spring.cloud.vault.database.role shape as
+# auth-api (services/agents-api/src/main/resources/application.yml),
 # and was silently affected by the same missing-role bug.
-vault write database/roles/assistant-api \
+vault write database/roles/agents-api \
   db_name=postgres \
   default_ttl="72h" \
   max_ttl="168h" \
-  creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}' IN ROLE \"${ASSISTANT_PARENT_ROLE}\" INHERIT;" \
-  revocation_statements="REASSIGN OWNED BY \"{{name}}\" TO \"${ASSISTANT_PARENT_ROLE}\"; DROP OWNED BY \"{{name}}\"; DROP ROLE \"{{name}}\";"
-unset PG_ADMIN_USER PG_ADMIN_PASS N8N_PARENT_ROLE WOLFMANAGER_PARENT_ROLE AUTH_PARENT_ROLE ASSISTANT_PARENT_ROLE
+  creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}' IN ROLE \"${AGENTS_PARENT_ROLE}\" INHERIT;" \
+  revocation_statements="REASSIGN OWNED BY \"{{name}}\" TO \"${AGENTS_PARENT_ROLE}\"; DROP OWNED BY \"{{name}}\"; DROP ROLE \"{{name}}\";"
+unset PG_ADMIN_USER PG_ADMIN_PASS N8N_PARENT_ROLE WOLFMANAGER_PARENT_ROLE AUTH_PARENT_ROLE AGENTS_PARENT_ROLE

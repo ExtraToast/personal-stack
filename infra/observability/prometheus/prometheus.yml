@@ -16,10 +16,10 @@ scrape_configs:
         type: A
         port: 8081
 
-  - job_name: assistant-api
+  - job_name: agents-api
     metrics_path: /api/actuator/prometheus
     dns_sd_configs:
-      - names: ['tasks.assistant-api']
+      - names: ['tasks.agents-api']
         type: A
         port: 8082
 

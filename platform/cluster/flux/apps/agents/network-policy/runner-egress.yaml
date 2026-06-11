@@ -4,7 +4,7 @@
 # allow-set mirrors what each CLI + git workflow actually needs:
 #
 # - DNS (kube-dns)
-# - cluster-internal: knowledge-api, lightrag, assistant-api
+# - cluster-internal: knowledge-api, lightrag, agents-api
 # - external: api.anthropic.com, api.openai.com, github.com, ghcr.io
 #
 # External egress is enforced by IP egress in a follow-up once we
@@ -25,21 +25,21 @@ spec:
     - Ingress
     - Egress
   ingress:
-    # Only assistant-api may reach the runner's agent-gateway sidecar.
-    # Both the Frankfurt deployment (assistant-api) and the Enschede
-    # terminal-WS replica (assistant-api-ws) bridge the attach
+    # Only agents-api may reach the runner's agent-gateway sidecar.
+    # Both the Frankfurt deployment (agents-api) and the Enschede
+    # terminal-WS replica (agents-api-ws) bridge the attach
     # WebSocket, so both labels are allowed.
     - from:
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: assistant-system
+              kubernetes.io/metadata.name: agents-system
           podSelector:
             matchExpressions:
               - key: app.kubernetes.io/name
                 operator: In
                 values:
-                  - assistant-api
-                  - assistant-api-ws
+                  - agents-api
+                  - agents-api-ws
       ports:
         - protocol: TCP
           port: 8090
@@ -79,21 +79,21 @@ spec:
       ports:
         - protocol: TCP
           port: 8080
-    # assistant-api internal endpoint used by the runner's GitHub App
+    # agents-api internal endpoint used by the runner's GitHub App
     # token wrappers (`gh` + GitHub MCP). Both the regular Frankfurt
     # deployment and the Enschede WebSocket replica can serve the
     # in-cluster token minting route.
     - to:
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: assistant-system
+              kubernetes.io/metadata.name: agents-system
           podSelector:
             matchExpressions:
               - key: app.kubernetes.io/name
                 operator: In
                 values:
-                  - assistant-api
-                  - assistant-api-ws
+                  - agents-api
+                  - agents-api-ws
       ports:
         - protocol: TCP
           port: 8082

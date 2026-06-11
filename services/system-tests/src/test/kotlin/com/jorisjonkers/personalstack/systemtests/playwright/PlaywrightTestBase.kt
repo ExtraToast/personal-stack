@@ -34,7 +34,7 @@ abstract class PlaywrightTestBase {
         val APP_UI_URL: String =
             System.getProperty("test.app-ui.url", "https://jorisjonkers.test")
         val ASSISTANT_UI_URL: String =
-            System.getProperty("test.assistant-ui.url", "https://assistant.jorisjonkers.test")
+            System.getProperty("test.agents-ui.url", "https://agents.jorisjonkers.test")
     }
 
     private lateinit var playwright: Playwright
