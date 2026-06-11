@@ -6,4 +6,5 @@ resources:
   - config-configmap.yaml
   - deployment.yaml
   - wolfmanager-reconcile-job.yaml
+  - agents-rename-job.yaml
   - servicemonitor.yaml
