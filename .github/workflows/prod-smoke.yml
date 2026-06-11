@@ -50,7 +50,7 @@ name: Production Smoke
 #   kube-personal && kubectl -n auth-system exec deploy/auth-api -- \
 #     curl -X POST http://localhost:8081/api/v1/admin/users/canary-bot/permissions \
 #     -H 'Content-Type: application/json' \
-#     -d '{"service":"ASSISTANT","granted":true}'
+#     -d '{"service":"AGENTS","granted":true}'
 #
 # Demote canary-bot from ADMIN once permission is granted so the
 # canary's blast-radius matches a real user.
@@ -74,7 +74,7 @@ permissions:
   contents: read
 
 env:
-  ASSISTANT_API_URL: https://assistant.jorisjonkers.dev
+  AGENTS_API_URL: https://agents.jorisjonkers.dev
   AUTH_API_URL: https://auth.jorisjonkers.dev
 
 jobs:
@@ -137,7 +137,7 @@ jobs:
             exit 1
           fi
           body=$(curl -sf -b "${COOKIES}" \
-            -X POST "${ASSISTANT_API_URL}/api/v1/repositories" \
+            -X POST "${AGENTS_API_URL}/api/v1/repositories" \
             -H 'Content-Type: application/json' \
             -H "X-XSRF-TOKEN: ${csrf}" \
             --data "{\"name\":\"${name}\",\"repoUrl\":\"git@github.com:owner/${name}.git\",\"defaultBranch\":\"main\"}")
@@ -163,7 +163,7 @@ jobs:
           public_key="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl canary-${REPO_NAME}"
           private_key=$'-----BEGIN OPENSSH PRIVATE KEY-----\ncanary-private-'"${REPO_NAME}"'\n-----END OPENSSH PRIVATE KEY-----\n'
           curl -sf -b "${COOKIES}" \
-            -X POST "${ASSISTANT_API_URL}/api/v1/repositories/${REPO_ID}/key" \
+            -X POST "${AGENTS_API_URL}/api/v1/repositories/${REPO_ID}/key" \
             -H 'Content-Type: application/json' \
             -H "X-XSRF-TOKEN: ${csrf}" \
             --data "$(jq -n --arg pk "$private_key" --arg pub "$public_key" \
@@ -183,7 +183,7 @@ jobs:
           # missing fingerprint here implies either the Vault write
           # silently fell back to a no-op store (PR #405 shape) or
           # the row update was rolled back.
-          body=$(curl -sf -b "${COOKIES}" "${ASSISTANT_API_URL}/api/v1/repositories/${REPO_ID}")
+          body=$(curl -sf -b "${COOKIES}" "${AGENTS_API_URL}/api/v1/repositories/${REPO_ID}")
           fingerprint=$(jq -r '.repository.deployKeyFingerprint // .deployKeyFingerprint // empty' <<<"$body")
           if [ -z "$fingerprint" ]; then
             echo "::error::deployKeyFingerprint is empty after attach. Body: $body"
@@ -202,7 +202,7 @@ jobs:
           fi
           csrf=$(awk '/XSRF-TOKEN/{print $7}' "${COOKIES}" | tail -1)
           curl -sf -b "${COOKIES}" \
-            -X DELETE "${ASSISTANT_API_URL}/api/v1/repositories/${REPO_ID}" \
+            -X DELETE "${AGENTS_API_URL}/api/v1/repositories/${REPO_ID}" \
             -H "X-XSRF-TOKEN: ${csrf}" \
             -o /dev/null || echo "::warning::cleanup DELETE returned non-2xx — repository ${REPO_ID} may need manual cleanup"
 
@@ -213,5 +213,5 @@ jobs:
         run: |
           curl -sf -X POST "${WEBHOOK}" \
             -H 'Content-Type: application/json' \
-            --data "{\"text\":\":rotating_light: prod-smoke failed — assistant attach-key flow broken in production. Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            --data "{\"text\":\":rotating_light: prod-smoke failed — agents attach-key flow broken in production. Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
             || true

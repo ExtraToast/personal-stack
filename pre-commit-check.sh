@@ -4,7 +4,7 @@
 set -euo pipefail
 
 SERVICES_INFRA="postgres valkey rabbitmq"
-SERVICES_FULL="postgres valkey rabbitmq vault auth-api assistant-api traefik auth-ui assistant-ui app-ui n8n grafana uptime-kuma stalwart"
+SERVICES_FULL="postgres valkey rabbitmq vault auth-api agents-api traefik auth-ui agents-ui app-ui n8n grafana uptime-kuma stalwart"
 STACK_STARTED=0
 
 RED='\033[0;31m'
@@ -21,8 +21,8 @@ trap 'rm -rf "$TMPDIR_JOBS"; teardown_stack' EXIT
 
 dump_stack_logs() {
   local services=(
-    postgres valkey rabbitmq vault auth-api assistant-api traefik
-    auth-ui assistant-ui app-ui n8n grafana uptime-kuma stalwart
+    postgres valkey rabbitmq vault auth-api agents-api traefik
+    auth-ui agents-ui app-ui n8n grafana uptime-kuma stalwart
     vault-oidc-init uptime-kuma-init
   )
 
@@ -122,7 +122,6 @@ verify_services_healthy() {
 verify_database_migrations() {
   log "  Verifying database migrations..."
   docker exec personal-stack-postgres psql -U auth_user -d auth_db -c '\dt' | grep -q app_user
-  docker exec personal-stack-postgres psql -U assistant_user -d assistant_db -c '\dt' | grep -q conversation
 }
 
 # Run a named job in background, capturing output. Usage: run_job <name> <cmd...>
@@ -189,14 +188,13 @@ pnpm install --frozen-lockfile
 log "Stage 1: Lint, formatting, and security scans"
 
 run_job "lint-auth-api"      ./gradlew :services:auth-api:detekt :services:auth-api:ktlintCheck
-run_job "lint-assistant-api" ./gradlew :services:assistant-api:detekt :services:assistant-api:ktlintCheck
 run_job "lint-frontend"      bash -lc 'pnpm -r lint --max-warnings 0 && pnpm format:check'
 run_job "scan-trivy"         run_trivy_scan
 run_job "scan-pnpm-audit"    run_pnpm_audit
 run_job "scan-gitleaks"      run_gitleaks_scan
 
 wait_jobs "lint+security" \
-  lint-auth-api lint-assistant-api lint-frontend \
+  lint-auth-api lint-frontend \
   scan-trivy scan-pnpm-audit scan-gitleaks
 
 # ─────────────────────────────────────────────────────────────────
@@ -205,25 +203,22 @@ wait_jobs "lint+security" \
 log "Stage 2: Unit tests, architecture checks, and Docker image builds"
 
 run_job "unit-auth-api"      ./gradlew :services:auth-api:test
-run_job "unit-assistant-api" ./gradlew :services:assistant-api:test
 run_job "unit-frontend"      pnpm -r test -- --coverage
 run_job "arch-frontend"      pnpm -r depcruise
 
 # Build Docker images in parallel while tests run (needed for stage 4)
 log "  Building Docker images in parallel..."
 run_job "build-auth-api"      docker build -f services/auth-api/Dockerfile      -t personal-stack/auth-api:latest      .
-run_job "build-assistant-api" docker build -f services/assistant-api/Dockerfile -t personal-stack/assistant-api:latest .
 run_job "build-auth-ui"       docker build -f services/auth-ui/Dockerfile       -t personal-stack/auth-ui:latest       .
-run_job "build-assistant-ui"  docker build --build-arg VITE_AUTH_URL=https://auth.jorisjonkers.test -f services/assistant-ui/Dockerfile -t personal-stack/assistant-ui:latest .
 run_job "build-app-ui"        docker build --build-arg VITE_AUTH_URL=https://auth.jorisjonkers.test -f services/app-ui/Dockerfile -t personal-stack/app-ui:latest .
 
 wait_jobs "unit+arch+build" \
-  unit-auth-api unit-assistant-api unit-frontend \
+  unit-auth-api unit-frontend \
   arch-frontend \
-  build-auth-api build-assistant-api build-auth-ui build-assistant-ui build-app-ui
+  build-auth-api build-auth-ui build-app-ui
 
 log "Stage 2b: Kotlin architecture tests"
-bash infra/scripts/run-strict-command.sh ./gradlew :services:auth-api:test :services:assistant-api:test --tests "*ArchitectureTest*"
+bash infra/scripts/run-strict-command.sh ./gradlew :services:auth-api:test --tests "*ArchitectureTest*"
 log "Stage 'arch-kotlin' passed."
 
 # ─────────────────────────────────────────────────────────────────
@@ -235,14 +230,12 @@ log "  Starting infrastructure services..."
 docker compose up -d $SERVICES_INFRA --wait --wait-timeout 120
 
 run_job "integ-auth-api"      ./gradlew :services:auth-api:integrationTest
-run_job "integ-assistant-api" ./gradlew :services:assistant-api:integrationTest
 
-wait_jobs "integration" integ-auth-api integ-assistant-api
+wait_jobs "integration" integ-auth-api
 
 run_job "coverage-auth-api"      ./gradlew :services:auth-api:jacocoTestCoverageVerification
-run_job "coverage-assistant-api" ./gradlew :services:assistant-api:jacocoTestCoverageVerification
 
-wait_jobs "coverage" coverage-auth-api coverage-assistant-api
+wait_jobs "coverage" coverage-auth-api
 
 log "  Stopping infrastructure services..."
 docker compose down --remove-orphans --timeout 10 2>/dev/null || true
@@ -279,9 +272,9 @@ check_route() {
 }
 if ! check_route app-ui         "https://jorisjonkers.test/"; then dump_stack_logs; exit 1; fi
 if ! check_route auth-ui        "https://auth.jorisjonkers.test/"; then dump_stack_logs; exit 1; fi
-if ! check_route assistant-ui   "https://assistant.jorisjonkers.test/"; then dump_stack_logs; exit 1; fi
+if ! check_route agents-ui      "https://agents.jorisjonkers.test/"; then dump_stack_logs; exit 1; fi
 if ! check_route auth-api       "https://auth.jorisjonkers.test/api/actuator/health"; then dump_stack_logs; exit 1; fi
-if ! check_route assistant-api  "https://assistant.jorisjonkers.test/api/actuator/health"; then dump_stack_logs; exit 1; fi
+if ! check_route agents-api     "https://agents.jorisjonkers.test/api/actuator/health"; then dump_stack_logs; exit 1; fi
 
 if ! verify_database_migrations; then
   dump_stack_logs
@@ -303,7 +296,7 @@ fi
 log "  Running system tests..."
 if ! bash infra/scripts/run-strict-command.sh ./gradlew :services:system-tests:test \
   -Dtest.auth-api.url=http://localhost:8081 \
-  -Dtest.assistant-api.url=http://localhost:8082; then
+; then
   dump_stack_logs
   exit 1
 fi

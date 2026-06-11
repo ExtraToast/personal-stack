@@ -14,10 +14,10 @@ scrape_configs:
     static_configs:
       - targets: ['auth-api:8081']
 
-  - job_name: assistant-api
+  - job_name: agents-api
     metrics_path: /api/actuator/prometheus
     static_configs:
-      - targets: ['assistant-api:8082']
+      - targets: ['agents-api:8082']
 
   - job_name: traefik
     static_configs:

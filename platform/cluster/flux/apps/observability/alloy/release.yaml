@@ -91,7 +91,7 @@ spec:
             }
           }
 
-          // Spring services (auth-api, assistant-api) emit JSON via the
+          // Spring services (auth-api, agents-api) emit JSON via the
           // Logstash Logback encoder: each line is {"@timestamp":"…",
           // "level":"INFO","message":"…","traceId":"…","spanId":"…",…}.
           // Surface `level` as a Loki label so {level=~"ERROR|WARN"} queries
@@ -148,7 +148,7 @@ spec:
                 allowed_origins = [
                   "https://jorisjonkers.dev",
                   "https://auth.jorisjonkers.dev",
-                  "https://assistant.jorisjonkers.dev",
+                  "https://agents.jorisjonkers.dev",
                 ]
                 allowed_headers = ["*"]
               }
@@ -172,7 +172,7 @@ spec:
               cors_allowed_origins = [
                 "https://jorisjonkers.dev",
                 "https://auth.jorisjonkers.dev",
-                "https://assistant.jorisjonkers.dev",
+                "https://agents.jorisjonkers.dev",
               ]
             }
 
@@ -234,7 +234,7 @@ spec:
                 // SERVER span without http.route — Traefik. Include the
                 // Host so the trace list disambiguates vhosts that share
                 // paths (auth.jorisjonkers.dev/api/x vs
-                // assistant.jorisjonkers.dev/api/x).
+                // agents.jorisjonkers.dev/api/x).
                 `set(name, Concat([attributes["http.request.method"], resource.attributes["service.name"], Concat([attributes["server.address"], attributes["url.path"]], "")], " ")) where kind == SPAN_KIND_SERVER and IsString(attributes["http.request.method"]) and IsString(resource.attributes["service.name"]) and IsString(attributes["server.address"]) and IsString(attributes["url.path"]) and not IsString(attributes["http.route"])`,
                 // SERVER span fallback when server.address is missing too
                 `set(name, Concat([attributes["http.request.method"], resource.attributes["service.name"], attributes["url.path"]], " ")) where kind == SPAN_KIND_SERVER and IsString(attributes["http.request.method"]) and IsString(resource.attributes["service.name"]) and IsString(attributes["url.path"]) and not IsString(attributes["http.route"]) and not IsString(attributes["server.address"])`,

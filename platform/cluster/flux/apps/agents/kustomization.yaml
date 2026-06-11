@@ -10,5 +10,5 @@ resources:
   - refresh-ping
   - kb-install
   - network-policy
-  - agent-gateway-image # shared image pull only; runner Pods are created at runtime by assistant-api
+  - agent-gateway-image # shared image pull only; runner Pods are created at runtime by agents-api
   - rbac

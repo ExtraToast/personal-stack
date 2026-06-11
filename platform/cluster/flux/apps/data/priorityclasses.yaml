@@ -28,7 +28,7 @@ value: 100000
 globalDefault: false
 preemptionPolicy: PreemptLowerPriority
 description: >-
-  Critical request-path services (auth-api, assistant-api, knowledge-api).
+  Critical request-path services (auth-api, agents-api, knowledge-api).
   Ranked below the data tier but above the default so login and core APIs
   keep scheduling when the VPS is tight, while non-essential workloads
   (automation, media) yield.

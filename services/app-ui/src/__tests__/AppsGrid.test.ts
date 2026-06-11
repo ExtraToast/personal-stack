@@ -44,7 +44,7 @@ describe('appsGrid', () => {
       'SERVICE_MAIL',
       'SERVICE_N8N',
       'SERVICE_GRAFANA',
-      'SERVICE_ASSISTANT',
+      'SERVICE_AGENTS',
       'SERVICE_DASHBOARD',
       'SERVICE_TRAEFIK',
       'SERVICE_RABBITMQ',

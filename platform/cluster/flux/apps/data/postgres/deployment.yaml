@@ -44,8 +44,8 @@ spec:
           POSTGRES_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "postgres.password" }}{{ end }}
           AUTH_DB_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "auth.user" }}{{ end }}
           AUTH_DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "auth.password" }}{{ end }}
-          ASSISTANT_DB_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "assistant.user" }}{{ end }}
-          ASSISTANT_DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "assistant.password" }}{{ end }}
+          AGENTS_DB_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "agents.user" }}{{ end }}
+          AGENTS_DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "agents.password" }}{{ end }}
           KB_DB_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "kb.user" }}{{ end }}
           KB_DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "kb.password" }}{{ end }}
     spec:

@@ -192,7 +192,7 @@ spec:
             - name: CONFIRMATION_URL
               value: https://auth.jorisjonkers.dev/confirm-email
             - name: AUTH_CORS_ALLOWED_ORIGINS
-              value: https://jorisjonkers.dev,https://auth.jorisjonkers.dev,https://assistant.jorisjonkers.dev,https://vault.jorisjonkers.dev,https://n8n.jorisjonkers.dev,https://grafana.jorisjonkers.dev,https://dashboard.jorisjonkers.dev,https://rabbitmq.jorisjonkers.dev,https://status.jorisjonkers.dev
+              value: https://jorisjonkers.dev,https://auth.jorisjonkers.dev,https://agents.jorisjonkers.dev,https://vault.jorisjonkers.dev,https://n8n.jorisjonkers.dev,https://grafana.jorisjonkers.dev,https://dashboard.jorisjonkers.dev,https://rabbitmq.jorisjonkers.dev,https://status.jorisjonkers.dev
             - name: DEPLOYMENT_ENVIRONMENT
               value: production
             # SERVICE_VERSION is baked into the image by the build pipeline
@@ -275,7 +275,7 @@ spec:
             # process-running time hitting 302 s, so the previous 300 s
             # budget killed the pod ~2 s before Spring Boot finished.
             # auth-api carries OAuth2 server + the full Spring Security
-            # filter chain, so it's slower to wire than assistant-api
+            # filter chain, so it's slower to wire than agents-api
             # (which Started at 156 s under the same conditions). 600 s
             # leaves comfortable margin without changing the steady-state
             # liveness budget below.

@@ -5,7 +5,7 @@ metadata:
   namespace: data-system
 data:
   # Hand-tuned postgresql.conf for the shared Postgres 17 pod that
-  # backs auth-api, assistant-api, and n8n. Upstream defaults
+  # backs auth-api, agents-api, and n8n. Upstream defaults
   # (shared_buffers=128MB, work_mem=4MB, no slow-query logging) leave
   # a lot on the table on a node that has plenty of RAM.
   #

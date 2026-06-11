@@ -39,17 +39,6 @@ updates:
         patterns: ['*']
 
   - package-ecosystem: docker
-    directory: /services/assistant-api
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 1
-    cooldown:
-      default-days: 7
-    groups:
-      all-docker-assistant-api:
-        patterns: ['*']
-
-  - package-ecosystem: docker
     directory: /services/auth-ui
     schedule:
       interval: weekly
@@ -58,17 +47,6 @@ updates:
       default-days: 7
     groups:
       all-docker-auth-ui:
-        patterns: ['*']
-
-  - package-ecosystem: docker
-    directory: /services/assistant-ui
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 1
-    cooldown:
-      default-days: 7
-    groups:
-      all-docker-assistant-ui:
         patterns: ['*']
 
   - package-ecosystem: docker

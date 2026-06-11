@@ -1,0 +1,43 @@
+# agents-api is the only client that mutates agent-runner Pods.
+# It needs Pod + PVC CRUD scoped to agents-system, plus the ability
+# to read the credential / deploy-key Secrets so it can stamp them
+# into each Pod's volume mounts.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: agents-api-runner-controller
+  namespace: agents-system
+rules:
+  # `patch` is required on every resource the orchestrator mutates
+  # because Fabric8AgentRunnerOrchestrator uses `serverSideApply()`,
+  # which Kubernetes implements as PATCH with content-type
+  # application/apply-patch+yaml. Without it the very first
+  # workspace creation fails at the PVC step.
+  # Per-workspace deploy-key Secrets are stamped via server-side
+  # apply when the workspace is project-backed, so the secrets
+  # verb set needs create/patch/delete on top of the original
+  # read-only access used to read the shared cluster-wide
+  # deploy-key + credential Secrets.
+  - apiGroups: ['']
+    resources: [pods, pods/log, services]
+    verbs: [get, list, watch, create, delete, patch]
+  - apiGroups: ['']
+    resources: [persistentvolumeclaims]
+    verbs: [get, list, watch, create, delete, patch]
+  - apiGroups: ['']
+    resources: [secrets]
+    verbs: [get, list, watch, create, delete, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: agents-api-runner-controller
+  namespace: agents-system
+subjects:
+  - kind: ServiceAccount
+    name: agents-api
+    namespace: agents-system
+roleRef:
+  kind: Role
+  name: agents-api-runner-controller
+  apiGroup: rbac.authorization.k8s.io

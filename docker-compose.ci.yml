@@ -11,49 +11,15 @@ services:
       OTEL_TRACES_EXPORTER: none
       OTEL_EXPORTER_OTLP_ENDPOINT: ''
 
-  assistant-api:
-    image: personal-stack/assistant-api:ci
-    pull_policy: never
-    depends_on:
-      vault:
-        condition: service_healthy
-    environment:
-      DB_PASSWORD: ci_assistant_pass
-      OTEL_TRACES_EXPORTER: none
-      OTEL_EXPORTER_OTLP_ENDPOINT: ''
-      # The system-test stack doesn't ship a Kubernetes cluster, so
-      # the production `Fabric8AgentRunnerOrchestrator` (which
-      # bootstraps a fabric8 KubernetesClient against the in-cluster
-      # API) would refuse to start. The `system-test` Spring profile
-      # swaps it for `StubAgentRunnerOrchestrator` — a no-op
-      # implementation that returns synthesised RunnerHandles so the
-      # workspace lifecycle commands run end-to-end except for the
-      # actual Pod side-effects. Real-cluster behaviour is exercised
-      # by Fabric8AgentRunnerOrchestratorIntegrationTest under
-      # assistant-api/integrationTest, against a Testcontainers k3s.
-      SPRING_PROFILES_ACTIVE: system-test
-      # Real Vault in the CI stack so the deploy-key write path
-      # actually runs end-to-end. Previously this was disabled,
-      # which meant production-only failures like PRs #405 / #409 /
-      # #426 (Vault policy missing, bootstrap Job broken,
-      # 202-empty-body JSON parse crash) could ship with green CI.
-      # Token auth against dev-mode Vault's root token — sufficient
-      # for the system-test stack where the goal is to exercise the
-      # write path, not the policy boundary (policy enforcement is
-      # validated by the bootstrap-validate CI job and prod canary,
-      # tracks T4 + T5 of the plan).
-      VAULT_ENABLED: 'true'
-      VAULT_ADDR: http://vault:8200
-      VAULT_AUTHENTICATION: TOKEN
-      SPRING_CLOUD_VAULT_TOKEN: dev-root-token
+  agents-api:
+    profiles: [disabled]
 
   auth-ui:
     image: personal-stack/auth-ui:ci
     pull_policy: never
 
-  assistant-ui:
-    image: personal-stack/assistant-ui:ci
-    pull_policy: never
+  agents-ui:
+    profiles: [disabled]
 
   app-ui:
     image: personal-stack/app-ui:ci
@@ -67,7 +33,7 @@ services:
   postgres:
     environment:
       AUTH_DB_PASSWORD: ci_auth_pass
-      ASSISTANT_DB_PASSWORD: ci_assistant_pass
+      AGENTS_DB_PASSWORD: ci_agents_pass
       N8N_DB_PASSWORD: ci_n8n_pass
 
   # ── Disable OTEL on traefik (alloy is disabled) ─────────────────

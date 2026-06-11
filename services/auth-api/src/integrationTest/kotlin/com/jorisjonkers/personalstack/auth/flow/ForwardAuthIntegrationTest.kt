@@ -308,14 +308,14 @@ class ForwardAuthIntegrationTest : IntegrationTestBase() {
                         AuthenticatedUser.of(
                             userId = UserId(UUID.randomUUID()),
                             username = "user-6",
-                            roles = listOf("ROLE_USER", "SERVICE_ASSISTANT"),
+                            roles = listOf("ROLE_USER", "SERVICE_AGENTS"),
                         ),
                     ),
                 )
-                header("X-Forwarded-Host", "assistant.jorisjonkers.dev")
+                header("X-Forwarded-Host", "agents.jorisjonkers.dev")
             }.andExpect {
                 status { isOk() }
-                header { string("X-User-Roles", "ROLE_USER,SERVICE_ASSISTANT") }
+                header { string("X-User-Roles", "ROLE_USER,SERVICE_AGENTS") }
             }
     }
 }

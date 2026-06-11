@@ -225,7 +225,7 @@ spec:
             histogram_quantile(0.95,
               sum by (le, service_name, http_route) (
                 rate(traces_spanmetrics_latency_bucket{
-                  span_name="pipeline.controller", service_name=~"auth-api|assistant-api"
+                  span_name="pipeline.controller", service_name=~"auth-api|agents-api"
                 }[5m])
               )
             ) > 2
@@ -245,7 +245,7 @@ spec:
             histogram_quantile(0.95,
               sum by (le, service_name, http_route) (
                 rate(traces_spanmetrics_latency_bucket{
-                  span_name="pipeline.response-finalize", service_name=~"auth-api|assistant-api"
+                  span_name="pipeline.response-finalize", service_name=~"auth-api|agents-api"
                 }[5m])
               )
             ) > 1
@@ -291,7 +291,7 @@ spec:
     - name: platform-jvm-hikari
       rules:
         - alert: HikariConnectionsPending
-          expr: hikaricp_connections_pending{application=~"auth-api|assistant-api"} > 0
+          expr: hikaricp_connections_pending{application=~"auth-api|agents-api"} > 0
           for: 5m
           labels: { severity: warning }
           annotations:
@@ -302,7 +302,7 @@ spec:
           expr: |
             histogram_quantile(0.95,
               sum by (le, application, instance) (
-                rate(hikaricp_connections_acquire_seconds_bucket{application=~"auth-api|assistant-api"}[5m])
+                rate(hikaricp_connections_acquire_seconds_bucket{application=~"auth-api|agents-api"}[5m])
               )
             ) > 1
           for: 10m
@@ -321,7 +321,7 @@ spec:
           expr: |
             histogram_quantile(0.95,
               sum by (le, application, instance, cause) (
-                rate(jvm_gc_pause_seconds_bucket{application=~"auth-api|assistant-api"}[5m])
+                rate(jvm_gc_pause_seconds_bucket{application=~"auth-api|agents-api"}[5m])
               )
             ) > 0.5
           for: 5m
