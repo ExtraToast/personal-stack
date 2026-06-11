@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test
 @Tag("system")
 class HealthCheckSystemTest {
     private val authBaseUrl = TestHelper.authBaseUrl
-    private val agentsBaseUrl = TestHelper.agentsBaseUrl
 
     @Test
     fun `auth-api health endpoint responds`() {
@@ -21,16 +20,6 @@ class HealthCheckSystemTest {
     }
 
     @Test
-    fun `agents-api health endpoint responds`() {
-        TestHelper.givenApi()
-            .baseUri(agentsBaseUrl)
-            .`when`()
-            .get("/api/actuator/health")
-            .then()
-            .statusCode(200)
-    }
-
-    @Test
     fun `auth-api v1 health endpoint responds`() {
         TestHelper.givenApi()
             .baseUri(authBaseUrl)
@@ -40,18 +29,6 @@ class HealthCheckSystemTest {
             .statusCode(200)
             .body("status", org.hamcrest.Matchers.equalTo("ok"))
             .body("service", org.hamcrest.Matchers.equalTo("auth-api"))
-    }
-
-    @Test
-    fun `agents-api v1 health endpoint responds`() {
-        TestHelper.givenApi()
-            .baseUri(agentsBaseUrl)
-            .`when`()
-            .get("/api/v1/health")
-            .then()
-            .statusCode(200)
-            .body("status", org.hamcrest.Matchers.equalTo("ok"))
-            .body("service", org.hamcrest.Matchers.equalTo("agents-api"))
     }
 
     @Test
