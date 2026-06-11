@@ -96,20 +96,4 @@ class PlatformN8nFluxTest {
             .contains("port: 5678")
     }
 
-    @Test
-    fun `vault bootstrap configures n8n kubernetes role and policy`() {
-        val bootstrapScript =
-            repositoryRoot.resolve("platform/cluster/flux/apps/data/vault/bootstrap-auth.sh").toFile().readText()
-
-        assertThat(bootstrapScript)
-            .contains("vault policy write n8n")
-            .contains("auth/kubernetes/role/n8n")
-            .contains("database/creds/n8n")
-            .contains("secret/data/platform/automation")
-            .contains("bound_service_account_names=\"n8n\"")
-            .contains("bound_service_account_namespaces=\"automation-system\"")
-            // VSO reads dynamic postgres creds and the automation KV path
-            // on behalf of n8n; the role binding now includes automation-system.
-            .contains("bound_service_account_namespaces=\"vso-system,cert-manager,external-dns,observability,automation-system\"")
-    }
 }

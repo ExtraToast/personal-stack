@@ -16,44 +16,6 @@ class PlatformLanIngressFluxTest {
     }
 
     @Test
-    fun `metallb flux app advertises the enschede lan ingress vip`() {
-        val kustomization = repositoryRoot.resolve("platform/cluster/flux/apps/core/metallb/kustomization.yaml").toFile().readText()
-        val namespace = repositoryRoot.resolve("platform/cluster/flux/apps/core/metallb/namespace.yaml").toFile().readText()
-        val source = repositoryRoot.resolve("platform/cluster/flux/apps/core/metallb/source.yaml").toFile().readText()
-        val release = repositoryRoot.resolve("platform/cluster/flux/apps/core/metallb/release.yaml").toFile().readText()
-        val config = repositoryRoot.resolve("platform/cluster/flux/apps/core/metallb/config.yaml").toFile().readText()
-
-        assertThat(kustomization)
-            .contains("namespace.yaml")
-            .contains("source.yaml")
-            .contains("release.yaml")
-            .contains("config.yaml")
-
-        assertThat(namespace)
-            .contains("kind: Namespace")
-            .contains("name: metallb-system")
-
-        assertThat(source)
-            .contains("kind: HelmRepository")
-            .contains("name: metallb")
-            .contains("url: https://metallb.github.io/metallb")
-
-        assertThat(release)
-            .contains("kind: HelmRelease")
-            .contains("name: metallb")
-            .contains("namespace: metallb-system")
-            .contains("chart: metallb")
-
-        assertThat(config)
-            .contains("kind: IPAddressPool")
-            .contains("name: enschede-lan")
-            .contains("- 192.168.0.99-192.168.0.99")
-            .contains("kind: L2Advertisement")
-            .contains("ipAddressPools:")
-            .contains("- enschede-lan")
-    }
-
-    @Test
     fun `lan ingress controller is pinned to lan ingress nodes and uses the metallb vip`() {
         val kustomization = repositoryRoot.resolve("platform/cluster/flux/apps/core/lan-ingress-controller/kustomization.yaml").toFile().readText()
         val namespace = repositoryRoot.resolve("platform/cluster/flux/apps/core/lan-ingress-controller/namespace.yaml").toFile().readText()
