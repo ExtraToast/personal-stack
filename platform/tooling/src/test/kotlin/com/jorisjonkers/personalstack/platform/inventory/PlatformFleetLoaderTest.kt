@@ -29,17 +29,28 @@ class PlatformFleetLoaderTest {
             "frankfurt-contabo-1",
             "enschede-gtx-960m-1",
             "enschede-t1000-1",
+            "enschede-rx7900xtx-1",
             "enschede-pi-1",
             "enschede-pi-2",
             "enschede-pi-3",
         )
         assertThat(fleet.nodes.getValue("frankfurt-contabo-1").ssh?.host).isEqualTo("167.86.79.203")
         assertThat(fleet.nodes.getValue("enschede-t1000-1").ssh?.user).isEqualTo("deploy")
-        assertThat(fleet.nodes.getValue("enschede-pi-1").ssh?.host).isEqualTo("enschede-pi-1")
+        assertThat(fleet.nodes.getValue("enschede-pi-1").ssh?.host).isEqualTo("100.65.192.22")
         assertThat(fleet.nodes.values.mapNotNull { it.ssh?.port }).containsOnly(2222)
         assertThat(fleet.placementIntent.gpuSpecific.getValue("jellyfin").preferredGpuModel).isEqualTo("t1000")
         assertThat(fleet.exposureIntent.publicAndLan)
-            .containsExactlyInAnyOrder("bazarr", "jellyfin", "jellyseerr", "prowlarr", "qbittorrent", "radarr", "sonarr")
+            .containsExactlyInAnyOrder(
+                "assistant-ws",
+                "bazarr",
+                "immich",
+                "jellyfin",
+                "jellyseerr",
+                "prowlarr",
+                "qbittorrent",
+                "radarr",
+                "sonarr",
+            )
         assertThat(fleet.ingressIntent.kubernetesBackends.getValue("vault").port).isEqualTo(8200)
         assertThat(fleet.ingressIntent.kubernetesBackends.getValue("auth-api").namespace).isEqualTo("auth-system")
         assertThat(fleet.ingressIntent.kubernetesBackends.getValue("assistant-api").port).isEqualTo(8082)

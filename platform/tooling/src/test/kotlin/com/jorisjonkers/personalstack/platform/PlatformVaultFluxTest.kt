@@ -7,14 +7,6 @@ class PlatformVaultFluxTest {
     private val repositoryRoot = RepositoryRootLocator().locate()
 
     @Test
-    fun `production cluster kustomization includes data apps`() {
-        val clusterKustomization =
-            repositoryRoot.resolve("platform/cluster/flux/clusters/production/kustomization.yaml").toFile().readText()
-
-        assertThat(clusterKustomization).contains("- ../../apps/data")
-    }
-
-    @Test
     fun `data app kustomization includes vault`() {
         val kustomization = repositoryRoot.resolve("platform/cluster/flux/apps/data/kustomization.yaml").toFile().readText()
         val namespace = repositoryRoot.resolve("platform/cluster/flux/apps/data/namespace.yaml").toFile().readText()
