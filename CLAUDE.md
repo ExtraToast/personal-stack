@@ -75,8 +75,10 @@ platform operator running ambitious multi-component changes end-to-end.
     (edge, core, utility-system, media-system, data, observability …).
   - `scripts/render/` — toolkit-backed shell wrappers that regenerate YAML.
     Always run after touching `fleet.yaml`, then commit everything.
-  - `tooling/` — Kotlin platform validation test suite plus the fleet
-    model/loader it validates (`:platform:tooling`).
+  - `tests/` — Node platform validation suite (fleet.yaml inventory rules,
+    nix host configs, k3s labels/bootstrap, provisioning scripts, VSO/vault
+    coverage, agent-kit manifest). No Kotlin/gradle: `cd platform/tests &&
+    npm ci && node --test`.
   - `nix/` — flake, hosts, modules, profiles for NixOS nodes.
 - `infra/scripts/` — ops scripts (`make-admin.sh`, etc.).
 
@@ -84,14 +86,14 @@ platform operator running ambitious multi-component changes end-to-end.
 
 Rendering and host-env resolution are owned by
 `@extratoast/deploy-config-schema`; the scripts below call the toolkit.
-`platform/tooling` remains the platform validation test suite.
+Platform validation is the Node suite in `platform/tests`.
 
 ```bash
 platform/scripts/render/render-edge-catalog-configmap.sh
 platform/scripts/render/render-edge-route-catalog-configmap.sh
 platform/scripts/render/render-traefik-ingressroutes.sh
 platform/scripts/render/render-traefik-lan-ingressroutes.sh
-./gradlew :platform:tooling:test
+(cd platform/tests && npm ci && node --test)
 kubectl kustomize platform/cluster/flux/clusters/production > /dev/null
 ```
 
@@ -214,7 +216,7 @@ committed tree, so rendering must happen locally before commit.
 ```bash
 ./gradlew :services:auth-api:test            # unit + integration (Testcontainers)
 ./gradlew :services:auth-api:ktlintCheck     # lint
-./gradlew :platform:tooling:test             # platform validation
+(cd platform/tests && npm ci && node --test)  # platform validation
 (cd services/app-ui && npm run typecheck && npm run lint)
 ```
 

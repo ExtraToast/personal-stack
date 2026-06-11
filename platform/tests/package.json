@@ -1,0 +1,12 @@
+{
+  "name": "@personal-stack/platform-tests",
+  "private": true,
+  "type": "module",
+  "description": "Platform validation tests (fleet.yaml, nix host configs, scripts, agent-kit manifest). Node-based; replaces the Kotlin :platform:tooling test suite.",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "yaml": "^2.8.1"
+  }
+}
