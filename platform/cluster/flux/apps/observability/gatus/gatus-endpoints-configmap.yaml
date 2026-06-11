@@ -161,13 +161,6 @@ data:
       conditions:
       - "[STATUS] == 200"
       - "[RESPONSE_TIME] < 1500"
-    - name: "app-ui"
-      group: "public-apps"
-      url: "https://jorisjonkers.dev/"
-      interval: "60s"
-      conditions:
-      - "[STATUS] == 200"
-      - "[RESPONSE_TIME] < 1500"
     - name: "agents-api"
       group: "public-apps"
       url: "http://agents-api.agents-system.svc.cluster.local:8082/api/actuator/health/readiness"
@@ -185,6 +178,13 @@ data:
     - name: "agents-ws"
       group: "public-apps"
       url: "http://agents-api-ws.agents-system.svc.cluster.local:8082/api/actuator/health/readiness"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
+    - name: "app-ui"
+      group: "public-apps"
+      url: "https://jorisjonkers.dev/"
       interval: "60s"
       conditions:
       - "[STATUS] == 200"

@@ -6,7 +6,7 @@ describe('service registry', () => {
     const permissions = SERVICE_REGISTRY.map((s) => s.permission)
     expect(permissions).toContain('VAULT')
     expect(permissions).toContain('GRAFANA')
-    expect(permissions).toContain('ASSISTANT')
+    expect(permissions).toContain('AGENTS')
     expect(permissions).toContain('DASHBOARD')
     expect(permissions).toContain('TRAEFIK')
     expect(permissions).toContain('RABBITMQ')

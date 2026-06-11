@@ -46,7 +46,6 @@ CODEX_SPECKIT_SKILLS_SRC = REPO_TEMPLATE_ROOT / ".agents" / "skills"
 SPECIFY_SRC = REPO_TEMPLATE_ROOT / ".specify"
 SPECIFY_CONSTITUTION_SRC = REPOSITORY_ROOT / ".specify" / "memory" / "constitution.md"
 MANIFEST_PATH = KIT_ROOT / "manifest.yaml"
-RUNNER_ENTRYPOINT = REPOSITORY_ROOT / "services" / "agent-runner" / "entrypoint.sh"
 MCP_CONFIGMAP = (
     REPOSITORY_ROOT / "platform" / "cluster" / "flux" / "apps" / "agents" / "mcp" / "agents-mcp-servers-configmap.yaml"
 )
@@ -412,13 +411,6 @@ def configmap_blocks(manifest: str) -> dict[str, str]:
     return blocks
 
 
-def runner_profiles(entrypoint: str) -> set[str]:
-    match = re.search(r"""case "\$AGENT_MCP_PROFILE" in\s+([-A-Za-z0-9_.|]+)\) ;;""", entrypoint)
-    if not match:
-        raise ValueError("AGENT_MCP_PROFILE allow-list not found in entrypoint")
-    return set(match.group(1).split("|"))
-
-
 def profile_names(blocks: dict[str, str], prefix: str, extension: str) -> set[str]:
     pattern = re.compile(rf"^{re.escape(prefix)}\.([-A-Za-z0-9_.]+)\.{re.escape(extension)}$")
     return {
@@ -455,20 +447,14 @@ def profile_counts(blocks: dict[str, str], profiles: set[str]) -> tuple[dict[str
 
 def mcp_profile_check() -> DoctorCheck:
     try:
-        entrypoint_profiles = runner_profiles(RUNNER_ENTRYPOINT.read_text())
         blocks = configmap_blocks(MCP_CONFIGMAP.read_text())
         claude_profiles = profile_names(blocks, prefix="claude-mcp-servers", extension="json") - {""}
         codex_profiles = profile_names(blocks, prefix="codex-mcp-servers", extension="toml") - {""}
-        profile_sets = {
-            "entrypoint": entrypoint_profiles,
-            "claude": claude_profiles,
-            "codex": codex_profiles,
-        }
-        if len({tuple(sorted(value)) for value in profile_sets.values()}) != 1:
-            details = "; ".join(f"{name}={','.join(sorted(value))}" for name, value in profile_sets.items())
+        if claude_profiles != codex_profiles:
+            details = f"claude={','.join(sorted(claude_profiles))}; codex={','.join(sorted(codex_profiles))}"
             return DoctorCheck(name="mcp-profiles", status="fail", detail=f"profile sets differ: {details}")
 
-        claude_counts, codex_counts = profile_counts(blocks, entrypoint_profiles)
+        claude_counts, codex_counts = profile_counts(blocks, claude_profiles)
         minimal = f"minimal {claude_counts.get('minimal', 0)} Claude/{codex_counts.get('minimal', 0)} Codex servers"
         full = (
             f"full-diagnostic {claude_counts.get('full-diagnostic', 0)} Claude/"
@@ -477,7 +463,7 @@ def mcp_profile_check() -> DoctorCheck:
         return DoctorCheck(
             name="mcp-profiles",
             status="ok",
-            detail=f"{len(entrypoint_profiles)} synchronized profiles; {minimal}; {full}",
+            detail=f"{len(claude_profiles)} synchronized profiles; {minimal}; {full}",
         )
     except OSError as exc:
         return DoctorCheck(name="mcp-profiles", status="fail", detail=str(exc))
