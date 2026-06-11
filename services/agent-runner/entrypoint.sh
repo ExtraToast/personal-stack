@@ -471,8 +471,15 @@ fi
 # provide the short-lived GitHub App token. This fixes pushes from
 # repo-backed workspaces whose SSH deploy key is absent or read-only,
 # and it also covers `gh pr create` when gh shells out to git.
-git config --global url.https://github.com/.insteadOf git@github.com:
-git config --global url.https://github.com/.insteadOf ssh://git@github.com/
+# Both SSH URL spellings must rewrite to HTTPS. A bare `git config` per
+# value overwrites rather than appends, so setting the key twice dropped
+# the first spelling: only `ssh://git@github.com/` survived and the
+# SCP-style `git@github.com:` form (what the gateway clones) fell through
+# to real SSH + the deploy key. --add keeps both; --unset-all first keeps
+# this idempotent across reboots that reuse the same HOME.
+git config --global --unset-all url.https://github.com/.insteadOf 2>/dev/null || true
+git config --global --add url.https://github.com/.insteadOf git@github.com:
+git config --global --add url.https://github.com/.insteadOf ssh://git@github.com/
 
 # Bound the App-token credential helper to exactly this workspace's repos
 # (primary + REPO_URLS), exported so the helper and the gateway's child git
