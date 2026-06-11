@@ -1,14 +1,9 @@
 plugins {
-    application
     alias(libs.plugins.extratoast.kotlin)
     alias(libs.plugins.extratoast.detekt)
     alias(libs.plugins.extratoast.ktlint)
     alias(libs.plugins.extratoast.test.logging)
     jacoco
-}
-
-application {
-    mainClass = "com.jorisjonkers.personalstack.platform.cli.PlatformInventoryCliKt"
 }
 
 jacoco {

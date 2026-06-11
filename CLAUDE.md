@@ -67,18 +67,24 @@ platform operator running ambitious multi-component changes end-to-end.
   `system-tests` (Playwright).
 - `platform/`
   - `inventory/fleet.yaml` — declarative source of truth: nodes,
-    services, exposure, access, ingress intent. Rendering turns this
-    into Traefik IngressRoutes + catalog ConfigMaps.
+    services, exposure, access, ingress intent. The
+    `@extratoast/deploy-config-schema` toolkit renders this into
+    Traefik IngressRoutes + catalog ConfigMaps and resolves host-env
+    metadata through the platform scripts.
   - `cluster/flux/apps/` — Flux-managed manifests grouped by domain
     (edge, core, utility-system, media-system, data, observability …).
-  - `scripts/render/` — four shell wrappers that regenerate YAML.
+  - `scripts/render/` — toolkit-backed shell wrappers that regenerate YAML.
     Always run after touching `fleet.yaml`, then commit everything.
-  - `tooling/` — Kotlin renderer + validator (`:platform:tooling`).
-    Unit tests gate `fleet.yaml` changes.
+  - `tooling/` — Kotlin platform validation test suite plus the fleet
+    model/loader it validates (`:platform:tooling`).
   - `nix/` — flake, hosts, modules, profiles for NixOS nodes.
 - `infra/scripts/` — ops scripts (`make-admin.sh`, etc.).
 
 ## Render + validate (run after every fleet.yaml change)
+
+Rendering and host-env resolution are owned by
+`@extratoast/deploy-config-schema`; the scripts below call the toolkit.
+`platform/tooling` remains the platform validation test suite.
 
 ```bash
 platform/scripts/render/render-edge-catalog-configmap.sh
@@ -208,7 +214,7 @@ committed tree, so rendering must happen locally before commit.
 ```bash
 ./gradlew :services:auth-api:test            # unit + integration (Testcontainers)
 ./gradlew :services:auth-api:ktlintCheck     # lint
-./gradlew :platform:tooling:test             # renderer + inventory
+./gradlew :platform:tooling:test             # platform validation
 (cd services/app-ui && npm run typecheck && npm run lint)
 ```
 
