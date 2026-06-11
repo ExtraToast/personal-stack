@@ -8,6 +8,7 @@ import com.jorisjonkers.personalstack.common.command.CommandHandler
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.client.RestClientException
 
 @Component
 class AttachWorkspaceRepositoryCommandHandler(
@@ -35,7 +36,7 @@ class AttachWorkspaceRepositoryCommandHandler(
             // back the attach — log and let the boot clone reconcile it.
             try {
                 gateway.clone(workspace, repository.repoUrl, repository.defaultBranch)
-            } catch (e: Exception) {
+            } catch (e: RestClientException) {
                 log.warn(
                     "live clone of {} into workspace {} failed; attach persisted, boot clone will reconcile",
                     repository.repoUrl,

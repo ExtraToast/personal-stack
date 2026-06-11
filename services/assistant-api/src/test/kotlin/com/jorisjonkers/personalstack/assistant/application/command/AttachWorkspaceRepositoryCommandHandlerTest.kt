@@ -14,6 +14,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.web.client.RestClientException
 import java.time.Instant
 
 class AttachWorkspaceRepositoryCommandHandlerTest {
@@ -50,7 +51,7 @@ class AttachWorkspaceRepositoryCommandHandlerTest {
         every { gateway.isReady(workspace) } returns true
         every {
             gateway.clone(workspace, repository.repoUrl, repository.defaultBranch)
-        } throws RuntimeException("clone failed")
+        } throws RestClientException("clone failed")
 
         handler.handle(command)
 
