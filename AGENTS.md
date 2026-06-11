@@ -32,7 +32,12 @@ out task context.
 Run the smallest meaningful checks for the touched area:
 
 - Kotlin service: `./gradlew :services:<service>:test`
-- Platform inventory/rendering: `./gradlew :platform:tooling:test`
+- Platform validation: `./gradlew :platform:tooling:test`
 - Vue UI: `npm run typecheck && npm run lint && npm run test` inside the UI
+
+Rendering and host-env resolution are owned by the
+`@extratoast/deploy-config-schema` toolkit through `platform/scripts/render/*`
+and `platform/scripts/lib/host-env.sh`; `platform/tooling` is the Kotlin
+platform validation test suite plus its fleet model/loader.
 
 When a command cannot run, say exactly why and what remains unverified.

@@ -506,11 +506,12 @@ jobs:
           working-directory: ${{ runner.temp }}
           node-auth-token: ${{ secrets.GITHUB_TOKEN }}
 
-  host-env-parity:
-    # Transitional gate: prove the deploy-config-schema toolkit's host-env
-    # output matches the Kotlin :platform:tooling output for every node,
-    # before the Kotlin renderer is deleted.
-    name: Host Env Parity
+  platform-tooling-tests:
+    # Platform validation test suite (Flux apps, CI/VSO/vault coverage, node
+    # labels, host definitions, scripts, scaffold, agent-kit manifest). The
+    # deploy-config-schema toolkit is installed because some script tests shell
+    # out to platform/scripts wrappers that call it.
+    name: Platform Tooling Tests
     needs: [detect-changes]
     if: needs.detect-changes.outputs.any-platform == 'true'
     runs-on: ubuntu-latest
@@ -522,29 +523,15 @@ jobs:
       - uses: ./.github/actions/setup-node-pnpm
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: Compare Kotlin vs toolkit host-env for every node
+      - name: Install deploy-config-schema toolkit
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           npm install --no-save --prefix "$RUNNER_TEMP/dcs" @extratoast/deploy-config-schema@^0.8.0
-          bin="$RUNNER_TEMP/dcs/node_modules/.bin/deploy-config-schema"
-          fleet="platform/inventory/fleet.yaml"
-          "$bin" fleet-to-deploy-config "$fleet" > "$RUNNER_TEMP/dc.json"
-          nodes="$(python3 -c "import json;print(' '.join(json.load(open('$RUNNER_TEMP/dc.json'))['nodes']))")"
-          fail=0
-          for node in $nodes; do
-            for cmd in show-host-env show-install-host-env; do
-              ./gradlew -q :platform:tooling:run --args="$cmd $node" > "$RUNNER_TEMP/kotlin.env"
-              "$bin" "$cmd" "$fleet" "$node" > "$RUNNER_TEMP/toolkit.env"
-              if ! diff -u "$RUNNER_TEMP/kotlin.env" "$RUNNER_TEMP/toolkit.env"; then
-                echo "::error::host-env drift: $cmd $node"
-                fail=1
-              fi
-            done
-          done
-          [ "$fail" = "0" ] && echo "host-env parity: all nodes match"
-          exit "$fail"
+          echo "DEPLOY_CONFIG_SCHEMA_BIN=$RUNNER_TEMP/dcs/node_modules/.bin/deploy-config-schema" >> "$GITHUB_ENV"
+      - name: Run platform tooling tests
+        run: ./gradlew :platform:tooling:test
 
   security-scan:
     name: Security Scan
@@ -614,7 +601,7 @@ jobs:
       - system-tests
       - platform-validate
       - deploy-config-schema-validate
-      - host-env-parity
+      - platform-tooling-tests
       - security-scan
       - migration-guard
       - contract-validate
