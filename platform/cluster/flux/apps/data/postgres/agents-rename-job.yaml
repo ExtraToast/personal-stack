@@ -1,0 +1,100 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-agents-rename
+  namespace: data-system
+  # The assistant subsystem was renamed to agents. The init script only
+  # runs on a fresh PGDATA, so the live volume still carries the old
+  # assistant_db / assistant_user objects. This one-shot reconcile renames
+  # them in place (preserving all data) so agents-api can reach agents_db
+  # as agents_user. Idempotent: re-running after the rename is a no-op, and
+  # on a fresh cluster (where init already created agents_db) it does
+  # nothing. The force annotation makes Flux recreate the Job whenever the
+  # spec hash drifts.
+  annotations:
+    kustomize.toolkit.fluxcd.io/force: enabled
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres-agents-rename
+      annotations:
+        vault.hashicorp.com/agent-inject: 'true'
+        vault.hashicorp.com/agent-inject-token: 'true'
+        vault.hashicorp.com/agent-pre-populate-only: 'true'
+        vault.hashicorp.com/role: postgres
+        vault.hashicorp.com/agent-inject-secret-postgres.env: secret/data/platform/postgres
+        vault.hashicorp.com/agent-inject-template-postgres.env: |
+          POSTGRES_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "postgres.user" }}{{ end }}
+          POSTGRES_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "postgres.password" }}{{ end }}
+          AGENTS_DB_USER={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "agents.user" }}{{ end }}
+          AGENTS_DB_PASSWORD={{ with secret "secret/data/platform/postgres" }}{{ index .Data.data "agents.password" }}{{ end }}
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: postgres
+      nodeSelector:
+        personal-stack/site: frankfurt
+      containers:
+        - name: reconcile
+          image: postgres:17-alpine
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              set -a
+              . /vault/secrets/postgres.env
+              set +a
+
+              export PGPASSWORD="${POSTGRES_PASSWORD}"
+
+              # Role + database live at the cluster level, so connect to the
+              # default postgres database. ALTER DATABASE ... RENAME cannot run
+              # against the current database or with open connections to the
+              # target, neither of which applies here (the renamer is on
+              # postgres and the assistant stack is gone).
+              psql -v ON_ERROR_STOP=1 \
+                --host=postgres.data-system.svc.cluster.local \
+                --username="${POSTGRES_USER}" \
+                --dbname=postgres <<EOSQL
+              DO \$\$
+              BEGIN
+                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'assistant_user')
+                   AND NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${AGENTS_DB_USER}') THEN
+                  ALTER ROLE assistant_user RENAME TO ${AGENTS_DB_USER};
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${AGENTS_DB_USER}') THEN
+                  CREATE ROLE ${AGENTS_DB_USER} LOGIN;
+                END IF;
+              END
+              \$\$;
+
+              -- Re-set the password from Vault. A md5-hashed password is
+              -- invalidated by RENAME (the salt embeds the old role name);
+              -- scram is not, but setting it unconditionally is harmless and
+              -- guarantees the live role matches secret/platform/postgres.
+              ALTER ROLE ${AGENTS_DB_USER} WITH LOGIN PASSWORD '${AGENTS_DB_PASSWORD}';
+
+              SELECT format('ALTER DATABASE %I RENAME TO %I', 'assistant_db', 'agents_db')
+              WHERE EXISTS (SELECT 1 FROM pg_database WHERE datname = 'assistant_db')
+                AND NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'agents_db')
+              \gexec
+
+              SELECT format('CREATE DATABASE %I OWNER %I', 'agents_db', '${AGENTS_DB_USER}')
+              WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'agents_db')
+              \gexec
+
+              GRANT ALL PRIVILEGES ON DATABASE agents_db TO ${AGENTS_DB_USER};
+              ALTER DATABASE agents_db OWNER TO ${AGENTS_DB_USER};
+              EOSQL
+
+              psql -v ON_ERROR_STOP=1 \
+                --host=postgres.data-system.svc.cluster.local \
+                --username="${POSTGRES_USER}" \
+                --dbname=agents_db <<EOSQL
+              ALTER SCHEMA public OWNER TO ${AGENTS_DB_USER};
+              GRANT ALL ON SCHEMA public TO ${AGENTS_DB_USER};
+              EOSQL
+
+              echo "==> agents_db / ${AGENTS_DB_USER} reconciled."
