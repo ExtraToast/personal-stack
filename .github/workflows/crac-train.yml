@@ -28,6 +28,7 @@ jobs:
             db_user: auth_user
             db_password: auth_password
             port: 8081
+    services:
       postgres:
         image: postgres:17-alpine
         env:
