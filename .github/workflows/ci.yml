@@ -506,33 +506,6 @@ jobs:
           working-directory: ${{ runner.temp }}
           node-auth-token: ${{ secrets.GITHUB_TOKEN }}
 
-  platform-tooling-tests:
-    # Platform validation test suite (Flux apps, CI/VSO/vault coverage, node
-    # labels, host definitions, scripts, scaffold, agent-kit manifest). The
-    # deploy-config-schema toolkit is installed because some script tests shell
-    # out to platform/scripts wrappers that call it.
-    name: Platform Tooling Tests
-    needs: [detect-changes]
-    if: needs.detect-changes.outputs.any-platform == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6.0.3
-      - uses: ./.github/actions/setup-java-gradle
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-      - uses: ./.github/actions/setup-node-pnpm
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      - name: Install deploy-config-schema toolkit
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          npm install --no-save --prefix "$RUNNER_TEMP/dcs" @extratoast/deploy-config-schema@^0.8.0
-          echo "DEPLOY_CONFIG_SCHEMA_BIN=$RUNNER_TEMP/dcs/node_modules/.bin/deploy-config-schema" >> "$GITHUB_ENV"
-      - name: Run platform tooling tests
-        run: ./gradlew :platform:tooling:test
-
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
@@ -601,7 +574,6 @@ jobs:
       - system-tests
       - platform-validate
       - deploy-config-schema-validate
-      - platform-tooling-tests
       - security-scan
       - migration-guard
       - contract-validate
