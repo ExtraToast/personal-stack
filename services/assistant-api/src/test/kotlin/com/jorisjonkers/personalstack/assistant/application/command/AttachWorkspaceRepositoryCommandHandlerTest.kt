@@ -14,6 +14,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.web.client.RestClientException
 import java.time.Instant
 
 class AttachWorkspaceRepositoryCommandHandlerTest {
@@ -34,6 +35,23 @@ class AttachWorkspaceRepositoryCommandHandlerTest {
         every { workspaces.findById(workspaceId) } returns workspace
         every { repositories.findById(repositoryId) } returns repository
         every { gateway.isReady(workspace) } returns true
+
+        handler.handle(command)
+
+        verify { links.attach(workspaceId, repositoryId, isPrimary = false) }
+        verify { gateway.clone(workspace, repository.repoUrl, repository.defaultBranch) }
+    }
+
+    @Test
+    fun `attach persists when the live clone fails`() {
+        val workspace = workspace()
+        val repository = repository()
+        every { workspaces.findById(workspaceId) } returns workspace
+        every { repositories.findById(repositoryId) } returns repository
+        every { gateway.isReady(workspace) } returns true
+        every {
+            gateway.clone(workspace, repository.repoUrl, repository.defaultBranch)
+        } throws RestClientException("clone failed")
 
         handler.handle(command)
 
