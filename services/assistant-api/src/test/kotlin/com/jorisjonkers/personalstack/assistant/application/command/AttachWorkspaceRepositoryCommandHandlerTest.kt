@@ -42,6 +42,23 @@ class AttachWorkspaceRepositoryCommandHandlerTest {
     }
 
     @Test
+    fun `attach persists when the live clone fails`() {
+        val workspace = workspace()
+        val repository = repository()
+        every { workspaces.findById(workspaceId) } returns workspace
+        every { repositories.findById(repositoryId) } returns repository
+        every { gateway.isReady(workspace) } returns true
+        every {
+            gateway.clone(workspace, repository.repoUrl, repository.defaultBranch)
+        } throws RuntimeException("clone failed")
+
+        handler.handle(command)
+
+        verify { links.attach(workspaceId, repositoryId, isPrimary = false) }
+        verify { gateway.clone(workspace, repository.repoUrl, repository.defaultBranch) }
+    }
+
+    @Test
     fun `attaches without live clone when workspace has no gateway yet`() {
         val workspace = workspace(gatewayEndpoint = null)
         every { workspaces.findById(workspaceId) } returns workspace
