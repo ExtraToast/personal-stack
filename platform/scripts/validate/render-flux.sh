@@ -80,54 +80,51 @@ while IFS= read -r chart_file; do
   helm template "${release_name}" "${chart_dir}" >> "${render_output}"
 done < <(find "${flux_root}/apps" -name Chart.yaml | sort)
 
-# Helm legitimately emits empty documents — a template guarded by a
-# false `{{- if }}` still contributes its `---` separator and `# Source`
-# comment but no body. kubeconform -strict treats such an empty document
-# as `error while parsing: missing 'kind' key` and fails the whole run.
-# Strip documents that carry no non-comment content before validating.
-# A genuinely malformed resource (a mapping that really lacks `kind`)
-# parses to non-comment content and is kept, so this never masks a real
-# schema error — it only removes parser noise. Dropped documents are
-# logged (with their `# Source:` line) so chart churn stays visible.
-echo "==> strip empty YAML documents emitted by Helm conditionals"
+# Drop rendered documents that are not Kubernetes resources before
+# validating. Two sources produce them:
+#   - Helm emits an empty document (just a `---` separator and a
+#     `# Source:` comment) when a template is guarded by a false
+#     `{{- if }}`.
+#   - flux-local's HelmRelease expansion can emit a degenerate fragment
+#     (observed: a lone `metadata:` after the grafana Deployment) that a
+#     direct `helm template` does not produce.
+# kubeconform -strict reports either as `error while parsing: missing
+# 'kind' key` and fails the whole run. Every real resource carries a
+# top-level `apiVersion` AND `kind`, so a document with NEITHER is not a
+# resource — drop it as render noise. A genuinely malformed resource
+# (top-level `apiVersion` but no `kind`) is KEPT, so kubeconform still
+# catches real schema errors; this never masks one. Dropped documents
+# are logged (with their `# Source:` line, when present) so chart churn
+# stays visible.
+echo "==> drop non-resource documents (no apiVersion/kind) before kubeconform"
 stripped_output="$(mktemp).yaml"
 trap 'rm -f "${render_output}" "${stripped_output}"' EXIT
 awk '
   function flush() {
-    if (seen) {
-      if (body) {
-        if (!haskind) {
-          printf "   !! doc #%d WITHOUT kind%s (apiVersion=%s); previous doc=[%s]:\n", \
-            docidx, (src ? " (" src ")" : ""), (api ? api : "<none>"), prev > "/dev/stderr"
-          printf "%s----\n", buf > "/dev/stderr"
-        }
-        if (started) print "---"
-        printf "%s", buf
-        started = 1
-        prev = (api ? api : "?") "/" (haskind ? kindval : "?") "/" name
-        docidx++
-      } else {
-        dropped++
-        printf "   dropped empty document%s\n", (src ? " (" src ")" : "") > "/dev/stderr"
-      }
+    if (!seen) return
+    if (haskind || hasapi) {
+      if (started) print "---"
+      printf "%s", buf
+      started = 1
+    } else {
+      dropped++
+      printf "   dropped non-resource document%s (first content line: %s)\n", \
+        (src ? " " src : ""), (firstline ? firstline : "<empty>") > "/dev/stderr"
     }
-    buf = ""; seen = 0; body = 0; src = ""; haskind = 0; api = ""; kindval = ""; name = ""
+    buf = ""; seen = 0; haskind = 0; hasapi = 0; src = ""; firstline = ""
   }
   /^---[[:space:]]*$/ { flush(); next }
   {
     seen = 1
     buf = buf $0 "\n"
-    line = $0
-    sub(/^[[:space:]]+/, "", line)
-    if (line ~ /^# Source:/) { src = line }
-    else if (line != "" && line !~ /^#/) { body = 1 }
-    if ($0 ~ /^kind:[[:space:]]/) { haskind = 1; kindval = $0; sub(/^kind:[[:space:]]*/, "", kindval) }
-    if ($0 ~ /^apiVersion:[[:space:]]/) { api = $0; sub(/^apiVersion:[[:space:]]*/, "", api) }
-    if (name == "" && $0 ~ /^[[:space:]]+name:[[:space:]]/) { name = line; sub(/^name:[[:space:]]*/, "", name) }
+    if (firstline == "" && $0 ~ /[^[:space:]]/ && $0 !~ /^[[:space:]]*#/) { firstline = $0 }
+    if ($0 ~ /^kind:[[:space:]]/) { haskind = 1 }
+    if ($0 ~ /^apiVersion:[[:space:]]/) { hasapi = 1 }
+    line = $0; sub(/^[[:space:]]+/, "", line); if (line ~ /^# Source:/) { src = line }
   }
   END {
     flush()
-    if (dropped) printf "==> stripped %d empty document(s)\n", dropped > "/dev/stderr"
+    if (dropped) printf "==> dropped %d non-resource document(s)\n", dropped > "/dev/stderr"
   }
 ' "${render_output}" > "${stripped_output}"
 render_output="${stripped_output}"
