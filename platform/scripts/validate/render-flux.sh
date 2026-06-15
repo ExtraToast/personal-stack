@@ -80,6 +80,48 @@ while IFS= read -r chart_file; do
   helm template "${release_name}" "${chart_dir}" >> "${render_output}"
 done < <(find "${flux_root}/apps" -name Chart.yaml | sort)
 
+# Helm legitimately emits empty documents — a template guarded by a
+# false `{{- if }}` still contributes its `---` separator and `# Source`
+# comment but no body. kubeconform -strict treats such an empty document
+# as `error while parsing: missing 'kind' key` and fails the whole run.
+# Strip documents that carry no non-comment content before validating.
+# A genuinely malformed resource (a mapping that really lacks `kind`)
+# parses to non-comment content and is kept, so this never masks a real
+# schema error — it only removes parser noise. Dropped documents are
+# logged (with their `# Source:` line) so chart churn stays visible.
+echo "==> strip empty YAML documents emitted by Helm conditionals"
+stripped_output="$(mktemp).yaml"
+trap 'rm -f "${render_output}" "${stripped_output}"' EXIT
+awk '
+  function flush() {
+    if (seen) {
+      if (body) {
+        if (started) print "---"
+        printf "%s", buf
+        started = 1
+      } else {
+        dropped++
+        printf "   dropped empty document%s\n", (src ? " (" src ")" : "") > "/dev/stderr"
+      }
+    }
+    buf = ""; seen = 0; body = 0; src = ""
+  }
+  /^---[[:space:]]*$/ { flush(); next }
+  {
+    seen = 1
+    buf = buf $0 "\n"
+    line = $0
+    sub(/^[[:space:]]+/, "", line)
+    if (line ~ /^# Source:/) { src = line }
+    else if (line != "" && line !~ /^#/) { body = 1 }
+  }
+  END {
+    flush()
+    if (dropped) printf "==> stripped %d empty document(s)\n", dropped > "/dev/stderr"
+  }
+' "${render_output}" > "${stripped_output}"
+render_output="${stripped_output}"
+
 echo "==> kubeconform (strict, no ignore-missing-schemas)"
 # Explicit schema catalogue per CRD source. Datree's CRDs-catalog mirror
 # covers cert-manager, metallb, monitoring.coreos.com, traefik.io and a
