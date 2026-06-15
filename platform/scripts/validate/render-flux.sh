@@ -97,18 +97,21 @@ awk '
     if (seen) {
       if (body) {
         if (!haskind) {
-          printf "   !! kept document WITHOUT kind%s:\n", (src ? " (" src ")" : "") > "/dev/stderr"
+          printf "   !! doc #%d WITHOUT kind%s (apiVersion=%s); previous doc=[%s]:\n", \
+            docidx, (src ? " (" src ")" : ""), (api ? api : "<none>"), prev > "/dev/stderr"
           printf "%s----\n", buf > "/dev/stderr"
         }
         if (started) print "---"
         printf "%s", buf
         started = 1
+        prev = (api ? api : "?") "/" (haskind ? kindval : "?") "/" name
+        docidx++
       } else {
         dropped++
         printf "   dropped empty document%s\n", (src ? " (" src ")" : "") > "/dev/stderr"
       }
     }
-    buf = ""; seen = 0; body = 0; src = ""; haskind = 0
+    buf = ""; seen = 0; body = 0; src = ""; haskind = 0; api = ""; kindval = ""; name = ""
   }
   /^---[[:space:]]*$/ { flush(); next }
   {
@@ -118,7 +121,9 @@ awk '
     sub(/^[[:space:]]+/, "", line)
     if (line ~ /^# Source:/) { src = line }
     else if (line != "" && line !~ /^#/) { body = 1 }
-    if ($0 ~ /^kind:[[:space:]]/) { haskind = 1 }
+    if ($0 ~ /^kind:[[:space:]]/) { haskind = 1; kindval = $0; sub(/^kind:[[:space:]]*/, "", kindval) }
+    if ($0 ~ /^apiVersion:[[:space:]]/) { api = $0; sub(/^apiVersion:[[:space:]]*/, "", api) }
+    if (name == "" && $0 ~ /^[[:space:]]+name:[[:space:]]/) { name = line; sub(/^name:[[:space:]]*/, "", name) }
   }
   END {
     flush()
