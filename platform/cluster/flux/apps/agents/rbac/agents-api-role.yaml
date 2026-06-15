@@ -27,6 +27,17 @@ rules:
   - apiGroups: ['']
     resources: [secrets]
     verbs: [get, list, watch, create, delete, patch]
+  # Read-only existence checks the runner binding inventory runs as a
+  # preflight on every setup-options / session launch / restart:
+  # Fabric8RunnerBindingInventory.inspect() does a `get` on the runner
+  # ServiceAccount and the mcp-servers ConfigMap. These are namespaced,
+  # so unlike the cluster-scoped node-selector check they belong in this
+  # Role. Without them the inspect() `get` throws a 403 that
+  # KubernetesExceptionHandler maps to a 502, taking down session launch
+  # entirely (serviceaccounts fails first; configmaps is the next check).
+  - apiGroups: ['']
+    resources: [serviceaccounts, configmaps]
+    verbs: [get, list, watch]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
