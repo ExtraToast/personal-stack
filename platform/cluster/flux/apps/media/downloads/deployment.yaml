@@ -103,10 +103,19 @@ spec:
           # runs again on every restart and re-converges the file.
           #
           # Two groups of keys are managed:
-          #   [Preferences] WebUI auth-bypass — the port-sync sidecar
-          #     talks to qBittorrent's WebAPI on localhost (shared net
-          #     namespace) and we don't want to ship login credentials
-          #     to a sidecar, so WebAPI auth is skipped for loopback.
+          #   [Preferences] WebUI hardening for the SSO perimeter:
+          #     - auth-bypass for loopback so the port-sync sidecar can
+          #       reach the WebAPI without shipping credentials.
+          #     - CSRF protection off. The host is sso_protected, so
+          #       every request arrives via Traefik forward-auth from a
+          #       cluster IP, already authenticated. qBittorrent's own
+          #       Referer/origin CSRF check fires on a new device's
+          #       first request because the SSO login redirect leaves
+          #       the Referer pointing at the auth domain, not the
+          #       qBittorrent host — a "Referer header & Target origin
+          #       mismatch" 401 that only hits sessions without a prior
+          #       same-origin Referer. Forward-auth is the real CSRF
+          #       boundary, so the redundant check is disabled.
           #   [BitTorrent] DHT/PeX/LSD disabled — peer-discovery
           #     mechanisms that leak swarm participation outside the
           #     tracker; turned off for privacy.
@@ -141,7 +150,7 @@ spec:
               [ -f "$CONF" ] || printf '[Preferences]\n' > "$CONF"
               # Drop any prior versions of every managed key (broken or
               # canonical) so re-runs converge on the right form.
-              grep -v -E '^(WebUI\\?AuthSubnetWhitelist(Enabled)?|Session\\?(DHT|PeX|LSD)Enabled)=' "$CONF" > "$CONF.tmp"
+              grep -v -E '^(WebUI\\?(AuthSubnetWhitelist(Enabled)?|CSRFProtection)|Session\\?(DHT|PeX|LSD)Enabled)=' "$CONF" > "$CONF.tmp"
               # Make sure both section headers survived so the awk
               # insert below has an anchor for each key group.
               grep -qF '[Preferences]' "$CONF.tmp" || printf '[Preferences]\n' >> "$CONF.tmp"
@@ -153,6 +162,7 @@ spec:
                   print
                   print "WebUI\\AuthSubnetWhitelistEnabled=true"
                   print "WebUI\\AuthSubnetWhitelist=127.0.0.0/8, ::1/128"
+                  print "WebUI\\CSRFProtection=false"
                   pref = 1
                   next
                 }
@@ -170,7 +180,7 @@ spec:
               chown -R 1000:1000 "$CONF_DIR"
               chmod 600 "$CONF"
               echo "qBittorrent.conf seeded; managed keys:"
-              grep -E '^(WebUI\\?AuthSubnet|Session\\?(DHT|PeX|LSD)Enabled)' "$CONF" || true
+              grep -E '^(WebUI\\?(AuthSubnet|CSRFProtection)|Session\\?(DHT|PeX|LSD)Enabled)' "$CONF" || true
           volumeMounts:
             - name: qbittorrent-config
               mountPath: /config
