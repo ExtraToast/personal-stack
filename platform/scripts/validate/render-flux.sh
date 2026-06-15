@@ -96,6 +96,10 @@ awk '
   function flush() {
     if (seen) {
       if (body) {
+        if (!haskind) {
+          printf "   !! kept document WITHOUT kind%s:\n", (src ? " (" src ")" : "") > "/dev/stderr"
+          printf "%s----\n", buf > "/dev/stderr"
+        }
         if (started) print "---"
         printf "%s", buf
         started = 1
@@ -104,7 +108,7 @@ awk '
         printf "   dropped empty document%s\n", (src ? " (" src ")" : "") > "/dev/stderr"
       }
     }
-    buf = ""; seen = 0; body = 0; src = ""
+    buf = ""; seen = 0; body = 0; src = ""; haskind = 0
   }
   /^---[[:space:]]*$/ { flush(); next }
   {
@@ -114,6 +118,7 @@ awk '
     sub(/^[[:space:]]+/, "", line)
     if (line ~ /^# Source:/) { src = line }
     else if (line != "" && line !~ /^#/) { body = 1 }
+    if ($0 ~ /^kind:[[:space:]]/) { haskind = 1 }
   }
   END {
     flush()
