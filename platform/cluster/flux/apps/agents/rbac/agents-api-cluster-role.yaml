@@ -1,0 +1,34 @@
+# Node-selector satisfiability for agent setups (spec 010) is a
+# preflight check the agents-api runs when listing setup options and
+# when launching / restarting a session: it lists Nodes matching a
+# setup's nodeSelector to tell the operator whether a runner can be
+# scheduled (e.g. the docker-socket capability label).
+#
+# Nodes are cluster-scoped, so this needs a ClusterRole — the
+# namespaced agents-api-runner-controller Role cannot grant it. Without
+# this, every node-selector check fails with a 403 that the API maps to
+# a 502, breaking setup-options and session launch/restart. agents-api
+# also degrades gracefully when this permission is absent (it then
+# assumes the selector is satisfiable and lets the scheduler arbitrate),
+# but this grant restores accurate preflight validation.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: agents-api-node-reader
+rules:
+  - apiGroups: ['']
+    resources: [nodes]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: agents-api-node-reader
+subjects:
+  - kind: ServiceAccount
+    name: agents-api
+    namespace: agents-system
+roleRef:
+  kind: ClusterRole
+  name: agents-api-node-reader
+  apiGroup: rbac.authorization.k8s.io
