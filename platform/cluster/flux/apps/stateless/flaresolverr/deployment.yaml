@@ -17,8 +17,12 @@ spec:
         personal-stack/site: enschede
       containers:
         - name: flaresolverr
-          image: 21hsmw/flaresolverr:nodriver
-          imagePullPolicy: IfNotPresent
+          # Upstream resumed active development (v3.5.0, 2026-05; now
+          # resolves Turnstile captchas) after the 21hsmw/:nodriver fork
+          # went stale at 2025-03. Track upstream :latest and always
+          # re-pull so restarts pick up new builds without a manifest bump.
+          image: flaresolverr/flaresolverr:latest
+          imagePullPolicy: Always
           env:
             - name: LOG_LEVEL
               value: info
