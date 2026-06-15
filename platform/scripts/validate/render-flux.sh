@@ -80,6 +80,55 @@ while IFS= read -r chart_file; do
   helm template "${release_name}" "${chart_dir}" >> "${render_output}"
 done < <(find "${flux_root}/apps" -name Chart.yaml | sort)
 
+# Drop rendered documents that are not Kubernetes resources before
+# validating. Two sources produce them:
+#   - Helm emits an empty document (just a `---` separator and a
+#     `# Source:` comment) when a template is guarded by a false
+#     `{{- if }}`.
+#   - flux-local's HelmRelease expansion can emit a degenerate fragment
+#     (observed: a lone `metadata:` after the grafana Deployment) that a
+#     direct `helm template` does not produce.
+# kubeconform -strict reports either as `error while parsing: missing
+# 'kind' key` and fails the whole run. Every real resource carries a
+# top-level `apiVersion` AND `kind`, so a document with NEITHER is not a
+# resource — drop it as render noise. A genuinely malformed resource
+# (top-level `apiVersion` but no `kind`) is KEPT, so kubeconform still
+# catches real schema errors; this never masks one. Dropped documents
+# are logged (with their `# Source:` line, when present) so chart churn
+# stays visible.
+echo "==> drop non-resource documents (no apiVersion/kind) before kubeconform"
+stripped_output="$(mktemp).yaml"
+trap 'rm -f "${render_output}" "${stripped_output}"' EXIT
+awk '
+  function flush() {
+    if (!seen) return
+    if (haskind || hasapi) {
+      if (started) print "---"
+      printf "%s", buf
+      started = 1
+    } else {
+      dropped++
+      printf "   dropped non-resource document%s (first content line: %s)\n", \
+        (src ? " " src : ""), (firstline ? firstline : "<empty>") > "/dev/stderr"
+    }
+    buf = ""; seen = 0; haskind = 0; hasapi = 0; src = ""; firstline = ""
+  }
+  /^---[[:space:]]*$/ { flush(); next }
+  {
+    seen = 1
+    buf = buf $0 "\n"
+    if (firstline == "" && $0 ~ /[^[:space:]]/ && $0 !~ /^[[:space:]]*#/) { firstline = $0 }
+    if ($0 ~ /^kind:[[:space:]]/) { haskind = 1 }
+    if ($0 ~ /^apiVersion:[[:space:]]/) { hasapi = 1 }
+    line = $0; sub(/^[[:space:]]+/, "", line); if (line ~ /^# Source:/) { src = line }
+  }
+  END {
+    flush()
+    if (dropped) printf "==> dropped %d non-resource document(s)\n", dropped > "/dev/stderr"
+  }
+' "${render_output}" > "${stripped_output}"
+render_output="${stripped_output}"
+
 echo "==> kubeconform (strict, no ignore-missing-schemas)"
 # Explicit schema catalogue per CRD source. Datree's CRDs-catalog mirror
 # covers cert-manager, metallb, monitoring.coreos.com, traefik.io and a

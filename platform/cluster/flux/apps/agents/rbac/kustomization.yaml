@@ -3,3 +3,4 @@ kind: Kustomization
 
 resources:
   - agents-api-role.yaml
+  - agents-api-cluster-role.yaml
