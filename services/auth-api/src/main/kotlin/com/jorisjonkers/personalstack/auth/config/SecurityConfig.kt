@@ -18,6 +18,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.crypto.factory.PasswordEncoderFactories
 import org.springframework.security.crypto.password.DelegatingPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.security.web.AuthenticationEntryPoint
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.HttpStatusEntryPoint
@@ -26,12 +27,17 @@ import org.springframework.security.web.csrf.CookieCsrfTokenRepository
 import org.springframework.security.web.csrf.CsrfFilter
 import org.springframework.security.web.csrf.CsrfToken
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler
+import org.springframework.security.web.util.matcher.RequestMatcher
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 import org.springframework.web.filter.OncePerRequestFilter
 import java.net.URLEncoder
 
+/**
+ * Browser requests keep using the session cookie, while native clients may
+ * authenticate protected REST endpoints with Authorization-Server JWTs.
+ */
 @Configuration
 @EnableMethodSecurity(prePostEnabled = true)
 class SecurityConfig(
@@ -63,6 +69,8 @@ class SecurityConfig(
     fun applicationSecurityFilterChain(
         http: HttpSecurity,
         corsConfigurationSource: CorsConfigurationSource,
+        jwtDecoder: JwtDecoder,
+        jwtAuthenticationConverter: JwtAuthenticatedUserConverter,
     ): SecurityFilterChain {
         http
             .cors { it.configurationSource(corsConfigurationSource) }
@@ -70,7 +78,12 @@ class SecurityConfig(
             .csrf { configureCsrf(it) }
             .addFilterAfter(CsrfCookieFilter(), CsrfFilter::class.java)
             .authorizeHttpRequests { configureAuthorization(it) }
-            .exceptionHandling { it.authenticationEntryPoint(HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)) }
+            .oauth2ResourceServer { resourceServer ->
+                resourceServer.jwt { jwt ->
+                    jwt.decoder(jwtDecoder)
+                    jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)
+                }
+            }.exceptionHandling { it.authenticationEntryPoint(HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)) }
         return http.build()
     }
 
@@ -89,6 +102,7 @@ class SecurityConfig(
         )
         csrf.csrfTokenRequestHandler(CsrfTokenRequestAttributeHandler())
         csrf.ignoringRequestMatchers(*(PUBLIC_POST_ENDPOINTS + CSRF_FREE_ENDPOINTS))
+        csrf.ignoringRequestMatchers(bearerTokenRequestMatcher())
     }
 
     private fun configureAuthorization(
@@ -136,6 +150,9 @@ class SecurityConfig(
             }
         return ProviderManager(provider)
     }
+
+    @Bean
+    fun jwtAuthenticationConverter(): JwtAuthenticatedUserConverter = JwtAuthenticatedUserConverter()
 
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
@@ -188,6 +205,13 @@ class SecurityConfig(
                 "/api/v1/auth/reset-password",
             )
     }
+
+    private fun bearerTokenRequestMatcher(): RequestMatcher =
+        RequestMatcher { request ->
+            request
+                .getHeader("Authorization")
+                ?.startsWith("Bearer ", ignoreCase = true) == true
+        }
 
     private class CsrfCookieFilter : OncePerRequestFilter() {
         override fun shouldNotFilter(request: HttpServletRequest): Boolean {
