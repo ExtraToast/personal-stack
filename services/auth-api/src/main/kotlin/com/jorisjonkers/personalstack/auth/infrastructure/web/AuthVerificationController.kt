@@ -2,6 +2,7 @@ package com.jorisjonkers.personalstack.auth.infrastructure.web
 
 import com.jorisjonkers.personalstack.auth.domain.model.ServicePermission
 import com.jorisjonkers.personalstack.auth.infrastructure.security.AuthenticatedUser
+import com.jorisjonkers.personalstack.auth.infrastructure.security.TokenService
 import jakarta.servlet.http.HttpSession
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -23,7 +24,9 @@ import java.time.Instant
  */
 @RestController
 @RequestMapping("/api/v1/auth")
-class AuthVerificationController {
+class AuthVerificationController(
+    private val tokenService: TokenService,
+) {
     @GetMapping("/verify")
     fun verify(
         @AuthenticationPrincipal user: AuthenticatedUser,
@@ -37,12 +40,20 @@ class AuthVerificationController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
 
+        val userId = user.userId.toString()
         val rolesHeader = user.roles.joinToString(",")
+        val agentsAssertion =
+            tokenService.createAgentsAssertionToken(
+                userId = userId,
+                username = user.getUsername(),
+                roles = user.roles,
+            )
 
         return ResponseEntity
             .ok()
-            .header("X-User-Id", user.userId.toString())
+            .header("X-User-Id", userId)
             .header("X-User-Roles", rolesHeader)
+            .header("X-Agents-Verified-Jwt", agentsAssertion)
             .build()
     }
 

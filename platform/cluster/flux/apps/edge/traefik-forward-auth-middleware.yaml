@@ -10,3 +10,4 @@ spec:
     authResponseHeaders:
       - X-User-Id
       - X-User-Roles
+      - X-Agents-Verified-Jwt

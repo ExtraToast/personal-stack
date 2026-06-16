@@ -2,6 +2,9 @@ package com.jorisjonkers.personalstack.auth.infrastructure.web
 
 import com.jorisjonkers.personalstack.auth.domain.model.UserId
 import com.jorisjonkers.personalstack.auth.infrastructure.security.AuthenticatedUser
+import com.jorisjonkers.personalstack.auth.infrastructure.security.TokenService
+import io.mockk.every
+import io.mockk.mockk
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
@@ -9,7 +12,12 @@ import org.springframework.mock.web.MockHttpSession
 import java.util.UUID
 
 class AuthVerificationControllerTest {
-    private val controller = AuthVerificationController()
+    private val agentsAssertionToken = "agents-assertion-token"
+    private val tokenService =
+        mockk<TokenService> {
+            every { createAgentsAssertionToken(any(), any(), any()) } returns agentsAssertionToken
+        }
+    private val controller = AuthVerificationController(tokenService)
 
     private val defaultUserId = UUID.randomUUID()
 
@@ -33,6 +41,7 @@ class AuthVerificationControllerTest {
         assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
         assertThat(response.headers["X-User-Id"]).containsExactly(defaultUserId.toString())
         assertThat(response.headers["X-User-Roles"]).containsExactly("ROLE_USER,SERVICE_VAULT")
+        assertThat(response.headers["X-Agents-Verified-Jwt"]).containsExactly(agentsAssertionToken)
         assertThat(session.getAttribute(AuthVerificationController.LAST_VERIFIED_AT_SESSION_KEY)).isNotNull()
     }
 

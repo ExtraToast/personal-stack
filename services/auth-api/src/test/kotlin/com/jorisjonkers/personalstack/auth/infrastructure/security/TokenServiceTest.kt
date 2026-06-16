@@ -122,4 +122,20 @@ class TokenServiceTest {
         val diffMinutes = ChronoUnit.MINUTES.between(issuedAt, expiresAt)
         assertThat(diffMinutes).isEqualTo(5)
     }
+
+    @Test
+    fun `agents assertion token includes agents-api audience and user claims`() {
+        val roles = listOf("ROLE_USER", "SERVICE_AGENTS")
+        val token = tokenService.createAgentsAssertionToken("user-123", "alice", roles)
+
+        val jwt = jwtDecoder.decode(token)
+        val expiresAt = jwt.expiresAt!!
+        val issuedAt = jwt.issuedAt!!
+
+        assertThat(jwt.audience).contains("agents-api")
+        assertThat(jwt.subject).isEqualTo("user-123")
+        assertThat(jwt.getClaimAsStringList("roles")).containsExactlyElementsOf(roles)
+        assertThat(jwt.getClaimAsString("username")).isEqualTo("alice")
+        assertThat(ChronoUnit.SECONDS.between(issuedAt, expiresAt)).isBetween(119L, 121L)
+    }
 }
