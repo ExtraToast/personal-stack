@@ -962,21 +962,30 @@ test('knowledge-api installer placeholders and public routes stay exposed', asyn
     'KB_URL="${KB_URL:-@KB_URL@}"',
     '${KB_URL}/install.sh',
   )
+  const installAgents = await readRepoText('services/knowledge-api/src/main/resources/installer/install-agents.sh')
+  assertContains(installAgents, "readonly INSTALLER_VERSION='@VERSION@'", "readonly KB_URL='@KB_URL@'", '${KB_URL%/}/install.sh')
   const fleet = await readYamlRepo('platform/inventory/fleet.yaml')
   const route = fleet.ingress_intent.route_rules.find((item) => item.name === 'knowledge-api-mcp')
   assert.equal(route.service, 'knowledge-api')
   assert.equal(route.access, 'direct')
-  assertSameMembers(route.exact_paths, ['/mcp', '/install.sh'])
+  assertSameMembers(route.exact_paths, ['/mcp', '/install.sh', '/install-agents.sh'])
   assert.deepEqual(route.path_prefixes, ['/mcp/'])
   const appRoute = fleet.ingress_intent.route_rules.find(
     (item) => item.service === 'knowledge-api' && item.name !== 'knowledge-api-mcp',
   )
-  assertSameMembers(appRoute.excluded_exact_paths, ['/mcp', '/install.sh'])
+  assertSameMembers(appRoute.excluded_exact_paths, ['/mcp', '/install.sh', '/install-agents.sh'])
   assert.deepEqual(appRoute.excluded_path_prefixes, ['/mcp/'])
   const catalog = await readRepoText('platform/cluster/flux/apps/edge/edge-route-catalog-configmap.yaml')
   const ingressRoutes = await readRepoText('platform/cluster/flux/apps/edge/traefik-ingressroutes.yaml')
-  assertContains(catalog, 'name: "knowledge-api-mcp"', '- "/mcp"', '- "/install.sh"', '- "/mcp/"')
-  assertContains(ingressRoutes, 'name: knowledge-api-mcp', 'Path(`/install.sh`)', 'Path(`/mcp`)', 'PathPrefix(`/mcp/`)')
+  assertContains(catalog, 'name: "knowledge-api-mcp"', '- "/mcp"', '- "/install.sh"', '- "/install-agents.sh"', '- "/mcp/"')
+  assertContains(
+    ingressRoutes,
+    'name: knowledge-api-mcp',
+    'Path(`/install.sh`)',
+    'Path(`/install-agents.sh`)',
+    'Path(`/mcp`)',
+    'PathPrefix(`/mcp/`)',
+  )
 })
 
 async function installAgentKit(dir, prefix) {

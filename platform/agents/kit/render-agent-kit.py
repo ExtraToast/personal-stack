@@ -25,6 +25,11 @@ EXTRA_TEMPLATES = (
         Path("services/knowledge-api/src/main/resources/installer/install.sh"),
         True,
     ),
+    (
+        KIT_ROOT / "templates" / "installer" / "install-agents.sh.tpl",
+        Path("services/knowledge-api/src/main/resources/installer/install-agents.sh"),
+        False,
+    ),
 )
 INCLUDE_PATTERN = re.compile(r"^# @agent-kit-include (?P<path>[A-Za-z0-9_./-]+)$")
 # council is a multi-file skill; its install block + uninstall manifest lines are
