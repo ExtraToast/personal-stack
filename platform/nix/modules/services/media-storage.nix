@@ -33,6 +33,9 @@
     "z /srv/media/TimeMachine 0775 deploy deploy - -"
     "d /srv/media/Photos 0775 deploy deploy - -"
     "z /srv/media/Photos 0775 deploy deploy - -"
+    # NVMe scratch for in-progress torrent writes (see fileSystems below).
+    "d /srv/media-incomplete 0775 deploy deploy - -"
+    "z /srv/media-incomplete 0775 deploy deploy - -"
     "d /srv/media-views 0755 root root - -"
     # Parent dirs are regular directories on the rootfs — keep them
     # owned by root:root 0755. The /<leaf> entries below are the bind
@@ -90,6 +93,34 @@
         "noatime"
         "compress=zstd:3"
         "nofail"
+      ];
+    };
+    "/srv/media-incomplete" = {
+      # NVMe scratch for qBittorrent in-progress (incomplete) torrent data.
+      # Lives as a dedicated @media-incomplete subvolume on the existing
+      # backup pool (LABEL=backup, the 512 GB MZVLB M.2) — it coexists with
+      # @backup / @snapshots, which are NOT touched. Out-of-order torrent
+      # piece writes are random I/O that the 5400-class /srv/media HDD pool
+      # handles poorly; landing them on the SSD and letting qBittorrent move
+      # the finished file to the HDD save path in one sequential pass removes
+      # the download bottleneck.
+      #
+      # nodatacow: torrent files are rewritten in place out-of-order — btrfs
+      # CoW would fragment them badly — and disables checksums/compression
+      # for this scratch subvolume (acceptable; the data is transient and
+      # video is already incompressible).
+      #
+      # The subvolume is created out-of-band (it cannot be added to the disko
+      # config without reformatting the whole disk); see the deploy note in
+      # the PR. nofail keeps a missing subvolume from wedging local-fs.target.
+      device = "/dev/disk/by-label/backup";
+      fsType = "btrfs";
+      options = [
+        "subvol=@media-incomplete"
+        "noatime"
+        "nodatacow"
+        "nofail"
+        "x-systemd.device-timeout=10s"
       ];
     };
     "/srv/media-views/media-downloads/Downloading" = {
