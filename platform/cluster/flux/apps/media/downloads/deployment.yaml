@@ -27,21 +27,24 @@ spec:
         vault.hashicorp.com/role: downloads
         vault.hashicorp.com/agent-inject-secret-gluetun.env: secret/data/platform/media
         vault.hashicorp.com/agent-inject-template-gluetun.env: |
-          # Gluetun has no native PIA WireGuard provider, so PIA runs here as
-          # a `custom` WireGuard endpoint. The key/address/endpoint below are
-          # generated off-cluster once with pia-wg-config (PIA username +
-          # password against a port-forward-capable region) and stored in
-          # Vault. They pin one PIA WireGuard server; regenerate the config
-          # and update the Vault keys if PIA retires that server. WireGuard
-          # raises single-tunnel throughput well above the prior OpenVPN
-          # transport, which capped seed/upload bandwidth to family peers.
-          VPN_SERVICE_PROVIDER='custom'
+          # ProtonVPN via gluetun's NATIVE WireGuard provider. Unlike the
+          # earlier PIA `custom` setup, gluetun supplies the server public
+          # key, endpoint and tunnel addresses itself — the only secret
+          # required is the account's WireGuard private key, and one key
+          # works for every Proton server. Generate it at
+          # https://account.proton.me/u/0/vpn/WireGuard with NAT-PMP (port
+          # forwarding) enabled, then store the PrivateKey value in Vault.
+          # WireGuard on Proton's high-capacity servers lifts single-tunnel
+          # throughput far above the old OpenVPN transport that capped
+          # seed/upload bandwidth to family peers.
+          VPN_SERVICE_PROVIDER='protonvpn'
           VPN_TYPE='wireguard'
-          WIREGUARD_PRIVATE_KEY='{{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.wg_private_key" }}{{ end }}'
-          WIREGUARD_ADDRESSES='{{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.wg_addresses" }}{{ end }}'
-          WIREGUARD_PUBLIC_KEY='{{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.wg_server_public_key" }}{{ end }}'
-          VPN_ENDPOINT_IP='{{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.wg_endpoint_ip" }}{{ end }}'
-          VPN_ENDPOINT_PORT='{{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.wg_endpoint_port" }}{{ end }}'
+          WIREGUARD_PRIVATE_KEY='{{ with secret "secret/data/platform/media" }}{{ index .Data.data "proton.wg_private_key" }}{{ end }}'
+          # Connect only to Netherlands servers that support port forwarding,
+          # keeping the VPN exit next to the home uplink for the
+          # lowest-latency path to family peers in NL.
+          SERVER_COUNTRIES='Netherlands'
+          PORT_FORWARD_ONLY='on'
           # FIREWALL_OUTBOUND_SUBNETS is Gluetun's kill-switch allow-list:
           # anything outbound outside the VPN tunnel that doesn't match
           # one of these CIDRs gets dropped. We need:
@@ -56,28 +59,17 @@ spec:
           #                      ClusterIP addresses
           FIREWALL_OUTBOUND_SUBNETS='100.64.0.0/10,192.168.0.0/16,172.16.0.0/12,10.42.0.0/16,10.43.0.0/16'
           FIREWALL_INPUT_PORTS='8080,9696'
-          # PIA hands out a forwarded inbound port; without it qBittorrent
-          # can only reach peers via outbound connections, which starves
-          # upload throughput. Gluetun negotiates and renews the port via
-          # PIA's API and exposes it on its HTTP control server at
-          # GET /v1/openvpn/portforwarded . The qbittorrent-port-sync
-          # sidecar below pushes the assigned port into qBittorrent's
-          # listen socket whenever it changes.
-          #
-          # Under VPN_SERVICE_PROVIDER=custom, Gluetun no longer knows the
-          # endpoint is PIA, so the port-forward provider is named
-          # explicitly and authenticated with the PIA account credentials.
-          # SERVER_NAMES must be the certificate common name (cn) of the
-          # exact WireGuard server in pia.wg_endpoint_ip — e.g. amsterdam426,
-          # NOT the region id nl_amsterdam — because PIA's port-forward API
-          # is a TLS call to that gateway and validates its cert cn. The cn
-          # comes from PIA's server list, matched on the endpoint ip; only
-          # port-forward-capable servers (most non-US) hand out a port.
+          # Proton hands out an inbound port via NAT-PMP on its P2P servers;
+          # without it qBittorrent can only reach peers via outbound
+          # connections, which starves upload throughput. Gluetun negotiates
+          # and renews the NAT-PMP lease internally and exposes the assigned
+          # port on its HTTP control server at GET /v1/openvpn/portforwarded .
+          # The qbittorrent-port-sync sidecar below pushes that port into
+          # qBittorrent's listen socket whenever it changes — a live WebAPI
+          # call, no container restart. The native protonvpn provider needs
+          # no port-forward username or server-name; PORT_FORWARD_ONLY above
+          # guarantees a PF-capable server is selected.
           VPN_PORT_FORWARDING=on
-          VPN_PORT_FORWARDING_PROVIDER='private internet access'
-          VPN_PORT_FORWARDING_USERNAME='{{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.username" }}{{ end }}'
-          VPN_PORT_FORWARDING_PASSWORD='{{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.password" }}{{ end }}'
-          SERVER_NAMES='{{ with secret "secret/data/platform/media" }}{{ index .Data.data "pia.wg_server_name" }}{{ end }}'
           # By default Gluetun owns /etc/resolv.conf and points it at its
           # own DoT resolver (so public DNS leaks can't escape the tunnel).
           # That also means cluster DNS (coredns at 10.43.0.10) gets
@@ -229,10 +221,13 @@ spec:
                 - NET_RAW
           resources:
             requests:
-              cpu: 400m
+              cpu: 500m
               memory: 256Mi
+            # WireGuard crypto is CPU-bound; the prior 800m ceiling throttled
+            # throughput toward family peers. Two cores lets a single tunnel
+            # approach the ~1 Gbit home uplink (kernelspace WireGuard).
             limits:
-              cpu: 800m
+              cpu: '2000m'
               memory: 512Mi
         - name: qbittorrent
           image: linuxserver/qbittorrent:latest
