@@ -174,7 +174,7 @@ spec:
               [ -f "$CONF" ] || printf '[Preferences]\n' > "$CONF"
               # Drop any prior versions of every managed key (broken or
               # canonical) so re-runs converge on the right form.
-              grep -v -E '^(WebUI\\?(AuthSubnetWhitelist(Enabled)?|CSRFProtection)|Session\\?((DHT|PeX|LSD)Enabled|TempPath(Enabled)?))=' "$CONF" > "$CONF.tmp"
+              grep -v -E '^(WebUI\\?(AuthSubnetWhitelist(Enabled)?|CSRFProtection)|Session\\?((DHT|PeX|LSD)Enabled|TempPath(Enabled)?|DefaultSavePath))=' "$CONF" > "$CONF.tmp"
               # Make sure both section headers survived so the awk
               # insert below has an anchor for each key group.
               grep -qF '[Preferences]' "$CONF.tmp" || printf '[Preferences]\n' >> "$CONF.tmp"
@@ -202,6 +202,15 @@ spec:
                   # path in one sequential pass on completion.
                   print "Session\\TempPathEnabled=true"
                   print "Session\\TempPath=/media/Incomplete"
+                  # Completed/save path = /media/Completed (-> hostPath
+                  # /srv/media/Completed), the directory Sonarr/Radarr import
+                  # from. Pinning it here makes qBittorrent fully config-driven
+                  # and interchangeable — a fresh instance lands finished
+                  # torrents where the *arr stack already looks, no manual
+                  # path setup. On completion qBittorrent moves the file from
+                  # the NVMe TempPath to here in one sequential, HDD-friendly
+                  # pass.
+                  print "Session\\DefaultSavePath=/media/Completed"
                   bt = 1
                   next
                 }
@@ -211,7 +220,7 @@ spec:
               chown -R 1000:1000 "$CONF_DIR"
               chmod 600 "$CONF"
               echo "qBittorrent.conf seeded; managed keys:"
-              grep -E '^(WebUI\\?(AuthSubnet|CSRFProtection)|Session\\?((DHT|PeX|LSD)Enabled|TempPath(Enabled)?))' "$CONF" || true
+              grep -E '^(WebUI\\?(AuthSubnet|CSRFProtection)|Session\\?((DHT|PeX|LSD)Enabled|TempPath(Enabled)?|DefaultSavePath))' "$CONF" || true
           volumeMounts:
             - name: qbittorrent-config
               mountPath: /config
