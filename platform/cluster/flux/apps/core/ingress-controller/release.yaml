@@ -8,6 +8,11 @@ spec:
   chart:
     spec:
       chart: traefik
+      # Pinned: the chart was floating on '*' and silently rolled to 41.0.0,
+      # whose values schema dropped the top-level `logs:` key — Flux then
+      # failed every upgrade. Pin to an explicit version so chart bumps land
+      # as reviewable Renovate PRs instead of breaking reconciliation.
+      version: '41.0.0'
       sourceRef:
         kind: HelmRepository
         name: traefik
@@ -60,20 +65,23 @@ spec:
           default: false
         exposedPort: 9100
         protocol: TCP
-    logs:
-      general:
-        format: json
-      access:
-        enabled: true
-        format: json
-        fields:
-          defaultMode: keep
-          headers:
-            defaultMode: drop
-            names:
-              User-Agent: keep
-              Referer: keep
-              X-Forwarded-For: keep
+    # Traefik chart 41.0.0 split the old top-level `logs:` key into `log:`
+    # (general logging) and `accessLog:` (access logging). Same behaviour as
+    # before — JSON format, access logging on, headers dropped except a kept
+    # allow-list — re-expressed under the new keys.
+    log:
+      format: json
+    accessLog:
+      enabled: true
+      format: json
+      fields:
+        defaultMode: keep
+        headers:
+          defaultMode: drop
+          names:
+            User-Agent: keep
+            Referer: keep
+            X-Forwarded-For: keep
     metrics:
       # Without `enabled: true` the chart silently skips wiring the
       # static config block, so the Prometheus endpoint never came
