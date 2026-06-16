@@ -204,8 +204,13 @@ spec:
             requests:
               cpu: 500m
               memory: 4Gi
+            # CPU capped at 2 cores (was 4): this CPU-only fallback shares
+            # enschede-t1000-1 with the qBittorrent/gluetun seedbox, and
+            # qwen3:8b extraction otherwise pegs all 4 cores and starves
+            # transfer throughput. Slower knowledge inference is an accepted
+            # trade-off for guaranteed seedbox CPU headroom. Memory unchanged.
             limits:
-              cpu: 4000m
+              cpu: 2000m
               memory: 10Gi
 ---
 apiVersion: v1
