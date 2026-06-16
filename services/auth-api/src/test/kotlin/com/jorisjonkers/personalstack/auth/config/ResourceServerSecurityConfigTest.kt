@@ -23,6 +23,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
+import org.springframework.test.web.servlet.setup.StandaloneMockMvcBuilder
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.filter.OncePerRequestFilter
@@ -45,7 +46,7 @@ class ResourceServerSecurityConfigTest {
         mockMvc =
             MockMvcBuilders
                 .standaloneSetup(TestController())
-                .addFilters(
+                .addFilters<StandaloneMockMvcBuilder>(
                     SecurityContextCleanupFilter(),
                     bearerTokenFilter,
                     ProtectedEndpointAuthorizationFilter(),
@@ -142,7 +143,7 @@ class ResourceServerSecurityConfigTest {
     private class TestController {
         @GetMapping("/api/v1/users/me")
         fun me(): Map<String, Any> {
-            val user = SecurityContextHolder.getContext().authentication.principal as AuthenticatedUser
+            val user = SecurityContextHolder.getContext().authentication!!.principal as AuthenticatedUser
             return mapOf(
                 "userId" to user.userId,
                 "username" to user.username,
