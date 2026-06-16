@@ -50,8 +50,7 @@ class ResourceServerSecurityConfigTest {
                     SecurityContextCleanupFilter(),
                     bearerTokenFilter,
                     ProtectedEndpointAuthorizationFilter(),
-                )
-                .build()
+                ).build()
     }
 
     @Test
@@ -72,8 +71,7 @@ class ResourceServerSecurityConfigTest {
         assertThat(user.userId).isEqualTo(userId)
         assertThat(user.username).isEqualTo("alice")
         assertThat(user.roles).containsExactly("ROLE_USER", "SERVICE_GRAFANA")
-        assertThat(authentication.authorities.map { it.authority })
-            .containsExactly("ROLE_USER", "SERVICE_GRAFANA")
+        assertThat(authentication.authorities.map { it.authority }).containsExactly("ROLE_USER", "SERVICE_GRAFANA")
     }
 
     @Test
@@ -94,9 +92,7 @@ class ResourceServerSecurityConfigTest {
     fun `converter rejects non UUID subject`() {
         assertThatThrownBy {
             converter.convert(buildJwt(subject = "not-a-uuid"))
-        }
-            .isInstanceOf(BadCredentialsException::class.java)
-            .hasMessageContaining("JWT subject must be a user UUID")
+        }.isInstanceOf(BadCredentialsException::class.java).hasMessageContaining("JWT subject must be a user UUID")
     }
 
     @Test
