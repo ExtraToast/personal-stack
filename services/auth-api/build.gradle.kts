@@ -63,7 +63,13 @@ tasks.register<JavaExec>("exportOpenApiSpec") {
     description = "Starts auth-api for OpenAPI export on OPENAPI_EXPORT_PORT, defaulting to 8099"
     dependsOn(tasks.named("bootJar"))
     mainClass.set("org.springframework.boot.loader.launch.JarLauncher")
-    classpath = files(tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar").get().archiveFile)
+    classpath =
+        files(
+            tasks
+                .named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar")
+                .get()
+                .archiveFile,
+        )
     val openApiExportPort =
         providers.gradleProperty("openapi.export.port")
             .orElse(providers.environmentVariable("OPENAPI_EXPORT_PORT"))

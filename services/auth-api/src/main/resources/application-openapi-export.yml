@@ -1,0 +1,18 @@
+spring:
+  main:
+    lazy-initialization: true
+  flyway:
+    enabled: false
+  sql:
+    init:
+      enabled: false
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      - org.springframework.boot.jooq.autoconfigure.JooqAutoConfiguration
+      - org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration
+
+management:
+  health:
+    db:
+      enabled: false
