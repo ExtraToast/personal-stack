@@ -174,7 +174,7 @@ spec:
               [ -f "$CONF" ] || printf '[Preferences]\n' > "$CONF"
               # Drop any prior versions of every managed key (broken or
               # canonical) so re-runs converge on the right form.
-              grep -v -E '^(WebUI\\?(AuthSubnetWhitelist(Enabled)?|CSRFProtection)|Session\\?(DHT|PeX|LSD)Enabled)=' "$CONF" > "$CONF.tmp"
+              grep -v -E '^(WebUI\\?(AuthSubnetWhitelist(Enabled)?|CSRFProtection)|Session\\?((DHT|PeX|LSD)Enabled|TempPath(Enabled)?))=' "$CONF" > "$CONF.tmp"
               # Make sure both section headers survived so the awk
               # insert below has an anchor for each key group.
               grep -qF '[Preferences]' "$CONF.tmp" || printf '[Preferences]\n' >> "$CONF.tmp"
@@ -195,6 +195,13 @@ spec:
                   print "Session\\DHTEnabled=false"
                   print "Session\\PeXEnabled=false"
                   print "Session\\LSDEnabled=false"
+                  # In-progress (incomplete) torrent data goes to the NVMe
+                  # scratch subvolume (/media/Incomplete -> hostPath
+                  # /srv/media-incomplete) instead of the 5400-class HDD
+                  # pool; qBittorrent moves the finished file to its save
+                  # path in one sequential pass on completion.
+                  print "Session\\TempPathEnabled=true"
+                  print "Session\\TempPath=/media/Incomplete"
                   bt = 1
                   next
                 }
@@ -204,7 +211,7 @@ spec:
               chown -R 1000:1000 "$CONF_DIR"
               chmod 600 "$CONF"
               echo "qBittorrent.conf seeded; managed keys:"
-              grep -E '^(WebUI\\?(AuthSubnet|CSRFProtection)|Session\\?(DHT|PeX|LSD)Enabled)' "$CONF" || true
+              grep -E '^(WebUI\\?(AuthSubnet|CSRFProtection)|Session\\?((DHT|PeX|LSD)Enabled|TempPath(Enabled)?))' "$CONF" || true
           volumeMounts:
             - name: qbittorrent-config
               mountPath: /config
@@ -294,6 +301,8 @@ spec:
               mountPath: /media/Downloading
             - name: media-completed
               mountPath: /media/Completed
+            - name: media-incomplete
+              mountPath: /media/Incomplete
             - name: qbittorrent-config
               mountPath: /config
           # Piece hashing and disk I/O at ~1 Gbit are real CPU in qBittorrent's
@@ -455,6 +464,15 @@ spec:
         - name: media-completed
           hostPath:
             path: /srv/media/Completed
+            type: Directory
+        # NVMe scratch for in-progress torrents (see nix media-storage.nix).
+        # type: Directory (not DirectoryOrCreate) on purpose: if the node
+        # mount /srv/media-incomplete is somehow absent, the pod stays
+        # Pending rather than silently creating the dir on the root disk and
+        # filling it with download data.
+        - name: media-incomplete
+          hostPath:
+            path: /srv/media-incomplete
             type: Directory
         - name: qbittorrent-config
           hostPath:
