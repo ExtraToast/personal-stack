@@ -36,6 +36,11 @@
     # NVMe scratch for in-progress torrent writes (see fileSystems below).
     "d /srv/media-incomplete 0775 deploy deploy - -"
     "z /srv/media-incomplete 0775 deploy deploy - -"
+    # nodatacow for the scratch subvolume, set as a directory attribute so
+    # new incomplete files inherit it (the mount option can't override the
+    # filesystem-wide CoW/compress — see fileSystems below). Avoids btrfs
+    # CoW fragmentation and pointless zstd on incompressible torrent data.
+    "h /srv/media-incomplete - - - - +C"
     "d /srv/media-views 0755 root root - -"
     # Parent dirs are regular directories on the rootfs — keep them
     # owned by root:root 0755. The /<leaf> entries below are the bind
@@ -96,29 +101,27 @@
       ];
     };
     "/srv/media-incomplete" = {
-      # NVMe scratch for qBittorrent in-progress (incomplete) torrent data.
-      # Lives as a dedicated @media-incomplete subvolume on the existing
-      # backup pool (LABEL=backup, the 512 GB MZVLB M.2) — it coexists with
-      # @backup / @snapshots, which are NOT touched. Out-of-order torrent
-      # piece writes are random I/O that the 5400-class /srv/media HDD pool
-      # handles poorly; landing them on the SSD and letting qBittorrent move
-      # the finished file to the HDD save path in one sequential pass removes
-      # the download bottleneck.
+      # NVMe scratch for qBittorrent in-progress (incomplete) torrent data:
+      # the @media-incomplete subvolume on the backup pool (LABEL=backup,
+      # the 512 GB MZVLB M.2), a sibling of @backup / @snapshots. The
+      # subvolume itself is declared in hosts/enschede-t1000-1/disko-backup.nix
+      # so disko creates it at install on any fresh node; this entry just
+      # mounts it. Out-of-order torrent piece writes are random I/O the
+      # 5400-class /srv/media HDD pool handles poorly; landing them on the SSD
+      # and moving the finished file to the HDD save path in one sequential
+      # pass removes the download bottleneck.
       #
-      # nodatacow: torrent files are rewritten in place out-of-order — btrfs
-      # CoW would fragment them badly — and disables checksums/compression
-      # for this scratch subvolume (acceptable; the data is transient and
-      # video is already incompressible).
-      #
-      # The subvolume is created out-of-band (it cannot be added to the disko
-      # config without reformatting the whole disk); see the deploy note in
-      # the PR. nofail keeps a missing subvolume from wedging local-fs.target.
+      # No `nodatacow` mount option here: btrfs CoW/compression are
+      # filesystem-wide and @backup already mounted the fs `compress=zstd:3`,
+      # so a second subvolume mount cannot override them. nodatacow is applied
+      # per-file via the tmpfiles `h … +C` rule above instead (it works on a
+      # datacow fs and new files inherit it). nofail keeps a missing subvolume
+      # from wedging local-fs.target.
       device = "/dev/disk/by-label/backup";
       fsType = "btrfs";
       options = [
         "subvol=@media-incomplete"
         "noatime"
-        "nodatacow"
         "nofail"
         "x-systemd.device-timeout=10s"
       ];
@@ -194,6 +197,25 @@
         "nofail"
       ];
       depends = [ "/srv/media" ];
+    };
+  };
+
+  # Cap the NVMe scratch subvolume so in-flight downloads can never fill the
+  # shared backup pool. Idempotent and non-fatal (`-` prefixes): a freshly
+  # formatted pool may not have quotas enabled yet, and a re-run just re-sets
+  # the same limit. RequiresMountsFor orders this after the
+  # /srv/media-incomplete mount without hand-escaping the generated unit name.
+  systemd.services."media-incomplete-quota" = {
+    description = "btrfs qgroup quota for the /srv/media-incomplete scratch subvolume";
+    wantedBy = [ "multi-user.target" ];
+    unitConfig.RequiresMountsFor = [ "/srv/media-incomplete" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = [
+        "-${pkgs.btrfs-progs}/bin/btrfs quota enable /srv/media-incomplete"
+        "-${pkgs.btrfs-progs}/bin/btrfs qgroup limit 250G /srv/media-incomplete"
+      ];
     };
   };
 }
