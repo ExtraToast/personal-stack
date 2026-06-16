@@ -118,6 +118,7 @@ class AuthorizationServerConfig(
         InMemoryRegisteredClientRepository(
             buildAuthUiClient(),
             buildAppUiClient(),
+            buildAppNativeClient(),
             buildAgentsApiClient(),
             buildGrafanaClient(grafanaClientSecret),
             buildN8nClient(n8nClientSecret),

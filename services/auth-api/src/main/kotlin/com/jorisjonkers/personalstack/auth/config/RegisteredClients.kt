@@ -68,6 +68,27 @@ fun buildAppUiClient(): RegisteredClient =
         .tokenSettings(defaultTokenSettings())
         .build()
 
+fun buildAppNativeClient(): RegisteredClient =
+    RegisteredClient
+        .withId(deterministicId("app-native"))
+        .clientId("app-native")
+        .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
+        .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+        .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+        // The native custom scheme must match the Capacitor app id configured in spec 021.
+        .redirectUri("app.jorisjonkers://callback")
+        .redirectUri("capacitor://localhost/callback")
+        .redirectUri("http://localhost/callback")
+        .postLogoutRedirectUri("app.jorisjonkers://callback")
+        .postLogoutRedirectUri("capacitor://localhost/callback")
+        .postLogoutRedirectUri("http://localhost/callback")
+        .scope(OidcScopes.OPENID)
+        .scope(OidcScopes.PROFILE)
+        .scope(OidcScopes.EMAIL)
+        .clientSettings(noConsentSettings(requirePkce = true))
+        .tokenSettings(defaultTokenSettings())
+        .build()
+
 fun buildAgentsApiClient(): RegisteredClient =
     RegisteredClient
         .withId(deterministicId("agents-api"))

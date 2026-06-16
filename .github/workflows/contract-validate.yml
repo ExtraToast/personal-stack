@@ -1,8 +1,9 @@
 name: Contract Validate
 
-# Pins committed OpenAPI contracts. The freshly-exported springdoc spec is
-# diffed against the committed `services/knowledge-api/openapi.json`. Regenerate
-# locally with `./gradlew :services:knowledge-api:exportOpenApiSpec`.
+# Pins committed OpenAPI contracts. Freshly-exported springdoc specs are
+# diffed against the committed openapi.json files. Regenerate locally with:
+# - `./gradlew :services:knowledge-api:exportOpenApiSpec`
+# - `services/auth-api/scripts/generate-openapi.sh`
 
 on:
   workflow_call:
@@ -24,14 +25,27 @@ jobs:
         with:
           java-version: '21'
       - name: Export OpenAPI specs
-        run: >
-          bash infra/scripts/run-strict-command.sh ./gradlew
-          :services:knowledge-api:exportOpenApiSpec
+        run: |
+          bash infra/scripts/run-strict-command.sh ./gradlew :services:knowledge-api:exportOpenApiSpec
+          services/auth-api/scripts/generate-openapi.sh
       - name: Diff exported specs against committed openapi.json files
         run: |
           set -euo pipefail
-          if ! git diff --exit-code -- services/knowledge-api/openapi.json; then
+          missing=0
+          for spec in services/knowledge-api/openapi.json services/auth-api/openapi.json; do
+            if ! git ls-files --error-unmatch "$spec" >/dev/null 2>&1; then
+              echo "::error::$spec is not committed. Generate it with the service export task and commit the result."
+              missing=1
+            fi
+          done
+          if [[ "$missing" == "1" ]]; then
+            echo "::error::auth-api must be generated with: services/auth-api/scripts/generate-openapi.sh"
+            echo "::error::knowledge-api must be generated with: ./gradlew :services:knowledge-api:exportOpenApiSpec"
+            exit 1
+          fi
+          if ! git diff --exit-code -- services/knowledge-api/openapi.json services/auth-api/openapi.json; then
             echo "::error::Committed openapi.json is stale."
-            echo "::error::Regenerate locally with: ./gradlew :services:knowledge-api:exportOpenApiSpec"
+            echo "::error::Regenerate auth-api locally with: services/auth-api/scripts/generate-openapi.sh"
+            echo "::error::Regenerate knowledge-api locally with: ./gradlew :services:knowledge-api:exportOpenApiSpec"
             exit 1
           fi

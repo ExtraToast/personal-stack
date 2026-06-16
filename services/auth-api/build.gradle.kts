@@ -56,13 +56,20 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
 }
 
-// Export OpenAPI spec during build for client generation
+// The generation script starts this long-running task, reads the springdoc JSON
+// from /api/v1/api-docs, and writes services/auth-api/openapi.json.
 tasks.register<JavaExec>("exportOpenApiSpec") {
     group = "documentation"
-    description = "Starts the application briefly to export the OpenAPI spec as JSON"
+    description = "Starts auth-api for OpenAPI export on OPENAPI_EXPORT_PORT, defaulting to 8099"
     dependsOn(tasks.named("bootJar"))
     mainClass.set("org.springframework.boot.loader.launch.JarLauncher")
     classpath = files(tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar").get().archiveFile)
-    args = listOf("--spring.profiles.active=openapi-export", "--server.port=8099")
+    val openApiExportPort =
+        providers.gradleProperty("openapi.export.port")
+            .orElse(providers.environmentVariable("OPENAPI_EXPORT_PORT"))
+            .orElse("8099")
+    args = listOf("--spring.profiles.active=openapi-export", "--server.port=${openApiExportPort.get()}")
     systemProperties["springdoc.api-docs.path"] = "/api/v1/api-docs"
+    systemProperties["springdoc.writer-with-default-pretty-printer"] = "true"
+    systemProperties["springdoc.writer-with-order-by-keys"] = "true"
 }

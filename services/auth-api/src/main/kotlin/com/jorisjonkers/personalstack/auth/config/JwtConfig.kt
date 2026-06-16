@@ -17,6 +17,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.security.oauth2.jwt.JwtEncoder
+import org.springframework.security.oauth2.jwt.JwtValidators
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder
 import java.security.KeyFactory
@@ -38,6 +39,8 @@ class JwtConfig(
     private val signingKeyPem: String,
     @param:Value("\${auth.signing-key-previous:}")
     private val previousSigningKeyPem: String,
+    @param:Value("\${auth.issuer:https://auth.jorisjonkers.dev}")
+    private val issuer: String,
     private val vaultTransitClient: VaultTransitClient?,
 ) {
     /**
@@ -127,7 +130,9 @@ class JwtConfig(
             DefaultJWTProcessor<SecurityContext>().apply {
                 jwsKeySelector = JWSVerificationKeySelector(JWSAlgorithm.RS256, jwkSource)
             }
-        return NimbusJwtDecoder(jwtProcessor)
+        return NimbusJwtDecoder(jwtProcessor).apply {
+            setJwtValidator(JwtValidators.createDefaultWithIssuer(issuer))
+        }
     }
 
     @Bean
