@@ -64,9 +64,30 @@ class TokenService(
         return jwtEncoder.encode(JwtEncoderParameters.from(claims)).tokenValue
     }
 
+    fun createAgentsAssertionToken(
+        userId: String,
+        username: String,
+        roles: List<String>,
+    ): String {
+        val now = Instant.now()
+        val claims =
+            JwtClaimsSet
+                .builder()
+                .issuer(authorizationServerSettings.issuer)
+                .subject(userId)
+                .audience(listOf("agents-api"))
+                .claim("roles", roles)
+                .claim("username", username)
+                .issuedAt(now)
+                .expiresAt(now.plus(AGENTS_ASSERTION_MINUTES, ChronoUnit.MINUTES))
+                .build()
+        return jwtEncoder.encode(JwtEncoderParameters.from(claims)).tokenValue
+    }
+
     companion object {
         private const val ACCESS_TOKEN_MINUTES = 15L
         private const val REFRESH_TOKEN_DAYS = 7L
         private const val TOTP_CHALLENGE_MINUTES = 5L
+        private const val AGENTS_ASSERTION_MINUTES = 2L
     }
 }
