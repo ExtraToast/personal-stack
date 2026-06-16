@@ -40,6 +40,16 @@ spec:
           VPN_SERVICE_PROVIDER='protonvpn'
           VPN_TYPE='wireguard'
           WIREGUARD_PRIVATE_KEY='{{ with secret "secret/data/platform/media" }}{{ index .Data.data "proton.wg_private_key" }}{{ end }}'
+          # MTU: gluetun's Proton default is 1320, but this pod's eth0 is a
+          # flannel veth sized off the flannel-iface (tailscale0, MTU 1280),
+          # so the real path MTU is ~1230. A 1320 tunnel emits 1380-byte
+          # outer packets that exceed 1230 and fragment / get PMTU-dropped,
+          # throttling throughput. WireGuard adds 60 bytes (IPv4/UDP/WG), so
+          # cap the tunnel at 1230 - 60 = 1170 to fit the path with no
+          # fragmentation. (VPN egress itself is direct out the node WAN, not
+          # via tailscale — only the flannel-derived MTU comes from it.) If
+          # the pod eth0 MTU ever changes, retune: WIREGUARD_MTU = eth0 - 60.
+          WIREGUARD_MTU='1170'
           # Connect only to Netherlands servers that support port forwarding,
           # keeping the VPN exit next to the home uplink for the
           # lowest-latency path to family peers in NL.
