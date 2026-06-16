@@ -223,15 +223,32 @@ spec:
             requests:
               cpu: 500m
               memory: 256Mi
-            # WireGuard crypto is CPU-bound; the prior 800m ceiling throttled
-            # throughput toward family peers. Two cores lets a single tunnel
-            # approach the ~1 Gbit home uplink (kernelspace WireGuard).
+            # WireGuard is CPU-bound (kernelspace crypto runs in softirq, but
+            # userspace fallback and packet handling are charged here). 4
+            # cores of headroom keeps the tunnel from CFS-throttling at the
+            # ~1 Gbit home uplink. Limits do not count against scheduling —
+            # only requests do — so this stays well within the 12-core node.
             limits:
-              cpu: '2000m'
+              cpu: '4000m'
               memory: 512Mi
         - name: qbittorrent
           image: linuxserver/qbittorrent:latest
           imagePullPolicy: IfNotPresent
+          # Wait for gluetun to bring up the VPN interface before starting.
+          # qBittorrent binds to tun0 (kill-switch); starting before gluetun
+          # creates tun0 logs a critical "configured network interface is
+          # invalid" and binds late. /sys/class/net/tun0 appears once the
+          # tunnel is up (containers share the pod netns) — gate on it, then
+          # hand off to the linuxserver s6 init at /init.
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              until [ -d /sys/class/net/tun0 ]; do
+                echo "waiting for gluetun tun0..."
+                sleep 1
+              done
+              exec /init
           env:
             - name: PUID
               value: '1000'
@@ -269,12 +286,16 @@ spec:
               mountPath: /media/Completed
             - name: qbittorrent-config
               mountPath: /config
+          # Piece hashing and disk I/O at ~1 Gbit are real CPU in qBittorrent's
+          # own cgroup, so give it 4 cores of burst headroom. Request stays
+          # modest (1 core) to keep the node's schedulable budget healthy —
+          # limits oversubscribe safely, requests do not.
           resources:
             requests:
-              cpu: 500m
+              cpu: '1000m'
               memory: 768Mi
             limits:
-              cpu: 1500m
+              cpu: '4000m'
               memory: 3Gi
         - name: qbittorrent-port-sync
           # Polls Gluetun's HTTP control server for the PIA-assigned
