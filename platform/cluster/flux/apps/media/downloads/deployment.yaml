@@ -221,9 +221,23 @@ spec:
               chmod 600 "$CONF"
               echo "qBittorrent.conf seeded; managed keys:"
               grep -E '^(WebUI\\?(AuthSubnet|CSRFProtection)|Session\\?((DHT|PeX|LSD)Enabled|TempPath(Enabled)?|DefaultSavePath))' "$CONF" || true
+              # The NVMe scratch subvolume (@media-incomplete) is created
+              # owned root:root (btrfs subvolume create / disko), and the
+              # host-side tmpfiles chown races the `nofail` NVMe mount, so it
+              # often lands on the empty mountpoint rather than the mounted
+              # subvolume root. qBittorrent runs as UID 1000 and must write
+              # here — without this, every download fails with
+              # "file_open ... Permission denied". Force ownership of the
+              # mount root from this init (runs as root, after kubelet has
+              # mounted the hostPath) on every start. Non-recursive: only the
+              # root needs to be writable; files inside are created 1000-owned.
+              chown 1000:1000 /media/Incomplete
+              chmod 0775 /media/Incomplete
           volumeMounts:
             - name: qbittorrent-config
               mountPath: /config
+            - name: media-incomplete
+              mountPath: /media/Incomplete
       containers:
         - name: gluetun
           image: qmcgaw/gluetun:v3.40.0

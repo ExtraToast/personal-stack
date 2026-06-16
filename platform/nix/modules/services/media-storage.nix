@@ -200,19 +200,31 @@
     };
   };
 
-  # Cap the NVMe scratch subvolume so in-flight downloads can never fill the
-  # shared backup pool. Idempotent and non-fatal (`-` prefixes): a freshly
-  # formatted pool may not have quotas enabled yet, and a re-run just re-sets
-  # the same limit. RequiresMountsFor orders this after the
-  # /srv/media-incomplete mount without hand-escaping the generated unit name.
-  systemd.services."media-incomplete-quota" = {
-    description = "btrfs qgroup quota for the /srv/media-incomplete scratch subvolume";
+  # Own + cap the NVMe scratch subvolume.
+  #
+  # Ownership: @media-incomplete is created owned root:root (btrfs subvolume
+  # create / disko). The tmpfiles `z` above races the `nofail` NVMe mount
+  # (systemd-tmpfiles runs before the late mount completes, so it chowns the
+  # bare mountpoint, not the mounted subvolume) — which left the subvolume
+  # root root:root and broke qBittorrent (UID 1000) with "Permission denied"
+  # on every download. This service is the authoritative fix: RequiresMountsFor
+  # orders it strictly after the mount, so the chown always lands on the
+  # mounted subvolume root. Runs on every boot / nixos-rebuild, so it persists
+  # across deploys and provisions fresh nodes correctly.
+  #
+  # Quota: cap in-flight downloads so they can never fill the shared backup
+  # pool. Non-fatal (`-`): a freshly formatted pool may not have quotas on yet.
+  systemd.services."media-incomplete-setup" = {
+    description = "Own and quota the /srv/media-incomplete scratch subvolume";
     wantedBy = [ "multi-user.target" ];
     unitConfig.RequiresMountsFor = [ "/srv/media-incomplete" ];
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
       ExecStart = [
+        # UID/GID 1000 = the deploy user = qBittorrent's PUID/PGID.
+        "${pkgs.coreutils}/bin/chown 1000:1000 /srv/media-incomplete"
+        "${pkgs.coreutils}/bin/chmod 0775 /srv/media-incomplete"
         "-${pkgs.btrfs-progs}/bin/btrfs quota enable /srv/media-incomplete"
         "-${pkgs.btrfs-progs}/bin/btrfs qgroup limit 250G /srv/media-incomplete"
       ];
