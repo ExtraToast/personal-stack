@@ -37,6 +37,13 @@
                 "x-systemd.device-timeout=10s"
               ];
             };
+            # qBittorrent NVMe scratch for in-progress torrents. No
+            # mountpoint here on purpose: disko creates the subvolume at
+            # install (so a fresh node gets it automatically), but the mount
+            # + perms + nodatacow attr + quota live in
+            # modules/services/media-storage.nix alongside the rest of the
+            # media wiring. Coexists with @backup / @snapshots.
+            "@media-incomplete" = { };
           };
         };
       };
