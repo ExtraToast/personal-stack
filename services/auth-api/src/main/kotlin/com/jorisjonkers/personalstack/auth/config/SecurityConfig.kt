@@ -83,8 +83,7 @@ class SecurityConfig(
                     jwt.decoder(jwtDecoder)
                     jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)
                 }
-            }
-            .exceptionHandling { it.authenticationEntryPoint(HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)) }
+            }.exceptionHandling { it.authenticationEntryPoint(HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)) }
         return http.build()
     }
 
@@ -209,7 +208,8 @@ class SecurityConfig(
 
     private fun bearerTokenRequestMatcher(): RequestMatcher =
         RequestMatcher { request ->
-            request.getHeader("Authorization")
+            request
+                .getHeader("Authorization")
                 ?.startsWith("Bearer ", ignoreCase = true) == true
         }
 
