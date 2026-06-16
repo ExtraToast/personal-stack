@@ -455,12 +455,14 @@ ingress_intent:
       exact_paths:
         - /mcp
         - /install.sh
+        - /install-agents.sh
       path_prefixes:
         - /mcp/
     - service: knowledge-api
       excluded_exact_paths:
         - /mcp
         - /install.sh
+        - /install-agents.sh
       excluded_path_prefixes:
         - /mcp/
   kubernetes_backends:

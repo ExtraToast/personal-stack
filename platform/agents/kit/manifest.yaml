@@ -18,6 +18,8 @@ renderer:
   extra_templates:
     - source_path: platform/agents/kit/templates/installer/install.sh.tpl
       destination_path: services/knowledge-api/src/main/resources/installer/install.sh
+    - source_path: platform/agents/kit/templates/installer/install-agents.sh.tpl
+      destination_path: services/knowledge-api/src/main/resources/installer/install-agents.sh
   include_templates:
     - platform/agents/kit/templates/installer/partials/allowlist/defaults.gitignore
     - platform/agents/kit/templates/installer/partials/hooks/pre-tool-use-edit-recall.sh
@@ -86,6 +88,7 @@ renderer:
     - .specify/templates/spec-template.md
     - .specify/templates/tasks-template.md
     - services/knowledge-api/src/main/resources/installer/install.sh
+    - services/knowledge-api/src/main/resources/installer/install-agents.sh
 
 canonical_mcp_tools:
   source: services/knowledge-api/src/test/kotlin/com/jorisjonkers/personalstack/knowledge/mcp/McpToolsTest.kt
@@ -537,3 +540,10 @@ installer:
   path: services/knowledge-api/src/main/resources/installer/install.sh
   sha256: 1ce59c8ad852b6bf09d758a6d53fed9188b9023fbb5cb5f84ba5e27af57133c2
   supported_agents: [codex, claude]
+  served_artifacts:
+    - path: services/knowledge-api/src/main/resources/installer/install.sh
+      sha256: 1ce59c8ad852b6bf09d758a6d53fed9188b9023fbb5cb5f84ba5e27af57133c2
+      mode: "0644"
+    - path: services/knowledge-api/src/main/resources/installer/install-agents.sh
+      sha256: 6a6cae84ed2e5cdd7b58ea09c02333461edfe6bc68d92bed97a1c8ea0a9a3fb0
+      mode: "0644"

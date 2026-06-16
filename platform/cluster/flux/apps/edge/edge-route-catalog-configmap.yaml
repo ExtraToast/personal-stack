@@ -106,6 +106,7 @@ data:
       excluded_paths:
       - "/mcp"
       - "/install.sh"
+      - "/install-agents.sh"
     - name: "knowledge-api-mcp"
       service: "knowledge-api"
       host: "kb.jorisjonkers.dev"
@@ -115,6 +116,7 @@ data:
       exact_paths:
       - "/mcp"
       - "/install.sh"
+      - "/install-agents.sh"
     - name: "n8n"
       service: "n8n"
       host: "n8n.jorisjonkers.dev"
