@@ -312,8 +312,23 @@ export async function runProcess(command, args = [], { env = {}, input, cwd = re
     })
     child.on('error', reject)
     child.on('close', (exitCode) => resolve({ exitCode, stdout, stderr }))
-    if (input !== undefined) child.stdin.end(input)
-    else child.stdin.end()
+    // A spawned process may legitimately close its stdin before we finish
+    // writing the payload — e.g. a disabled/silent hook that exits without
+    // reading input. The unconsumed write then races the closed pipe and
+    // surfaces as an EPIPE on the stdin stream which, unhandled, rejects the
+    // whole call with "Error: write EPIPE" (the source of the flaky platform
+    // test). Swallow only EPIPE and let the `close` handler report the real
+    // exit code; surface any other stdin error.
+    child.stdin.on('error', (err) => {
+      if (err && err.code === 'EPIPE') return
+      reject(err)
+    })
+    try {
+      if (input !== undefined) child.stdin.end(input)
+      else child.stdin.end()
+    } catch (err) {
+      if (!err || err.code !== 'EPIPE') reject(err)
+    }
   })
 }
 
