@@ -33,11 +33,18 @@
     "z /srv/media/TimeMachine 0775 deploy deploy - -"
     "d /srv/media/Photos 0775 deploy deploy - -"
     "z /srv/media/Photos 0775 deploy deploy - -"
-    # NVMe scratch for in-progress torrent writes (see fileSystems below).
+    # NVMe seeding area (see fileSystems below). qBittorrent's
+    # DefaultSavePath: every torrent now downloads into and SEEDS from this
+    # subvolume so peers are served at NVMe speed, and a copy-on-complete hook
+    # lands a durable copy on the HDD pool at /srv/media/Completed. Torrents
+    # therefore persist here for as long as they stay in the client (formerly
+    # only in-flight data lived here), so the 250G qgroup limit below now caps
+    # total live-seeding + in-progress data, not just in-flight — revisit it
+    # against the backup pool's free space if seeding fills the SSD.
     "d /srv/media-incomplete 0775 deploy deploy - -"
     "z /srv/media-incomplete 0775 deploy deploy - -"
-    # nodatacow for the scratch subvolume, set as a directory attribute so
-    # new incomplete files inherit it (the mount option can't override the
+    # nodatacow for the subvolume, set as a directory attribute so new
+    # files inherit it (the mount option can't override the
     # filesystem-wide CoW/compress — see fileSystems below). Avoids btrfs
     # CoW fragmentation and pointless zstd on incompressible torrent data.
     "h /srv/media-incomplete - - - - +C"
@@ -101,15 +108,17 @@
       ];
     };
     "/srv/media-incomplete" = {
-      # NVMe scratch for qBittorrent in-progress (incomplete) torrent data:
+      # NVMe seeding area for qBittorrent (container path /media/Seeding):
       # the @media-incomplete subvolume on the backup pool (LABEL=backup,
       # the 512 GB MZVLB M.2), a sibling of @backup / @snapshots. The
       # subvolume itself is declared in hosts/enschede-t1000-1/disko-backup.nix
       # so disko creates it at install on any fresh node; this entry just
-      # mounts it. Out-of-order torrent piece writes are random I/O the
-      # 5400-class /srv/media HDD pool handles poorly; landing them on the SSD
-      # and moving the finished file to the HDD save path in one sequential
-      # pass removes the download bottleneck.
+      # mounts it. Every torrent downloads into and seeds from here so the
+      # 5400-class /srv/media HDD pool — which handles out-of-order piece
+      # writes and many-peer random reads poorly — is never in the download or
+      # seeding path; a copy-on-complete hook lands a durable copy on the HDD.
+      # (The subvolume name stays @media-incomplete to avoid a risky live
+      # btrfs/disko rename; only the qBittorrent-facing mount is "Seeding".)
       #
       # No `nodatacow` mount option here: btrfs CoW/compression are
       # filesystem-wide and @backup already mounted the fs `compress=zstd:3`,
@@ -212,8 +221,11 @@
   # mounted subvolume root. Runs on every boot / nixos-rebuild, so it persists
   # across deploys and provisions fresh nodes correctly.
   #
-  # Quota: cap in-flight downloads so they can never fill the shared backup
-  # pool. Non-fatal (`-`): a freshly formatted pool may not have quotas on yet.
+  # Quota: cap the seeding area so it can never fill the shared backup pool.
+  # Now that every torrent seeds from here (not just in-flight data), 250G is
+  # the ceiling on total live-seeding + in-progress content; raise it if the
+  # seeding set outgrows it and the backup pool has the headroom. Non-fatal
+  # (`-`): a freshly formatted pool may not have quotas on yet.
   systemd.services."media-incomplete-setup" = {
     description = "Own and quota the /srv/media-incomplete scratch subvolume";
     wantedBy = [ "multi-user.target" ];
