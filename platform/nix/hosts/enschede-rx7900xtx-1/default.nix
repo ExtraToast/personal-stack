@@ -7,6 +7,7 @@
     ../../modules/k3s/node-labels.nix
     ../../modules/services/game-streaming-amd.nix
     ../../modules/services/ollama-rocm.nix
+    ../../modules/services/dualboot-gpu-reset.nix
     ./disko.nix
   ];
 
@@ -17,6 +18,21 @@
   # mixed game-streaming + ROCm inference load.
   hardware.cpu.amd.updateMicrocode = true;
   boot.kernelParams = [ "amd_pstate=active" ];
+
+  # Dual-boot Windows AMD-driver corruption fix (Linux half). DISABLED by
+  # default on purpose: booting NixOS then returning to Windows leaves Navi31
+  # in a dirty warm-reboot state that Windows Fast Startup restores a stale
+  # driver image against, corrupting the Windows AMD driver (DX12) until a full
+  # DDU reinstall. The handoff runbook requires a one-time Windows DDU recovery
+  # + `powercfg /h off`, then a warm-vs-cold discriminating experiment, BEFORE
+  # committing the NixOS-side cold reset. Flip enable = true and set the verified
+  # GPU BDF once that experiment confirms the warm reboot is the offender.
+  #   docs/handoff/rx7900xtx-dualboot-fix/REMEDIATION-RUNBOOK.md
+  personalStack.dualBootGpuReset = {
+    enable = false;
+    # gpuBdf = "0000:03:00.0"; # set from `lspci -Dnn` (display fn, not .1 audio)
+    # extraKernelParams = [ ]; # one-at-a-time escalation fallbacks (see runbook)
+  };
 
   personalStack.k3sNodeLabels = {
     "personal-stack/site" = "enschede";
