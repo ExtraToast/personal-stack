@@ -323,26 +323,18 @@ spec:
               export UPDATER_PERIOD=24h
               export HEALTH_VPN_DURATION_INITIAL=30s
               export FIREWALL_VPN_INPUT_PORTS=8080,9696
-              # Control-server auth (gluetun >= v3.40). The port-sync sidecar
-              # reads the NAT-PMP forwarded port from the in-pod control server
-              # on :8000. v3.40.0 still serves that route unauthenticated but
-              # logs a deprecation WARN on every poll; v3.40.1+ REFUSES
-              # unauthenticated routes with 401, and v3.41+ also renames the
-              # route from /v1/openvpn/portforwarded to /v1/portforward.
-              # Declaring an auth config that grants the (pod-local only)
-              # port-forward routes auth=none keeps the sidecar working across
-              # a future image bump and silences the WARN. The control server
-              # is never reachable outside the pod network namespace (no
-              # Service targets :8000 and FIREWALL_INPUT_PORTS omits it), so
-              # unauthenticated pod-local reads carry no exposure.
-              mkdir -p /gluetun/auth
-              printf '%s\n' \
-                '[[roles]]' \
-                'name = "qbittorrent-port-sync"' \
-                'routes = ["GET /v1/openvpn/portforwarded", "GET /v1/portforward"]' \
-                'auth = "none"' \
-                > /gluetun/auth/config.toml
-              export HTTP_CONTROL_SERVER_AUTH_CONFIG_FILEPATH=/gluetun/auth/config.toml
+              # NOTE: no control-server auth config is declared here. v3.40.0
+              # validates every route named in the auth file against the
+              # routes the running build actually serves and exits 1 on an
+              # unknown one, so an auth config can only ever list routes that
+              # match the pinned image exactly — listing the future
+              # /v1/portforward route crashed gluetun on this v3.40.0. At
+              # v3.40.0 the port-forward route is still publicly served (it
+              # only logs a deprecation WARN), and the control server is not
+              # reachable outside the pod netns, so the port-sync sidecar
+              # reads it unauthenticated. When this image is bumped to a build
+              # that enforces auth, add the auth config in that same PR with
+              # the route name that build supports.
               exec /gluetun-entrypoint
           securityContext:
             capabilities:
