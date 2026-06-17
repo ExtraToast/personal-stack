@@ -240,10 +240,15 @@ spec:
               # unqualified (no backslash) and live in their own [AutoRun]
               # section, so they're managed by this dedicated section-aware pass
               # rather than the global grep above — a blind grep would also
-              # strip unrelated enabled=/program= keys from other sections. The
-              # %F (content path) / %N (torrent name) params are passed quoted
-              # so a name with spaces stays a single shell argument.
-              AR_PROG='program=sh /config/qBittorrent/autorun-copy.sh "%F" "%N"'
+              # strip unrelated enabled=/program= keys from other sections.
+              # Only %F (the content path) is passed. qBittorrent merges two
+              # adjacent quoted params into a single argument — "%F" "%N"
+              # rendered as one mashed `<path><name>` token (observed in the
+              # execution log), so a name with spaces then split into the
+              # wrong argv and the copy failed. The script derives the name
+              # from basename("$1") anyway, so %N was redundant; dropping it
+              # leaves one quoted param, which keeps internal spaces intact.
+              AR_PROG='program=sh /config/qBittorrent/autorun-copy.sh "%F"'
               awk -v prog="$AR_PROG" '
                 /^\[AutoRun\]$/ { print; ar=1; seen=1; print "enabled=true"; print prog; next }
                 /^\[/ { ar=0 }
@@ -270,7 +275,7 @@ spec:
               printf '%s\n' \
                 '#!/bin/sh' \
                 'set -u' \
-                'CONTENT="$1"; NAME="$2"' \
+                'CONTENT="$1"' \
                 'DEST="/media/Completed"' \
                 'LOG="/config/qBittorrent/logs/autorun-copy.log"' \
                 'ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }' \
