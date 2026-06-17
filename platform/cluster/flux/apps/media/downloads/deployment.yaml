@@ -174,7 +174,7 @@ spec:
               [ -f "$CONF" ] || printf '[Preferences]\n' > "$CONF"
               # Drop any prior versions of every managed key (broken or
               # canonical) so re-runs converge on the right form.
-              grep -v -E '^(WebUI\\?(AuthSubnetWhitelist(Enabled)?|CSRFProtection)|Session\\?((DHT|PeX|LSD)Enabled|TempPath(Enabled)?|DefaultSavePath))=' "$CONF" > "$CONF.tmp"
+              grep -v -E '^(WebUI\\?(AuthSubnetWhitelist(Enabled)?|CSRFProtection)|Session\\?((DHT|PeX|LSD)Enabled|TempPath(Enabled)?|DefaultSavePath|UseRandomPort|QueueingSystemEnabled|MaxUploads(PerTorrent)?|MaxConnections(PerTorrent)?))=' "$CONF" > "$CONF.tmp"
               # Make sure both section headers survived so the awk
               # insert below has an anchor for each key group.
               grep -qF '[Preferences]' "$CONF.tmp" || printf '[Preferences]\n' >> "$CONF.tmp"
@@ -211,6 +211,23 @@ spec:
                   # moved — it stays put on the NVMe and seeds in place.
                   print "Session\\TempPathEnabled=false"
                   print "Session\\DefaultSavePath=/media/Seeding"
+                  # Connectability + seeding throughput. UseRandomPort=false
+                  # is load-bearing: with a random port qBittorrent ignores
+                  # the Proton-forwarded port the port-sync sidecar applies,
+                  # so inbound peers never reach it and a completed torrent
+                  # stalls at ~0 up. QueueingSystemEnabled=false lets every
+                  # torrent seed at once instead of parking most of the
+                  # library as "queued" (idle) behind a small active-seed cap.
+                  # The Max* caps lift the libtorrent per-session and
+                  # per-torrent upload-slot / connection ceilings so a
+                  # high-leecher swarm is not slot-starved on a gigabit
+                  # symmetric uplink.
+                  print "Session\\UseRandomPort=false"
+                  print "Session\\QueueingSystemEnabled=false"
+                  print "Session\\MaxUploads=40"
+                  print "Session\\MaxUploadsPerTorrent=8"
+                  print "Session\\MaxConnections=500"
+                  print "Session\\MaxConnectionsPerTorrent=100"
                   bt = 1
                   next
                 }
@@ -273,7 +290,7 @@ spec:
               chmod 600 "$CONF"
               chmod 0755 /config/qBittorrent/autorun-copy.sh
               echo "qBittorrent.conf seeded; managed keys:"
-              grep -E '^(WebUI\\?(AuthSubnet|CSRFProtection)|Session\\?((DHT|PeX|LSD)Enabled|TempPath(Enabled)?|DefaultSavePath))' "$CONF" || true
+              grep -E '^(WebUI\\?(AuthSubnet|CSRFProtection)|Session\\?((DHT|PeX|LSD)Enabled|TempPath(Enabled)?|DefaultSavePath|UseRandomPort|QueueingSystemEnabled|MaxUploads(PerTorrent)?|MaxConnections(PerTorrent)?))' "$CONF" || true
               # The NVMe scratch subvolume (@media-incomplete) is created
               # owned root:root (btrfs subvolume create / disko), and the
               # host-side tmpfiles chown races the `nofail` NVMe mount, so it
@@ -306,6 +323,26 @@ spec:
               export UPDATER_PERIOD=24h
               export HEALTH_VPN_DURATION_INITIAL=30s
               export FIREWALL_VPN_INPUT_PORTS=8080,9696
+              # Control-server auth (gluetun >= v3.40). The port-sync sidecar
+              # reads the NAT-PMP forwarded port from the in-pod control server
+              # on :8000. v3.40.0 still serves that route unauthenticated but
+              # logs a deprecation WARN on every poll; v3.40.1+ REFUSES
+              # unauthenticated routes with 401, and v3.41+ also renames the
+              # route from /v1/openvpn/portforwarded to /v1/portforward.
+              # Declaring an auth config that grants the (pod-local only)
+              # port-forward routes auth=none keeps the sidecar working across
+              # a future image bump and silences the WARN. The control server
+              # is never reachable outside the pod network namespace (no
+              # Service targets :8000 and FIREWALL_INPUT_PORTS omits it), so
+              # unauthenticated pod-local reads carry no exposure.
+              mkdir -p /gluetun/auth
+              printf '%s\n' \
+                '[[roles]]' \
+                'name = "qbittorrent-port-sync"' \
+                'routes = ["GET /v1/openvpn/portforwarded", "GET /v1/portforward"]' \
+                'auth = "none"' \
+                > /gluetun/auth/config.toml
+              export HTTP_CONTROL_SERVER_AUTH_CONFIG_FILEPATH=/gluetun/auth/config.toml
               exec /gluetun-entrypoint
           securityContext:
             capabilities:
@@ -398,11 +435,25 @@ spec:
               cpu: '4000m'
               memory: 3Gi
         - name: qbittorrent-port-sync
-          # Polls Gluetun's HTTP control server for the PIA-assigned
-          # forwarded port and writes it into qBittorrent's listen
-          # socket via the WebAPI. PIA renews the port lease every few
-          # minutes and the value can change on every reconnect, so
-          # this loops forever rather than running once.
+          # Keeps qBittorrent's listen socket pinned to the inbound port
+          # Proton hands gluetun via NAT-PMP. Inbound reachability is what
+          # makes a pure seeder uploadable: while a torrent is still
+          # downloading, qBittorrent dials peers outbound and can upload back
+          # on those sockets, but a completed torrent only uploads to leechers
+          # that connect IN — which requires the forwarded port to be the one
+          # qBittorrent is actually listening on. Proton renews the lease and
+          # can hand out a different port on every reconnect, so this loops.
+          #
+          # Reconciles against qBittorrent's OWN reported listen_port rather
+          # than a remembered "last applied" value. The earlier version only
+          # re-pushed when gluetun's port changed, so a qBittorrent restart
+          # within the pod (crash / OOM / WebUI "use random port") would leave
+          # it listening on a stale or random port while the sidecar sat in a
+          # silent heartbeat — connectable port forwarded, nothing behind it.
+          # Each pass also clears random-port and UPnP: a random listen port
+          # ignores the forward entirely, and UPnP/NAT-PMP from the client is
+          # meaningless inside the pod (gluetun owns the lease) and only adds
+          # failing map attempts.
           image: curlimages/curl:8.10.1
           imagePullPolicy: IfNotPresent
           command:
@@ -412,7 +463,23 @@ spec:
               GLUETUN='http://localhost:8000'
               QBT='http://localhost:8080'
               INTERVAL=60
-              LAST_PORT=''
+              # Optional control-server API key for gluetun builds that
+              # enforce auth on the port-forward route; unset for the
+              # auth=none role this pod ships, so the header is omitted.
+              AUTH_HDR=''
+              [ -n "${GLUETUN_APIKEY:-}" ] && AUTH_HDR="X-API-Key: ${GLUETUN_APIKEY}"
+
+              # Forwarded port from gluetun. v3.41+ renamed the route to
+              # /v1/portforward; try it first, fall back to the legacy
+              # /v1/openvpn/portforwarded so this works on either image.
+              gluetun_port() {
+                for p in /v1/portforward /v1/openvpn/portforwarded; do
+                  r=$(curl -fsS ${AUTH_HDR:+-H "$AUTH_HDR"} "$GLUETUN$p" 2>/dev/null) || continue
+                  v=$(printf '%s' "$r" | sed -n 's/.*"port":[[:space:]]*\([0-9][0-9]*\).*/\1/p')
+                  [ -n "$v" ] && { printf '%s' "$v"; return 0; }
+                done
+                return 1
+              }
 
               echo "[port-sync] waiting for qBittorrent WebAPI..."
               until curl -fsS -o /dev/null "$QBT/api/v2/app/version"; do
@@ -421,29 +488,29 @@ spec:
               echo "[port-sync] qBittorrent reachable; entering watch loop"
 
               while :; do
-                resp=$(curl -fsS "$GLUETUN/v1/openvpn/portforwarded" 2>/dev/null || true)
-                port=$(printf '%s' "$resp" | sed -n 's/.*"port":[[:space:]]*\([0-9][0-9]*\).*/\1/p')
-                # Heartbeat every iteration so Loki sees liveness from
-                # this sidecar even when nothing changes (the previous
-                # version logged only on port transitions, leaving long
-                # silent stretches that looked indistinguishable from a
-                # wedged loop).
                 ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-                if [ -z "$resp" ]; then
-                  echo "[port-sync] $ts gluetun control-server unreachable"
-                elif [ -z "$port" ] || [ "$port" = "0" ]; then
-                  echo "[port-sync] $ts no forwarded port yet (gluetun reports: $resp)"
-                elif [ "$port" != "$LAST_PORT" ]; then
-                  echo "[port-sync] $ts forwarded port: ${LAST_PORT:-<none>} -> $port"
+                port=$(gluetun_port || true)
+                prefs=$(curl -fsS "$QBT/api/v2/app/preferences" 2>/dev/null || true)
+                cur=$(printf '%s' "$prefs" | sed -n 's/.*"listen_port":[[:space:]]*\([0-9][0-9]*\).*/\1/p')
+                # connection_status is qBittorrent's own verdict on inbound
+                # reachability: "connected" once a peer has reached the
+                # forwarded port, "firewalled" while nothing has, surfaced to
+                # Loki so a dead forward is visible without WebUI access.
+                conn=$(curl -fsS "$QBT/api/v2/transfer/info" 2>/dev/null \
+                  | sed -n 's/.*"connection_status":[[:space:]]*"\([a-z]*\)".*/\1/p')
+
+                if [ -z "$port" ] || [ "$port" = "0" ]; then
+                  echo "[port-sync] $ts no forwarded port yet (gluetun unreachable or lease pending)"
+                elif [ "$port" != "$cur" ]; then
+                  echo "[port-sync] $ts listen_port ${cur:-<unknown>} -> $port (conn=${conn:-?})"
                   if curl -fsS -o /dev/null -X POST "$QBT/api/v2/app/setPreferences" \
-                      --data-urlencode "json={\"listen_port\":$port}"; then
-                    LAST_PORT="$port"
+                      --data-urlencode "json={\"listen_port\":$port,\"random_port\":false,\"upnp\":false}"; then
                     echo "[port-sync] $ts applied listen_port=$port"
                   else
                     echo "[port-sync] $ts WARN: failed to set listen_port=$port"
                   fi
                 else
-                  echo "[port-sync] $ts heartbeat listen_port=$port"
+                  echo "[port-sync] $ts heartbeat listen_port=$port conn=${conn:-?}"
                 fi
                 sleep "$INTERVAL"
               done
