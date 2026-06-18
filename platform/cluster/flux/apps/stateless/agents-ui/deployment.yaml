@@ -52,7 +52,7 @@ spec:
               app.kubernetes.io/name: agents-ui
       containers:
         - name: agents-ui
-          image: ghcr.io/extratoast/agents/agents-ui:latest
+          image: ghcr.io/extratoast/agents/agents-ui:v0.7.1
           imagePullPolicy: Always
           ports:
             - containerPort: 80
