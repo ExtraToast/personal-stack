@@ -19,19 +19,21 @@
   hardware.cpu.amd.updateMicrocode = true;
   boot.kernelParams = [ "amd_pstate=active" ];
 
-  # Dual-boot Windows AMD-driver corruption fix (Linux half). DISABLED by
-  # default on purpose: booting NixOS then returning to Windows leaves Navi31
-  # in a dirty warm-reboot state that Windows Fast Startup restores a stale
-  # driver image against, corrupting the Windows AMD driver (DX12) until a full
-  # DDU reinstall. The handoff runbook requires a one-time Windows DDU recovery
-  # + `powercfg /h off`, then a warm-vs-cold discriminating experiment, BEFORE
-  # committing the NixOS-side cold reset. Flip enable = true and set the verified
-  # GPU BDF once that experiment confirms the warm reboot is the offender.
-  #   docs/handoff/rx7900xtx-dualboot-fix/REMEDIATION-RUNBOOK.md
+  # Dual-boot Windows AMD-driver corruption fix (Linux half). Booting NixOS then
+  # returning to Windows left Navi31 in a dirty warm-reboot state that Windows
+  # Fast Startup restored a stale driver image against, corrupting the Windows
+  # AMD driver (DX12) until a full DDU reinstall. The Windows half is handled
+  # (Fast Startup disabled via `powercfg /h off` + a clean DDU reinstall); this
+  # forces a cold reboot vector and runs a guarded ASIC/PCI reset on the
+  # Linux->Windows reboot path so the card is handed to firmware cleanly.
+  # gpuBdf is the Navi31 display function from `lspci -Dnn` on this box
+  # (0000:09:00.0, vendor 0x1002, class 0x030000, bound to amdgpu, writable
+  # reset node). If Windows still corrupts after a warm reboot, escalate via
+  # extraKernelParams one entry at a time — the reset node only exposes a `bus`
+  # reset, which may be too weak for Navi31 (try "amdgpu.reset_method=2" first).
   personalStack.dualBootGpuReset = {
-    enable = false;
-    # gpuBdf = "0000:03:00.0"; # set from `lspci -Dnn` (display fn, not .1 audio)
-    # extraKernelParams = [ ]; # one-at-a-time escalation fallbacks (see runbook)
+    enable = true;
+    gpuBdf = "0000:09:00.0";
   };
 
   personalStack.k3sNodeLabels = {

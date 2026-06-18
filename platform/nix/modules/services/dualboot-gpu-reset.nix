@@ -5,8 +5,8 @@ let
   # The reset hook needs the GPU's PCI BDF baked in at build time. When it is
   # left null the generated script keeps the literal placeholder and self-skips
   # at runtime, so the flake still evaluates and a rebuild stays harmless until
-  # an operator fills in the verified BDF. See the handoff runbook:
-  #   docs/handoff/rx7900xtx-dualboot-fix/REMEDIATION-RUNBOOK.md
+  # an operator fills in the verified BDF (display function from `lspci -Dnn`,
+  # vendor 0x1002, class 0x03*, bound to amdgpu).
   gpuBdfStr = if cfg.gpuBdf == null then "REPLACE_WITH_GPU_BDF" else cfg.gpuBdf;
 
   # systemd-shutdown invokes hooks in /etc/systemd/system-shutdown with a single
@@ -140,8 +140,7 @@ in
   options.personalStack.dualBootGpuReset = {
     enable = lib.mkEnableOption ''
       a clean GPU handoff on the Linux->Windows reboot path for dual-boot AMD
-      desktops. Investigation (docs/handoff/rx7900xtx-dualboot-fix) found that
-      amdgpu leaves Navi31 (RX 7900 XTX) in a dirty, power-persistent on-die
+      desktops. amdgpu leaves Navi31 (RX 7900 XTX) in a dirty, power-persistent on-die
       state across a WARM reboot; combined with Windows Fast Startup restoring a
       cached driver image against the mutated GPU, this corrupts the Windows AMD
       driver (DX12 dies) until a full DDU reinstall. This module forces a cold
@@ -159,7 +158,6 @@ in
         from `lspci -Dnn`. Use the display function (usually .0), NOT the HDMI/DP
         audio sibling. When null the reboot reset hook self-skips at runtime
         (only the cold reboot vector applies), so the flake still evaluates.
-        Discover and set it per docs/handoff/rx7900xtx-dualboot-fix/NIXOS-BDF-DISCOVERY.md.
       '';
     };
 
@@ -173,8 +171,7 @@ in
         one per cycle, re-validate): "amdgpu.reset_method=2" (Navi mode1/PSP),
         "amdgpu.reset_method=4" (BACO/BAMACO), "amdgpu.gpu_recovery=1",
         "amdgpu.aspm=0", "amdgpu.runpm=0", "amdgpu.rebar=0", or an alternate
-        reboot vector ("reboot=pci,cold" / "reboot=efi,cold"). See the runbook's
-        bisection section.
+        reboot vector ("reboot=pci,cold" / "reboot=efi,cold").
       '';
     };
   };
