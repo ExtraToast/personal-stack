@@ -7,6 +7,7 @@
     ../../modules/k3s/node-labels.nix
     ../../modules/services/game-streaming-amd.nix
     ../../modules/services/ollama-rocm.nix
+    ../../modules/services/dualboot-gpu-reset.nix
     ./disko.nix
   ];
 
@@ -17,6 +18,23 @@
   # mixed game-streaming + ROCm inference load.
   hardware.cpu.amd.updateMicrocode = true;
   boot.kernelParams = [ "amd_pstate=active" ];
+
+  # Dual-boot Windows AMD-driver corruption fix (Linux half). Booting NixOS then
+  # returning to Windows left Navi31 in a dirty warm-reboot state that Windows
+  # Fast Startup restored a stale driver image against, corrupting the Windows
+  # AMD driver (DX12) until a full DDU reinstall. The Windows half is handled
+  # (Fast Startup disabled via `powercfg /h off` + a clean DDU reinstall); this
+  # forces a cold reboot vector and runs a guarded ASIC/PCI reset on the
+  # Linux->Windows reboot path so the card is handed to firmware cleanly.
+  # gpuBdf is the Navi31 display function from `lspci -Dnn` on this box
+  # (0000:09:00.0, vendor 0x1002, class 0x030000, bound to amdgpu, writable
+  # reset node). If Windows still corrupts after a warm reboot, escalate via
+  # extraKernelParams one entry at a time — the reset node only exposes a `bus`
+  # reset, which may be too weak for Navi31 (try "amdgpu.reset_method=2" first).
+  personalStack.dualBootGpuReset = {
+    enable = true;
+    gpuBdf = "0000:09:00.0";
+  };
 
   personalStack.k3sNodeLabels = {
     "personal-stack/site" = "enschede";
