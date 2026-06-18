@@ -71,7 +71,7 @@ spec:
               mountPath: /agent
       containers:
         - name: agents-api
-          image: ghcr.io/extratoast/agents/agents-api:v0.7.1
+          image: ghcr.io/extratoast/agents/agents-api:latest
           imagePullPolicy: Always
           command:
             - /bin/sh
