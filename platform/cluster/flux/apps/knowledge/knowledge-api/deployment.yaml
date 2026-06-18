@@ -109,6 +109,11 @@ spec:
               value: production
             - name: KB_RECALL_DEFAULT_MODE
               value: hybrid
+            # Lightweight memory: expose only recall + capture over MCP and
+            # drop the curator-governance tools. Capture + recall are unchanged;
+            # heavy curation moves to PR review. Reversible by removing this var.
+            - name: KNOWLEDGE_MODE
+              value: lite
             - name: OTEL_SERVICE_NAME
               value: knowledge-api
             - name: OTEL_EXPORTER_OTLP_ENDPOINT

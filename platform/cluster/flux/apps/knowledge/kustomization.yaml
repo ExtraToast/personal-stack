@@ -7,6 +7,5 @@ resources:
   - obsidian-livesync
   - knowledge-api
   - knowledge-ingest-worker
-  - knowledge-curator
   - lightrag
   - ollama
