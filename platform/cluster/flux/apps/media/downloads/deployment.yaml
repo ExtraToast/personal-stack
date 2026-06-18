@@ -174,7 +174,7 @@ spec:
               [ -f "$CONF" ] || printf '[Preferences]\n' > "$CONF"
               # Drop any prior versions of every managed key (broken or
               # canonical) so re-runs converge on the right form.
-              grep -v -E '^(WebUI\\?(AuthSubnetWhitelist(Enabled)?|CSRFProtection)|Session\\?((DHT|PeX|LSD)Enabled|TempPath(Enabled)?|DefaultSavePath|UseRandomPort|QueueingSystemEnabled|MaxUploads(PerTorrent)?|MaxConnections(PerTorrent)?))=' "$CONF" > "$CONF.tmp"
+              grep -v -E '^(WebUI\\?(AuthSubnetWhitelist(Enabled)?|CSRFProtection)|Session\\?((DHT|PeX|LSD)Enabled|TempPath(Enabled)?|DefaultSavePath|UseRandomPort|QueueingSystemEnabled|MaxUploads(PerTorrent)?|MaxConnections(PerTorrent)?|Encryption|BTProtocol))=' "$CONF" > "$CONF.tmp"
               # Make sure both section headers survived so the awk
               # insert below has an anchor for each key group.
               grep -qF '[Preferences]' "$CONF.tmp" || printf '[Preferences]\n' >> "$CONF.tmp"
@@ -228,6 +228,21 @@ spec:
                   print "Session\\MaxUploadsPerTorrent=8"
                   print "Session\\MaxConnections=500"
                   print "Session\\MaxConnectionsPerTorrent=100"
+                  # Encryption=0 = "Allow encryption" (accept both encrypted
+                  # and plaintext peers). Investigation confirmed peer
+                  # handshakes complete regardless of this; "Require
+                  # encryption" (1) only discards every plaintext peer, and
+                  # since all traffic already rides the WireGuard tunnel there
+                  # is no ISP that could see or throttle it — so requiring it
+                  # is pure peer loss with no privacy gain. Pinned to Allow so
+                  # a WebUI toggle to Require does not silently shrink the
+                  # peer set on the next restart.
+                  print "Session\\Encryption=0"
+                  # BTProtocol=Both = offer TCP and uTP. Forcing TCP-only was
+                  # tested and made no difference to throughput, so the
+                  # widest-reach default is kept rather than the narrower
+                  # TCP-only value the A/B test left behind.
+                  print "Session\\BTProtocol=Both"
                   bt = 1
                   next
                 }
@@ -295,7 +310,7 @@ spec:
               chmod 600 "$CONF"
               chmod 0755 /config/qBittorrent/autorun-copy.sh
               echo "qBittorrent.conf seeded; managed keys:"
-              grep -E '^(WebUI\\?(AuthSubnet|CSRFProtection)|Session\\?((DHT|PeX|LSD)Enabled|TempPath(Enabled)?|DefaultSavePath|UseRandomPort|QueueingSystemEnabled|MaxUploads(PerTorrent)?|MaxConnections(PerTorrent)?))' "$CONF" || true
+              grep -E '^(WebUI\\?(AuthSubnet|CSRFProtection)|Session\\?((DHT|PeX|LSD)Enabled|TempPath(Enabled)?|DefaultSavePath|UseRandomPort|QueueingSystemEnabled|MaxUploads(PerTorrent)?|MaxConnections(PerTorrent)?|Encryption|BTProtocol))' "$CONF" || true
               # The NVMe scratch subvolume (@media-incomplete) is created
               # owned root:root (btrfs subvolume create / disko), and the
               # host-side tmpfiles chown races the `nofail` NVMe mount, so it
