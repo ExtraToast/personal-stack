@@ -353,32 +353,6 @@ vault write auth/kubernetes/role/knowledge-ingest-worker \
   policies="knowledge-ingest-worker" \
   ttl="1h"
 
-# Python curator. Reads the same deploy key + kb-postgres creds the
-# worker reads (curator writes the canonical `topics/<topic>/<slug>.md`
-# files and UPDATEs `kb_notes.scope/confidence` after promotion), plus
-# its own MCP bearer token field for the recall round-trip against
-# knowledge-api.
-cat <<'EOF' >/tmp/knowledge-curator.hcl
-path "secret/data/knowledge-system/vault-deploy-key" {
-  capabilities = ["read"]
-}
-
-path "secret/data/platform/postgres" {
-  capabilities = ["read"]
-}
-
-path "secret/data/knowledge-system/mcp-bearer" {
-  capabilities = ["read"]
-}
-EOF
-vault policy write knowledge-curator /tmp/knowledge-curator.hcl
-
-vault write auth/kubernetes/role/knowledge-curator \
-  bound_service_account_names="knowledge-curator" \
-  bound_service_account_namespaces="knowledge-system" \
-  policies="knowledge-curator" \
-  ttl="1h"
-
 # LightRAG REST server. Reads the shared kb_user postgres creds —
 # the server owns the LightRAG-managed KV / vector / graph tables
 # inside `knowledge_db` and provisions them on first run.
