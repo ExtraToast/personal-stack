@@ -61,7 +61,7 @@ describe('loginView', () => {
       global: { plugins: [pinia, router] },
     })
 
-    expect(wrapper.find('.min-h-screen').exists()).toBe(true)
+    expect(wrapper.find('.min-h-dvh').exists()).toBe(true)
     // LoginForm renders a form element
     expect(wrapper.findComponent({ name: 'LoginForm' }).exists()).toBe(true)
   })
@@ -77,7 +77,7 @@ describe('loginView', () => {
       global: { plugins: [pinia, router] },
     })
 
-    const container = wrapper.find('.flex.min-h-screen')
+    const container = wrapper.find('.flex.min-h-dvh')
     expect(container.exists()).toBe(true)
   })
 })
@@ -94,7 +94,7 @@ describe('registerView', () => {
       global: { plugins: [pinia, router] },
     })
 
-    expect(wrapper.find('.min-h-screen').exists()).toBe(true)
+    expect(wrapper.find('.min-h-dvh').exists()).toBe(true)
     expect(wrapper.findComponent({ name: 'RegisterForm' }).exists()).toBe(true)
   })
 })
