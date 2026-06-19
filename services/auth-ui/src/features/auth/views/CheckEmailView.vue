@@ -27,7 +27,9 @@ async function onResend(): Promise<void> {
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-surface-dark px-4">
+  <div
+    class="flex min-h-dvh items-center justify-center bg-surface-dark px-4 py-[max(1.5rem,env(safe-area-inset-top))]"
+  >
     <div class="w-full max-w-md space-y-5 rounded-xl border border-surface-border bg-surface-card p-8">
       <!-- Terminal-style header -->
       <div class="flex items-center gap-2">
