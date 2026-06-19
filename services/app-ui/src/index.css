@@ -92,26 +92,3 @@
     linear-gradient(90deg, color-mix(in srgb, var(--color-surface-border) 30%, transparent) 1px, transparent 1px);
   background-size: 60px 60px;
 }
-
-/*
- * Native app (Capacitor) device safe areas. On phones the fixed top nav and
- * the slide-in drawer otherwise render under the OS status bar, leaving the
- * menu button under the clock and hard to tap. Push their content below the
- * top inset and offset the page so nothing hides behind the taller nav.
- */
-@supports (padding: env(safe-area-inset-top)) {
-  [data-testid='app-nav'] {
-    padding-top: env(safe-area-inset-top);
-  }
-
-  [data-testid='nav-drawer'],
-  [data-testid='nav-drawer-root'] {
-    padding-top: env(safe-area-inset-top);
-  }
-
-  @media (max-width: 1023px) {
-    main {
-      padding-top: calc(3.5rem + env(safe-area-inset-top)) !important;
-    }
-  }
-}
