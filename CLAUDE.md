@@ -178,20 +178,18 @@ committed tree, so rendering must happen locally before commit.
   ports) rather than debugging host-iptables on Frankfurt.
 
 - **Knowledge-vault structure.** Captures land in
-  `_inbox/<day>/<time>-<slug>--<id8>.md` (worker). The
-  `knowledge-curator` CronJob runs twice daily (09:00 & 18:00
-  Europe/Amsterdam); it classifies via Ollama with
-  JSON-schema-constrained output, validates `topic:<slug>` against
-  `topics.yaml`, and
-  `git mv`s the file to `topics/<topic-slug>/<type>/<slug>.md` or
-  `projects/<github-repo-name>/<type>/<slug>.md`. Unclassifiable
-  notes go to `_inbox/_needs-review/`; low-value captures are
-  discarded to `_inbox/_discarded/`, and stuck review files
-  auto-escalate to discard after 3 attempts. After any pass that promotes
-  at least one note the curator regenerates `_index/recent.md`,
-  per-topic MoCs at `_index/topics/<slug>.md`, and
-  `_index/conflicts.md`. Full design in
-  `docs/private/knowledge-vault-redesign.md`.
+  `_inbox/<day>/<time>-<slug>--<id8>.md` (worker) and are recalled
+  directly from there. **The `knowledge-curator` CronJob was
+  decommissioned 2026-06-18** (lightweight-memory migration): the
+  Python service, its Flux CronJobs/ConfigMap/SA, and its Vault
+  policy are all removed, and knowledge-api runs in `lite` mode
+  (`KNOWLEDGE_MODE=lite` — capture + recall only, no curator-governance
+  MCP tools). Automatic Ollama classification, `git mv` promotion to
+  `topics/<topic-slug>/…`, and `_index/*` MoC regeneration no longer
+  run; the historical `topics/` tree and MoCs that the curator already
+  produced remain in the vault as static files. Pre-decommission design
+  is preserved in `docs/private/knowledge-vault-redesign.md` for
+  reference only.
 - **LightRAG retrieval.** Deployed at
   `lightrag.knowledge-system.svc.cluster.local:9621`. Backend:
   pgvector KV/vector on the same `knowledge_db`, NetworkX disk-
@@ -201,15 +199,16 @@ committed tree, so rendering must happen locally before commit.
   (LightRAG issue #2255). Uses in-cluster Ollama via
   `/v1/chat/completions` for extraction + mix-mode generation;
   pin Ollama outside `0.13.0-0.13.2` (LightRAG #2495 broke the
-  embedding path on those versions). The curator publishes every
-  promoted note via `POST /documents/text` fire-and-forget — a
-  slow LightRAG never blocks git + DB writes.
-- **Topic vocabulary is closed.** Add a topic = edit
-  `platform/cluster/flux/apps/knowledge/knowledge-curator/topics-configmap.yaml`
-  in a deliberate PR. The classifier rejects `topic:<slug>` values
-  that aren't in the list and routes the note to
-  `_inbox/_needs-review/`. This prevents the LLM from forking
-  `kotlin` / `Kotlin` / `kt` into three folders.
+  embedding path on those versions). Historically the curator
+  published every promoted note to LightRAG via `POST /documents/text`;
+  with the curator decommissioned, LightRAG retains the corpus it
+  already indexed and is no longer fed new promotions.
+- **Topic vocabulary.** The closed `topic:<slug>` vocabulary lives in
+  the knowledge-api DB migrations (`V2__topic_vocabulary.sql`,
+  `V3__seed_topics.sql`) and is no longer enforced by a live
+  classifier — the curator that validated captures against it was
+  decommissioned (see above). The former
+  `…/knowledge-curator/topics-configmap.yaml` no longer exists.
 
 ## Quick test commands
 

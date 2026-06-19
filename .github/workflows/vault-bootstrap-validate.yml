@@ -204,7 +204,6 @@ jobs:
             auth-api
             downloads
             knowledge-api
-            knowledge-curator
             knowledge-ingest-worker
             lightrag
             n8n
