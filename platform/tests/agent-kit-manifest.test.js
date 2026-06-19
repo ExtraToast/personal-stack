@@ -963,7 +963,12 @@ test('knowledge-api installer placeholders and public routes stay exposed', asyn
     '${KB_URL}/install.sh',
   )
   const installAgents = await readRepoText('services/knowledge-api/src/main/resources/installer/install-agents.sh')
-  assertContains(installAgents, "readonly INSTALLER_VERSION='@VERSION@'", "readonly KB_URL='@KB_URL@'", '${KB_URL%/}/install.sh')
+  assertContains(
+    installAgents,
+    "readonly INSTALLER_VERSION='@VERSION@'",
+    "readonly KB_URL='@KB_URL@'",
+    '${KB_URL%/}/install.sh',
+  )
   const fleet = await readYamlRepo('platform/inventory/fleet.yaml')
   const route = fleet.ingress_intent.route_rules.find((item) => item.name === 'knowledge-api-mcp')
   assert.equal(route.service, 'knowledge-api')
@@ -977,7 +982,14 @@ test('knowledge-api installer placeholders and public routes stay exposed', asyn
   assert.deepEqual(appRoute.excluded_path_prefixes, ['/mcp/'])
   const catalog = await readRepoText('platform/cluster/flux/apps/edge/edge-route-catalog-configmap.yaml')
   const ingressRoutes = await readRepoText('platform/cluster/flux/apps/edge/traefik-ingressroutes.yaml')
-  assertContains(catalog, 'name: "knowledge-api-mcp"', '- "/mcp"', '- "/install.sh"', '- "/install-agents.sh"', '- "/mcp/"')
+  assertContains(
+    catalog,
+    'name: "knowledge-api-mcp"',
+    '- "/mcp"',
+    '- "/install.sh"',
+    '- "/install-agents.sh"',
+    '- "/mcp/"',
+  )
   assertContains(
     ingressRoutes,
     'name: knowledge-api-mcp',
