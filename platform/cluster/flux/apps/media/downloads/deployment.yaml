@@ -198,8 +198,10 @@ spec:
                   print "Session\\PeXEnabled=false"
                   print "Session\\LSDEnabled=false"
                   # Download staging and the seed/library location are split
-                  # across the two pools entirely through qBittorrent's native
-                  # temp/save-path mechanism — no external copy hook:
+                  # across the two pools entirely through the native
+                  # qBittorrent temp/save-path mechanism (no external copy
+                  # hook; note no apostrophes in this awk-embedded comment —
+                  # the program is single-quoted in the shell):
                   #   TempPath        = /media/Seeding   (NVMe, -> /srv/media-incomplete)
                   #   DefaultSavePath = /media/Completed (HDD,  -> /srv/media/Completed)
                   # In-progress torrents (out-of-order piece writes, many-peer
