@@ -1,0 +1,120 @@
+# Private half of the portal. Owns the PTY that runs `claude /login` and
+# `codex login --device`, captures the credential files, and writes them to
+# Vault via KV v2 Compare-And-Set under a Lease lock. Single instance + Recreate
+# so the Lease is never contended by two writers across a rollover.
+#
+# HOME is a writable emptyDir, not the legacy credential PVCs: Vault is the
+# source of truth, so the worker needs no node pin and can schedule anywhere.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agents-login-worker
+  namespace: agents-system
+  labels:
+    app.kubernetes.io/name: agents-login-worker
+    app.kubernetes.io/part-of: agents-login
+  annotations:
+    keel.sh/policy: force
+    keel.sh/match-tag: 'true'
+    keel.sh/trigger: poll
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: agents-login-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: agents-login-worker
+        app.kubernetes.io/part-of: agents-login
+    spec:
+      serviceAccountName: agents-login-worker
+      automountServiceAccountToken: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: worker
+          image: ghcr.io/extratoast/personal-stack/agents-login:latest
+          imagePullPolicy: Always
+          args: ['worker']
+          ports:
+            - name: http
+              containerPort: 8081
+          env:
+            - name: AGENTS_LOGIN_MODE
+              value: worker
+            - name: PORT
+              value: '8081'
+            - name: HOME
+              value: /home/agent
+            - name: CODEX_HOME
+              value: /home/agent/.codex
+            - name: VAULT_ADDR
+              value: http://vault.data-system.svc.cluster.local:8200
+            - name: VAULT_K8S_ROLE
+              value: agents-login-worker
+            - name: LEASE_NAME
+              value: agents-login-write
+            - name: LEASE_NAMESPACE
+              value: agents-system
+            - name: INTERNAL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: agents-login-internal
+                  key: token
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ['ALL']
+          volumeMounts:
+            - name: home
+              mountPath: /home/agent
+            - name: tmp
+              mountPath: /tmp
+          readinessProbe:
+            tcpSocket:
+              port: 8081
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 25m
+              memory: 96Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: home
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agents-login-worker
+  namespace: agents-system
+  labels:
+    app.kubernetes.io/name: agents-login-worker
+    app.kubernetes.io/part-of: agents-login
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: agents-login-worker
+  ports:
+    - name: http
+      port: 8081
+      targetPort: 8081
