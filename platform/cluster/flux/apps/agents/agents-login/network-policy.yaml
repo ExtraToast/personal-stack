@@ -1,0 +1,103 @@
+# Controller egress is constrained to DNS + the worker Service. Ingress is left
+# open (Egress-only policyTypes) because Traefik reaches the controller through
+# the public IngressRoute and this cluster does not lock ingress from the edge
+# per-service; pinning the wrong edge selector would silently break the route.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: agents-login-controller
+  namespace: agents-system
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: agents-login-controller
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: agents-login-worker
+      ports:
+        - protocol: TCP
+          port: 8081
+---
+# The worker is the sensitive half: it holds the Vault-writer token and the
+# Lease. Ingress only from the controller pod on 8081. Egress to DNS, the
+# in-cluster Vault and Kubernetes API (the service CIDR on 443/8200), and
+# outbound HTTPS for the Anthropic/OpenAI OAuth flows — RFC1918 is excluded
+# from the internet rule so the worker cannot reach arbitrary cluster-private
+# hosts (the explicit service-CIDR rule above re-allows Vault + apiserver).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: agents-login-worker
+  namespace: agents-system
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: agents-login-worker
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: agents-login-controller
+      ports:
+        - protocol: TCP
+          port: 8081
+  egress:
+    # DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # In-cluster Vault (KV v2 writes + kubernetes auth login).
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: data-system
+      ports:
+        - protocol: TCP
+          port: 8200
+    # Kubernetes API (the Lease lock) reached via the kubernetes.default
+    # ClusterIP in the service CIDR. NetworkPolicy cannot select the apiserver
+    # by label, so allow the service CIDR on the apiserver ports.
+    - to:
+        - ipBlock:
+            cidr: 10.43.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 6443
+    # Outbound HTTPS for the Claude/Codex OAuth endpoints. RFC1918 + the
+    # link-local range are excluded so this rule cannot reach cluster-private
+    # hosts; Vault and the apiserver are covered by the explicit rules above.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443

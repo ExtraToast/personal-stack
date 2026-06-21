@@ -1,0 +1,21 @@
+# Shared bearer the controller presents to the worker on every internal call
+# (defence-in-depth on top of the NetworkPolicy that already restricts the
+# worker's ingress to the controller pod). Projected from Vault so no secret
+# lands in git. Populate the path once:
+#
+#   vault kv put -mount=secret agents/login-internal-token \
+#     token="$(openssl rand -hex 32)"
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: agents-login-internal
+  namespace: agents-system
+spec:
+  vaultAuthRef: vso-system/default
+  type: kv-v2
+  mount: secret
+  path: agents/login-internal-token
+  destination:
+    name: agents-login-internal
+    create: true
+  refreshAfter: 1h

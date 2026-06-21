@@ -1,0 +1,31 @@
+# Single-writer lock for credential writeback. The worker holds this one named
+# Lease while it writes Vault, so two worker instances (e.g. across a Recreate
+# rollover) cannot race a Compare-And-Set. Scoped to the single Lease name the
+# worker uses (LEASE_NAME=agents-login-write) — not the whole leases resource.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: agents-login-worker-lease
+  namespace: agents-system
+rules:
+  - apiGroups: ['coordination.k8s.io']
+    resources: ['leases']
+    verbs: ['get', 'watch', 'list', 'create']
+  - apiGroups: ['coordination.k8s.io']
+    resources: ['leases']
+    resourceNames: ['agents-login-write']
+    verbs: ['update', 'patch', 'delete']
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: agents-login-worker-lease
+  namespace: agents-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: agents-login-worker-lease
+subjects:
+  - kind: ServiceAccount
+    name: agents-login-worker
+    namespace: agents-system
