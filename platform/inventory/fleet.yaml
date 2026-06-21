@@ -200,6 +200,8 @@ service_intent:
       - agents-api
       # Alternate host for the agent terminal WebSocket (Enschede replica).
       - agents-ws
+      # Browser-driven Claude/Codex credential-renewal portal.
+      - agents-login
       - stalwart
       - n8n
       - gatus
@@ -270,6 +272,7 @@ placement_intent:
     - auth-api
     - agents-ui
     - agents-api
+    - agents-login
     - stalwart
     - postgres
     - rabbitmq
@@ -322,6 +325,7 @@ exposure_intent:
     - auth-api
     - agents-ui
     - agents-api
+    - agents-login
     - stalwart
     - grafana
     - n8n
@@ -364,6 +368,7 @@ access_intent:
   sso_protected:
     - agents-api
     - agents-ws
+    - agents-login
     - stalwart
     - bazarr
     - immich
@@ -384,6 +389,7 @@ access_intent:
     agents-ui: agents
     agents-api: agents
     agents-ws: agents-ws
+    agents-login: agents-login
     stalwart: stalwart
     grafana: grafana
     n8n: n8n
@@ -449,6 +455,8 @@ ingress_intent:
     - service: agents-ui
       excluded_path_prefixes:
         - /api/
+    # Whole-host forward-auth; the portal has no public path exceptions.
+    - service: agents-login
     - name: knowledge-api-mcp
       service: knowledge-api
       access: direct
@@ -515,6 +523,10 @@ ingress_intent:
       namespace: agents-system
       service: agents-ui
       port: 80
+    agents-login:
+      namespace: agents-system
+      service: agents-login-controller
+      port: 8080
     stalwart:
       namespace: mail-system
       service: stalwart
