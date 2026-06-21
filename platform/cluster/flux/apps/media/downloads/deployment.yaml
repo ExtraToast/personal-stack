@@ -197,22 +197,20 @@ spec:
                   print "Session\\DHTEnabled=false"
                   print "Session\\PeXEnabled=false"
                   print "Session\\LSDEnabled=false"
-                  # Save path = /media/Seeding, the NVMe scratch subvolume
-                  # (-> hostPath /srv/media-incomplete). ALL torrents download
-                  # into and seed from the SSD so peers are served at full NVMe
-                  # speed; the slow 5400-class HDD pool is never in the seeding
-                  # path. The copy-on-complete hook below then lands a durable
-                  # copy on the HDD at /media/Completed, so deleting a torrent
-                  # (with data) from the client frees the NVMe while the HDD
-                  # copy survives.
-                  #
-                  # TempPath disabled: with the save path already on the SSD
-                  # there is nothing to gain from a separate incomplete dir
-                  # (its only purpose was to keep out-of-order piece writes off
-                  # the HDD), and disabling it means a finished torrent is never
-                  # moved — it stays put on the NVMe and seeds in place.
-                  print "Session\\TempPathEnabled=false"
-                  print "Session\\DefaultSavePath=/media/Seeding"
+                  # Download staging and the seed/library location are split
+                  # across the two pools entirely through qBittorrent's native
+                  # temp/save-path mechanism — no external copy hook:
+                  #   TempPath        = /media/Seeding   (NVMe, -> /srv/media-incomplete)
+                  #   DefaultSavePath = /media/Completed (HDD,  -> /srv/media/Completed)
+                  # In-progress torrents (out-of-order piece writes, many-peer
+                  # random I/O the 5400-class HDD handles poorly) stage on the
+                  # SSD; on completion qBittorrent moves the content to the HDD
+                  # and seeds it from there. Sonarr/Radarr import straight from
+                  # /media/Completed — the exact path qBittorrent reports — so
+                  # no remote-path mapping is needed on the *arr side.
+                  print "Session\\TempPathEnabled=true"
+                  print "Session\\TempPath=/media/Seeding"
+                  print "Session\\DefaultSavePath=/media/Completed"
                   # Connectability + seeding throughput. UseRandomPort=false
                   # is load-bearing: with a random port qBittorrent ignores
                   # the Proton-forwarded port the port-sync sidecar applies,
@@ -251,66 +249,22 @@ spec:
                 { print }
               ' "$CONF.tmp" > "$CONF"
               rm -f "$CONF.tmp"
-              # [AutoRun] = qBittorrent's "run external program on torrent
-              # finished" hook. It fires the copy-to-Completed script below for
-              # every completed torrent. AutoRun keys (`enabled`/`program`) are
-              # unqualified (no backslash) and live in their own [AutoRun]
-              # section, so they're managed by this dedicated section-aware pass
-              # rather than the global grep above — a blind grep would also
-              # strip unrelated enabled=/program= keys from other sections.
-              # Only %F (the content path) is passed. qBittorrent merges two
-              # adjacent quoted params into a single argument — "%F" "%N"
-              # rendered as one mashed `<path><name>` token (observed in the
-              # execution log), so a name with spaces then split into the
-              # wrong argv and the copy failed. The script derives the name
-              # from basename("$1") anyway, so %N was redundant; dropping it
-              # leaves one quoted param, which keeps internal spaces intact.
-              AR_PROG='program=sh /config/qBittorrent/autorun-copy.sh "%F"'
-              awk -v prog="$AR_PROG" '
-                /^\[AutoRun\]$/ { print; ar=1; seen=1; print "enabled=true"; print prog; next }
+              # [AutoRun] previously ran a copy-to-Completed shell hook on
+              # every finished torrent. The native temp/save-path move above
+              # replaces it, so force AutoRun off and drop the stale script: a
+              # conf carried over from the old design would otherwise keep
+              # firing a program that no longer exists. The pass is section-
+              # aware (AutoRun keys are unqualified `enabled`/`program`, shared
+              # with other sections) and is a no-op when there is no [AutoRun].
+              awk '
+                /^\[AutoRun\]$/ { print; ar=1; print "enabled=false"; next }
                 /^\[/ { ar=0 }
                 ar && /^(enabled|program)=/ { next }
                 { print }
-                END { if (!seen) { print ""; print "[AutoRun]"; print "enabled=true"; print prog } }
               ' "$CONF" > "$CONF.ar" && mv "$CONF.ar" "$CONF"
-              # The copy-on-complete hook. qBittorrent runs it as UID 1000 with
-              # the finished torrent's content path (%F) and name (%N). It copies
-              # the content from the NVMe seeding area onto the HDD pool at
-              # /media/Completed, so the original keeps seeding from the SSD and
-              # a durable copy lands on the HDD; deleting the torrent (with data)
-              # from the client later frees the NVMe while the HDD copy survives.
-              # The copy goes to a .copying.* temp name and is atomically renamed
-              # into place, so Sonarr/Radarr/Jellyfin/Samba never see a
-              # half-written tree. Written each start so a fresh node provisions
-              # identically.
-              #
-              # Built with `printf '%s\n'` of single-quoted lines rather than a
-              # heredoc: this command runs inside a space-indented YAML block
-              # scalar, where a heredoc terminator (which the shell requires at
-              # column 0) can't be expressed. None of the script lines contain a
-              # single quote, so single-quoting keeps every $, ", ( ) literal.
-              printf '%s\n' \
-                '#!/bin/sh' \
-                'set -u' \
-                'CONTENT="$1"' \
-                'DEST="/media/Completed"' \
-                'LOG="/config/qBittorrent/logs/autorun-copy.log"' \
-                'ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }' \
-                'base=$(basename -- "$CONTENT")' \
-                'tmp="$DEST/.copying.$base"' \
-                'final="$DEST/$base"' \
-                'echo "[$(ts)] copy start: $CONTENT -> $final" >> "$LOG"' \
-                'rm -rf -- "$tmp"' \
-                'if cp -a -- "$CONTENT" "$tmp" && mv -f -- "$tmp" "$final"; then' \
-                '  echo "[$(ts)] copy done: $final" >> "$LOG"' \
-                'else' \
-                '  echo "[$(ts)] copy FAILED: $CONTENT" >> "$LOG"' \
-                '  rm -rf -- "$tmp"' \
-                'fi' \
-                > /config/qBittorrent/autorun-copy.sh
+              rm -f /config/qBittorrent/autorun-copy.sh
               chown -R 1000:1000 "$CONF_DIR"
               chmod 600 "$CONF"
-              chmod 0755 /config/qBittorrent/autorun-copy.sh
               echo "qBittorrent.conf seeded; managed keys:"
               grep -E '^(WebUI\\?(AuthSubnet|CSRFProtection)|Session\\?((DHT|PeX|LSD)Enabled|TempPath(Enabled)?|DefaultSavePath|UseRandomPort|QueueingSystemEnabled|MaxUploads(PerTorrent)?|MaxConnections(PerTorrent)?|Encryption|BTProtocol))' "$CONF" || true
               # The NVMe scratch subvolume (@media-incomplete) is created
@@ -435,15 +389,13 @@ spec:
             periodSeconds: 10
             failureThreshold: 3
           volumeMounts:
-            - name: media-downloading
-              mountPath: /media/Downloading
-            # HDD pool. Copy-on-complete target and the dir Sonarr/Radarr
-            # hardlink-import from (via a Seeding->Completed remote path
-            # mapping, since qBittorrent now reports the NVMe save path).
+            # HDD pool. qBittorrent's save path: finished torrents are moved
+            # here on completion and seed from here, and Sonarr/Radarr import
+            # straight from this path (the same one qBittorrent reports).
             - name: media-completed
               mountPath: /media/Completed
-            # NVMe scratch subvolume: every torrent downloads into and seeds
-            # from here (qBittorrent DefaultSavePath=/media/Seeding).
+            # NVMe scratch subvolume. qBittorrent's temp path: in-progress
+            # downloads stage here, then move to /media/Completed on finish.
             - name: media-incomplete
               mountPath: /media/Seeding
             - name: qbittorrent-config
@@ -630,16 +582,12 @@ spec:
               cpu: 500m
               memory: 768Mi
       volumes:
-        - name: media-downloading
-          hostPath:
-            path: /srv/media/Downloading
-            type: Directory
         - name: media-completed
           hostPath:
             path: /srv/media/Completed
             type: Directory
-        # NVMe seeding area: all torrents download into and seed from here
-        # (see nix media-storage.nix).
+        # NVMe scratch subvolume: in-progress downloads stage here, then move
+        # to /media/Completed on finish (see nix media-storage.nix).
         # type: Directory (not DirectoryOrCreate) on purpose: if the node
         # mount /srv/media-incomplete is somehow absent, the pod stays
         # Pending rather than silently creating the dir on the root disk and
