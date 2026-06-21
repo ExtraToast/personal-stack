@@ -62,6 +62,8 @@ jobs:
               - 'services/knowledge-api/**'
             knowledge-ingest-worker:
               - 'services/knowledge-ingest-worker/**'
+            agents-login:
+              - 'services/agents-login/**'
             gradle-config:
               - 'gradle/**'
               - 'gradle.properties'
@@ -90,6 +92,7 @@ jobs:
           FILTER_AUTH_API: ${{ steps.filter.outputs.auth-api }}
           FILTER_KNOWLEDGE_API: ${{ steps.filter.outputs.knowledge-api }}
           FILTER_KNOWLEDGE_INGEST_WORKER: ${{ steps.filter.outputs.knowledge-ingest-worker }}
+          FILTER_AGENTS_LOGIN: ${{ steps.filter.outputs.agents-login }}
           FILTER_VUE_COMMON: ${{ steps.filter.outputs.vue-common }}
           FILTER_FRONTEND_CONFIG: ${{ steps.filter.outputs.frontend-config }}
           FILTER_AUTH_UI: ${{ steps.filter.outputs.auth-ui }}
@@ -139,6 +142,10 @@ jobs:
           # Python services — only depend on their own dir; no shared
           # Kotlin or frontend trigger keys.
           [[ "$(any "$FORCE_ALL" "$FILTER_WORKFLOW" "$FILTER_KNOWLEDGE_INGEST_WORKER")" == "true" ]] && append knowledge-ingest-worker services/knowledge-ingest-worker/Dockerfile "$AMD64"
+          # agents-login: standalone Node credential-renewal service; amd64-only
+          # (operator tool). Keel annotations (keel.sh/policy: force +
+          # keel.sh/match-tag: "true") live on the Deployment manifests, not here.
+          [[ "$(any "$FORCE_ALL" "$FILTER_WORKFLOW" "$FILTER_AGENTS_LOGIN")" == "true" ]] && append agents-login services/agents-login/Dockerfile "$AMD64"
           [[ "$(any "$FORCE_ALL" "$FRONTEND_SHARED" "$FILTER_AUTH_UI")"       == "true" ]] && append auth-ui       services/auth-ui/Dockerfile       "$UI_PLATFORMS"
           [[ "$(any "$FORCE_ALL" "$FRONTEND_SHARED" "$FILTER_APP_UI")"        == "true" ]] && append app-ui        services/app-ui/Dockerfile        "$UI_PLATFORMS"
           # stalwart-tools: small alpine image baking stalwart-cli + the
