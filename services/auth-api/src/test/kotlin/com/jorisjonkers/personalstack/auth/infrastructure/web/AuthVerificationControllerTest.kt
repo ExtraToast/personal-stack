@@ -119,6 +119,26 @@ class AuthVerificationControllerTest {
     }
 
     @Test
+    fun `verify returns 200 when USER has agents-login permission`() {
+        val user = buildUserWithUuid(roles = listOf("ROLE_USER", "SERVICE_AGENTS_LOGIN"))
+        val session = MockHttpSession()
+
+        val response = controller.verify(user, session, "agents-login.jorisjonkers.dev")
+
+        assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
+    }
+
+    @Test
+    fun `verify returns 403 when USER lacks agents-login permission`() {
+        val user = buildUserWithUuid(roles = listOf("ROLE_USER", "SERVICE_AGENTS"))
+        val session = MockHttpSession()
+
+        val response = controller.verify(user, session, "agents-login.jorisjonkers.dev")
+
+        assertThat(response.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+    }
+
+    @Test
     fun `unknown subdomain host passes through without permission check`() {
         val user = buildUserWithUuid(roles = listOf("ROLE_USER"))
         val session = MockHttpSession()
