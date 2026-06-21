@@ -112,11 +112,26 @@ path "secret/data/platform/postgres" {
 # accept a key, the runner can read it back, and a delete can purge
 # it. The metadata path is required for `vault kv delete` semantics
 # under KV v2.
-path "secret/data/agents/*" {
+#
+# Scoped to repositories/* + projects/* on purpose. A blanket
+# secret/{data,metadata}/agents/* grant also reached the OAuth credential
+# paths (agents/claude-oauth, agents/codex-oauth) — and the metadata
+# delete capability would DESTROY their KV v2 version history, losing the
+# ability to roll back to a known-good login. Those paths are owned solely
+# by the agents-oauth-writer policy below.
+path "secret/data/agents/repositories/*" {
   capabilities = ["create", "read", "update", "delete"]
 }
 
-path "secret/metadata/agents/*" {
+path "secret/metadata/agents/repositories/*" {
+  capabilities = ["read", "delete", "list"]
+}
+
+path "secret/data/agents/projects/*" {
+  capabilities = ["create", "read", "update", "delete"]
+}
+
+path "secret/metadata/agents/projects/*" {
   capabilities = ["read", "delete", "list"]
 }
 
@@ -125,6 +140,31 @@ path "rabbitmq/creds/app-consumer" {
 }
 
 path "database/creds/agents-api" {
+  capabilities = ["read"]
+}
+EOF
+
+# The credential-login portal worker (SA agents-login-worker in
+# agents-system, bound to the agents-oauth-writer policy via the
+# kubernetes auth role below) is the ONLY identity allowed to write the
+# captured Claude/Codex OAuth files. It also reads the KV v2 metadata to
+# run Compare-And-Set version checks on each writeback. No delete/destroy:
+# OAuth version history must survive a bad login so a prior known-good
+# version can be restored.
+cat <<'EOF' >/tmp/agents-oauth-writer.hcl
+path "secret/data/agents/claude-oauth" {
+  capabilities = ["create", "read", "update"]
+}
+
+path "secret/data/agents/codex-oauth" {
+  capabilities = ["create", "read", "update"]
+}
+
+path "secret/metadata/agents/claude-oauth" {
+  capabilities = ["read"]
+}
+
+path "secret/metadata/agents/codex-oauth" {
   capabilities = ["read"]
 }
 EOF
@@ -264,6 +304,7 @@ EOF
 
 vault policy write auth-api /tmp/auth-api.hcl
 vault policy write agents-api /tmp/agents-api.hcl
+vault policy write agents-oauth-writer /tmp/agents-oauth-writer.hcl
 vault policy write n8n /tmp/n8n.hcl
 vault policy write postgres /tmp/postgres.hcl
 vault policy write rabbitmq /tmp/rabbitmq.hcl
@@ -282,6 +323,15 @@ vault write auth/kubernetes/role/agents-api \
   bound_service_account_names="agents-api" \
   bound_service_account_namespaces="agents-system" \
   policies="agents-api" \
+  ttl="1h"
+
+# Credential-login portal worker. Only this SA may write the OAuth
+# credential paths; the controller half of the portal holds no Vault
+# token at all.
+vault write auth/kubernetes/role/agents-login-worker \
+  bound_service_account_names="agents-login-worker" \
+  bound_service_account_namespaces="agents-system" \
+  policies="agents-oauth-writer" \
   ttl="1h"
 
 vault write auth/kubernetes/role/n8n \

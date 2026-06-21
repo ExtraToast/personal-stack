@@ -201,6 +201,7 @@ jobs:
           # with the script when a policy lands or is retired.
           required_policies=(
             agents-api
+            agents-oauth-writer
             auth-api
             downloads
             knowledge-api
@@ -228,3 +229,51 @@ jobs:
             exit 1
           fi
           echo "all required policies uploaded successfully"
+
+      - name: Assert the OAuth-credential RBAC boundary
+        # The bootstrap log only proves a policy was uploaded, not that
+        # its capabilities are correct. Mint a token under each policy and
+        # exercise the boundary that matters: agents-api (deploy keys) must
+        # NOT be able to write the OAuth paths or destroy their version
+        # history, and agents-oauth-writer must be able to write the OAuth
+        # data and read its metadata but NOT delete it. A helper inverts
+        # the exit code so a *successful* denied-operation fails the step.
+        env:
+          VAULT_ADDR: http://127.0.0.1:8200
+          VAULT_TOKEN: dev-root-token
+        run: |
+          set -euo pipefail
+
+          must_deny() {
+            # Runs "$@" with a scoped token; fails the step if it SUCCEEDS.
+            if VAULT_TOKEN="${SCOPED}" "$@" >/dev/null 2>&1; then
+              echo "FAIL: expected permission denied but the operation succeeded: $*" >&2
+              exit 1
+            fi
+          }
+
+          AGENTS_API=$(vault token create -policy=agents-api -ttl=5m -field=token)
+          OAUTH_WRITER=$(vault token create -policy=agents-oauth-writer -ttl=5m -field=token)
+
+          # agents-api keeps its deploy-key write.
+          VAULT_TOKEN="${AGENTS_API}" vault kv put secret/agents/repositories/ci-test key=value >/dev/null
+          echo "ok: agents-api can write agents/repositories/*"
+
+          # agents-api must NOT reach the OAuth data or destroy its metadata.
+          SCOPED="${AGENTS_API}" must_deny vault kv put secret/agents/claude-oauth credentials_json=nope
+          echo "ok: agents-api denied write on agents/claude-oauth"
+          vault kv put secret/agents/claude-oauth credentials_json=seed >/dev/null
+          SCOPED="${AGENTS_API}" must_deny vault kv metadata delete secret/agents/claude-oauth
+          echo "ok: agents-api denied metadata delete on agents/claude-oauth"
+
+          # agents-oauth-writer can write data + read metadata for CAS,
+          # but must NOT be able to delete (destroy) the version history.
+          VAULT_TOKEN="${OAUTH_WRITER}" vault kv put secret/agents/claude-oauth credentials_json=v1 >/dev/null
+          VAULT_TOKEN="${OAUTH_WRITER}" vault kv put secret/agents/codex-oauth auth_json=v1 >/dev/null
+          echo "ok: agents-oauth-writer can write the OAuth data paths"
+          VAULT_TOKEN="${OAUTH_WRITER}" vault kv metadata get secret/agents/claude-oauth >/dev/null
+          echo "ok: agents-oauth-writer can read OAuth metadata (CAS version checks)"
+          SCOPED="${OAUTH_WRITER}" must_deny vault kv metadata delete secret/agents/claude-oauth
+          echo "ok: agents-oauth-writer denied metadata delete on agents/claude-oauth"
+
+          echo "OAuth-credential RBAC boundary holds"
