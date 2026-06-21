@@ -29,6 +29,7 @@ jobs:
       any-frontend: ${{ steps.compute.outputs.any-frontend }}
       any-python: ${{ steps.compute.outputs.any-python }}
       knowledge-ingest-worker: ${{ steps.compute.outputs.knowledge-ingest-worker }}
+      agents-login: ${{ steps.compute.outputs.agents-login }}
       any-platform: ${{ steps.compute.outputs.any-platform }}
       run-system-tests: ${{ steps.compute.outputs.run-system-tests }}
       # Space-separated list of service names whose images need rebuilding
@@ -55,6 +56,8 @@ jobs:
               - 'services/knowledge-api/**'
             knowledge-ingest-worker:
               - 'services/knowledge-ingest-worker/**'
+            agents-login:
+              - 'services/agents-login/**'
             gradle-config:
               - 'gradle/**'
               - 'gradle.properties'
@@ -89,6 +92,7 @@ jobs:
           FILTER_AUTH_API: ${{ steps.filter.outputs.auth-api }}
           FILTER_KNOWLEDGE_API: ${{ steps.filter.outputs.knowledge-api }}
           FILTER_KNOWLEDGE_INGEST_WORKER: ${{ steps.filter.outputs.knowledge-ingest-worker }}
+          FILTER_AGENTS_LOGIN: ${{ steps.filter.outputs.agents-login }}
           FILTER_VUE_COMMON: ${{ steps.filter.outputs.vue-common }}
           FILTER_FRONTEND_CONFIG: ${{ steps.filter.outputs.frontend-config }}
           FILTER_AUTH_UI: ${{ steps.filter.outputs.auth-ui }}
@@ -113,6 +117,11 @@ jobs:
           KNOWLEDGE_INGEST_WORKER=$(any "$FILTER_WORKFLOW" "$FILTER_KNOWLEDGE_INGEST_WORKER")
           ANY_PYTHON=$(any "$KNOWLEDGE_INGEST_WORKER")
 
+          # agents-login is a standalone Node service — not part of the pnpm
+          # workspace and not exercised by system-tests (operator-only tool;
+          # no browser path to drive through Playwright).
+          AGENTS_LOGIN=$(any "$FILTER_WORKFLOW" "$FILTER_AGENTS_LOGIN")
+
           # Per-service rebuild flags for the reusable system-tests
           # workflow. Backend images are rebuilt from the PR source
           # only when the service's own dir OR shared Gradle config
@@ -135,6 +144,7 @@ jobs:
           echo "any-frontend=$ANY_FRONTEND" >> "$GITHUB_OUTPUT"
           echo "any-python=$ANY_PYTHON" >> "$GITHUB_OUTPUT"
           echo "knowledge-ingest-worker=$KNOWLEDGE_INGEST_WORKER" >> "$GITHUB_OUTPUT"
+          echo "agents-login=$AGENTS_LOGIN" >> "$GITHUB_OUTPUT"
           echo "any-platform=$ANY_PLATFORM" >> "$GITHUB_OUTPUT"
           echo "run-system-tests=$RUN_SYSTEM_TESTS" >> "$GITHUB_OUTPUT"
           echo "auth-api-kotlin=$AUTH_API_KOTLIN" >> "$GITHUB_OUTPUT"
@@ -279,6 +289,24 @@ jobs:
       # Testcontainers spins up a real RabbitMQ — Docker on the runner
       # is sufficient (ubuntu-latest ships with Docker).
       - run: uv run pytest -m integration
+
+  test-agents-login:
+    name: agents-login (lint / build / test)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.agents-login == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/agents-login
+    steps:
+      - uses: actions/checkout@v6.0.3
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm test
 
   test-kotlin-integration:
     name: Kotlin Integration Tests (${{ matrix.module }})
@@ -516,6 +544,7 @@ jobs:
       - contract-validate
       - vault-bootstrap-validate
       - stalwart-tests
+      - test-agents-login
     runs-on: ubuntu-latest
     steps:
       - name: Check pipeline result
