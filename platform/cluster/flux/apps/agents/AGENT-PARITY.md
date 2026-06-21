@@ -27,6 +27,13 @@ runner image sets `CODEX_HOME=/home/agent/.codex` so Codex picks
 up the right path even if a future Codex release changes its
 default home.
 
+The `agents-login` portal keeps the two in lockstep too: its image
+bakes both CLIs, the worker captures both credential sets in the same
+login session, and it writes both Vault paths
+(`secret/agents/claude-oauth` with `credentials_json`/`claude_json`,
+`secret/agents/codex-oauth` with `auth_json`/`config_toml`) — a login
+that refreshed only one provider is a parity regression.
+
 The `auth-bootstrap` Pod populates both with one human
 exec-and-paste session each (see `README.md`). The
 `agents-refresh-ping` CronJob exercises both every 6 hours.

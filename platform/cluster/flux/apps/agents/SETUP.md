@@ -11,6 +11,135 @@ CLIs every six hours, OAuth refresh tokens rotate in place on the
 PVCs, and per-Project deploy keys are managed via the assistant-ui
 wizard.
 
+## Re-authenticating Claude and Codex credentials
+
+There are two ways to refresh the runner credentials when they expire.
+Prefer the **login portal**; the **terminal stopgap** is the fallback
+for when the portal is not yet deployed.
+
+### Login portal (preferred)
+
+`agents-login.jorisjonkers.dev` is a browser-driven portal that runs
+`claude /login` and `codex login --device` server-side and writes the
+captured OAuth credentials to Vault, from where VSO projects them to
+every runner — so one re-sign-in renews the whole fleet and no text has
+to be copied out of a terminal. It is forward-auth protected by a
+dedicated `AGENTS_LOGIN` permission, NOT the shared `AGENTS` one: a
+holder of that permission can mint the fleet's root credentials, so it
+is granted deliberately.
+
+The portal is two Deployments in `agents-system`:
+
+- **controller** — the public UI. Holds no Vault token and stores no
+  credential files. Uses short HTTP polling (not a WebSocket: the
+  Cloudflare edge kills idle sockets ~100 s and the OAuth approval idles
+  longer) and proxies the flow to the worker over an internal token.
+- **worker** — owns the PTY that runs the CLI login, captures the
+  credential files, and writes Vault under a single-writer Kubernetes
+  `Lease` (`agents-login-write`) with KV v2 Compare-And-Set. Bound to the
+  `agents-oauth-writer` Vault policy via the `agents-login-worker`
+  ServiceAccount.
+
+To re-authenticate: open the portal, start the Claude login (copy the
+authorize URL into a browser tab signed in to the Claude Pro account,
+approve, paste the redirect URL back into the page), then start the
+Codex device login (enter the displayed code at the OpenAI device page).
+
+### Terminal stopgap (until the portal is deployed)
+
+Re-auth from the bootstrap Pod — but run the exec from the operator's
+OWN workstation terminal, which can copy text, NOT the agents-ui xterm
+relay:
+
+```sh
+kubectl -n agents-system exec -it auth-bootstrap -- bash
+claude /login          # paste the authorize URL out, paste the redirect back
+codex login --device   # enter the device code at chatgpt.com/codex/auth
+```
+
+`kubectl logs auth-bootstrap` is NOT a copy channel: the Pod runs `sleep
+infinity`, a later exec session's stdout is not the Pod's logs, and the
+Claude flow needs the redirect URL fed back on stdin.
+
+## Vault schema for the OAuth credentials
+
+The portal writes two KV v2 paths under `secret/agents`:
+
+- `secret/agents/claude-oauth` — fields `credentials_json`, `claude_json`
+  (+ `schema_version`, `updated_at`, `updated_by`).
+- `secret/agents/codex-oauth` — fields `auth_json`, `config_toml` (+ the
+  same metadata).
+
+Field names are underscored because `vault kv put` with leading-dot keys
+is awkward; the `VaultStaticSecret` transformation templates re-emit the
+exact CLI filenames (`.credentials.json`, `.claude.json`, `auth.json`,
+`config.toml`) into the projected Secrets `agents-claude-oauth` /
+`agents-codex-oauth`. `.claude.json` is a SIBLING of `~/.claude/`, not a
+file inside it, so a consumer init-copy must place it at
+`$HOME/.claude.json`.
+
+The shared controller↔worker token lives at
+`secret/agents/login-internal-token` (field `token`). The portal 403s on
+writes until the `agents-oauth-writer` policy and the worker auth role
+are live, so re-run the `vault-bootstrap-auth` Job first if a fresh init
+is involved, then seed:
+
+```sh
+vault kv put -mount=secret agents/login-internal-token token="$(openssl rand -hex 32)"
+```
+
+VSO reconciles every `refreshAfter: 1h`. To pull a fresh login through
+immediately:
+
+```sh
+kubectl -n agents-system annotate vaultstaticsecret agents-claude-oauth force-sync="$(date +%s)" --overwrite
+kubectl -n agents-system annotate vaultstaticsecret agents-codex-oauth force-sync="$(date +%s)" --overwrite
+```
+
+## Writeback and failure modes
+
+Both CLIs rotate their refresh token in place on disk, so a read-only
+projected Secret would go stale and force a premature re-login. The
+worker is the single writer that pushes a rotated credential back to
+Vault, serialized by the `agents-login-write` Lease and KV v2 CAS against
+`metadata.version`:
+
+- **CAS conflict** — the loser re-reads and retries with bounded backoff;
+  a persistent conflict surfaces an error rather than blind-overwriting.
+- **Worker down** — credentials go stale until the next login; the
+  refresh-ping CronJob is the early-warning signal.
+- **Two writers** — prevented by `replicas: 1` + `Recreate` + the Lease.
+
+## Node-pin classification
+
+Moving credentials into Vault does NOT by itself let runners schedule
+anywhere. `AGENT_RUNTIME_NODE=enschede-gtx-960m-1` is **multi-reason**:
+the docker-socket GID, the hard-coded egress callback IP in
+`network-policy/runner-egress.yaml`, and the untrusted-workloads-at-home
+policy. Only the **credential** justification is removed by the Vault
+migration; the others keep the pin until the companion runner change
+tolerates capability scheduling. The agents-login worker itself is **not**
+pinned — it reads Vault, so it runs anywhere.
+
+## Companion change (agents repo)
+
+The cluster projects `agents-claude-oauth` / `agents-codex-oauth` as
+read-only Secrets. Making runners consume them instead of the PVCs is a
+companion change in the `agents` repo:
+
+- `services/agent-runner/Dockerfile` + `/opt/entrypoint.sh` — create a
+  writable `$HOME/.claude` / `$CODEX_HOME` and init-copy the projected
+  files into place (`.claude.json` as a sibling of `.claude/`).
+- `Fabric8AgentRunnerOrchestrator.kt` — swap the two `claude-credentials`
+  / `codex-credentials` PVC volume sources for the projected Secrets.
+
+Until that lands, runners still read the PVCs, so the legacy bootstrap
+(sections 3-5 below) and the `claude-credentials` / `codex-credentials`
+PVCs stay in place. Watch for **image skew**: the portal, the
+agent-runner image, and the orchestrator-launched runner image must share
+a compatible credential-file format, so converge the bundled CLI versions
+before any cutover.
+
 ## 0. Prerequisites
 
 Once-only, before doing anything in the cluster:
