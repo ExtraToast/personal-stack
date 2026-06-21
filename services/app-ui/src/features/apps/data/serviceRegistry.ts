@@ -65,6 +65,13 @@ export const SERVICE_REGISTRY: ServiceEntry[] = [
     description: 'AI agents',
   },
   {
+    permission: 'AGENTS_LOGIN',
+    label: 'Agents Login',
+    url: buildServiceUrl('agents-login'),
+    iconUrl: '/icons/agent-login.svg',
+    description: 'Agent credential login',
+  },
+  {
     permission: 'DASHBOARD',
     label: 'Cluster Dashboard',
     url: buildServiceUrl('dashboard'),
