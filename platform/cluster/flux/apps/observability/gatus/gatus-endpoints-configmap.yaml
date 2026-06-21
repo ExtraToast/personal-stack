@@ -168,6 +168,13 @@ data:
       conditions:
       - "[STATUS] == 200"
       - "[RESPONSE_TIME] < 1500"
+    - name: "agents-login"
+      group: "public-apps"
+      url: "http://agents-login-controller.agents-system.svc.cluster.local:8080/"
+      interval: "60s"
+      conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 1500"
     - name: "agents-ui"
       group: "public-apps"
       url: "https://agents.jorisjonkers.dev/"
