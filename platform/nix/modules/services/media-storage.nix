@@ -21,8 +21,6 @@
     "z /srv/media 0775 deploy deploy - -"
     "d /srv/media/Completed 0775 deploy deploy - -"
     "z /srv/media/Completed 0775 deploy deploy - -"
-    "d /srv/media/Downloading 0775 deploy deploy - -"
-    "z /srv/media/Downloading 0775 deploy deploy - -"
     "d /srv/media/Films 0775 deploy deploy - -"
     "z /srv/media/Films 0775 deploy deploy - -"
     "d /srv/media/Series 0775 deploy deploy - -"
@@ -33,14 +31,16 @@
     "z /srv/media/TimeMachine 0775 deploy deploy - -"
     "d /srv/media/Photos 0775 deploy deploy - -"
     "z /srv/media/Photos 0775 deploy deploy - -"
-    # NVMe seeding area (see fileSystems below). qBittorrent's
-    # DefaultSavePath: every torrent now downloads into and SEEDS from this
-    # subvolume so peers are served at NVMe speed, and a copy-on-complete hook
-    # lands a durable copy on the HDD pool at /srv/media/Completed. Torrents
-    # therefore persist here for as long as they stay in the client (formerly
-    # only in-flight data lived here), so the 250G qgroup limit below now caps
-    # total live-seeding + in-progress data, not just in-flight — revisit it
-    # against the backup pool's free space if seeding fills the SSD.
+    # NVMe download-staging area (see fileSystems below). qBittorrent's
+    # TempPath: in-progress torrents download here (out-of-order piece writes
+    # and many-peer random I/O hit the SSD, not the 5400-class HDD), then move
+    # to the HDD pool at /srv/media/Completed on completion and seed from
+    # there. Only in-flight data lives here, so the 250G qgroup limit below
+    # caps concurrent in-progress downloads — raise it against the backup
+    # pool's free space if a large download set ever needs more headroom.
+    # Also exposed read/write over Samba as the `Downloading` folder of the
+    # media-downloads share (bind below) so stuck/abandoned downloads can be
+    # cleaned up by hand.
     "d /srv/media-incomplete 0775 deploy deploy - -"
     "z /srv/media-incomplete 0775 deploy deploy - -"
     # nodatacow for the subvolume, set as a directory attribute so new
@@ -51,14 +51,14 @@
     "d /srv/media-views 0755 root root - -"
     # Parent dirs are regular directories on the rootfs — keep them
     # owned by root:root 0755. The /<leaf> entries below are the bind
-    # mount *targets* for /srv/media/<Name>, so a `d` rule that sets
-    # ownership on the leaf path writes through the bind into the
-    # source inode under /srv/media. Match the source's intended
-    # 0775 deploy:deploy here so each activation re-aligns the source
-    # (alongside the existing `z` rules above) instead of resetting
-    # /srv/media/{Downloading,Completed,Films,Series} back to
-    # root:root 0755 — which silently breaks qBittorrent / *arr
-    # (UID 1000) creating new files in /srv/media/Downloading.
+    # mount *targets* for the underlying source dirs, so a `d` rule that
+    # sets ownership on the leaf path writes through the bind into the
+    # source inode. Match the source's intended 0775 deploy:deploy here
+    # so each activation re-aligns the source (alongside the existing `z`
+    # rules above) instead of resetting /srv/media/{Completed,Films,Series}
+    # (and the NVMe /srv/media-incomplete behind the Downloading view) back
+    # to root:root 0755 — which silently breaks qBittorrent / *arr
+    # (UID 1000) creating new files.
     "d /srv/media-views/media-downloads 0755 root root - -"
     "d /srv/media-views/media-downloads/Downloading 0775 deploy deploy - -"
     "d /srv/media-views/media-downloads/Completed 0775 deploy deploy - -"
@@ -108,15 +108,16 @@
       ];
     };
     "/srv/media-incomplete" = {
-      # NVMe seeding area for qBittorrent (container path /media/Seeding):
-      # the @media-incomplete subvolume on the backup pool (LABEL=backup,
-      # the 512 GB MZVLB M.2), a sibling of @backup / @snapshots. The
-      # subvolume itself is declared in hosts/enschede-t1000-1/disko-backup.nix
-      # so disko creates it at install on any fresh node; this entry just
-      # mounts it. Every torrent downloads into and seeds from here so the
-      # 5400-class /srv/media HDD pool — which handles out-of-order piece
-      # writes and many-peer random reads poorly — is never in the download or
-      # seeding path; a copy-on-complete hook lands a durable copy on the HDD.
+      # NVMe download-staging area for qBittorrent (container path
+      # /media/Seeding): the @media-incomplete subvolume on the backup pool
+      # (LABEL=backup, the 512 GB MZVLB M.2), a sibling of @backup /
+      # @snapshots. The subvolume itself is declared in
+      # hosts/enschede-t1000-1/disko-backup.nix so disko creates it at install
+      # on any fresh node; this entry just mounts it. In-progress torrents
+      # download here so the 5400-class /srv/media HDD pool — which handles
+      # out-of-order piece writes and many-peer random reads poorly — stays
+      # out of the download path; qBittorrent moves each torrent to the HDD
+      # pool (/srv/media/Completed) on completion and seeds it from there.
       # (The subvolume name stays @media-incomplete to avoid a risky live
       # btrfs/disko rename; only the qBittorrent-facing mount is "Seeding".)
       #
@@ -136,13 +137,17 @@
       ];
     };
     "/srv/media-views/media-downloads/Downloading" = {
-      device = "/srv/media/Downloading";
+      # Exposes the NVMe download-staging subvolume (qBittorrent's TempPath,
+      # in-progress torrents) over Samba so stuck/abandoned downloads can be
+      # cleaned up by hand. Completed torrents move off here to the HDD pool
+      # and show up under the sibling Completed view.
+      device = "/srv/media-incomplete";
       fsType = "none";
       options = [
         "bind"
         "nofail"
       ];
-      depends = [ "/srv/media" ];
+      depends = [ "/srv/media-incomplete" ];
     };
     "/srv/media-views/media-downloads/Completed" = {
       device = "/srv/media/Completed";
@@ -221,11 +226,11 @@
   # mounted subvolume root. Runs on every boot / nixos-rebuild, so it persists
   # across deploys and provisions fresh nodes correctly.
   #
-  # Quota: cap the seeding area so it can never fill the shared backup pool.
-  # Now that every torrent seeds from here (not just in-flight data), 250G is
-  # the ceiling on total live-seeding + in-progress content; raise it if the
-  # seeding set outgrows it and the backup pool has the headroom. Non-fatal
-  # (`-`): a freshly formatted pool may not have quotas on yet.
+  # Quota: cap the staging area so it can never fill the shared backup pool.
+  # Only in-progress downloads live here (finished torrents move to the HDD),
+  # so 250G is the ceiling on concurrent in-flight content; raise it if the
+  # active download set outgrows it and the backup pool has the headroom.
+  # Non-fatal (`-`): a freshly formatted pool may not have quotas on yet.
   systemd.services."media-incomplete-setup" = {
     description = "Own and quota the /srv/media-incomplete scratch subvolume";
     wantedBy = [ "multi-user.target" ];
