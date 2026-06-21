@@ -27,4 +27,8 @@ regexes = [
 paths = [
   '''services/assistant-api/src/main/kotlin/com/jorisjonkers/personalstack/assistant/application/command/AttachDeployKeyCommandHandler\.kt''',
   '''services/assistant-api/src/main/kotlin/com/jorisjonkers/personalstack/assistant/application/command/AttachRepositoryDeployKeyCommandHandler\.kt''',
+  # agents-login redaction unit test: a synthetic JWT-shaped fixture used to
+  # prove the redaction masks tokens. No real secret; the value is assembled
+  # in source but its introducing commit still trips the default `jwt` rule.
+  '''services/agents-login/test/redact\.test\.ts''',
 ]
