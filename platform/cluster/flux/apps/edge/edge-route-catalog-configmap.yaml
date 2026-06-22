@@ -32,10 +32,6 @@ data:
       exact_paths:
       - "/api/actuator/health"
       - "/api/v1/health"
-    - name: "agents-login"
-      service: "agents-login"
-      host: "agents-login.jorisjonkers.dev"
-      access: "sso_protected"
     - name: "agents-ui"
       service: "agents-ui"
       host: "agents.jorisjonkers.dev"

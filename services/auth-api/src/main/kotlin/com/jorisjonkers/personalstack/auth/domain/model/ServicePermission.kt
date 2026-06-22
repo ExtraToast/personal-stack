@@ -25,10 +25,6 @@ enum class ServicePermission(
 
     // agents-ws is the Enschede terminal-WebSocket host; same access as agents.
     AGENTS("agents", "agents-ws"),
-
-    // Separate permission for the agents-login credential-renewal endpoint so that
-    // AGENTS grantees cannot implicitly mint fleet credentials via a shared entry.
-    AGENTS_LOGIN("agents-login"),
     STATUS("status"),
 
     // Media stack. Surfaced in the app-ui MyApps grid so grantees can land on their

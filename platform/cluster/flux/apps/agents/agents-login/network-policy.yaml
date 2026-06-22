@@ -1,42 +1,13 @@
-# Controller egress is constrained to DNS + the worker Service. Ingress is left
-# open (Egress-only policyTypes) because Traefik reaches the controller through
-# the public IngressRoute and this cluster does not lock ingress from the edge
-# per-service; pinning the wrong edge selector would silently break the route.
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: agents-login-controller
-  namespace: agents-system
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: agents-login-controller
-  policyTypes:
-    - Egress
-  egress:
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - protocol: UDP
-          port: 53
-        - protocol: TCP
-          port: 53
-    - to:
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/name: agents-login-worker
-      ports:
-        - protocol: TCP
-          port: 8081
----
-# The worker is the sensitive half: it holds the Vault-writer token and the
-# Lease. Ingress only from the controller pod on 8081. Egress to DNS, the
-# in-cluster Vault and Kubernetes API (the service CIDR on 443/8200), and
-# outbound HTTPS for the Anthropic/OpenAI OAuth flows — RFC1918 is excluded
-# from the internet rule so the worker cannot reach arbitrary cluster-private
-# hosts (the explicit service-CIDR rule above re-allows Vault + apiserver).
+# The worker is the sensitive half of the credential portal: it holds the
+# Vault-writer token and the Lease. It is reached only by agents-api, which
+# proxies the login flow from the agents-ui Credentials page (served at
+# agents.jorisjonkers.dev). Ingress is therefore restricted to the agents-api
+# pods on 8081; there is no public-facing component in this namespace.
+#
+# Egress: DNS, the in-cluster Vault and Kubernetes API (the service CIDR on
+# 443/8200), and outbound HTTPS for the Anthropic/OpenAI OAuth flows — RFC1918
+# is excluded from the internet rule so the worker cannot reach arbitrary
+# cluster-private hosts (the explicit service-CIDR rule re-allows Vault + apiserver).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -50,10 +21,16 @@ spec:
     - Ingress
     - Egress
   ingress:
+    # Both the Frankfurt agents-api and the Enschede terminal-WS replica may
+    # proxy the login flow to the worker.
     - from:
         - podSelector:
-            matchLabels:
-              app.kubernetes.io/name: agents-login-controller
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - agents-api
+                  - agents-api-ws
       ports:
         - protocol: TCP
           port: 8081

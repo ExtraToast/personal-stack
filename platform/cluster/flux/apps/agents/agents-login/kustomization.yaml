@@ -5,6 +5,5 @@ resources:
   - serviceaccount.yaml
   - rbac.yaml
   - internal-token-vss.yaml
-  - controller.yaml
   - worker.yaml
   - network-policy.yaml
