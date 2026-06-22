@@ -32,6 +32,11 @@ spec:
     spec:
       serviceAccountName: agents-login-worker
       automountServiceAccountToken: true
+      # The image is amd64-only (it bundles the Claude/Codex CLIs + node-pty and
+      # is not worth a QEMU arm64 build). Keep it off the arm64 Pi nodes, where
+      # it would ImagePullBackOff on "no match for platform in manifest".
+      nodeSelector:
+        kubernetes.io/arch: amd64
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
