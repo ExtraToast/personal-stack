@@ -20,7 +20,6 @@ class ServicePermissionTest {
         "traefik.jorisjonkers.test, TRAEFIK",
         "agents.jorisjonkers.dev, AGENTS",
         "agents-ws.jorisjonkers.dev, AGENTS",
-        "agents-login.jorisjonkers.dev, AGENTS_LOGIN",
         "status.jorisjonkers.dev, STATUS",
         "jellyfin.jorisjonkers.dev, JELLYFIN",
         "jellyseerr.jorisjonkers.dev, JELLYSEERR",
