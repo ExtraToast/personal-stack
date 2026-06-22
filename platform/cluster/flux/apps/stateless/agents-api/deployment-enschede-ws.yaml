@@ -180,6 +180,18 @@ spec:
                   name: github-app
                   key: token-bearer
                   optional: true
+            # Credential-login worker — agents-api proxies the agents-ui
+            # Credentials page to it. INTERNAL_TOKEN is the shared bearer
+            # projected from Vault into agents-login-internal; optional so the
+            # Deployment still starts before the path is seeded.
+            - name: CREDENTIAL_WORKER_URL
+              value: http://agents-login-worker.agents-system.svc.cluster.local:8081
+            - name: INTERNAL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: agents-login-internal
+                  key: token
+                  optional: true
           ports:
             - containerPort: 8082
               name: http
