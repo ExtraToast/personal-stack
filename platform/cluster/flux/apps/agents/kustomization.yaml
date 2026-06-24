@@ -9,6 +9,7 @@ resources:
   - auth-bootstrap
   - refresh-ping
   - kb-install
+  - kb-curator
   - network-policy
   - agent-gateway-image # shared image pull only; runner Pods are created at runtime by agents-api
   - rbac
