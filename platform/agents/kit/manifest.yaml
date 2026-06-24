@@ -538,11 +538,11 @@ specify:
 
 installer:
   path: services/knowledge-api/src/main/resources/installer/install.sh
-  sha256: 1ce59c8ad852b6bf09d758a6d53fed9188b9023fbb5cb5f84ba5e27af57133c2
+  sha256: 77b071aa4c5d6b0b34d4bb7a243de04573c7f97850f348727de1dd6827449ba1
   supported_agents: [codex, claude]
   served_artifacts:
     - path: services/knowledge-api/src/main/resources/installer/install.sh
-      sha256: 1ce59c8ad852b6bf09d758a6d53fed9188b9023fbb5cb5f84ba5e27af57133c2
+      sha256: 77b071aa4c5d6b0b34d4bb7a243de04573c7f97850f348727de1dd6827449ba1
       mode: "0644"
     - path: services/knowledge-api/src/main/resources/installer/install-agents.sh
       sha256: 63e36bf648297d50e1a89f1823560defbd54eb669d43086b7021a1818bd3b55b
