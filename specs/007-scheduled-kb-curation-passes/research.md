@@ -31,7 +31,7 @@ Now in knowledge-api Postgres (`db/migration/V2__topic_vocabulary.sql`, `V3__see
 
 ## Risks
 
-- **R1 — Vault path for the deploy key** *(resolved: agents/-path)*: the VSS reads `secret/agents/knowledge-vault-deploy-key` so the existing agents-system VSO policy covers it (no cross-namespace grant). One-time setup copies the same key `knowledge-ingest-worker` uses into that path (`vault kv put`); until populated the VSS does not sync and the Tier-2 Job fails loudly.
+- **R1 — Vault path for the deploy key** *(non-issue — no action needed)*: the VSS reads the existing `secret/knowledge-system/vault-deploy-key` directly. The shared `vso` policy backing `vso-system/default` already grants read on `secret/data/knowledge-system/*` (and `secret/data/agents/*`) per `bootstrap-auth.sh`, so the agents-system VSS syncs with no copy and no policy change. (An earlier draft mirrored the key to an `agents/`-path; reverted as unnecessary.)
 - **R2 — GitHub App on knowledge-vault**: auto-PR is deferred until confirmed; MVP uses compare-URL, so this does not block.
 - **R3 — Headless MCP tool permissions**: `claude -p --allowed-tools mcp__knowledge__...` must auto-allow without prompts; validate on first dry-run (Tier-1 already exercises this).
 - **R4 — Constitution I (attribution)**: PRs #723/#724 included `Co-Authored-By`/generated-by text, violating the no-attribution principle. Corrected by amending those commits and PR bodies; all 007 commits carry no attribution.
