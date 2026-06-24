@@ -1,0 +1,151 @@
+# Daily KB curation — Tier 1 (inbox triage), DRY-RUN.
+#
+# Replaces the retired always-on knowledge-curator with a cheap, bounded,
+# scheduled pass. It runs headless `claude -p` (Haiku) against the in-cluster
+# knowledge-api over MCP, looks ONLY at a bounded slice of recent captures,
+# and PROPOSES a triage plan (scope/tag/dedup/discard) to stdout — which lands
+# in this Job's logs. It mutates NOTHING: only read-only MCP tools are allowed.
+#
+# Why dry-run first: lets us calibrate the per-run caps and see the quality of
+# the triage before granting any write tools. To promote to apply-mode later,
+# set KB_CURATOR_APPLY=1 and add the write tools to --allowed-tools (see the
+# commented block in the command).
+#
+# Bounded by design (the retired curator's failure was scanning everything,
+# always): read-only, list_recent capped at 25, --max-turns 24, a token-frugal
+# model, and activeDeadlineSeconds kills a runaway pass.
+#
+# In-cluster: talks to knowledge-api.knowledge-system.svc directly so it does
+# not depend on edge / forward-auth / external DNS. Note KNOWLEDGE_MODE=lite
+# drops the curator-governance tools (review_summary), so triage is built on
+# list_recent + recall, which lite keeps.
+#
+# Run on demand:
+#   kubectl -n agents-system create job \
+#     --from=cronjob/agents-kb-curator-triage kb-curator-now
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: agents-kb-curator-triage
+  namespace: agents-system
+spec:
+  schedule: '13 4 * * *' # daily 04:13 UTC, offset from refresh-ping (:17) and kb-install (Sun 06:37)
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 600 # hard 10-min ceiling — a runaway pass is killed
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: Never
+          nodeSelector:
+            personal-stack/node: enschede-gtx-960m-1
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+          containers:
+            - name: triage
+              image: ghcr.io/extratoast/personal-stack/agent-runner:latest
+              imagePullPolicy: Always
+              env:
+                - name: HOME
+                  value: /home/agent
+                - name: CLAUDE_CONFIG_DIR
+                  value: /home/agent/.claude
+                # Dry-run: 0 => propose-only (no write tools granted). Flip to 1
+                # AND extend --allowed-tools to enable apply-mode.
+                - name: KB_CURATOR_APPLY
+                  value: '0'
+                - name: KB_BEARER_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: agents-kb-bearer
+                      key: bearer
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  set -u
+                  if [ -z "${KB_BEARER_TOKEN}" ]; then
+                    echo "[kb-curator] KB_BEARER_TOKEN is empty — populate Vault secret/agents/kb-bearer first" >&2
+                    exit 1
+                  fi
+
+                  # Restore ~/.claude.json from the latest PVC-backed backup if
+                  # the runtime file is missing (this CronJob bypasses the
+                  # agent-runner entrypoint that normally does this).
+                  if [ ! -f "$HOME/.claude.json" ] && [ -d "$HOME/.claude/backups" ]; then
+                    latest=$(ls -1t "$HOME/.claude/backups"/.claude.json.backup.* 2>/dev/null | head -n1 || true)
+                    [ -n "$latest" ] && cp "$latest" "$HOME/.claude.json"
+                  fi
+
+                  # Knowledge MCP config — in-cluster URL + bearer from the
+                  # secret. Same shape as agents-mcp-servers-configmap.yaml.
+                  mcp_config="$(mktemp)"
+                  cat > "$mcp_config" <<JSON
+                  {
+                    "mcpServers": {
+                      "knowledge": {
+                        "type": "http",
+                        "url": "http://knowledge-api.knowledge-system.svc.cluster.local:8080/mcp",
+                        "headers": { "Authorization": "Bearer ${KB_BEARER_TOKEN}" }
+                      }
+                    }
+                  }
+                  JSON
+
+                  # Read-only toolset (dry-run). Apply-mode adds the write tool:
+                  #   ALLOWED_TOOLS="${ALLOWED_TOOLS},mcp__knowledge__knowledge_ingest_note"
+                  ALLOWED_TOOLS="mcp__knowledge__knowledge_list_recent,mcp__knowledge__knowledge_recall"
+
+                  read -r -d '' PROMPT <<'EOF' || true
+                  You are the KB curation triage pass for a shared knowledge base reached over the `knowledge` MCP server. You run daily, unattended, on a strict budget. This is a DRY RUN: you have ONLY read-only tools. Do not attempt to write — propose, don't apply.
+
+                  GOAL: surface the lowest-signal and most-fixable recent captures so a human (or a later apply-mode run) can act.
+
+                  HARD BUDGET (never exceed):
+                  - At most 24 tool calls total.
+                  - Inspect at most 25 notes.
+                  - One pass, then stop and emit the report.
+
+                  STEPS:
+                  1. Call knowledge.knowledge_list_recent with limit 25 to get the most recent captures.
+                  2. Triage each note into exactly ONE bucket. Auto-capture git-commit notes (titles that are raw commit messages, source ending in :git-commit) with no durable lesson are usually DISCARD. For a few genuinely ambiguous notes only, you MAY call knowledge.knowledge_recall (mode=fast, limit=3) on the note's topic to check whether a canonical note already covers it — but spend no more than ~6 such checks.
+                  3. Buckets:
+                     - KEEP: durable lesson/decision. Propose a scope (project:<repo> / topic:<slug> / agent:<name>) and up to 3 tags if missing.
+                     - DISCARD: low-signal auto-capture (commit-message noise, transient/diagnostic). Reason in <=8 words.
+                     - DUP: near-duplicate of another recent note or an existing canonical one. Name the suspected twin's id/title.
+                     - UNSURE: needs a human. One-line reason.
+
+                  OUTPUT: a single concise markdown report to stdout, no preamble:
+                  ## KB triage — <UTC date>
+                  Inspected: N notes | KEEP: a | DISCARD: b | DUP: c | UNSURE: d
+                  Then four short sections (KEEP / DISCARD / DUP / UNSURE), each a bullet list of `id` — title — proposed action/reason. Omit empty sections. End with one line: "DRY RUN — no changes applied."
+                  EOF
+
+                  echo "[kb-curator] starting dry-run triage (apply=${KB_CURATOR_APPLY})"
+                  claude -p "$PROMPT" \
+                    --model haiku \
+                    --output-format text \
+                    --mcp-config "$mcp_config" \
+                    --allowed-tools "$ALLOWED_TOOLS" \
+                    --max-turns 24
+                  echo "[kb-curator] done"
+              volumeMounts:
+                - name: claude-credentials
+                  mountPath: /home/agent/.claude
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 1000m
+                  memory: 1Gi
+          volumes:
+            - name: claude-credentials
+              persistentVolumeClaim:
+                claimName: claude-credentials
