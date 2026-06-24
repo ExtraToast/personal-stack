@@ -98,11 +98,11 @@ marker="${STATE_DIR}/sessions/${session}/edit-$(printf '%s' "${file_path}" | sha
 [ -e "${marker}" ] && exit 0
 : > "${marker}"
 
-# Scope to the current repo and query by filename + parent + path; this
-# keeps automatic edit recall focused while still giving FTS enough terms.
-project="$(git remote get-url origin 2>/dev/null | sed -e 's#\.git$##' -e 's#.*[/:]##')"
-[ -n "${project}" ] || project="$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")"
-scope="${KB_RECALL_SCOPE:-project:${project}}"
+# Span every curated scope by default (empty => server's curated default, all
+# real scopes minus _inbox) so a repo split can't hide edit-relevant knowledge;
+# query by filename + parent + path to give FTS enough terms. Set
+# KB_RECALL_SCOPE to narrow back to a single scope for project-local recall.
+scope="${KB_RECALL_SCOPE:-}"
 
 basename=$(basename "${file_path}")
 parent=$(basename "$(dirname "${file_path}")")
