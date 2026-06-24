@@ -98,14 +98,24 @@ spec:
                   }
                   JSON
 
-                  # Read-only toolset (dry-run). Apply-mode adds the write tool:
-                  #   ALLOWED_TOOLS="${ALLOWED_TOOLS},mcp__knowledge__knowledge_ingest_note"
+                  # Toolset depends on mode. Dry-run (KB_CURATOR_APPLY=0) is
+                  # strictly read-only. Apply-mode (=1) additionally grants the
+                  # create-note tool so it can persist ONE triage digest note.
+                  # NOTE: KNOWLEDGE_MODE=lite exposes no note-UPDATE tool, so
+                  # this pass never re-scopes/retags or deletes existing notes —
+                  # those mutations are delivered by the Tier-2 weekly vault PR.
                   ALLOWED_TOOLS="mcp__knowledge__knowledge_list_recent,mcp__knowledge__knowledge_recall"
+                  if [ "${KB_CURATOR_APPLY}" = 1 ]; then
+                    ALLOWED_TOOLS="${ALLOWED_TOOLS},mcp__knowledge__knowledge_ingest_note"
+                    MODE_NOTE="APPLY MODE: after triaging, make exactly ONE additive write — call knowledge_ingest_note once to persist your report as a digest note (type=note, scope=agent:kb-curator, tags=[curated-triage]) titled 'KB triage digest <UTC date>'. Do NOT attempt to modify, re-scope, retag, or delete any existing note (no tool exists for that under lite mode). End the report with the line: APPLY MODE — triage digest persisted."
+                  else
+                    MODE_NOTE="DRY RUN: you have ONLY read-only tools. Propose, do not write anything. End the report with the line: DRY RUN — no changes applied."
+                  fi
 
-                  read -r -d '' PROMPT <<'EOF' || true
-                  You are the KB curation triage pass for a shared knowledge base reached over the `knowledge` MCP server. You run daily, unattended, on a strict budget. This is a DRY RUN: you have ONLY read-only tools. Do not attempt to write — propose, don't apply.
+                  read -r -d '' PROMPT_BODY <<'EOF' || true
+                  You are the KB curation triage pass for a shared knowledge base reached over the `knowledge` MCP server. You run daily, unattended, on a strict budget.
 
-                  GOAL: surface the lowest-signal and most-fixable recent captures so a human (or a later apply-mode run) can act.
+                  GOAL: surface the lowest-signal and most-fixable recent captures so a human (or the weekly consolidation pass) can act.
 
                   HARD BUDGET (never exceed):
                   - At most 24 tool calls total.
@@ -116,18 +126,22 @@ spec:
                   1. Call knowledge.knowledge_list_recent with limit 25 to get the most recent captures.
                   2. Triage each note into exactly ONE bucket. Auto-capture git-commit notes (titles that are raw commit messages, source ending in :git-commit) with no durable lesson are usually DISCARD. For a few genuinely ambiguous notes only, you MAY call knowledge.knowledge_recall (mode=fast, limit=3) on the note's topic to check whether a canonical note already covers it — but spend no more than ~6 such checks.
                   3. Buckets:
-                     - KEEP: durable lesson/decision. Propose a scope (project:<repo> / topic:<slug> / agent:<name>) and up to 3 tags if missing.
+                     - KEEP: durable lesson/decision. Note a suggested scope (project:<repo> / topic:<slug> / agent:<name>) and up to 3 tags.
                      - DISCARD: low-signal auto-capture (commit-message noise, transient/diagnostic). Reason in <=8 words.
                      - DUP: near-duplicate of another recent note or an existing canonical one. Name the suspected twin's id/title.
                      - UNSURE: needs a human. One-line reason.
 
-                  OUTPUT: a single concise markdown report to stdout, no preamble:
+                  OUTPUT: a single concise markdown report, no preamble:
                   ## KB triage — <UTC date>
                   Inspected: N notes | KEEP: a | DISCARD: b | DUP: c | UNSURE: d
-                  Then four short sections (KEEP / DISCARD / DUP / UNSURE), each a bullet list of `id` — title — proposed action/reason. Omit empty sections. End with one line: "DRY RUN — no changes applied."
+                  Then four short sections (KEEP / DISCARD / DUP / UNSURE), each a bullet list of `id` — title — suggested action/reason. Omit empty sections.
                   EOF
 
-                  echo "[kb-curator] starting dry-run triage (apply=${KB_CURATOR_APPLY})"
+                  PROMPT="${MODE_NOTE}
+
+                  ${PROMPT_BODY}"
+
+                  echo "[kb-curator] starting triage (apply=${KB_CURATOR_APPLY})"
                   claude -p "$PROMPT" \
                     --model haiku \
                     --output-format text \

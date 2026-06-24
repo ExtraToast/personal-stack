@@ -1,0 +1,174 @@
+# Weekly KB curation — Tier 2 (consolidation), PROPOSE-VIA-PR.
+#
+# The heavier weekly counterpart to the daily triage CronJob. It runs headless
+# `claude -p` (Sonnet) with READ-ONLY knowledge MCP tools plus file tools over a
+# fresh clone of the knowledge-vault git repo, and edits note markdown frontmatter
+# to propose consolidation: dedup-merges (losers gain `supersedes:` the survivor),
+# rollup canonical notes, confidence decay + `_archive-candidate` tags on stale
+# notes, and a `_needs-review` conflict digest. The WRAPPER (not the agent) then
+# commits, pushes a `curator/weekly-<date>` branch, and prints the PR compare URL.
+#
+# Safety / bounds (the retired curator's failure was scanning everything, always):
+# - The agent gets NO push credentials and NO Bash — it only reads the KB over
+#   MCP and edits files; the wrapper performs all git operations.
+# - Nothing is auto-merged; a human opens the PR from the compare URL.
+# - No note is ever deleted; the worst the proposal does is set a supersedes
+#   chain or an `_archive-candidate` tag, all reviewable + revertable in the PR.
+# - Hard caps: --max-turns 60, activeDeadlineSeconds 1800, Sonnet, bounded notes.
+# - KNOWLEDGE_MODE=lite drops review_summary, so candidate discovery uses
+#   list_recent + recall + find_conflicts (kept under lite).
+#
+# Run on demand:
+#   kubectl -n agents-system create job \
+#     --from=cronjob/agents-kb-curator-weekly kb-curator-weekly-now
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: agents-kb-curator-weekly
+  namespace: agents-system
+spec:
+  schedule: '0 5 * * 1' # Monday 05:00 UTC, offset from refresh-ping/kb-install/daily-triage
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 1800 # hard 30-min ceiling
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: Never
+          nodeSelector:
+            personal-stack/node: enschede-gtx-960m-1
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+          containers:
+            - name: consolidate
+              image: ghcr.io/extratoast/personal-stack/agent-runner:latest
+              imagePullPolicy: Always
+              env:
+                - name: HOME
+                  value: /home/agent
+                - name: CLAUDE_CONFIG_DIR
+                  value: /home/agent/.claude
+                - name: KB_BEARER_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: agents-kb-bearer
+                      key: bearer
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  set -u
+                  if [ -z "${KB_BEARER_TOKEN}" ]; then
+                    echo "[kb-weekly] KB_BEARER_TOKEN is empty — populate Vault secret/agents/kb-bearer first" >&2
+                    exit 1
+                  fi
+
+                  if [ ! -f "$HOME/.claude.json" ] && [ -d "$HOME/.claude/backups" ]; then
+                    latest=$(ls -1t "$HOME/.claude/backups"/.claude.json.backup.* 2>/dev/null | head -n1 || true)
+                    [ -n "$latest" ] && cp "$latest" "$HOME/.claude.json"
+                  fi
+
+                  # SSH using the knowledge-vault deploy key (k8s secret volumes
+                  # are world-readable; copy to a 0600 file ssh will accept).
+                  mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
+                  cp /etc/kb-vault-key/private_key "$HOME/.ssh/id_ed25519"
+                  chmod 600 "$HOME/.ssh/id_ed25519"
+                  export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/id_ed25519 -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+
+                  DATE="$(date -u +%F)"
+                  BRANCH="curator/weekly-${DATE}"
+                  WORK="$(mktemp -d)"
+                  echo "[kb-weekly] cloning knowledge-vault"
+                  git clone --depth 50 git@github.com:ExtraToast/knowledge-vault.git "$WORK"
+                  cd "$WORK"
+                  git config user.email "kb-curator@jorisjonkers.dev"
+                  git config user.name "kb-curator"
+                  git checkout -b "$BRANCH"
+
+                  mcp_config="$(mktemp)"
+                  cat > "$mcp_config" <<JSON
+                  {
+                    "mcpServers": {
+                      "knowledge": {
+                        "type": "http",
+                        "url": "http://knowledge-api.knowledge-system.svc.cluster.local:8080/mcp",
+                        "headers": { "Authorization": "Bearer ${KB_BEARER_TOKEN}" }
+                      }
+                    }
+                  }
+                  JSON
+
+                  # Read-only KB tools + file tools. NO Bash, NO write MCP tools —
+                  # the agent proposes by editing markdown; the wrapper does git.
+                  ALLOWED_TOOLS="Read,Edit,Write,Glob,Grep,mcp__knowledge__knowledge_list_recent,mcp__knowledge__knowledge_recall,mcp__knowledge__knowledge_find_conflicts,mcp__knowledge__knowledge_relations,mcp__knowledge__knowledge_get_note"
+
+                  read -r -d '' PROMPT <<'EOF' || true
+                  You are the weekly KB consolidation pass. The current working directory is a clone of the knowledge-vault git repo: every knowledge note is a markdown file with YAML frontmatter (id/ULID, scope, tags, confidence, optional supersedes). You read the live KB over the `knowledge` MCP server (READ-ONLY) and PROPOSE consolidation by EDITING the markdown files here. You do NOT run git and you do NOT delete files — a human reviews your changes as a PR.
+
+                  HARD BUDGET (never exceed): at most 40 notes touched; at most ~55 tool calls; one pass then stop.
+
+                  DISCOVER candidates (bounded — do not scan the whole vault):
+                  - knowledge_list_recent (limit 40) for recent + `_*-candidate`-tagged notes.
+                  - knowledge_find_conflicts to find contradictions.
+                  - knowledge_recall (mode=hybrid, small limit) only to confirm a suspected duplicate cluster.
+                  Map a note id/ULID to its file with Grep/Glob (the ULID appears in the filename and/or frontmatter).
+
+                  PROPOSE (edit frontmatter/markdown only):
+                  - DEDUP/MERGE: pick the survivor (highest confidence / most recent / most complete). In each loser's frontmatter add `supersedes: <survivor-id>` and a `_merged-candidate` tag. Do not delete the loser.
+                  - ROLLUP: when >=4 small notes share scope+topic, create ONE new canonical markdown note summarizing them (proper frontmatter, scope, tags) and add `_rollup-candidate` to the originals.
+                  - STALE DECAY: for clearly stale/unused notes, lower confidence one step and add `_archive-candidate`. Never delete.
+                  - TAG/SLUG HYGIENE: only consolidate tags/slugs you can see are duplicates among the notes in hand (e.g. obvious singular/plural or casing twins). Do NOT invent vocabulary; if unsure, leave it and list it for review.
+                  - CONFLICTS: never resolve. Append to a file `_needs-review/weekly-<UTC date>.md` a section per conflict with both note ids and the contradicting claims.
+
+                  When done, also write `_needs-review/weekly-<UTC date>.md` (create the dir if needed) with a short summary: counts of merges, rollups, archive-candidates, and conflicts proposed. Then stop. Do not attempt to commit.
+                  EOF
+
+                  echo "[kb-weekly] running consolidation agent (branch ${BRANCH})"
+                  claude -p "$PROMPT" \
+                    --model sonnet \
+                    --output-format text \
+                    --mcp-config "$mcp_config" \
+                    --allowed-tools "$ALLOWED_TOOLS" \
+                    --max-turns 60 || echo "[kb-weekly] agent exited non-zero; proceeding to diff check"
+
+                  if [ -z "$(git status --porcelain)" ]; then
+                    echo "[kb-weekly] no changes proposed this week — nothing to push"
+                    exit 0
+                  fi
+
+                  git add -A
+                  git commit -m "KB curation: week of ${DATE}
+
+                  Automated consolidation proposal (merges/rollups/archive-candidates +
+                  conflict digest). Review and merge manually; nothing here is applied
+                  to the knowledge base until merged and re-ingested."
+                  git push -u origin "$BRANCH"
+                  echo "[kb-weekly] pushed ${BRANCH}"
+                  echo "[kb-weekly] OPEN PR: https://github.com/ExtraToast/knowledge-vault/compare/main...${BRANCH}?expand=1"
+              volumeMounts:
+                - name: claude-credentials
+                  mountPath: /home/agent/.claude
+                - name: kb-vault-key
+                  mountPath: /etc/kb-vault-key
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: 200m
+                  memory: 512Mi
+                limits:
+                  cpu: 2000m
+                  memory: 2Gi
+          volumes:
+            - name: claude-credentials
+              persistentVolumeClaim:
+                claimName: claude-credentials
+            - name: kb-vault-key
+              secret:
+                secretName: agents-knowledge-vault-deploy-key
+                defaultMode: 0400
