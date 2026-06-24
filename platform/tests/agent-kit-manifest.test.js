@@ -413,7 +413,9 @@ test('installed recall hooks parse payloads dedupe and honor allowlist', async (
   assert.equal(claudeResult.exitCode, 0, claudeResult.stderr)
   const claudeArgs = toolArguments((await readCurlPayloads(curlLog))[0])
   assertContains(claudeArgs.query, 'manifest.yaml', 'platform/agents/kit/manifest.yaml')
-  assert.equal(claudeArgs.scope, 'project:personal-stack')
+  // Recall now spans every curated scope by default (scope omitted); a repo
+  // split must not hide knowledge. KB_RECALL_SCOPE still narrows when set.
+  assert.equal(claudeArgs.scope, undefined)
   assert.equal(claudeArgs.mode, 'hybrid')
   assert.equal(claudeArgs.limit, 2)
   assertContains(claudeResult.stdout, 'Related captures for this file', 'Prior capture')
@@ -434,7 +436,8 @@ test('installed recall hooks parse payloads dedupe and honor allowlist', async (
   )
   const codexArgs = toolArguments((await readCurlPayloads(curlLog)).at(-1))
   assertContains(codexArgs.query, 'render-agent-kit.py', 'platform/agents/kit/render-agent-kit.py')
-  assert.equal(codexArgs.scope, 'project:personal-stack')
+  // Span-all default (see claude case above): scope omitted, not project-scoped.
+  assert.equal(codexArgs.scope, undefined)
   await runProcess(path.join(codexHome, 'hooks/pre-tool-use-edit-recall.sh'), [], {
     env: { ...hookEnvironment, KB_AUTO_MCP_HOME: codexHome, CODEX_THREAD_ID: 'codex-secret-session' },
     input: `{"tool_input":{"file_path":".env"}}`,
