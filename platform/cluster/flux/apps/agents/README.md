@@ -40,13 +40,12 @@ Deployment), plus the Docker socket gid and runner egress node IP.
 The browser-driven login portal (`agents-login`, controller + worker
 Deployments in this directory) is the preferred way to refresh
 credentials: it runs the CLI logins server-side and writes the captured
-OAuth to Vault (`secret/agents/claude-oauth`, `secret/agents/codex-oauth`)
-from where VSO projects them to every runner — no terminal copy-paste,
-one sign-in for the whole fleet. See `SETUP.md` for the portal flow, the
-Vault schema, the Lease+CAS writeback model, and the node-pin
+OAuth credentials to agents-api, which persists them in Postgres — no
+terminal copy-paste, one sign-in for the whole fleet. See `SETUP.md` for
+the portal flow, the internal ingest model, and the node-pin
 classification. The terminal bootstrap below remains the fallback until
 the companion runner change (in the `agents` repo) makes runners consume
-the projected Secrets instead of the PVCs.
+credentials from agents-api instead of the PVCs.
 
 ## First-time auth bootstrap
 
