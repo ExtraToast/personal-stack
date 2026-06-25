@@ -1,10 +1,11 @@
-# Private half of the portal. Owns the PTY that runs `claude /login` and
-# `codex login --device`, captures the credential files, and writes them to
-# Vault via KV v2 Compare-And-Set under a Lease lock. Single instance + Recreate
-# so the Lease is never contended by two writers across a rollover.
+# Private half of the portal. Owns the PTY that runs `claude setup-token` and
+# `codex login --device`, captures credentials, and posts them to agents-api
+# under a Lease lock. Single instance + Recreate so the Lease is never
+# contended by two writers across a rollover.
 #
-# HOME is a writable emptyDir, not the legacy credential PVCs: Vault is the
-# source of truth, so the worker needs no node pin and can schedule anywhere.
+# HOME is a writable emptyDir, not the legacy credential PVCs: agents-api
+# persists credentials in Postgres, so the worker needs no node pin and can
+# schedule anywhere.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -61,10 +62,13 @@ spec:
               value: /home/agent
             - name: CODEX_HOME
               value: /home/agent/.codex
-            - name: VAULT_ADDR
-              value: http://vault.data-system.svc.cluster.local:8200
-            - name: VAULT_K8S_ROLE
-              value: agents-login-worker
+            - name: AGENTS_API_INTERNAL_URL
+              value: http://agents-api.agents-system.svc.cluster.local:8082
+            - name: AGENTS_API_INTERNAL_BEARER
+              valueFrom:
+                secretKeyRef:
+                  name: agents-login-internal
+                  key: token
             - name: LEASE_NAME
               value: agents-login-write
             - name: LEASE_NAMESPACE

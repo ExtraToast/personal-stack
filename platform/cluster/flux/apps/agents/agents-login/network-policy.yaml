@@ -1,13 +1,13 @@
-# The worker is the sensitive half of the credential portal: it holds the
-# Vault-writer token and the Lease. It is reached only by agents-api, which
-# proxies the login flow from the agents-ui Credentials page (served at
+# The worker is the sensitive half of the credential portal: it runs the
+# login CLIs and posts captured credentials to agents-api. It is reached only by
+# agents-api, which proxies the login flow from the agents-ui Credentials page (served at
 # agents.jorisjonkers.dev). Ingress is therefore restricted to the agents-api
 # pods on 8081; there is no public-facing component in this namespace.
 #
-# Egress: DNS, the in-cluster Vault and Kubernetes API (the service CIDR on
-# 443/8200), and outbound HTTPS for the Anthropic/OpenAI OAuth flows — RFC1918
+# Egress: DNS, agents-api, the Kubernetes API (the service CIDR on
+# 443/6443), and outbound HTTPS for the Anthropic/OpenAI OAuth flows — RFC1918
 # is excluded from the internet rule so the worker cannot reach arbitrary
-# cluster-private hosts (the explicit service-CIDR rule re-allows Vault + apiserver).
+# cluster-private hosts (explicit rules re-allow agents-api + apiserver).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -45,14 +45,17 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    # In-cluster Vault (KV v2 writes + kubernetes auth login).
+    # In-cluster agents-api credential ingest.
     - to:
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: data-system
+              kubernetes.io/metadata.name: agents-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: agents-api
       ports:
         - protocol: TCP
-          port: 8200
+          port: 8082
     # Kubernetes API (the Lease lock) reached via the kubernetes.default
     # ClusterIP in the service CIDR. NetworkPolicy cannot select the apiserver
     # by label, so allow the service CIDR on the apiserver ports.
@@ -66,7 +69,7 @@ spec:
           port: 6443
     # Outbound HTTPS for the Claude/Codex OAuth endpoints. RFC1918 + the
     # link-local range are excluded so this rule cannot reach cluster-private
-    # hosts; Vault and the apiserver are covered by the explicit rules above.
+    # hosts; agents-api and the apiserver are covered by the explicit rules above.
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0

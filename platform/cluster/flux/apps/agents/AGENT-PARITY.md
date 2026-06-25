@@ -29,10 +29,9 @@ default home.
 
 The `agents-login` portal keeps the two in lockstep too: its image
 bakes both CLIs, the worker captures both credential sets in the same
-login session, and it writes both Vault paths
-(`secret/agents/claude-oauth` with `credentials_json`/`claude_json`,
-`secret/agents/codex-oauth` with `auth_json`/`config_toml`) — a login
-that refreshed only one provider is a parity regression.
+login session, and it posts both provider payloads to agents-api
+(`CLAUDE` with `oauth_token`, `CODEX` with `auth_json`/`config_toml`) —
+a login flow that cannot refresh both providers is a parity regression.
 
 The `auth-bootstrap` Pod populates both with one human
 exec-and-paste session each (see `README.md`). The
