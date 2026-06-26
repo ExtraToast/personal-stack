@@ -209,6 +209,15 @@ spec:
                   name: agents-login-internal
                   key: token
                   optional: true
+            # Bearer the worker presents when posting captured credentials to
+            # /api/v1/internal/credentials. Same shared secret as INTERNAL_TOKEN;
+            # without it the ingest filter has no expected token and 401s.
+            - name: CREDENTIAL_INGEST_BEARER
+              valueFrom:
+                secretKeyRef:
+                  name: agents-login-internal
+                  key: token
+                  optional: true
           ports:
             - containerPort: 8082
               name: http
