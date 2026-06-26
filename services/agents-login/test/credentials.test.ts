@@ -2,7 +2,13 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { capture, captureClaude, captureCodex, SCHEMA_VERSION } from '../src/worker/credentials.js'
+import {
+  capture,
+  captureClaude,
+  captureCodex,
+  extractClaudeOauthToken,
+  SCHEMA_VERSION,
+} from '../src/worker/credentials.js'
 
 describe('credential capture', () => {
   let root: string
@@ -53,6 +59,38 @@ describe('credential capture', () => {
     const bundle = await captureClaude({ home, codexHome }, 'alice', fixedNow)
     expect(bundle.data.oauth_token).toBe('sk-ant-oat01-zzzzzzzzzzzzzzzzzzzz')
     expect(bundle.data['credentials_json']).toBe('{"accessToken":"sk-ant-oat01-zzzzzzzzzzzzzzzzzzzz"}')
+  })
+
+  it('extracts a nested Claude OAuth accessToken when credentials_json has no raw sk-ant token', () => {
+    expect(
+      extractClaudeOauthToken(
+        JSON.stringify({
+          profiles: { default: true },
+          claudeAiOauth: {
+            refreshToken: 'refresh-token',
+            accessToken: 'oauth-access-token-from-json',
+          },
+        }),
+      ),
+    ).toBe('oauth-access-token-from-json')
+  })
+
+  it('returns undefined when credentials_json cannot be parsed as JSON', () => {
+    expect(extractClaudeOauthToken('{"claudeAiOauth":')).toBeUndefined()
+  })
+
+  it('omits account_json when .claude.json has no oauthAccount', async () => {
+    const credentialsJson = '{"claudeAiOauth":{"refreshToken":"refresh-token"}}'
+    const dotClaudeJson = '{"installMethod":"global"}'
+    writeFileSync(join(home, '.claude', '.credentials.json'), credentialsJson)
+    writeFileSync(join(home, '.claude.json'), dotClaudeJson)
+
+    const bundle = await captureClaude({ home, codexHome }, 'alice', fixedNow)
+
+    expect(bundle.data['credentials_json']).toBe(credentialsJson)
+    expect(bundle.data['claude_json']).toBe(dotClaudeJson)
+    expect(bundle.data).not.toHaveProperty('account_json')
+    expect(bundle.data).not.toHaveProperty('oauth_token')
   })
 
   it('fails when no credentials file is available', async () => {

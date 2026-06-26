@@ -110,6 +110,14 @@ describe('AgentsApiClient', () => {
     ).toEqual({ auth_json: '{}', config_toml: 'model="x"' })
   })
 
+  it('omits optional Claude payload fields when account and token are unavailable', () => {
+    expect(
+      payloadForApi('claude', {
+        data: { credentials_json: '{"claudeAiOauth":{"refreshToken":"refresh-token"}}' },
+      }),
+    ).toEqual({ credentials_json: '{"claudeAiOauth":{"refreshToken":"refresh-token"}}' })
+  })
+
   it('rejects incomplete provider payloads before posting', () => {
     expect(() => payloadForApi('claude', { data: { account_json: '{}' } })).toThrow(/Claude credentials_json/)
     expect(() => payloadForApi('codex', { data: { auth_json: '{}' } })).toThrow(/Codex credential/)
