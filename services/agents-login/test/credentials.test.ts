@@ -22,39 +22,40 @@ describe('credential capture', () => {
     rmSync(root, { recursive: true, force: true })
   })
 
-  it('captures Claude credentials including the .claude.json SIBLING path', async () => {
+  it('captures Claude credentials and extracts oauthAccount from the .claude.json sibling path', async () => {
     // .credentials.json lives inside .claude/, but .claude.json is a sibling.
-    writeFileSync(join(home, '.claude', '.credentials.json'), '{"accessToken":"a"}')
-    writeFileSync(join(home, '.claude.json'), '{"oauthAccount":{}}')
+    const credentialsJson =
+      '{"claudeAiOauth":{"accessToken":"sk-ant-oat01-CaptureToken1234567890","refreshToken":"r","scopes":["user:profile","user:inference"],"subscriptionType":"max"}}'
+    const accountJson = '{"emailAddress":"alice@example.com","accountUuid":"acct-1"}'
+    writeFileSync(join(home, '.claude', '.credentials.json'), credentialsJson)
+    writeFileSync(join(home, '.claude.json'), `{"installMethod":"global","oauthAccount":${accountJson}}`)
 
     const bundle = await captureClaude({ home, codexHome }, 'alice@example.com', fixedNow)
-    expect(bundle.data['credentials_json']).toBe('{"accessToken":"a"}')
-    expect(bundle.data['claude_json']).toBe('{"oauthAccount":{}}')
+    expect(bundle.data['credentials_json']).toBe(credentialsJson)
+    expect(bundle.data['claude_json']).toBe(`{"installMethod":"global","oauthAccount":${accountJson}}`)
+    expect(bundle.data['account_json']).toBe(accountJson)
+    expect(bundle.data.oauth_token).toBe('sk-ant-oat01-CaptureToken1234567890')
     expect(bundle.data.schema_version).toBe(SCHEMA_VERSION)
     expect(bundle.data.updated_by).toBe('alice@example.com')
     expect(bundle.data.updated_at).toBe('2026-06-21T00:00:00.000Z')
   })
 
-  it('captures the setup-token OAuth token from stdout when no files are written', async () => {
-    // `claude setup-token` prints the token and persists nothing; the token is
-    // the canonical credential.
+  it('rejects stdout-only Claude OAuth tokens without the full credentials file', async () => {
     const token = 'sk-ant-oat01-abcDEF123456_-789ghiJKLmnop'
-    const bundle = await captureClaude({ home, codexHome }, 'alice', fixedNow, token)
-    expect(bundle.data.oauth_token).toBe(token)
-    expect(bundle.data['credentials_json']).toBeUndefined()
-    expect(bundle.data['claude_json']).toBeUndefined()
-    expect(bundle.data.updated_by).toBe('alice')
+    await expect(captureClaude({ home, codexHome }, 'alice', fixedNow, token)).rejects.toThrow(
+      /credentials\.json was not written/,
+    )
   })
 
-  it('captures the token alongside files when both are present', async () => {
-    writeFileSync(join(home, '.claude', '.credentials.json'), '{"accessToken":"a"}')
+  it('parses the optional back-compat token from credentials_json', async () => {
+    writeFileSync(join(home, '.claude', '.credentials.json'), '{"accessToken":"sk-ant-oat01-zzzzzzzzzzzzzzzzzzzz"}')
     writeFileSync(join(home, '.claude.json'), '{"oauthAccount":{}}')
-    const bundle = await captureClaude({ home, codexHome }, 'alice', fixedNow, 'sk-ant-oat01-zzzzzzzzzzzzzzzzzzzz')
+    const bundle = await captureClaude({ home, codexHome }, 'alice', fixedNow)
     expect(bundle.data.oauth_token).toBe('sk-ant-oat01-zzzzzzzzzzzzzzzzzzzz')
-    expect(bundle.data['credentials_json']).toBe('{"accessToken":"a"}')
+    expect(bundle.data['credentials_json']).toBe('{"accessToken":"sk-ant-oat01-zzzzzzzzzzzzzzzzzzzz"}')
   })
 
-  it('fails when neither a token nor a credentials file is available', async () => {
+  it('fails when no credentials file is available', async () => {
     await expect(captureClaude({ home, codexHome }, 'x', fixedNow)).rejects.toThrow(/no Claude credential/)
   })
 
