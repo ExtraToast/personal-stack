@@ -1,28 +1,3 @@
-# Pod-local resolver for the agents-login worker. Codex 0.141.x ships a musl
-# static binary whose resolver ignores /etc/gai.conf and /etc/hosts for the
-# failing auth.openai.com path; this CoreDNS sidecar strips AAAA at DNS level
-# while forwarding every non-AAAA lookup to kube-dns.
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: agents-login-worker-coredns
-  namespace: agents-system
-  labels:
-    app.kubernetes.io/name: agents-login-worker
-    app.kubernetes.io/part-of: agents-login
-data:
-  Corefile: |
-    .:53 {
-        errors
-        health :8080
-        ready :8181
-        template IN AAAA . {
-            rcode NOERROR
-        }
-        forward . 10.43.0.10
-        cache 30
-    }
----
 # Private half of the portal. Owns the PTY that runs `claude setup-token` and
 # `codex login --device`, captures credentials, and posts them to agents-api
 # under a Lease lock. Single instance + Recreate so the Lease is never
@@ -58,17 +33,6 @@ spec:
     spec:
       serviceAccountName: agents-login-worker
       automountServiceAccountToken: true
-      dnsPolicy: None
-      dnsConfig:
-        nameservers:
-          - 127.0.0.1
-        searches:
-          - agents-system.svc.cluster.local
-          - svc.cluster.local
-          - cluster.local
-        options:
-          - name: ndots
-            value: '5'
       # The image is amd64-only (it bundles the Claude/Codex CLIs + node-pty and
       # is not worth a QEMU arm64 build). Keep it off the arm64 Pi nodes, where
       # it would ImagePullBackOff on "no match for platform in manifest".
@@ -82,49 +46,6 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - name: dns
-          image: registry.k8s.io/coredns/coredns:v1.12.1
-          imagePullPolicy: IfNotPresent
-          args:
-            - -conf
-            - /etc/coredns/Corefile
-          ports:
-            - name: dns-udp
-              containerPort: 53
-              protocol: UDP
-            - name: dns-tcp
-              containerPort: 53
-              protocol: TCP
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            runAsNonRoot: true
-            capabilities:
-              drop: ['ALL']
-              add: ['NET_BIND_SERVICE']
-          volumeMounts:
-            - name: coredns-config
-              mountPath: /etc/coredns
-              readOnly: true
-          readinessProbe:
-            httpGet:
-              path: /ready
-              port: 8181
-            initialDelaySeconds: 1
-            periodSeconds: 10
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 8080
-            initialDelaySeconds: 5
-            periodSeconds: 20
-          resources:
-            requests:
-              cpu: 5m
-              memory: 16Mi
-            limits:
-              cpu: 100m
-              memory: 64Mi
         - name: worker
           image: ghcr.io/extratoast/personal-stack/agents-login:latest
           imagePullPolicy: Always
@@ -185,9 +106,6 @@ spec:
               cpu: 500m
               memory: 512Mi
       volumes:
-        - name: coredns-config
-          configMap:
-            name: agents-login-worker-coredns
         - name: home
           emptyDir: {}
         - name: tmp
