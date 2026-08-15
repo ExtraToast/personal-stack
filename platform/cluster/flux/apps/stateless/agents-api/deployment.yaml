@@ -41,7 +41,6 @@ spec:
         app.kubernetes.io/name: agents-api
       annotations:
         vault.hashicorp.com/agent-inject: 'true'
-        vault.hashicorp.com/agent-inject-token: 'true'
         vault.hashicorp.com/agent-pre-populate-only: 'true'
         vault.hashicorp.com/role: agents-api
         vault.hashicorp.com/agent-inject-secret-agents-api.env: rabbitmq/creds/app-consumer
@@ -84,7 +83,6 @@ spec:
             - /bin/sh
             - -ec
             - |
-              export SPRING_CLOUD_VAULT_TOKEN="$(cat /vault/secrets/token)"
               set -a
               . /vault/secrets/agents-api.env
               set +a
@@ -111,6 +109,13 @@ spec:
               value: 'true'
             - name: VAULT_ADDR
               value: http://vault.data-system.svc.cluster.local:8200
+            # Canonical Spring property names: agents-api's application.yml
+            # lives in the agents-api repo, so bind these directly rather than
+            # through a placeholder this repo does not own.
+            - name: SPRING_CLOUD_VAULT_AUTHENTICATION
+              value: KUBERNETES
+            - name: SPRING_CLOUD_VAULT_KUBERNETES_ROLE
+              value: agents-api
             - name: VAULT_DB_ENABLED
               value: 'true'
             - name: DB_HOST
