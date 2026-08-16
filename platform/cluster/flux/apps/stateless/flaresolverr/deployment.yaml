@@ -14,7 +14,16 @@ spec:
         app.kubernetes.io/name: flaresolverr
     spec:
       nodeSelector:
+        # Enschede keeps the solver on a residential IP, which draws far
+        # fewer Cloudflare challenges than a datacenter address would.
         personal-stack/site: enschede
+        # Solving a Turnstile challenge runs headless Chrome, which the
+        # arm64 Pis cannot finish inside Prowlarr's 60 s proxy timeout —
+        # scheduled on enschede-pi-1 every challenge timed out and
+        # Prowlarr reported the indexer proxy as unreachable. The other
+        # amd64 Enschede nodes are desktops that power off when not in
+        # use, so pin to the always-on t1000 server.
+        personal-stack/node: enschede-t1000-1
       containers:
         - name: flaresolverr
           # Upstream resumed active development (v3.5.0, 2026-05; now
@@ -46,7 +55,12 @@ spec:
               cpu: 500m
               memory: 768Mi
             limits:
-              cpu: 1000m
+              # Chrome saturated the old 1-core cap while solving a
+              # challenge (~1100 s of cgroup throttling on the Pi), which
+              # is what pushed solve times past the client timeout. The
+              # request stays low because the process idles between
+              # indexer queries; only the burst needs the headroom.
+              cpu: 3000m
               memory: 2Gi
 ---
 apiVersion: v1
