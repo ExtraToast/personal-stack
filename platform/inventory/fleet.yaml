@@ -285,6 +285,7 @@ placement_intent:
     - headlamp
     - obsidian-sync
     - knowledge-api
+    - pyroscope
 
   enschede_only:
     - downloads
