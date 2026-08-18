@@ -52,12 +52,17 @@ spec:
       enabled: true
       type: ClusterIP
       port: 9400
+    # dcgm-exporter 4.x resident set sits around 450 MiB once the DCGM
+    # host engine has initialised, so the previous 256Mi ceiling killed it
+    # ~2s after `DCGM successfully initialized!` on every start. The
+    # upstream chart default is 512Mi; 1Gi leaves headroom above the
+    # observed steady state.
     resources:
       requests:
         cpu: 50m
-        memory: 64Mi
+        memory: 256Mi
         nvidia.com/gpu: 1
       limits:
         cpu: 200m
-        memory: 256Mi
+        memory: 1Gi
         nvidia.com/gpu: 1
