@@ -84,20 +84,50 @@ test('flake exports deploy targets for every ssh reachable inventory node', asyn
   }
 })
 
-test('gtx 960m host imports game streaming service', async () => {
+test('gtx 960m host runs with the nvidia driver unloaded', async () => {
   const fleet = await loadFleet()
-  const flake = await readRepoText('platform/flake.nix')
   const hostDefinition = await readRepoText('platform/nix/hosts/enschede-gtx-960m-1/default.nix')
-  const module = await readRepoText('platform/nix/modules/services/game-streaming.nix')
-  const gpuProfile = await readRepoText('platform/nix/profiles/gpu-nvidia.nix')
   const gtxNode = fleet.nodes['enschede-gtx-960m-1']
-  assert.ok(gtxNode.capabilities.includes('game-streaming'))
-  assert.ok(gtxNode.capabilities.includes('nvidia'))
-  assert.ok(fleet.service_intent.host_native['enschede-gtx-960m-1'].includes('game-streaming'))
-  assertContains(flake, 'deploy.nodes.enschede-gtx-960m-1', 'magicRollback = false')
+
+  // Maxwell cannot runtime-suspend (Runtime D3 needs Turing or newer), so the
+  // card idles at full power for as long as a driver is bound to it. The host
+  // therefore claims no GPU capability at all.
+  assert.ok(!gtxNode.capabilities.includes('nvidia'))
+  assert.ok(!gtxNode.capabilities.includes('game-streaming'))
+  assert.equal(gtxNode.gpus, undefined)
+  assert.ok(!fleet.service_intent.host_native['enschede-gtx-960m-1'].includes('game-streaming'))
+  assert.ok(!('temporary_gpu_model' in fleet.placement_intent.gpu_specific.jellyfin))
+
+  assert.ok(!hostDefinition.includes('profiles/gpu-nvidia.nix'))
+  assert.ok(!hostDefinition.includes('modules/services/game-streaming.nix'))
+  assert.ok(!hostDefinition.includes('capability-nvidia'))
+  assert.ok(!hostDefinition.includes('capability-game-streaming'))
+  assert.ok(!hostDefinition.includes('gpu-model-gtx960m'))
   assertContains(
     hostDefinition,
-    '../../modules/services/game-streaming.nix',
+    'boot.blacklistedKernelModules',
+    '"nouveau"',
+    '"nvidia"',
+    '"nvidia_drm"',
+    '"nvidia_modeset"',
+    '"nvidia_uvm"',
+    'ATTR{vendor}=="0x10de"',
+    'ATTR{power/control}="auto"',
+  )
+})
+
+test('rx7900xtx host imports game streaming service', async () => {
+  const fleet = await loadFleet()
+  const flake = await readRepoText('platform/flake.nix')
+  const hostDefinition = await readRepoText('platform/nix/hosts/enschede-rx7900xtx-1/default.nix')
+  const module = await readRepoText('platform/nix/modules/services/game-streaming-amd.nix')
+  const amdNode = fleet.nodes['enschede-rx7900xtx-1']
+  assert.ok(amdNode.capabilities.includes('game-streaming'))
+  assert.ok(fleet.service_intent.host_native['enschede-rx7900xtx-1'].includes('game-streaming'))
+  assertContains(flake, 'deploy.nodes.enschede-rx7900xtx-1')
+  assertContains(
+    hostDefinition,
+    '../../modules/services/game-streaming-amd.nix',
     '"personal-stack/capability-game-streaming" = "true"',
   )
   assertContains(
@@ -109,59 +139,44 @@ test('gtx 960m host imports game streaming service', async () => {
     'ghcr.io/games-on-whales/steam:edge',
     'ghcr.io/games-on-whales/heroic-games-launcher:edge',
     'ghcr.io/games-on-whales/lutris:edge',
-    'support_hevc = false',
     'Wolf UI',
     'title = "Steam"',
     'title = "Heroic"',
     'title = "Lutris"',
     'STEAM_STARTUP_FLAGS=-bigpicture',
     'WINEPREFIX=/home/retro/Games/Prefixes/default',
-    '4K60',
     'virtualisation.docker',
     'virtualisation.oci-containers',
-    'WOLF_RENDER_NODE = "/dev/dri/renderD129"',
+    'WOLF_RENDER_NODE = "/dev/dri/renderD128"',
     'WOLF_SOCKET_PATH = "/var/run/wolf/wolf.sock"',
     '"/run/wolf:/var/run/wolf:rw"',
     'd /var/lib/personal-stack/wolfmanager/config',
-    '"DeviceRequests"',
-    '--device=nvidia.com/gpu=all',
     '--network=host',
     '--device=/dev/uinput',
     '--device=/dev/uhid',
     'hardware.uinput.enable = true',
-    'nvidia-drm.modeset=1',
     'boot.kernelModules',
     'services.pipewire',
     'uid = 1001',
     'localGamesMount = "/srv/game-streaming"',
-    'localRomsMount = "${localGamesMount}/roms"',
-    'device = "/dev/disk/by-uuid/1120-414D"',
-    'fsType = "vfat"',
-    'fileSystems.${gamesMount}',
     'wolf-config-seed',
     'wolf-config-reconcile',
-    'config.toml.pre-store-launchers',
     'append_app Steam',
     'append_app Heroic',
     'append_app Lutris',
-    '${wolfState}/cfg/config.toml',
-    '${gamesMount}:/ROMs:ro',
-    '${localRomsMount}:/ROMs-local:ro',
-    '${localGamesMount}:/games-local:ro',
-    'd ${localGamesMount}/imports/t1000',
-    '${pcGamesMount}/steam:/home/retro/Games/SteamLibrary:rw',
-    '${pcGamesMount}/heroic:/home/retro/Games/Heroic:rw',
-    '${pcGamesMount}/lutris:/home/retro/Games/Lutris:rw',
-    '${pcGamesMount}/prefixes:/home/retro/Games/Prefixes:rw',
-    '${pcGamesMount}/downloads:/home/retro/Downloads:rw',
     '47984',
     '47989',
     '47990',
     '48010',
     'from = 8000',
     'to = 8010',
-    'hardware.nvidia-container-toolkit.enable',
   )
+})
+
+test('gpu nvidia profile still covers the t1000 transcode host', async () => {
+  const gpuProfile = await readRepoText('platform/nix/profiles/gpu-nvidia.nix')
+  const t1000 = await readRepoText('platform/nix/hosts/enschede-t1000-1/default.nix')
+  assertContains(t1000, '../../profiles/gpu-nvidia.nix', '"personal-stack/capability-nvidia" = "true"')
   assertContains(
     gpuProfile,
     'lib.hasPrefix "nvidia-" name',

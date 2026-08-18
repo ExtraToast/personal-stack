@@ -11,7 +11,7 @@ test('platform scaffold exists for nix and flux bootstrap', () => {
     'platform/nix/profiles/utility.nix',
     'platform/nix/profiles/gpu-nvidia.nix',
     'platform/nix/modules/base/default.nix',
-    'platform/nix/modules/services/game-streaming.nix',
+    'platform/nix/modules/services/game-streaming-amd.nix',
     'platform/nix/authorized-keys/README.md',
     'platform/nix/modules/image/raspberry-pi-sd-image.nix',
     'platform/nix/hosts/frankfurt-contabo-1/default.nix',

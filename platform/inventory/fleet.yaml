@@ -72,19 +72,17 @@ nodes:
     capacity:
       cpu_millicores: 28800
       memory_mib: 16384
-    gpus:
-      - vendor: nvidia
-        model: gtx960m
-        class: transcode
+    # No gpus entry: the GTX 960M is Maxwell, which cannot runtime-suspend
+    # (Runtime D3 needs Turing or newer), so the driver is left unloaded to
+    # stop the card drawing idle power. GPU work belongs on
+    # enschede-t1000-1 (transcode) or enschede-rx7900xtx-1 (render-compute).
     capabilities:
       - tailscale
       - lan-ingress
-      - game-streaming
       # agent-runner Pods mount this node's /var/run/docker.sock for
       # Docker/Testcontainers. The matching k3s label is required by
       # agents-api before scheduling host-equivalent runner Pods here.
       - docker-socket
-      - nvidia
 
   enschede-t1000-1:
     status: active
@@ -254,7 +252,6 @@ service_intent:
   host_native:
     enschede-gtx-960m-1:
       - tailscale
-      - game-streaming
     enschede-rx7900xtx-1:
       - tailscale
       - game-streaming
@@ -314,7 +311,6 @@ placement_intent:
   gpu_specific:
     jellyfin:
       preferred_gpu_model: t1000
-      temporary_gpu_model: gtx960m
 
 exposure_intent:
   public:

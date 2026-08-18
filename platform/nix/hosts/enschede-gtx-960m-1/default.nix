@@ -1,22 +1,33 @@
-{ config, ... }:
+{ ... }:
 {
   imports = [
     ../../profiles/worker.nix
     ../../profiles/utility.nix
-    ../../profiles/gpu-nvidia.nix
     ../../modules/k3s/node-labels.nix
-    ../../modules/services/game-streaming.nix
     ./disko.nix
   ];
 
   networking.hostName = "enschede-gtx-960m-1";
 
-  # GTX 960M is Maxwell 2.0 (GM107). NVIDIA dropped Maxwell/Pascal/Volta
-  # from the mainline branch at R575; the 580.x legacy branch continues
-  # to support them. Without this override the default 595.x driver
-  # does not bind to the GPU and nvidia-container-toolkit-cdi-generator
-  # fails at activation with "NVML: Driver Not Loaded".
-  hardware.nvidia.package = config.boot.kernelPackages.nvidiaPackages.legacy_580;
+  # No driver binds the GTX 960M on this host. Runtime D3 needs Turing or
+  # newer, so on Maxwell the proprietary driver reports
+  # "Runtime D3 status: Disabled by default" and never suspends the GPU:
+  # runtime_suspended_time stayed at 0 ms across 29.5 days of uptime while
+  # the card idled at P8 with no compute clients. Leaving the driver
+  # unloaded is the only way this generation stops drawing idle power, so
+  # transcode, CDI and game streaming move to hosts that can use a GPU.
+  boot.blacklistedKernelModules = [
+    "nouveau"
+    "nvidia"
+    "nvidia_drm"
+    "nvidia_modeset"
+    "nvidia_uvm"
+  ];
+  # With no driver attached the PCI core still needs runtime PM enabled
+  # before it will drop the unbound display controller out of D0.
+  services.udev.extraRules = ''
+    ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x030000", ATTR{power/control}="auto"
+  '';
   personalStack.k3sNodeLabels = {
     "personal-stack/site" = "enschede";
     "personal-stack/node" = "enschede-gtx-960m-1";
@@ -25,16 +36,11 @@
     "personal-stack/role-utility-host" = "true";
     "personal-stack/capability-tailscale" = "true";
     "personal-stack/capability-lan-ingress" = "true";
-    "personal-stack/capability-game-streaming" = "true";
     "personal-stack/capability-docker-socket" = "true";
     # capability-samba deliberately absent: the media drive (/srv/media)
     # is mounted on enschede-t1000-1, not here.
     # capability-adguard deliberately absent: AdGuard runs only on
     # enschede-t1000-1.
-    "personal-stack/capability-nvidia" = "true";
-    "personal-stack/gpu-vendor-nvidia" = "true";
-    "personal-stack/gpu-model-gtx960m" = "true";
-    "personal-stack/gpu-class-transcode" = "true";
   };
   # Keep Testcontainers' status.hostIP callback stable and aligned with the
   # runner NetworkPolicy's single allowed node IP.
