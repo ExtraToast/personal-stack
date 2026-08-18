@@ -15,6 +15,11 @@ spec:
   values:
     pyroscope:
       replicaCount: 1
+      # The chart ships `extraArgs.log.level: debug`, which makes a
+      # single-binary homelab install log every block flush and memberlist
+      # tick. Nothing consumes those lines.
+      extraArgs:
+        log.level: info
       persistence:
         enabled: true
         size: 20Gi
