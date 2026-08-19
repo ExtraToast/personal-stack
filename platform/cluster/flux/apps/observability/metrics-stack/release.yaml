@@ -65,3 +65,22 @@ spec:
               resources:
                 requests:
                   storage: 50Gi
+    prometheusOperator:
+      # The operator belongs with the Prometheus and Alertmanager it
+      # manages rather than wherever the scheduler happens to place it.
+      nodeSelector:
+        personal-stack/site: frankfurt
+      admissionWebhooks:
+        patch:
+          # The kube-webhook-certgen create/patch Jobs run as Helm
+          # pre-upgrade hooks, so the whole upgrade fails if they do not
+          # finish inside the release timeout. Unpinned, they landed on a
+          # Raspberry Pi and spent longer than 5 minutes pulling
+          # ghcr.io/jkroepke/kube-webhook-certgen over the home
+          # connection, which failed the upgrade with
+          # "pre-upgrade hooks failed: timeout waiting for:
+          # [Job/observability/metrics-stack-admission-create]" and left
+          # apps-observability — and everything depending on it —
+          # unreconciled. Frankfurt pulls the image in seconds.
+          nodeSelector:
+            personal-stack/site: frankfurt
