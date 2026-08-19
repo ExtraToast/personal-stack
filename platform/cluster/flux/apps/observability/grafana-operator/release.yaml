@@ -13,13 +13,22 @@ spec:
         name: grafana-operator
         namespace: observability
   values:
-    # Moved to a Pi to free Frankfurt CPU. The operator only talks to
-    # Grafana (cross-site ~30 ms) when reconciling CRs, which is rare
-    # — dashboards are static once synced. Image grafana/grafana-operator
-    # is multi-arch on ghcr.io. Negligible runtime overhead from the
-    # latency hit.
+    # Pinned to Frankfurt, alongside the Grafana it manages and the
+    # kube-apiserver it holds a leader-election lease against.
+    #
+    # This previously selected `kubernetes.io/arch: arm64` to free
+    # Frankfurt CPU, on the reasoning that the operator only reaches
+    # Grafana when reconciling CRs and so could tolerate the ~30 ms
+    # cross-site hop. That missed the lease: controller-runtime renews
+    # leader election against the apiserver every few seconds for the
+    # life of the process, and from Enschede every renewal crossed the
+    # tailnet. Jitter past the 10 s renew deadline killed the operator
+    # with "failed to renew lease: context deadline exceeded" ->
+    # "leader election lost" -> exit 1, roughly three times a day and
+    # 190 times over 70 days. Co-locating with the apiserver removes the
+    # WAN hop from the renewal path.
     nodeSelector:
-      kubernetes.io/arch: arm64
+      personal-stack/site: frankfurt
     resources:
       requests:
         cpu: 50m
