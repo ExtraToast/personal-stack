@@ -13,6 +13,19 @@
   ];
 
   networking.hostName = "enschede-t1000-1";
+
+  # thinkpad_acpi defaults fan_control to N, so /proc/acpi/ibm/fan and the
+  # hwmon pwm1 attributes reject every write with -EPERM. That left no way to
+  # recover when the EC latched the primary fan to full duty on 2026-08-23:
+  # 6382 rpm held for 8.7 h while the CPU package sat at 40-47 C against its
+  # 52-62 C norm, the GPU idled at 38 C, and load stayed under 1.0. EC fan
+  # state survives a warm reboot, so only dropping its power cleared it.
+  # Enabling fan control makes the "level 7" then "level auto" reset
+  # reachable over SSH. Always write "level auto" back; a manual level holds
+  # until something re-arms the EC.
+  boot.extraModprobeConfig = ''
+    options thinkpad_acpi fan_control=1
+  '';
   personalStack.k3sNodeLabels = {
     "personal-stack/site" = "enschede";
     "personal-stack/node" = "enschede-t1000-1";
