@@ -64,6 +64,9 @@ acme.json
 *.pfx
 .vault-keys
 .vault-app-secrets
+# GitHub App private key, pasted out of the App settings page during setup.
+# It carries no key/pem extension, so the patterns above do not catch it.
+app-pk.tmp
 
 # Cloud-init rendered output
 infra/cloud-init/cloud-init.rendered.yml
