@@ -32,13 +32,13 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.springframework.boot:spring-boot-starter-jooq")
     implementation("org.jooq:jooq")
-    implementation("tools.jackson.module:jackson-module-kotlin:3.1.4")
+    implementation("tools.jackson.module:jackson-module-kotlin:3.2.1")
     // Springdoc publishes `/api/v1/api-docs` (OpenAPI 3 JSON) over the
     // committed REST controllers under `web/`. The committed
     // `services/knowledge-api/openapi.json` is the contract knowledge-ui
     // consumes via `pnpm contract:generate`. Same dep + path convention
     // assistant-api uses.
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.0")
     runtimeOnly("org.postgresql:postgresql")
     // Tracing runtime jars — adds micrometer-tracing bridge + OTLP exporter
     // so the OTel javaagent's MDC enrichment + auto-instrumentation activate
